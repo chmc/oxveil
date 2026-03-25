@@ -56,6 +56,30 @@
         "title": "Oxveil: Install claudeloop"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "oxveil.start",
+          "when": "oxveil.detected && !oxveil.processRunning"
+        },
+        {
+          "command": "oxveil.stop",
+          "when": "oxveil.processRunning"
+        },
+        {
+          "command": "oxveil.reset",
+          "when": "oxveil.detected && !oxveil.processRunning"
+        },
+        {
+          "command": "oxveil.forceUnlock",
+          "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.install",
+          "when": "!oxveil.detected"
+        }
+      ]
+    },
     "configuration": {
       "title": "Oxveil",
       "properties": {

@@ -1,12 +1,14 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, spawn as nodeSpawn } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
 import { SessionState } from "./core/sessionState";
 import { parseLock } from "./core/lock";
 import { WatcherManager } from "./core/watchers";
+import { ProcessManager } from "./core/processManager";
+import { Installer } from "./core/installer";
 import { parseProgress } from "./parsers/progress";
 import { StatusBarManager } from "./views/statusBar";
 import { PhaseTreeProvider } from "./views/phaseTree";
@@ -260,26 +262,126 @@ export async function activate(
   });
   disposables.push(configWatcher);
 
-  // Register stub commands
-  for (const cmd of [
-    "oxveil.start",
-    "oxveil.stop",
-    "oxveil.reset",
-    "oxveil.forceUnlock",
-    "oxveil.install",
-  ]) {
-    disposables.push(
-      vscode.commands.registerCommand(cmd, () => {
-        // Stub — implemented in later phases
-      }),
-    );
+  // Process manager
+  let processManager: ProcessManager | undefined;
+  const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
+
+  if (workspaceRoot && result.status === "detected") {
+    const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+    processManager = new ProcessManager({
+      claudeloopPath: result.path ?? claudeloopPath,
+      workspaceRoot,
+      spawn: (cmd, args, opts) =>
+        nodeSpawn(cmd, args, opts as Parameters<typeof nodeSpawn>[2]),
+      lockExists: async () => {
+        try {
+          await fs.access(path.join(claudeloopDir, "lock"));
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      deleteLock: async () => {
+        try {
+          await fs.unlink(path.join(claudeloopDir, "lock"));
+        } catch {
+          // Lock file already gone
+        }
+      },
+      getSettings: () => {
+        const c = vscode.workspace.getConfiguration("oxveil");
+        return {
+          verify: c.get<boolean>("verify", true),
+          refactor: c.get<boolean>("refactor", true),
+          dryRun: c.get<boolean>("dryRun", false),
+          aiParse: c.get<boolean>("aiParse", true),
+        };
+      },
+      platform: process.platform,
+    });
   }
+
+  _processManager = processManager;
+
+  // Installer
+  const installer = new Installer({
+    createTerminal: (opts) => vscode.window.createTerminal(opts),
+    onDidCloseTerminal: (cb) => vscode.window.onDidCloseTerminal(cb),
+    onDetectionChanged: () => {
+      detection.detect().then((r) => {
+        vscode.commands.executeCommand(
+          "setContext",
+          "oxveil.detected",
+          r.status === "detected",
+        );
+        phaseTree.update({ detected: r.status === "detected" });
+        onDidChangeTreeData.fire(undefined);
+        if (r.status === "detected") {
+          statusBar.update({ kind: "ready" });
+        } else {
+          statusBar.update({ kind: "not-found" });
+        }
+      });
+    },
+    platform: process.platform,
+  });
+
+  // Register commands
+  disposables.push(
+    vscode.commands.registerCommand("oxveil.start", async () => {
+      if (!processManager) return;
+      try {
+        await processManager.spawn();
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        vscode.window.showErrorMessage(`Oxveil: Failed to start — ${msg}`);
+      }
+    }),
+    vscode.commands.registerCommand("oxveil.stop", async () => {
+      if (!processManager) return;
+      await processManager.stop();
+    }),
+    vscode.commands.registerCommand("oxveil.reset", async () => {
+      if (!processManager) return;
+      try {
+        await processManager.reset();
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        vscode.window.showErrorMessage(`Oxveil: Failed to reset — ${msg}`);
+      }
+    }),
+    vscode.commands.registerCommand("oxveil.forceUnlock", async () => {
+      if (!processManager) return;
+      await processManager.forceUnlock();
+      // Trigger lock re-read by emitting unlock
+      session.onLockChanged({ locked: false });
+    }),
+    vscode.commands.registerCommand("oxveil.install", async () => {
+      if (!installer.isSupported()) {
+        vscode.window.showErrorMessage(
+          "Oxveil: claudeloop installation is not supported on this platform",
+        );
+        return;
+      }
+      statusBar.update({ kind: "installing" });
+      await installer.install();
+    }),
+  );
 
   context.subscriptions.push(...disposables);
 }
 
-export function deactivate(): void {
+export async function deactivate(): Promise<void> {
+  // Give process manager a chance to cleanly shut down
+  const pm = _processManager;
+  if (pm?.isRunning) {
+    await pm.deactivate();
+  }
+
   for (const d of disposables) {
     d.dispose();
   }
 }
+
+// Expose for deactivate access
+let _processManager: ProcessManager | undefined;
