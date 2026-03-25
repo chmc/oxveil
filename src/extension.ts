@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
 import { StatusBarManager } from "./views/statusBar";
+import { PhaseTreeProvider } from "./views/phaseTree";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,6 +55,40 @@ export async function activate(
   } else {
     statusBar.update({ kind: "not-found" });
   }
+
+  // Phase tree view
+  const phaseTree = new PhaseTreeProvider({
+    detected: result.status === "detected",
+    progress: null,
+  });
+
+  const treeDataProvider: vscode.TreeDataProvider<string> = {
+    getTreeItem(element: string): vscode.TreeItem {
+      const items = phaseTree.getChildren();
+      const idx = parseInt(element, 10);
+      const item = items[idx];
+      if (!item) return new vscode.TreeItem("");
+      const treeItem = new vscode.TreeItem(item.label);
+      treeItem.description = item.description;
+      if (item.iconId) {
+        treeItem.iconPath = new vscode.ThemeIcon(
+          item.iconId,
+          item.iconColor
+            ? new vscode.ThemeColor(item.iconColor)
+            : undefined
+        );
+      }
+      return treeItem;
+    },
+    getChildren(): string[] {
+      return phaseTree.getChildren().map((_, i) => String(i));
+    },
+  };
+
+  const treeView = vscode.window.createTreeView("oxveil.phases", {
+    treeDataProvider,
+  });
+  disposables.push(treeView);
 
   // Re-detect on setting change
   const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {

@@ -17,6 +17,23 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "oxveil",
+          "title": "Oxveil",
+          "icon": "$(symbol-event)"
+        }
+      ]
+    },
+    "views": {
+      "oxveil": [
+        {
+          "id": "oxveil.phases",
+          "name": "Phases"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "oxveil.start",
