@@ -69,7 +69,7 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 **Oxveil reads:**
 - `live.log` — append-only process output
 - `PROGRESS.md` — phase status and structure
-- `lock` — JSON file indicating a running process
+- `lock` — plain text file containing the PID of the running process
 
 **Contract rules:**
 - claudeloop owns all files in `.claudeloop/`. It creates, writes, and cleans them up.
@@ -159,10 +159,10 @@ Future parsers (plan, config) and webview providers are added when their milesto
 | `oxveil.claudeloopPath` | string | `"claudeloop"` | Path to claudeloop executable |
 | `oxveil.watchDebounceMs` | number | `100` | Debounce interval for file watcher events |
 | `oxveil.experimental` | boolean | `false` | Enable experimental features |
-| `oxveil.verify` | boolean | `false` | Run verification after each phase (`--verify`) |
-| `oxveil.refactor` | boolean | `false` | Run refactoring after each phase (`--refactor`) |
+| `oxveil.verify` | boolean | `true` | Run verification after each phase (`--verify`) |
+| `oxveil.refactor` | boolean | `true` | Run refactoring after each phase (`--refactor`) |
 | `oxveil.dryRun` | boolean | `false` | Preview plan without executing (`--dry-run`) |
-| `oxveil.aiParse` | boolean | `false` | Auto-parse plan into phases (`--ai-parse`) |
+| `oxveil.aiParse` | boolean | `true` | Auto-parse plan into phases (`--ai-parse`) |
 
 ### Activation Events
 
@@ -260,7 +260,7 @@ Pure function, no VS Code dependency.
 `TreeDataProvider<PhaseTreeItem>`. Flat list of phases.
 
 **Icons:** ThemeIcon per status with ThemeColor for accessibility:
-- complete: `check` (green), running: `sync~spin` (blue), failed: `error` (red), pending: `circle-outline`, skipped: `debug-step-over`
+- complete: `check` (green), running: `sync~spin` (blue), failed: `error` (red), pending: `circle-outline`
 
 **Notifications:** Compares old vs new ProgressState on each update. Info notification on phase completion, error notification on failure.
 
@@ -277,7 +277,7 @@ Pure function, no VS Code dependency.
 - Installing: `$(sync~spin) Oxveil: installing claudeloop...`
 - Ready: `$(symbol-event) Oxveil: ready`
 - Idle: `$(symbol-event) Oxveil: idle`
-- Running: `$(sync~spin) Oxveil: Phase X/Y | Xm`
+- Running: `$(sync~spin) Oxveil: Phase X/Y | attempt N | Xm`
 - Failed: `$(error) Oxveil: Phase X failed` — with error background
 - Done: `$(check) Oxveil: done | Xm`
 
