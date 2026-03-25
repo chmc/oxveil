@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oxveil v0.4 — Deep Integration</title>
+<link rel="stylesheet" href="https://unpkg.com/@vscode/codicons@0.0.36/dist/codicon.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1e1e1e;
+    color: #cccccc;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  h1 { color: #ffffff; font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+  .version-badge {
+    display: inline-block; background: #007acc; color: #fff;
+    font-size: 12px; font-weight: 600; padding: 2px 10px;
+    border-radius: 10px; margin-left: 12px; vertical-align: middle;
+  }
+  .page-subtitle { color: #888; font-size: 14px; margin-bottom: 40px; }
+  .section { margin-bottom: 48px; }
+  .section-title {
+    color: #569cd6; font-size: 18px; font-weight: 600;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .codicon { font-size: 18px; }
+  .section-desc { color: #888; font-size: 13px; margin-bottom: 16px; }
+  .divider { border: none; border-top: 1px solid #333; margin: 32px 0; }
+
+  /* ===== GANTT TIMELINE ===== */
+  .timeline-panel {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 900px;
+  }
+  .timeline-header {
+    background: #252526;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+  }
+  .timeline-header .title { color: #cccccc; font-weight: 500; }
+  .timeline-header .total-time {
+    margin-left: auto;
+    color: #4ec9b0;
+    font-size: 11px;
+  }
+  .timeline-body {
+    padding: 16px;
+  }
+
+  /* Time axis */
+  .time-axis {
+    display: flex;
+    margin-left: 160px;
+    margin-bottom: 8px;
+    position: relative;
+    height: 20px;
+  }
+  .time-tick {
+    font-size: 10px;
+    color: #666;
+    position: absolute;
+    transform: translateX(-50%);
+  }
+  .time-grid {
+    position: absolute;
+    top: 20px;
+    height: calc(100% - 20px);
+    width: 1px;
+    background: #2a2a2a;
+  }
+
+  /* Gantt rows */
+  .gantt-container {
+    position: relative;
+  }
+  .gantt-row {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    margin-bottom: 4px;
+  }
+  .gantt-label {
+    width: 160px;
+    font-size: 12px;
+    color: #cccccc;
+    flex-shrink: 0;
+    padding-right: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gantt-track {
+    flex: 1;
+    height: 24px;
+    position: relative;
+    background: #252526;
+    border-radius: 3px;
+  }
+  .gantt-bar {
+    position: absolute;
+    height: 100%;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 10px;
+    color: #fff;
+    font-weight: 500;
+    min-width: 30px;
+  }
+  .gantt-bar.complete { background: #2e7d32; }
+  .gantt-bar.running { background: #0e639c; box-shadow: 0 0 8px rgba(0,122,204,0.3); }
+  .gantt-bar.failed { background: #c72e2e; }
+  .gantt-bar.pending { background: #333; border: 1px dashed #555; color: #666; }
+
+  /* Now indicator */
+  .now-line {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background: #007acc;
+    z-index: 2;
+  }
+  .now-label {
+    position: absolute;
+    top: -18px;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: #007acc;
+    font-weight: 600;
+    background: #1e1e1e;
+    padding: 0 4px;
+  }
+
+  /* ===== RETRY STRATEGY PICKER ===== */
+  .strategy-picker {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .strategy-card {
+    background: #252526;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 16px 20px;
+    width: 240px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .strategy-card:hover {
+    border-color: #555;
+  }
+  .strategy-card.selected {
+    border-color: #007acc;
+    background: #1e2a3a;
+  }
+  .strategy-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .strategy-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #cccccc;
+    margin-bottom: 4px;
+  }
+  .strategy-desc {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .strategy-detail {
+    font-size: 11px;
+    color: #666;
+    border-top: 1px solid #333;
+    padding-top: 8px;
+  }
+  .strategy-detail span {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* ===== PROMPT TEMPLATE EDITOR ===== */
+  .template-editor {
+    display: flex;
+    gap: 0;
+    max-width: 900px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .template-edit {
+    flex: 1;
+    background: #1e1e1e;
+  }
+  .template-preview {
+    flex: 1;
+    background: #252526;
+    border-left: 1px solid #333;
+  }
+  .template-tab-bar {
+    background: #252526;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid #333;
+  }
+  .template-tab-bar .active-tab {
+    color: #cccccc;
+    font-weight: 500;
+  }
+  .template-tab-bar .codicon { font-size: 14px; color: #007acc; }
+  .template-body {
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 12px 14px;
+    min-height: 220px;
+  }
+  .tpl-var {
+    color: #dcdcaa;
+    background: rgba(220, 220, 170, 0.1);
+    padding: 1px 3px;
+    border-radius: 2px;
+  }
+  .tpl-text { color: #cccccc; }
+  .tpl-comment { color: #6a9955; }
+  .preview-resolved {
+    color: #ce9178;
+    background: rgba(206, 145, 120, 0.1);
+    padding: 1px 3px;
+    border-radius: 2px;
+  }
+
+  /* Variable sidebar */
+  .var-list {
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+  .var-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+  }
+  .var-name {
+    color: #dcdcaa;
+    font-family: monospace;
+    font-size: 11px;
+    min-width: 110px;
+  }
+  .var-value {
+    color: #ce9178;
+    font-family: monospace;
+    font-size: 11px;
+    flex: 1;
+    background: #1e1e1e;
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid #333;
+  }
+
+  /* ===== WELCOME WALKTHROUGH ===== */
+  .walkthrough {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 8px;
+    max-width: 700px;
+    overflow: hidden;
+  }
+  .walkthrough-hero {
+    background: linear-gradient(135deg, #0e639c 0%, #1a3a5c 100%);
+    padding: 32px;
+    text-align: center;
+  }
+  .walkthrough-hero h2 {
+    color: #ffffff;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .walkthrough-hero p {
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+  }
+  .walkthrough-steps {
+    padding: 24px;
+  }
+  .walkthrough-step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .walkthrough-step:hover {
+    background: #2a2d2e;
+  }
+  .walkthrough-step.done {
+    opacity: 0.6;
+  }
+  .step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .step-number.pending {
+    background: #333;
+    color: #888;
+    border: 2px solid #555;
+  }
+  .step-number.active {
+    background: #007acc;
+    color: #fff;
+  }
+  .step-number.done {
+    background: #2e7d32;
+    color: #fff;
+  }
+  .step-content h3 {
+    font-size: 14px;
+    color: #cccccc;
+    margin-bottom: 4px;
+  }
+  .step-content p {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.4;
+  }
+  .step-content .step-action {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #007acc;
+    cursor: pointer;
+  }
+  .step-content .step-action:hover {
+    text-decoration: underline;
+  }
+
+  .walkthrough-progress {
+    padding: 0 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #007acc;
+    border-radius: 2px;
+    width: 25%;
+  }
+  .progress-text {
+    font-size: 11px;
+    color: #888;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Oxveil <span class="version-badge">v0.4</span></h1>
+<p class="page-subtitle">Deep Integration — execution timeline, retry strategies, prompt templates, welcome walkthrough</p>
+
+<!-- ===== EXECUTION TIMELINE ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-graph-line"></span>
+    Execution Timeline
+  </div>
+  <p class="section-desc">Gantt-style visualization of phase execution. Horizontal bars per phase with time axis. Shows parallel execution and duration.</p>
+
+  <div class="timeline-panel">
+    <div class="timeline-header">
+      <span class="codicon codicon-graph-line" style="color:#007acc"></span>
+      <span class="title">Execution Timeline</span>
+      <span class="total-time">Total: 18m 24s (running)</span>
+    </div>
+    <div class="timeline-body">
+      <!-- Time axis -->
+      <div style="margin-left:160px;position:relative;height:24px;margin-bottom:4px;border-bottom:1px solid #333">
+        <span style="position:absolute;left:0;font-size:10px;color:#666;bottom:4px">0m</span>
+        <span style="position:absolute;left:16.7%;font-size:10px;color:#666;bottom:4px">5m</span>
+        <span style="position:absolute;left:33.3%;font-size:10px;color:#666;bottom:4px">10m</span>
+        <span style="position:absolute;left:50%;font-size:10px;color:#666;bottom:4px">15m</span>
+        <span style="position:absolute;left:66.7%;font-size:10px;color:#666;bottom:4px">20m</span>
+        <span style="position:absolute;left:83.3%;font-size:10px;color:#666;bottom:4px">25m</span>
+        <span style="position:absolute;left:100%;font-size:10px;color:#666;bottom:4px;transform:translateX(-100%)">30m</span>
+      </div>
+
+      <div class="gantt-container">
+        <!-- Grid lines -->
+        <div style="position:absolute;left:calc(160px + 16.7%);top:0;bottom:0;width:1px;background:#2a2a2a"></div>
+        <div style="position:absolute;left:calc(160px + 33.3%);top:0;bottom:0;width:1px;background:#2a2a2a"></div>
+        <div style="position:absolute;left:calc(160px + 50%);top:0;bottom:0;width:1px;background:#2a2a2a"></div>
+        <div style="position:absolute;left:calc(160px + 66.7%);top:0;bottom:0;width:1px;background:#2a2a2a"></div>
+        <div style="position:absolute;left:calc(160px + 83.3%);top:0;bottom:0;width:1px;background:#2a2a2a"></div>
+
+        <!-- Now line -->
+        <div style="position:absolute;left:calc(160px + 61%);top:-8px;bottom:0;width:2px;background:#007acc;z-index:2">
+          <span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:9px;color:#007acc;font-weight:600;white-space:nowrap;background:#1e1e1e;padding:0 3px">NOW 18m</span>
+        </div>
+
+        <!-- Phase rows -->
+        <div class="gantt-row">
+          <div class="gantt-label">1. Parse requirements</div>
+          <div class="gantt-track">
+            <div class="gantt-bar complete" style="left:0;width:5%">0:45</div>
+          </div>
+        </div>
+        <div class="gantt-row">
+          <div class="gantt-label">2. Generate plan</div>
+          <div class="gantt-track">
+            <div class="gantt-bar complete" style="left:5%;width:8%">1:22</div>
+          </div>
+        </div>
+        <div class="gantt-row">
+          <div class="gantt-label">3. Implement auth</div>
+          <div class="gantt-track">
+            <div class="gantt-bar complete" style="left:13%;width:15%">4:12</div>
+          </div>
+        </div>
+        <div class="gantt-row">
+          <div class="gantt-label">4. Implement API routes</div>
+          <div class="gantt-track">
+            <div class="gantt-bar complete" style="left:13%;width:20%">5:48</div>
+          </div>
+        </div>
+        <div class="gantt-row">
+          <div class="gantt-label">5. Write tests</div>
+          <div class="gantt-track">
+            <div class="gantt-bar running" style="left:33%;width:28%">
+              <span style="animation: pulse 2s ease-in-out infinite">running...</span>
+            </div>
+          </div>
+        </div>
+        <div class="gantt-row">
+          <div class="gantt-label">6. Integration tests</div>
+          <div class="gantt-track">
+            <div class="gantt-bar pending" style="left:70%;width:15%">~4m</div>
+          </div>
+        </div>
+        <div class="gantt-row">
+          <div class="gantt-label">7. Final review</div>
+          <div class="gantt-track">
+            <div class="gantt-bar pending" style="left:85%;width:10%">~3m</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</div>
+
+<hr class="divider">
+
+<!-- ===== RETRY STRATEGY PICKER ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-refresh"></span>
+    Retry Strategy Picker
+  </div>
+  <p class="section-desc">Choose how to retry a failed phase. Appears as a dialog when clicking "Retry" on a failed phase.</p>
+
+  <div class="strategy-picker">
+    <div class="strategy-card selected">
+      <span class="strategy-icon">🔄</span>
+      <div class="strategy-name">Standard</div>
+      <div class="strategy-desc">Re-run the failed phase from scratch with the same context and instructions.</div>
+      <div class="strategy-detail">
+        <span>Context: Full original context</span>
+        <span>Speed: Fast (no preprocessing)</span>
+        <span>Best for: Transient failures, timeouts</span>
+      </div>
+    </div>
+
+    <div class="strategy-card">
+      <span class="strategy-icon">✂️</span>
+      <div class="strategy-name">Stripped</div>
+      <div class="strategy-desc">Re-run with simplified context. Removes noise that may have caused the failure.</div>
+      <div class="strategy-detail">
+        <span>Context: Reduced (error-relevant only)</span>
+        <span>Speed: Medium (context reduction)</span>
+        <span>Best for: Context confusion, hallucination</span>
+      </div>
+    </div>
+
+    <div class="strategy-card">
+      <span class="strategy-icon">🎯</span>
+      <div class="strategy-name">Targeted</div>
+      <div class="strategy-desc">Re-run with error analysis injected. Feeds the failure output back as guidance.</div>
+      <div class="strategy-detail">
+        <span>Context: Original + error analysis</span>
+        <span>Speed: Slow (analysis step first)</span>
+        <span>Best for: Logic errors, test failures</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== PROMPT TEMPLATE EDITOR ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-file-code"></span>
+    Prompt Template Editor
+  </div>
+  <p class="section-desc">Edit prompt templates with variable highlighting. Live preview panel shows resolved output with current values.</p>
+
+  <div class="template-editor">
+    <div class="template-edit">
+      <div class="template-tab-bar">
+        <span class="codicon codicon-file-code"></span>
+        <span class="active-tab">phase-prompt.tpl</span>
+      </div>
+      <div class="template-body">
+        <div><span class="tpl-comment"># Phase execution prompt</span></div>
+        <div></div>
+        <div><span class="tpl-text">You are working on </span><span class="tpl-var">{{project_name}}</span><span class="tpl-text">.</span></div>
+        <div></div>
+        <div><span class="tpl-text">Current phase: </span><span class="tpl-var">{{phase_name}}</span></div>
+        <div><span class="tpl-text">Phase </span><span class="tpl-var">{{phase_index}}</span><span class="tpl-text"> of </span><span class="tpl-var">{{total_phases}}</span></div>
+        <div></div>
+        <div><span class="tpl-text">Tasks:</span></div>
+        <div><span class="tpl-var">{{phase_tasks}}</span></div>
+        <div></div>
+        <div><span class="tpl-text">Previous phases completed:</span></div>
+        <div><span class="tpl-var">{{completed_summary}}</span></div>
+        <div></div>
+        <div><span class="tpl-comment"># Constraints</span></div>
+        <div><span class="tpl-text">- Do not modify files outside scope</span></div>
+        <div><span class="tpl-text">- Run tests before marking complete</span></div>
+        <div><span class="tpl-text">- </span><span class="tpl-var">{{custom_constraints}}</span></div>
+      </div>
+    </div>
+    <div class="template-preview">
+      <div class="template-tab-bar">
+        <span class="codicon codicon-eye"></span>
+        <span class="active-tab">Preview</span>
+        <span style="margin-left:auto;font-size:10px;color:#4ec9b0">Live</span>
+      </div>
+      <div class="template-body">
+        <div><span style="color:#6a9955"># Phase execution prompt</span></div>
+        <div></div>
+        <div><span class="tpl-text">You are working on </span><span class="preview-resolved">auth-module</span><span class="tpl-text">.</span></div>
+        <div></div>
+        <div><span class="tpl-text">Current phase: </span><span class="preview-resolved">Implement auth module</span></div>
+        <div><span class="tpl-text">Phase </span><span class="preview-resolved">3</span><span class="tpl-text"> of </span><span class="preview-resolved">7</span></div>
+        <div></div>
+        <div><span class="tpl-text">Tasks:</span></div>
+        <div><span class="preview-resolved">- Create src/auth/handler.ts</span></div>
+        <div><span class="preview-resolved">- JWT validation middleware</span></div>
+        <div><span class="preview-resolved">- Session management</span></div>
+        <div></div>
+        <div><span class="tpl-text">Previous phases completed:</span></div>
+        <div><span class="preview-resolved">1. Parse requirements (45s)</span></div>
+        <div><span class="preview-resolved">2. Generate plan (1m 22s)</span></div>
+        <div></div>
+        <div><span style="color:#6a9955"># Constraints</span></div>
+        <div><span class="tpl-text">- Do not modify files outside scope</span></div>
+        <div><span class="tpl-text">- Run tests before marking complete</span></div>
+        <div><span class="tpl-text">- </span><span class="preview-resolved">Use TypeScript strict mode</span></div>
+      </div>
+      <div style="border-top:1px solid #333">
+        <div class="template-tab-bar">
+          <span class="codicon codicon-symbol-variable"></span>
+          <span class="active-tab">Variables</span>
+        </div>
+        <div class="var-list">
+          <div class="var-item">
+            <span class="var-name">{{project_name}}</span>
+            <span class="var-value">auth-module</span>
+          </div>
+          <div class="var-item">
+            <span class="var-name">{{phase_name}}</span>
+            <span class="var-value">Implement auth module</span>
+          </div>
+          <div class="var-item">
+            <span class="var-name">{{phase_index}}</span>
+            <span class="var-value">3</span>
+          </div>
+          <div class="var-item">
+            <span class="var-name">{{total_phases}}</span>
+            <span class="var-value">7</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== WELCOME WALKTHROUGH ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-book"></span>
+    Welcome Walkthrough
+  </div>
+  <p class="section-desc">First-time user onboarding. Uses VS Code's built-in walkthrough API. Guides through detect → install → configure → run.</p>
+
+  <div class="walkthrough">
+    <div class="walkthrough-hero">
+      <h2>Welcome to Oxveil</h2>
+      <p>Let's set up your AI coding workflow in a few steps</p>
+    </div>
+    <div class="walkthrough-progress">
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <div class="progress-text">1 of 4 complete</div>
+    </div>
+    <div class="walkthrough-steps">
+      <div class="walkthrough-step done">
+        <div class="step-number done">
+          <span class="codicon codicon-check" style="font-size:14px"></span>
+        </div>
+        <div class="step-content">
+          <h3>Detect claudeloop</h3>
+          <p>Check if claudeloop is installed and accessible on your system.</p>
+          <span class="step-action" style="color:#4ec9b0">✓ claudeloop v1.2.0 detected</span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="step-number active">2</div>
+        <div class="step-content">
+          <h3>Configure your workflow</h3>
+          <p>Set up your preferred AI provider, model, and execution options. You can always change these later.</p>
+          <span class="step-action">Open Configuration Wizard →</span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="step-number pending">3</div>
+        <div class="step-content">
+          <h3>Create your first plan</h3>
+          <p>Write or generate a PLAN.md file that describes the phases of work for claudeloop to execute.</p>
+          <span class="step-action" style="color:#666">Create PLAN.md →</span>
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="step-number pending">4</div>
+        <div class="step-content">
+          <h3>Run your first session</h3>
+          <p>Start claudeloop and watch it execute your plan phase by phase. Monitor progress in the sidebar.</p>
+          <span class="step-action" style="color:#666">Start claudeloop →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

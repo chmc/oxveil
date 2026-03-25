@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oxveil v0.2 — Rich Monitoring</title>
+<link rel="stylesheet" href="https://unpkg.com/@vscode/codicons@0.0.36/dist/codicon.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1e1e1e;
+    color: #cccccc;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  h1 { color: #ffffff; font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+  .version-badge {
+    display: inline-block; background: #007acc; color: #fff;
+    font-size: 12px; font-weight: 600; padding: 2px 10px;
+    border-radius: 10px; margin-left: 12px; vertical-align: middle;
+  }
+  .page-subtitle { color: #888; font-size: 14px; margin-bottom: 40px; }
+  .section { margin-bottom: 48px; }
+  .section-title {
+    color: #569cd6; font-size: 18px; font-weight: 600;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .codicon { font-size: 18px; }
+  .section-desc { color: #888; font-size: 13px; margin-bottom: 16px; }
+  .divider { border: none; border-top: 1px solid #333; margin: 32px 0; }
+
+  /* ===== DEPENDENCY GRAPH ===== */
+  .webview-panel {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 900px;
+  }
+  .webview-header {
+    background: #252526;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+  }
+  .webview-header .tab-active {
+    color: #cccccc;
+    font-weight: 600;
+    border-bottom: 1px solid #007acc;
+    padding-bottom: 2px;
+  }
+  .webview-header .tab-icon {
+    color: #007acc;
+  }
+  .webview-body {
+    padding: 32px;
+    min-height: 380px;
+    position: relative;
+  }
+
+  /* DAG nodes */
+  .dag {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .dag-row {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    position: relative;
+  }
+  .dag-node {
+    width: 180px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    text-align: center;
+    border: 2px solid;
+    position: relative;
+    z-index: 1;
+    background: #1e1e1e;
+  }
+  .dag-node.complete {
+    border-color: #4ec9b0;
+    color: #4ec9b0;
+  }
+  .dag-node.running {
+    border-color: #007acc;
+    color: #007acc;
+    box-shadow: 0 0 12px rgba(0,122,204,0.3);
+  }
+  .dag-node.failed {
+    border-color: #f44747;
+    color: #f44747;
+  }
+  .dag-node.pending {
+    border-color: #555;
+    color: #666;
+  }
+  .dag-node .node-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .dag-node .node-time {
+    font-size: 10px;
+    opacity: 0.7;
+  }
+  .dag-node .node-icon {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  .dag-node.complete .node-icon { background: #4ec9b0; color: #1e1e1e; }
+  .dag-node.running .node-icon { background: #007acc; color: #fff; }
+  .dag-node.failed .node-icon { background: #f44747; color: #fff; }
+
+  .dag-edges {
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  .dag-edge-line {
+    width: 2px;
+    height: 40px;
+    background: #444;
+  }
+  .dag-edge-spread {
+    display: flex;
+    gap: 180px;
+    position: relative;
+  }
+  .dag-edge-spread::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 20px);
+    height: 2px;
+    background: #444;
+  }
+
+  /* ===== ARCHIVE BROWSER ===== */
+  .archive-panel {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 600px;
+  }
+  .archive-header {
+    background: #333;
+    padding: 8px 14px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .archive-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .archive-item:hover {
+    background: #2a2d2e;
+  }
+  .archive-item:last-child { border-bottom: none; }
+  .archive-status {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .archive-status.s-done { background: #4ec9b0; }
+  .archive-status.s-failed { background: #f44747; }
+  .archive-status.s-partial { background: #cca700; }
+  .archive-info { flex: 1; }
+  .archive-info .run-name { color: #cccccc; font-weight: 500; }
+  .archive-info .run-meta { color: #888; font-size: 11px; margin-top: 2px; }
+  .archive-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .archive-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #888;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .archive-btn:hover {
+    border-color: #007acc;
+    color: #007acc;
+  }
+
+  /* ===== GIT DIFF VIEW ===== */
+  .diff-panel {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 800px;
+  }
+  .diff-header {
+    background: #252526;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #333;
+  }
+  .diff-header .filename {
+    color: #cccccc;
+    font-family: monospace;
+  }
+  .diff-header .badge-added {
+    background: #2ea04333;
+    color: #4ec9b0;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+  }
+  .diff-header .badge-removed {
+    background: #f4474733;
+    color: #f44747;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+  }
+  .diff-body {
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .diff-line {
+    padding: 0 12px 0 40px;
+    position: relative;
+    white-space: pre;
+  }
+  .diff-line .line-num {
+    position: absolute;
+    left: 0;
+    width: 36px;
+    text-align: right;
+    color: #555;
+    padding-right: 8px;
+    user-select: none;
+  }
+  .diff-line.added {
+    background: rgba(46, 160, 67, 0.15);
+    color: #4ec9b0;
+  }
+  .diff-line.removed {
+    background: rgba(244, 71, 71, 0.15);
+    color: #f44747;
+  }
+  .diff-line.context {
+    color: #888;
+  }
+  .diff-line.hunk {
+    color: #569cd6;
+    background: rgba(86, 156, 214, 0.08);
+  }
+
+  /* ===== LOG VIEWER ===== */
+  .log-viewer {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 700px;
+  }
+  .log-header {
+    background: #252526;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+  }
+  .log-header .phase-name {
+    color: #cccccc;
+    font-weight: 500;
+  }
+  .log-header .duration {
+    margin-left: auto;
+    color: #4ec9b0;
+    font-size: 11px;
+  }
+  .log-body {
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 8px 12px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .log-body .log-line { white-space: pre; }
+  .log-body .log-ts { color: #666; }
+  .log-body .log-info { color: #cccccc; }
+  .log-body .log-success { color: #4ec9b0; }
+  .log-body .log-warn { color: #cca700; }
+  .log-body .log-err { color: #f44747; }
+
+  /* ===== TREE CLICK-TO-OPEN ===== */
+  .tree-panel {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    width: 320px;
+  }
+  .tree-header {
+    background: #333;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tree-item {
+    padding: 4px 12px 4px 20px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .tree-item:hover { background: #2a2d2e; }
+  .tree-item.ctx-active { background: #094771; }
+  .tree-item .codicon { font-size: 14px; }
+  .icon-green { color: #4ec9b0; }
+  .icon-blue { color: #007acc; }
+
+  .click-demo {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .click-arrow {
+    color: #555;
+    font-size: 24px;
+    margin-top: 60px;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .spin { animation: spin 1.5s linear infinite; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>Oxveil <span class="version-badge">v0.2</span></h1>
+<p class="page-subtitle">Rich Monitoring — dependency graph, archive browser, git diffs, phase logs</p>
+
+<!-- ===== DEPENDENCY GRAPH ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-type-hierarchy"></span>
+    Dependency Graph Webview
+  </div>
+  <p class="section-desc">DAG visualization of phase dependencies. Nodes colored by status. Rendered with D3 or Mermaid in a webview panel.</p>
+
+  <div class="webview-panel">
+    <div class="webview-header">
+      <span class="codicon codicon-type-hierarchy tab-icon"></span>
+      <span class="tab-active">Dependency Graph</span>
+    </div>
+    <div class="webview-body">
+      <div class="dag">
+        <!-- Row 1: Parse requirements -->
+        <div class="dag-row">
+          <div class="dag-node complete">
+            <div class="node-icon"><span class="codicon codicon-check"></span></div>
+            <div class="node-title">Phase 1</div>
+            Parse requirements
+            <div class="node-time">45s</div>
+          </div>
+        </div>
+
+        <div class="dag-edges">
+          <div class="dag-edge-line"></div>
+        </div>
+
+        <!-- Row 2: Generate plan -->
+        <div class="dag-row">
+          <div class="dag-node complete">
+            <div class="node-icon"><span class="codicon codicon-check"></span></div>
+            <div class="node-title">Phase 2</div>
+            Generate plan
+            <div class="node-time">1m 22s</div>
+          </div>
+        </div>
+
+        <div class="dag-edges">
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div class="dag-edge-line" style="height:20px"></div>
+            <div style="display:flex;gap:220px">
+              <div class="dag-edge-line" style="height:20px"></div>
+              <div class="dag-edge-line" style="height:20px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Parallel phases -->
+        <div class="dag-row">
+          <div class="dag-node running">
+            <div class="node-icon"><span class="codicon codicon-sync spin"></span></div>
+            <div class="node-title">Phase 3</div>
+            Implement auth
+            <div class="node-time">running...</div>
+          </div>
+          <div class="dag-node pending">
+            <div class="node-title">Phase 4</div>
+            Implement API routes
+            <div class="node-time">pending</div>
+          </div>
+        </div>
+
+        <div class="dag-edges">
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div style="display:flex;gap:220px">
+              <div class="dag-edge-line" style="height:20px"></div>
+              <div class="dag-edge-line" style="height:20px"></div>
+            </div>
+            <div class="dag-edge-line" style="height:20px"></div>
+          </div>
+        </div>
+
+        <!-- Row 4: Write tests -->
+        <div class="dag-row">
+          <div class="dag-node pending">
+            <div class="node-title">Phase 5</div>
+            Write tests
+            <div class="node-time">pending</div>
+          </div>
+        </div>
+
+        <div class="dag-edges">
+          <div class="dag-edge-line"></div>
+        </div>
+
+        <!-- Row 5: Integration -->
+        <div class="dag-row">
+          <div class="dag-node pending">
+            <div class="node-title">Phase 6</div>
+            Integration tests
+            <div class="node-time">pending</div>
+          </div>
+        </div>
+
+        <div class="dag-edges">
+          <div class="dag-edge-line"></div>
+        </div>
+
+        <!-- Row 6: Final -->
+        <div class="dag-row">
+          <div class="dag-node pending">
+            <div class="node-title">Phase 7</div>
+            Final review
+            <div class="node-time">pending</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div style="position:absolute;top:16px;right:16px;font-size:11px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#4ec9b0;display:inline-block"></span>
+          Complete
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#007acc;display:inline-block"></span>
+          Running
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#f44747;display:inline-block"></span>
+          Failed
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#555;display:inline-block"></span>
+          Pending
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== ARCHIVE BROWSER ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-archive"></span>
+    Archive Browser
+  </div>
+  <p class="section-desc">List of past claudeloop runs. Shows timestamp, duration, phase count, and status. Restore to re-run, replay to view execution.</p>
+
+  <div class="archive-panel">
+    <div class="archive-header">
+      <span>Past Runs</span>
+      <span style="color:#888;font-size:10px;text-transform:none;letter-spacing:0">5 runs</span>
+    </div>
+    <div class="archive-item">
+      <div class="archive-status s-done"></div>
+      <div class="archive-info">
+        <div class="run-name">auth-module-implementation</div>
+        <div class="run-meta">Mar 24, 10:32 AM · 7 phases · 24m · <span style="color:#4ec9b0">completed</span></div>
+      </div>
+      <div class="archive-actions">
+        <button class="archive-btn">Replay</button>
+        <button class="archive-btn">Restore</button>
+      </div>
+    </div>
+    <div class="archive-item">
+      <div class="archive-status s-failed"></div>
+      <div class="archive-info">
+        <div class="run-name">api-refactor-v2</div>
+        <div class="run-meta">Mar 23, 3:15 PM · 5 phases · 18m · <span style="color:#f44747">failed at phase 4</span></div>
+      </div>
+      <div class="archive-actions">
+        <button class="archive-btn">Replay</button>
+        <button class="archive-btn">Restore</button>
+      </div>
+    </div>
+    <div class="archive-item">
+      <div class="archive-status s-done"></div>
+      <div class="archive-info">
+        <div class="run-name">database-migration</div>
+        <div class="run-meta">Mar 22, 9:00 AM · 4 phases · 11m · <span style="color:#4ec9b0">completed</span></div>
+      </div>
+      <div class="archive-actions">
+        <button class="archive-btn">Replay</button>
+        <button class="archive-btn">Restore</button>
+      </div>
+    </div>
+    <div class="archive-item">
+      <div class="archive-status s-partial"></div>
+      <div class="archive-info">
+        <div class="run-name">test-suite-expansion</div>
+        <div class="run-meta">Mar 21, 2:45 PM · 6 phases · 8m · <span style="color:#cca700">stopped by user</span></div>
+      </div>
+      <div class="archive-actions">
+        <button class="archive-btn">Replay</button>
+        <button class="archive-btn">Restore</button>
+      </div>
+    </div>
+    <div class="archive-item">
+      <div class="archive-status s-done"></div>
+      <div class="archive-info">
+        <div class="run-name">initial-scaffold</div>
+        <div class="run-meta">Mar 20, 11:12 AM · 3 phases · 6m · <span style="color:#4ec9b0">completed</span></div>
+      </div>
+      <div class="archive-actions">
+        <button class="archive-btn">Replay</button>
+        <button class="archive-btn">Restore</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== PHASE GIT DIFFS ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-git-compare"></span>
+    Phase Git Diffs
+  </div>
+  <p class="section-desc">Click a completed phase in tree view → opens side-by-side diff of that phase's changes. Uses VS Code's built-in diff editor.</p>
+
+  <div class="click-demo">
+    <div class="tree-panel">
+      <div class="tree-header">Oxveil: Phases</div>
+      <div class="tree-item">
+        <span class="codicon codicon-check icon-green"></span>
+        Phase 1: Parse requirements
+      </div>
+      <div class="tree-item ctx-active">
+        <span class="codicon codicon-check icon-green"></span>
+        Phase 2: Generate plan
+      </div>
+      <div class="tree-item">
+        <span class="codicon codicon-sync spin icon-blue"></span>
+        Phase 3: Implement auth
+      </div>
+    </div>
+
+    <div class="click-arrow">→</div>
+
+    <div class="diff-panel">
+      <div class="diff-header">
+        <span class="codicon codicon-git-compare" style="color:#007acc"></span>
+        <span class="filename">src/plan.ts</span>
+        <span class="badge-added">+42</span>
+        <span class="badge-removed">-3</span>
+        <span style="margin-left:auto;color:#666;font-size:11px">Phase 2: Generate plan</span>
+      </div>
+      <div class="diff-body">
+        <div class="diff-line hunk"><span class="line-num"></span>@@ -1,4 +1,12 @@</div>
+        <div class="diff-line context"><span class="line-num">1</span> import { readFileSync } from 'fs';</div>
+        <div class="diff-line context"><span class="line-num">2</span> import { parse } from './parser';</div>
+        <div class="diff-line added"><span class="line-num">3</span>+import { PlanGenerator } from './generator';</div>
+        <div class="diff-line added"><span class="line-num">4</span>+import { DependencyResolver } from './deps';</div>
+        <div class="diff-line context"><span class="line-num">5</span></div>
+        <div class="diff-line removed"><span class="line-num">6</span>-export function createPlan() {</div>
+        <div class="diff-line added"><span class="line-num">7</span>+export function createPlan(requirements: Requirements): Plan {</div>
+        <div class="diff-line added"><span class="line-num">8</span>+  const generator = new PlanGenerator();</div>
+        <div class="diff-line added"><span class="line-num">9</span>+  const deps = DependencyResolver.analyze(requirements);</div>
+        <div class="diff-line added"><span class="line-num">10</span>+  return generator.generate(requirements, deps);</div>
+        <div class="diff-line context"><span class="line-num">11</span> }</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== CLICK-TO-OPEN LOGS ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-file-text"></span>
+    Click-to-Open Phase Logs
+  </div>
+  <p class="section-desc">Right-click phase in tree view → "View Log". Opens .claudeloop/logs/phase-N.log in a read-only editor panel.</p>
+
+  <div class="click-demo">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="tree-panel" style="width:320px">
+        <div class="tree-header">Oxveil: Phases</div>
+        <div class="tree-item ctx-active" style="position:relative">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 3: Implement auth
+        </div>
+      </div>
+      <!-- Context menu -->
+      <div style="background:#3c3c3c;border:1px solid #555;border-radius:4px;width:180px;padding:4px 0;margin-left:60px;box-shadow:0 4px 12px rgba(0,0,0,0.5)">
+        <div style="padding:4px 20px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span class="codicon codicon-file-text" style="font-size:12px;color:#888"></span> View Log
+        </div>
+        <div style="padding:4px 20px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span class="codicon codicon-git-compare" style="font-size:12px;color:#888"></span> View Diff
+        </div>
+        <div style="padding:4px 20px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span class="codicon codicon-refresh" style="font-size:12px;color:#888"></span> Retry Phase
+        </div>
+      </div>
+    </div>
+
+    <div class="click-arrow">→</div>
+
+    <div class="log-viewer">
+      <div class="log-header">
+        <span class="codicon codicon-file-text" style="color:#007acc"></span>
+        <span class="phase-name">Phase 3: Implement auth module</span>
+        <span class="duration">4m 12s</span>
+      </div>
+      <div class="log-body">
+        <div class="log-line"><span class="log-ts">[09:16:29] </span><span class="log-info">Starting phase: Implement auth module</span></div>
+        <div class="log-line"><span class="log-ts">[09:16:30] </span><span class="log-info">Creating src/auth/handler.ts...</span></div>
+        <div class="log-line"><span class="log-ts">[09:16:45] </span><span class="log-info">Writing JWT validation middleware</span></div>
+        <div class="log-line"><span class="log-ts">[09:17:02] </span><span class="log-warn">Warning: deprecated API in jwt-decode@3.1.2</span></div>
+        <div class="log-line"><span class="log-ts">[09:17:30] </span><span class="log-info">Creating src/auth/session.ts...</span></div>
+        <div class="log-line"><span class="log-ts">[09:18:15] </span><span class="log-info">Running type checks... ok</span></div>
+        <div class="log-line"><span class="log-ts">[09:19:44] </span><span class="log-info">Compiling TypeScript... ok</span></div>
+        <div class="log-line"><span class="log-ts">[09:20:41] </span><span class="log-success">✓ Phase completed successfully</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

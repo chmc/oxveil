@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oxveil v0.1 — Entry Point, Run & Monitor</title>
+<link rel="stylesheet" href="https://unpkg.com/@vscode/codicons@0.0.36/dist/codicon.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1e1e1e;
+    color: #cccccc;
+    padding: 24px;
+    line-height: 1.5;
+  }
+
+  h1 {
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .version-badge {
+    display: inline-block;
+    background: #007acc;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 10px;
+    margin-left: 12px;
+    vertical-align: middle;
+  }
+  .page-subtitle {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-title {
+    color: #569cd6;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .codicon {
+    font-size: 18px;
+  }
+  .section-desc {
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  /* ===== STATUS BAR ===== */
+  .statusbar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .statusbar {
+    background: #007acc;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #fff;
+    border-radius: 3px;
+    gap: 6px;
+    position: relative;
+  }
+  .statusbar.error-bg {
+    background: #c72e2e;
+  }
+  .statusbar.idle-bg {
+    background: #333333;
+    border: 1px solid #444;
+  }
+  .statusbar .codicon {
+    font-size: 14px;
+  }
+  .statusbar-label {
+    position: absolute;
+    right: 12px;
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    font-style: italic;
+  }
+  .statusbar.idle-bg .statusbar-label {
+    color: #888;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .spin {
+    animation: spin 1.5s linear infinite;
+    display: inline-block;
+  }
+
+  /* ===== TREE VIEW ===== */
+  .tree-panel {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    width: 320px;
+  }
+  .tree-header {
+    background: #333333;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #cccccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tree-header .badge {
+    background: #007acc;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+  .tree-item {
+    padding: 4px 12px 4px 20px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: default;
+  }
+  .tree-item:hover {
+    background: #2a2d2e;
+  }
+  .tree-item.active {
+    background: #094771;
+  }
+  .tree-item .codicon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .tree-item .icon-green { color: #4ec9b0; }
+  .tree-item .icon-blue { color: #007acc; }
+  .tree-item .icon-red { color: #f44747; }
+  .tree-item .icon-gray { color: #666; }
+  .tree-item .icon-dim { color: #555; }
+  .tree-welcome {
+    padding: 16px 20px;
+    color: #888;
+    font-size: 13px;
+    text-align: center;
+  }
+  .tree-welcome a {
+    color: #007acc;
+    text-decoration: none;
+  }
+
+  .tree-states {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== NOTIFICATIONS ===== */
+  .notification {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 12px 16px;
+    max-width: 420px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .notification .codicon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .notification-body {
+    flex: 1;
+  }
+  .notification-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .notification-text {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 8px;
+  }
+  .notification-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .notification-btn {
+    background: #0e639c;
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .notification-btn.secondary {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ccc;
+  }
+  .notification-btn:hover {
+    opacity: 0.9;
+  }
+  .notif-info .codicon { color: #007acc; }
+  .notif-error .codicon { color: #f44747; }
+  .notif-warning .codicon { color: #cca700; }
+  .notifications-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ===== OUTPUT CHANNEL ===== */
+  .output-panel {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 700px;
+  }
+  .output-header {
+    background: #252526;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+  }
+  .output-header .tab {
+    color: #cccccc;
+    font-weight: 600;
+    border-bottom: 1px solid #007acc;
+    padding-bottom: 2px;
+  }
+  .output-body {
+    padding: 8px 12px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .output-body .line { white-space: pre; }
+  .output-body .stderr { color: #f44747; }
+  .output-body .phase-marker { color: #569cd6; font-weight: 600; }
+  .output-body .success { color: #4ec9b0; }
+  .output-body .dim { color: #666; }
+  .output-body .timestamp { color: #888; }
+
+  /* ===== COMMAND PALETTE ===== */
+  .palette {
+    background: #252526;
+    border: 1px solid #007acc;
+    border-radius: 6px;
+    width: 480px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .palette-input {
+    width: 100%;
+    background: #3c3c3c;
+    border: none;
+    padding: 10px 14px;
+    color: #cccccc;
+    font-size: 14px;
+    border-radius: 6px 6px 0 0;
+    outline: none;
+  }
+  .palette-list {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .palette-item {
+    padding: 6px 14px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .palette-item:hover, .palette-item.active {
+    background: #094771;
+  }
+  .palette-item .codicon {
+    font-size: 14px;
+    color: #007acc;
+  }
+  .palette-item .shortcut {
+    margin-left: auto;
+    color: #666;
+    font-size: 11px;
+  }
+
+  /* ===== LAYOUT HELPERS ===== */
+  .state-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .state-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .divider {
+    border: none;
+    border-top: 1px solid #333;
+    margin: 32px 0;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+</style>
+</head>
+<body>
+
+<h1>Oxveil <span class="version-badge">v0.1</span></h1>
+<p class="page-subtitle">Entry Point, Run & Monitor — claudeloop detection, installation, execution, and phase monitoring</p>
+
+<!-- ===== STATUS BAR ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-layout-statusbar"></span>
+    Status Bar
+  </div>
+  <p class="section-desc">Left-aligned status bar item. Click focuses the phase tree view. Shows elapsed time during runs.</p>
+
+  <div class="statusbar-container">
+    <div class="state-label">Not Found</div>
+    <div class="statusbar idle-bg">
+      <span class="codicon codicon-warning" style="color:#cca700"></span>
+      Oxveil: claudeloop not found
+      <span class="statusbar-label">not-found</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Installing</div>
+    <div class="statusbar">
+      <span class="codicon codicon-sync spin"></span>
+      Oxveil: installing claudeloop...
+      <span class="statusbar-label">installing</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Ready</div>
+    <div class="statusbar idle-bg">
+      <span class="codicon codicon-symbol-event" style="color:#4ec9b0"></span>
+      Oxveil: ready
+      <span class="statusbar-label">ready</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Idle</div>
+    <div class="statusbar idle-bg">
+      <span class="codicon codicon-symbol-event" style="color:#888"></span>
+      Oxveil: idle
+      <span class="statusbar-label">idle</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Running</div>
+    <div class="statusbar">
+      <span class="codicon codicon-sync spin"></span>
+      Oxveil: Phase 3/7 | 12m
+      <span class="statusbar-label">running</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Failed</div>
+    <div class="statusbar error-bg">
+      <span class="codicon codicon-error"></span>
+      Oxveil: Phase 3 failed
+      <span class="statusbar-label">failed</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Done</div>
+    <div class="statusbar" style="background:#2e7d32">
+      <span class="codicon codicon-check"></span>
+      Oxveil: done | 24m
+      <span class="statusbar-label">done</span>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== PHASE TREE VIEW ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-list-tree"></span>
+    Phase Tree View
+  </div>
+  <p class="section-desc">Sidebar tree view (TreeDataProvider). Flat list of phases with status icons. Shows welcome/not-found states when no session.</p>
+
+  <div class="tree-states">
+    <!-- Not Found State -->
+    <div>
+      <div class="state-label">Not Found</div>
+      <div class="tree-panel">
+        <div class="tree-header">Oxveil: Phases</div>
+        <div class="tree-welcome">
+          <span class="codicon codicon-warning" style="color:#cca700;font-size:24px;display:block;margin-bottom:8px"></span>
+          claudeloop not found.<br>
+          Run <a href="#">Oxveil: Install claudeloop</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Welcome State -->
+    <div>
+      <div class="state-label">Welcome / Idle</div>
+      <div class="tree-panel">
+        <div class="tree-header">Oxveil: Phases</div>
+        <div class="tree-welcome">
+          <span class="codicon codicon-symbol-event" style="color:#4ec9b0;font-size:24px;display:block;margin-bottom:8px"></span>
+          No active session.<br>
+          Run <a href="#">Oxveil: Start</a> to begin.
+        </div>
+      </div>
+    </div>
+
+    <!-- Running State -->
+    <div>
+      <div class="state-label">Running</div>
+      <div class="tree-panel">
+        <div class="tree-header">
+          Oxveil: Phases
+          <span class="badge">3/7</span>
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 1: Parse requirements
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 2: Generate plan
+        </div>
+        <div class="tree-item active">
+          <span class="codicon codicon-sync spin icon-blue"></span>
+          Phase 3: Implement auth module
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-circle-outline icon-gray"></span>
+          Phase 4: Write tests
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-circle-outline icon-gray"></span>
+          Phase 5: Integration tests
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-circle-outline icon-gray"></span>
+          Phase 6: Documentation
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-circle-outline icon-gray"></span>
+          Phase 7: Final review
+        </div>
+      </div>
+    </div>
+
+    <!-- Completed with failure -->
+    <div>
+      <div class="state-label">Failed</div>
+      <div class="tree-panel">
+        <div class="tree-header">
+          Oxveil: Phases
+          <span class="badge" style="background:#c72e2e">failed</span>
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 1: Parse requirements
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 2: Generate plan
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-error icon-red"></span>
+          Phase 3: Implement auth module
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-debug-step-over icon-dim"></span>
+          Phase 4: Write tests
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-debug-step-over icon-dim"></span>
+          Phase 5: Integration tests
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-debug-step-over icon-dim"></span>
+          Phase 6: Documentation
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-debug-step-over icon-dim"></span>
+          Phase 7: Final review
+        </div>
+      </div>
+    </div>
+
+    <!-- All complete -->
+    <div>
+      <div class="state-label">Completed</div>
+      <div class="tree-panel">
+        <div class="tree-header">
+          Oxveil: Phases
+          <span class="badge" style="background:#2e7d32">done</span>
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 1: Parse requirements
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 2: Generate plan
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 3: Implement auth module
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 4: Write tests
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 5: Integration tests
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 6: Documentation
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 7: Final review
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== NOTIFICATIONS ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-bell"></span>
+    Notifications
+  </div>
+  <p class="section-desc">VS Code notification toasts. User-actionable errors get action buttons. Diagnostics go to output channel.</p>
+
+  <div class="notifications-grid">
+    <div class="state-label">Install Prompt</div>
+    <div class="notification notif-warning">
+      <span class="codicon codicon-warning"></span>
+      <div class="notification-body">
+        <div class="notification-title">claudeloop not found</div>
+        <div class="notification-text">Oxveil requires claudeloop to run. Would you like to install it?</div>
+        <div class="notification-actions">
+          <button class="notification-btn">Install</button>
+          <button class="notification-btn secondary">Set Path</button>
+          <button class="notification-btn secondary">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-label" style="margin-top:16px">Phase Completed</div>
+    <div class="notification notif-info">
+      <span class="codicon codicon-info"></span>
+      <div class="notification-body">
+        <div class="notification-title">Phase 3 completed</div>
+        <div class="notification-text">Implement auth module — completed in 4m 12s</div>
+      </div>
+    </div>
+
+    <div class="state-label" style="margin-top:16px">Phase Failed</div>
+    <div class="notification notif-error">
+      <span class="codicon codicon-error"></span>
+      <div class="notification-body">
+        <div class="notification-title">Phase 3 failed</div>
+        <div class="notification-text">Implement auth module — see output for details</div>
+        <div class="notification-actions">
+          <button class="notification-btn">Show Output</button>
+          <button class="notification-btn secondary">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-label" style="margin-top:16px">Double Spawn Prevention</div>
+    <div class="notification notif-error">
+      <span class="codicon codicon-error"></span>
+      <div class="notification-body">
+        <div class="notification-title">claudeloop is already running</div>
+        <div class="notification-text">A process is already active (PID 42891). Stop it first or use Force Unlock if it crashed.</div>
+        <div class="notification-actions">
+          <button class="notification-btn">Stop</button>
+          <button class="notification-btn secondary">Force Unlock</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-label" style="margin-top:16px">Version Incompatible</div>
+    <div class="notification notif-warning">
+      <span class="codicon codicon-warning"></span>
+      <div class="notification-body">
+        <div class="notification-title">claudeloop version incompatible</div>
+        <div class="notification-text">Found v0.8.2, requires ≥v1.0.0. Please update claudeloop.</div>
+        <div class="notification-actions">
+          <button class="notification-btn">Update Guide</button>
+          <button class="notification-btn secondary">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== OUTPUT CHANNEL ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-output"></span>
+    Output Channel
+  </div>
+  <p class="section-desc">Streams live.log content. Prefixes stderr with [stderr]. Accessible via "Show Output" notification action.</p>
+
+  <div class="output-panel">
+    <div class="output-header">
+      <span>OUTPUT</span>
+      <span class="tab">Oxveil</span>
+    </div>
+    <div class="output-body">
+      <div class="line timestamp">[09:14:22]</div>
+      <div class="line phase-marker">══ Phase 1: Parse requirements ══</div>
+      <div class="line">Reading project files...</div>
+      <div class="line">Found 12 source files, 3 config files</div>
+      <div class="line success">✓ Requirements parsed successfully</div>
+      <div class="line dim">  Duration: 0m 45s</div>
+      <div class="line"></div>
+      <div class="line timestamp">[09:15:07]</div>
+      <div class="line phase-marker">══ Phase 2: Generate plan ══</div>
+      <div class="line">Analyzing dependencies...</div>
+      <div class="line">Generating execution plan with 7 phases</div>
+      <div class="line success">✓ Plan generated</div>
+      <div class="line dim">  Duration: 1m 22s</div>
+      <div class="line"></div>
+      <div class="line timestamp">[09:16:29]</div>
+      <div class="line phase-marker">══ Phase 3: Implement auth module ══</div>
+      <div class="line">Creating src/auth/handler.ts...</div>
+      <div class="line">Writing authentication middleware...</div>
+      <div class="line stderr">[stderr] Warning: deprecated API usage in jwt-decode</div>
+      <div class="line">Running type checks...</div>
+      <div class="line">Compiling TypeScript...</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== COMMAND PALETTE ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-terminal"></span>
+    Command Palette
+  </div>
+  <p class="section-desc">All 5 Oxveil commands. Availability depends on detection and process state (shown as when-clauses).</p>
+
+  <div class="palette">
+    <input class="palette-input" value="> Oxveil" readonly>
+    <div class="palette-list">
+      <div class="palette-item active">
+        <span class="codicon codicon-play"></span>
+        Oxveil: Start
+        <span class="shortcut">detected + no process</span>
+      </div>
+      <div class="palette-item">
+        <span class="codicon codicon-debug-stop"></span>
+        Oxveil: Stop
+        <span class="shortcut">process running</span>
+      </div>
+      <div class="palette-item">
+        <span class="codicon codicon-refresh"></span>
+        Oxveil: Reset
+        <span class="shortcut">detected</span>
+      </div>
+      <div class="palette-item">
+        <span class="codicon codicon-unlock"></span>
+        Oxveil: Force Unlock
+        <span class="shortcut">detected</span>
+      </div>
+      <div class="palette-item">
+        <span class="codicon codicon-cloud-download"></span>
+        Oxveil: Install claudeloop
+        <span class="shortcut">not detected</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
