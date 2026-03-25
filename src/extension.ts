@@ -1,9 +1,16 @@
 import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
+import { SessionState } from "./core/sessionState";
+import { parseLock } from "./core/lock";
+import { WatcherManager } from "./core/watchers";
+import { parseProgress } from "./parsers/progress";
 import { StatusBarManager } from "./views/statusBar";
 import { PhaseTreeProvider } from "./views/phaseTree";
+import { OutputChannelManager } from "./views/outputChannel";
 
 const execFileAsync = promisify(execFile);
 
@@ -12,7 +19,7 @@ const MINIMUM_VERSION = "0.22.0";
 const disposables: vscode.Disposable[] = [];
 
 export async function activate(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): Promise<void> {
   const config = vscode.workspace.getConfiguration("oxveil");
   const claudeloopPath = config.get<string>("claudeloopPath", "claudeloop");
@@ -20,7 +27,7 @@ export async function activate(
   // Status bar
   const statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
-    100
+    100,
   );
   disposables.push(statusBarItem);
 
@@ -39,19 +46,17 @@ export async function activate(
   await vscode.commands.executeCommand(
     "setContext",
     "oxveil.detected",
-    result.status === "detected"
+    result.status === "detected",
   );
   await vscode.commands.executeCommand(
     "setContext",
     "oxveil.processRunning",
-    false
+    false,
   );
 
   // Update status bar based on detection
   if (result.status === "detected") {
     statusBar.update({ kind: "ready" });
-  } else if (result.status === "not-found") {
-    statusBar.update({ kind: "not-found" });
   } else {
     statusBar.update({ kind: "not-found" });
   }
@@ -62,7 +67,10 @@ export async function activate(
     progress: null,
   });
 
+  const onDidChangeTreeData = new vscode.EventEmitter<string | undefined>();
+
   const treeDataProvider: vscode.TreeDataProvider<string> = {
+    onDidChangeTreeData: onDidChangeTreeData.event,
     getTreeItem(element: string): vscode.TreeItem {
       const items = phaseTree.getChildren();
       const idx = parseInt(element, 10);
@@ -75,7 +83,7 @@ export async function activate(
           item.iconId,
           item.iconColor
             ? new vscode.ThemeColor(item.iconColor)
-            : undefined
+            : undefined,
         );
       }
       return treeItem;
@@ -90,6 +98,143 @@ export async function activate(
   });
   disposables.push(treeView);
 
+  // Output channel
+  const outputChannel = vscode.window.createOutputChannel("Oxveil");
+  disposables.push(outputChannel);
+  const outputManager = new OutputChannelManager(outputChannel);
+
+  // Session state
+  const session = new SessionState();
+
+  session.on("state-changed", (_from, to) => {
+    vscode.commands.executeCommand(
+      "setContext",
+      "oxveil.processRunning",
+      to === "running",
+    );
+
+    switch (to) {
+      case "running": {
+        const p = session.progress;
+        const currentPhase = p?.currentPhaseIndex !== undefined
+          ? (p.phases[p.currentPhaseIndex]?.number as number) ?? 1
+          : 1;
+        statusBar.update({
+          kind: "running",
+          currentPhase,
+          totalPhases: p?.totalPhases ?? 0,
+          elapsed: "0m",
+        });
+        break;
+      }
+      case "done":
+        statusBar.update({ kind: "done", elapsed: "0m" });
+        break;
+      case "failed": {
+        const fp = session.progress?.phases.find(
+          (p) => p.status === "failed",
+        );
+        statusBar.update({
+          kind: "failed",
+          failedPhase: (fp?.number as number) ?? 0,
+        });
+        break;
+      }
+      case "idle":
+        statusBar.update({ kind: "idle" });
+        break;
+    }
+  });
+
+  session.on("phases-changed", (progress) => {
+    phaseTree.update({ progress });
+    onDidChangeTreeData.fire(undefined);
+
+    // Update status bar with current phase info while running
+    if (session.status === "running" && progress.currentPhaseIndex !== undefined) {
+      const phase = progress.phases[progress.currentPhaseIndex];
+      statusBar.update({
+        kind: "running",
+        currentPhase: phase?.number as number ?? 1,
+        totalPhases: progress.totalPhases,
+        elapsed: "0m",
+      });
+    }
+  });
+
+  session.on("log-appended", (content) => {
+    outputManager.onLogAppended(content);
+  });
+
+  // Watchers
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders && workspaceFolders.length > 0) {
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const debounceMs = config.get<number>("watchDebounceMs", 100);
+
+    const watcherManager = new WatcherManager({
+      workspaceRoot,
+      debounceMs,
+      onLockChange: (content) => {
+        const lock = parseLock(content);
+        session.onLockChanged(lock);
+      },
+      onProgressChange: (content) => {
+        const progress = parseProgress(content);
+        session.onProgressChanged(progress);
+      },
+      onLogChange: (content) => {
+        session.onLogAppended(content);
+      },
+      createWatcher: (glob) => {
+        const watcher = vscode.workspace.createFileSystemWatcher(
+          new vscode.RelativePattern(workspaceFolders[0], ".claudeloop/**"),
+        );
+        return watcher;
+      },
+      readFile: async (filePath) => {
+        const bytes = await fs.readFile(filePath, "utf-8");
+        return bytes;
+      },
+    });
+
+    watcherManager.start();
+    disposables.push({ dispose: () => watcherManager.stop() });
+
+    // Check initial state
+    const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+    try {
+      await fs.access(claudeloopDir);
+
+      let lockState = { locked: false as const };
+      let progress: ReturnType<typeof parseProgress> | undefined;
+
+      try {
+        const lockContent = await fs.readFile(
+          path.join(claudeloopDir, "lock"),
+          "utf-8",
+        );
+        lockState = parseLock(lockContent) as any;
+      } catch {
+        // No lock file
+      }
+
+      try {
+        const progressContent = await fs.readFile(
+          path.join(claudeloopDir, "PROGRESS.md"),
+          "utf-8",
+        );
+        progress = parseProgress(progressContent);
+      } catch {
+        // No PROGRESS.md
+      }
+
+      session.checkInitialState({ lock: lockState, progress });
+    } catch {
+      // No .claudeloop/ directory
+    }
+  }
+
   // Re-detect on setting change
   const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration("oxveil.claudeloopPath")) {
@@ -101,8 +246,10 @@ export async function activate(
         vscode.commands.executeCommand(
           "setContext",
           "oxveil.detected",
-          r.status === "detected"
+          r.status === "detected",
         );
+        phaseTree.update({ detected: r.status === "detected" });
+        onDidChangeTreeData.fire(undefined);
         if (r.status === "detected") {
           statusBar.update({ kind: "ready" });
         } else {
@@ -124,7 +271,7 @@ export async function activate(
     disposables.push(
       vscode.commands.registerCommand(cmd, () => {
         // Stub — implemented in later phases
-      })
+      }),
     );
   }
 
