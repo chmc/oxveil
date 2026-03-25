@@ -1,2 +1,9 @@
 .superpowers/
 verification-sessions/
+
+# claudeloop runtime
+.claudeloop/
+
+# macOS
+.DS_Store
+._*
