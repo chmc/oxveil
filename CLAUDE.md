@@ -14,6 +14,7 @@
 - Gate all unreleased features behind feature flags. See `.claude/skills/feature-flags.md`.
 - Do not create long-lived branches.
 - Do not ship ungated experimental features.
+- After completing UI-facing features, run the visual verification loop. See `.claude/skills/visual-verification.md`.
 
 ## Writing Style
 
