@@ -1,0 +1,279 @@
+# Oxveil Architecture
+
+## Overview
+
+Oxveil is a VS Code extension that provides a GUI for [claudeloop](https://github.com/chmc/claudeloop). Both repos share the same author — changes can be coordinated and shipped simultaneously.
+
+**Core principle:** claudeloop uses file-based state as its IPC. The `.claudeloop/` directory is a well-defined interface that the extension observes. The extension is a read-only viewport into the CLI — it never writes to `.claudeloop/` (with one escape-hatch exception: Force Unlock).
+
+**Progression:**
+- **v0.1–v0.2 (Option A):** Pure CLI wrapper. Spawn, observe, render.
+- **v0.3–v0.4 (Option B):** Layer editing features (config forms, plan editing, CodeLens) while still delegating execution to the CLI.
+
+**Not supported:** VS Code for Web. The extension requires Node.js APIs (`child_process`, `fs`, `process.kill`).
+
+## IPC Contract
+
+The `.claudeloop/` directory is the contract between claudeloop and oxveil.
+
+**Oxveil reads:**
+- `live.log` — append-only process output
+- `PROGRESS.md` — phase status and structure
+- `lock` — JSON file indicating a running process
+
+**Contract rules:**
+- claudeloop owns all files in `.claudeloop/`. It creates, writes, and cleans them up.
+- Oxveil only reads. It never creates, modifies, or deletes files in `.claudeloop/` (exception: Force Unlock command).
+- A `version` field should be added to enable compatibility detection across repo versions.
+- Format details are documented in the claudeloop repo. Oxveil uses strict parsing — reject unknown formats loudly rather than guessing.
+
+## Architecture Diagram
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                     VS Code Extension                     │
+├───────────────┬────────────────┬─────────────────────────┤
+│   Tree Views  │  Output Ch.    │  Status Bar             │
+│   - Phases    │  - live.log    │  - Phase X/Y            │
+│               │                │  - Elapsed time         │
+├───────────────┴────────────────┴─────────────────────────┤
+│                     Parsers                               │
+│   - progress.ts (PROGRESS.md → ProgressState)            │
+├──────────────────────────────────────────────────────────┤
+│                     Core                                  │
+│   - SessionState (state machine + EventEmitter)          │
+│   - Process Manager (spawn/stop/reset)                   │
+│   - Lock Manager (read-only lock observation)            │
+│   - Watcher (single FileSystemWatcher + debounce)        │
+├──────────────────────────────────────────────────────────┤
+│                  claudeloop CLI (unchanged)                │
+│   .claudeloop/ directory = IPC contract                   │
+└──────────────────────────────────────────────────────────┘
+```
+
+Data flows upward: watcher detects file changes → parsers transform raw content into typed state → SessionState holds and broadcasts → views subscribe and render.
+
+## File Structure
+
+```
+src/
+├── extension.ts              # Activation, command registration, wiring
+├── core/
+│   ├── sessionState.ts       # State machine + EventEmitter
+│   ├── processManager.ts     # Spawn/stop/reset claudeloop
+│   ├── lock.ts               # Read-only lock file observation
+│   └── watchers.ts           # Single FileSystemWatcher + debounce
+├── parsers/
+│   └── progress.ts           # PROGRESS.md → ProgressState
+├── views/
+│   ├── phaseTree.ts          # Sidebar tree view provider
+│   ├── statusBar.ts          # Status bar item
+│   └── outputChannel.ts      # Output channel wrapper
+└── test/
+    ├── unit/
+    │   ├── parsers/
+    │   │   └── progress.test.ts
+    │   └── core/
+    │       ├── sessionState.test.ts
+    │       └── lock.test.ts
+    └── integration/
+        └── extension.test.ts
+```
+
+Future parsers (plan, config) and webview providers are added when their milestones begin — not stubbed in advance.
+
+## User-Facing Surface
+
+### Commands
+
+| ID | Title | When |
+|----|-------|------|
+| `oxveil.start` | Oxveil: Start claudeloop | No process running |
+| `oxveil.stop` | Oxveil: Stop claudeloop | Process running |
+| `oxveil.reset` | Oxveil: Reset claudeloop | Always |
+| `oxveil.forceUnlock` | Oxveil: Force Unlock | Always |
+
+### Settings
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `oxveil.claudeloopPath` | string | `"claudeloop"` | Path to claudeloop executable |
+| `oxveil.watchDebounceMs` | number | `100` | Debounce interval for file watcher events |
+| `oxveil.experimental` | boolean | `false` | Enable experimental features |
+
+### Activation Events
+
+- `onCommand:oxveil.*` — activate on any Oxveil command
+- `workspaceContains:**/.claudeloop` — activate when workspace has an existing session
+
+### Error UX
+
+- **User-actionable errors** (claudeloop not found, double-spawn): VS Code notification with action buttons
+- **Diagnostics** (stderr, parse failures): Output channel
+- **No silent failures.** Strict parsing means unknown formats surface as visible errors, not silent degradation.
+
+## Components
+
+### SessionState
+
+Typed EventEmitter with an explicit state machine. Central hub — all watchers emit to it, all views subscribe to it. No view reads files directly.
+
+**State machine:** `idle → running → done | failed → idle`
+
+**Events:** `state-changed`, `phases-changed`, `log-appended`, `lock-changed`
+
+**Interface boundary:** Components depend on the `ISessionState` interface, not the implementation. This enables unit testing with Vitest without mocking VS Code APIs.
+
+### Process Manager
+
+Manages the claudeloop child process lifecycle.
+
+**Spawn:** `child_process.spawn(executable, args, { cwd, stdio: ["ignore", "ignore", "pipe"] })`. Live output comes from the `live.log` file watcher, not from stdout — this decouples monitoring from process ownership and works for externally-started processes too. Stderr is piped for error diagnostics only.
+
+**Stop:** Platform-aware. SIGINT on Unix, SIGTERM on Windows. If still alive after 5 seconds, escalate to SIGKILL. Ensure claudeloop handles the same signals on each platform (cross-repo coordination).
+
+**Reset:** Spawns `claudeloop --reset`, waits for exit.
+
+**Double-spawn prevention:** Read the lock file before spawning. If a process is already running, show an error notification.
+
+**Deactivate:** `deactivate()` sends SIGINT/SIGTERM immediately, SIGKILL after 3 seconds.
+
+### Lock Manager
+
+Read-only observation of the lock file. claudeloop owns its lock lifecycle — creates on start, removes on exit, cleans stale locks on next start.
+
+**On activation:** Read lock → if present, treat as running process → update SessionState.
+
+**Escape hatch:** `oxveil.forceUnlock` command deletes the lock file for cases where claudeloop crashed without cleanup and won't be restarted. This is the only write Oxveil performs to `.claudeloop/`.
+
+### Watcher
+
+Single `FileSystemWatcher` on `**/.claudeloop/**` with event filtering by filename.
+
+**Debouncing:** Per-file `setTimeout`/`clearTimeout` at configurable interval (`oxveil.watchDebounceMs`).
+
+**File reads:** `fs.promises.readFile` for all reads. Async, non-blocking.
+
+**Capped incremental reads:** For live.log, read at most 64KB per callback. Schedule follow-up via `setImmediate` if more data is available.
+
+**Initial state:** `checkInitialState()` on activation reads existing lock, PROGRESS.md, and live.log. Handles the case where claudeloop was already running before the extension activated.
+
+### Progress Parser
+
+Pure function, no VS Code dependency.
+
+**Input:** Raw PROGRESS.md content string.
+**Output:** `ProgressState { phases: PhaseState[], currentPhaseIndex?: number, totalPhases: number }`
+
+**Strict parsing:** Reject unknown status values with a parse error rather than normalizing synonyms. We own both repos — if the format changes, update both sides. Strict parsing catches contract drift early.
+
+**Crash-proof:** Tolerates truncated input (half-written files from mid-write watcher events). Wraps in try-catch — never throws to callers. Returns a "no data" state on unparseable input so the tree view can show "Unable to parse progress" instead of appearing empty.
+
+**Monotonicity validation:** Phase count should not decrease during a run. If it does, treat as partial read and retry after a short delay.
+
+### Phase Tree View
+
+`TreeDataProvider<PhaseTreeItem>`. Flat list of phases.
+
+**Icons:** ThemeIcon per status with ThemeColor for accessibility:
+- complete: `check` (green), running: `sync~spin` (blue), failed: `error` (red), pending: `circle-outline`, skipped: `debug-step-over`
+
+**Notifications:** Compares old vs new ProgressState on each update. Info notification on phase completion, error notification on failure.
+
+### Status Bar
+
+`StatusBarItem` on the left side, always visible.
+
+**States:**
+- Idle: `$(symbol-event) claudeloop: idle`
+- Running: `$(sync~spin) claudeloop: Phase X/Y | Xm`
+- Failed: `$(error) claudeloop: Phase X failed` — with error background
+- Done: `$(check) claudeloop: done | Xm`
+
+**Elapsed timer:** Updates every 10 seconds.
+
+**Click action:** Focuses the phase tree view.
+
+### Output Channel
+
+Thin wrapper around `vscode.window.createOutputChannel("Oxveil")`. Streams `live.log` content. Prefixes stderr lines with `[stderr]`.
+
+## Interfaces
+
+Component boundaries are defined as interfaces for testability and replaceability.
+
+- **ISessionState:** State machine transitions, event subscription, current state queries. Views and tests depend on this, not the EventEmitter implementation.
+- **IProcessManager:** spawn, stop, reset, isRunning. Isolates child_process details.
+- **IWatcherManager:** start, stop, onFileChanged. Isolates FileSystemWatcher details.
+
+Core logic is testable with Vitest. Thin adapters wrap VS Code APIs behind these interfaces.
+
+## Technology
+
+- **Language:** TypeScript (strict mode)
+- **Bundler:** esbuild
+- **Unit tests:** Vitest — parsers and core modules (anything behind interfaces)
+- **Integration tests:** @vscode/test-electron — extension activation, commands, end-to-end flows
+- **Minimum VS Code:** ^1.100.0
+- **Runtime dependencies:** Zero. Node.js builtins and VS Code API only.
+
+## Testing Strategy
+
+| Layer | Tool | Scope |
+|-------|------|-------|
+| Unit | Vitest | Parsers (pure functions), core modules behind interfaces (SessionState, lock) |
+| Integration | @vscode/test-electron | Extension activation, command execution, watcher→view pipeline |
+| Cross-repo E2E | Future | Start claudeloop → verify oxveil observes correct state → stop → verify cleanup |
+
+Cross-repo E2E tests are the highest-value tests. They validate the IPC contract in practice and are only possible because the same author owns both repos.
+
+## Graceful Degradation
+
+| Scenario | Behavior |
+|----------|----------|
+| claudeloop not installed | Spawn fails → notification pointing to `oxveil.claudeloopPath` setting |
+| No `.claudeloop/` directory | Idle state. Watcher detects creation when claudeloop first runs |
+| claudeloop started from terminal | Lock file watcher detects it. Status bar shows running state |
+| Stale lock after crash | claudeloop cleans on next start. User can run Force Unlock if needed |
+| Multiple VS Code windows | Lock check prevents double-spawn. Both windows can monitor independently |
+| Windows platform | SIGTERM instead of SIGINT for graceful stop |
+| FileSystemWatcher misses event | Known VS Code issue on some platforms. Add polling fallback if users report it |
+
+## Cross-Repo Coordination
+
+Both repos share the same author. This enables tight coordination but requires discipline.
+
+- **IPC contract:** `.claudeloop/` format is documented in the claudeloop repo. Oxveil strictly parses against that spec. Contract changes require updates to both repos.
+- **Version compatibility:** Oxveil declares a minimum supported claudeloop version. The `version` field in `.claudeloop/` enables runtime detection of incompatible versions.
+- **Signal handling:** Both repos agree on SIGINT (Unix) / SIGTERM (Windows) behavior. Changes to signal handling are coordinated.
+- **Release coordination:** Ship breaking contract changes in lockstep. Non-breaking changes can ship independently.
+- **Fitness function:** Cross-repo E2E tests in CI validate that the contract holds across both repos.
+
+## Known Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| IPC contract drift between repos | High | Strict parsing, documented contract, cross-repo E2E tests |
+| SIGINT no-op on Windows | High | Platform detection, SIGTERM on Windows, coordinated signal handling |
+| Double-spawn from multiple windows | High | Lock file check before spawn |
+| FileSystemWatcher misses events | Medium | Add polling fallback if users report issues — not pre-built |
+| Half-written PROGRESS.md parsed mid-write | Medium | Debounce + crash-proof parser + monotonicity validation |
+| Unbounded live.log growth | Medium | 64KB cap per read, setImmediate for remainder |
+
+## Release Strategy
+
+- **Trunk-based development** on `main` — see `.claude/skills/trunk-based-dev.md`
+- **Feature flags** with tiered approach — see `.claude/skills/feature-flags.md`
+- **Pre-release channel** via `vsce publish --pre-release`
+- **Publish targets:** VS Code Marketplace + Open VSX
+
+## Roadmap
+
+See [chmc/oxveil#1](https://github.com/chmc/oxveil/issues/1) for full milestone details.
+
+- **v0.1 — Run & Monitor:** Status bar, commands (start/stop/reset), output channel, phase tree view, notifications
+- **v0.2 — Rich Monitoring:** Dependency graph webview, archive browser, click-to-open logs, phase git diffs
+- **v0.3 — Config & Plan Editing:** Config wizard webview, plan file language support, CodeLens, replay viewer
+- **v0.4 — Deep Integration:** Retry strategies, phase timeline, multi-root workspace, welcome walkthrough
+
+Each milestone adds its own parsers, views, and infrastructure when work begins — not before.
