@@ -1,6 +1,6 @@
 ## Project
 
-- Oxveil is a VS Code extension providing a GUI for [claudeloop](https://github.com/chmc/claudeloop).
+- Oxveil is a VS Code extension for managing AI coding workflows, powered by [claudeloop](https://github.com/chmc/claudeloop).
 - Both repos share the same author. Coordinate and ship changes across both repos simultaneously when needed.
 
 ## Git
