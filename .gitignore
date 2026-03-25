@@ -4,6 +4,11 @@ verification-sessions/
 # claudeloop runtime
 .claudeloop/
 
+# Node
+node_modules/
+dist/
+package-lock.json
+
 # macOS
 .DS_Store
 ._*

@@ -1,0 +1,97 @@
+{
+  "name": "oxveil",
+  "displayName": "Oxveil",
+  "description": "Manage AI coding workflows powered by claudeloop",
+  "version": "0.1.0",
+  "publisher": "chmc",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "workspaceContains:**/.claudeloop"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "oxveil.start",
+        "title": "Oxveil: Start"
+      },
+      {
+        "command": "oxveil.stop",
+        "title": "Oxveil: Stop"
+      },
+      {
+        "command": "oxveil.reset",
+        "title": "Oxveil: Reset"
+      },
+      {
+        "command": "oxveil.forceUnlock",
+        "title": "Oxveil: Force Unlock"
+      },
+      {
+        "command": "oxveil.install",
+        "title": "Oxveil: Install claudeloop"
+      }
+    ],
+    "configuration": {
+      "title": "Oxveil",
+      "properties": {
+        "oxveil.experimental": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable experimental features"
+        },
+        "oxveil.claudeloopPath": {
+          "type": "string",
+          "default": "claudeloop",
+          "description": "Path to claudeloop executable"
+        },
+        "oxveil.watchDebounceMs": {
+          "type": "number",
+          "default": 100,
+          "description": "Debounce interval for file watcher events (ms)"
+        },
+        "oxveil.verify": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run verification after each phase (--verify)"
+        },
+        "oxveil.refactor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run refactoring after each phase (--refactor)"
+        },
+        "oxveil.dryRun": {
+          "type": "boolean",
+          "default": false,
+          "description": "Preview plan without executing (--dry-run)"
+        },
+        "oxveil.aiParse": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-parse plan into phases (--ai-parse)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.100.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
