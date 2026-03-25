@@ -23,3 +23,9 @@
 - Use flat bullet lists, not prose paragraphs.
 - One rule per line. Remove redundancy.
 - Add YAML frontmatter (`name`, `description`) to all skill files.
+
+## Continuous improvement (mandatory)
+
+When you notice a friction point, missing guardrail, or automation opportunity, raise it and suggest a concrete change targeting **CLAUDE.md**, **skills/hooks**, or **MCP tools/plugins**. Keep suggestions brief and actionable. Don't derail the current task — note it at a natural pause point.
+
+When a behavioral correction applies to this project, update CLAUDE.md or the relevant skill file — don't write a memory as a substitute. Rules scoped to a single workflow (e.g., releases, rebasing) belong in that workflow's skill file. CLAUDE.md is for cross-cutting project rules only. Memory is for ephemeral context and cross-project user preferences.
