@@ -162,6 +162,13 @@ export async function activate(
     onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
   });
 
+  // Dependency graph webview
+  const dependencyGraph = new DependencyGraphPanel({
+    createWebviewPanel: vscode.window.createWebviewPanel,
+    executeCommand: vscode.commands.executeCommand,
+  });
+  disposables.push({ dispose: () => dependencyGraph.dispose() });
+
   wireSessionEvents({
     session,
     statusBar,
@@ -170,6 +177,7 @@ export async function activate(
     outputManager,
     notifications,
     elapsedTimer,
+    dependencyGraph,
   });
 
   // Refresh archive when session ends
@@ -289,12 +297,6 @@ export async function activate(
     },
     platform: process.platform,
   });
-
-  // Dependency graph webview
-  const dependencyGraph = new DependencyGraphPanel({
-    createWebviewPanel: vscode.window.createWebviewPanel,
-  });
-  disposables.push({ dispose: () => dependencyGraph.dispose() });
 
   // Register commands
   disposables.push(

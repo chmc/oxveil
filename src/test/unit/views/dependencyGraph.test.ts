@@ -19,21 +19,27 @@ function makeProgress(): ProgressState {
 }
 
 function makeMockPanel() {
+  const messageListeners: ((msg: any) => void)[] = [];
   return {
     webview: {
       html: "",
       cspSource: "https://mock.csp",
       postMessage: vi.fn(),
+      onDidReceiveMessage: vi.fn((cb: (msg: any) => void) => {
+        messageListeners.push(cb);
+      }),
     },
     reveal: vi.fn(),
     onDidDispose: vi.fn(),
     dispose: vi.fn(),
+    _messageListeners: messageListeners,
   };
 }
 
 function makeDeps(mockPanel = makeMockPanel()): DependencyGraphDeps {
   return {
     createWebviewPanel: vi.fn(() => mockPanel) as any,
+    executeCommand: vi.fn() as any,
   };
 }
 
@@ -190,5 +196,88 @@ describe("DependencyGraphPanel", () => {
 
     expect(mockPanel.webview.html).toContain("acquireVsCodeApi");
     expect(mockPanel.webview.html).toContain("addEventListener('message'");
+  });
+
+  it("includes click handler for node interaction", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new DependencyGraphPanel(deps);
+
+    panel.reveal(makeProgress());
+
+    expect(mockPanel.webview.html).toContain("postMessage");
+    expect(mockPanel.webview.html).toContain("openLog");
+    expect(mockPanel.webview.html).toContain("data-phase");
+  });
+
+  it("registers onDidReceiveMessage handler on panel creation", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new DependencyGraphPanel(deps);
+
+    panel.reveal(makeProgress());
+
+    expect(mockPanel.webview.onDidReceiveMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("executes viewLog command on openLog message", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new DependencyGraphPanel(deps);
+
+    panel.reveal(makeProgress());
+
+    // Simulate receiving openLog message from webview
+    const handler = mockPanel._messageListeners[0];
+    handler({ type: "openLog", phaseNumber: 2 });
+
+    expect(deps.executeCommand).toHaveBeenCalledWith("oxveil.viewLog", 2);
+  });
+
+  it("ignores messages with unknown type", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new DependencyGraphPanel(deps);
+
+    panel.reveal(makeProgress());
+
+    const handler = mockPanel._messageListeners[0];
+    handler({ type: "unknown" });
+
+    expect(deps.executeCommand).not.toHaveBeenCalled();
+  });
+
+  it("ignores openLog message with non-number phaseNumber", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new DependencyGraphPanel(deps);
+
+    panel.reveal(makeProgress());
+
+    const handler = mockPanel._messageListeners[0];
+    handler({ type: "openLog", phaseNumber: "abc" });
+
+    expect(deps.executeCommand).not.toHaveBeenCalled();
+  });
+
+  it("update re-renders SVG with new progress", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new DependencyGraphPanel(deps);
+
+    panel.reveal(makeProgress());
+
+    const updatedProgress: ProgressState = {
+      phases: [
+        { number: 1, title: "Setup", status: "completed" },
+        { number: 2, title: "Build", status: "completed" },
+        { number: 3, title: "Deploy", status: "in_progress" },
+      ],
+      totalPhases: 3,
+    };
+    panel.update(updatedProgress);
+
+    // Should contain the updated phase statuses in SVG
+    expect(mockPanel.webview.html).toContain("dag-status-in_progress");
   });
 });

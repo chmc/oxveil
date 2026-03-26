@@ -6,6 +6,7 @@ import { renderDagSvg } from "./dagSvg";
 
 export interface DependencyGraphDeps {
   createWebviewPanel: typeof vscode.window.createWebviewPanel;
+  executeCommand: typeof vscode.commands.executeCommand;
 }
 
 export class DependencyGraphPanel {
@@ -28,6 +29,11 @@ export class DependencyGraphPanel {
       );
       this._panel.onDidDispose(() => {
         this._panel = undefined;
+      });
+      this._panel.webview.onDidReceiveMessage((msg) => {
+        if (msg.type === "openLog" && typeof msg.phaseNumber === "number") {
+          this._deps.executeCommand("oxveil.viewLog", msg.phaseNumber);
+        }
       });
     }
     if (progress) {
@@ -80,6 +86,12 @@ export class DependencyGraphPanel {
       if (type === 'update' && svg) {
         document.getElementById('dag-container').innerHTML = svg;
       }
+    });
+    document.addEventListener('click', (e) => {
+      const node = e.target.closest('.dag-node[style*="cursor: pointer"]');
+      if (!node) return;
+      const phase = Number(node.getAttribute('data-phase'));
+      if (phase) vscode.postMessage({ type: 'openLog', phaseNumber: phase });
     });
   </script>
 </body>

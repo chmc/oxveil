@@ -210,4 +210,35 @@ describe("renderDagSvg", () => {
     expect(svg).toMatch(/<\/svg>$/);
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
   });
+
+  it("adds data-phase attributes to nodes", () => {
+    const progress = makeProgress([
+      { number: 1, title: "A", status: "completed" },
+      { number: 2, title: "B", status: "pending" },
+    ]);
+    const layout = layoutDag(progress);
+    const svg = renderDagSvg(layout);
+
+    expect(svg).toContain('data-phase="1"');
+    expect(svg).toContain('data-phase="2"');
+  });
+
+  it("adds cursor pointer style to completed and failed nodes", () => {
+    const progress = makeProgress([
+      { number: 1, title: "A", status: "completed" },
+      { number: 2, title: "B", status: "failed" },
+      { number: 3, title: "C", status: "in_progress" },
+      { number: 4, title: "D", status: "pending" },
+    ]);
+    const layout = layoutDag(progress);
+    const svg = renderDagSvg(layout);
+
+    // Completed and failed nodes should have cursor pointer
+    expect(svg).toContain('data-phase="1" style="cursor: pointer"');
+    expect(svg).toContain('data-phase="2" style="cursor: pointer"');
+
+    // In-progress and pending nodes should NOT have cursor pointer
+    expect(svg).not.toMatch(/data-phase="3"[^>]*cursor: pointer/);
+    expect(svg).not.toMatch(/data-phase="4"[^>]*cursor: pointer/);
+  });
 });

@@ -30,8 +30,10 @@ function renderNode(node: DagNode): string {
 
   const filter =
     node.status === "in_progress" ? ' filter="url(#glow)"' : "";
+  const clickable = node.status === "completed" || node.status === "failed";
+  const cursor = clickable ? ' style="cursor: pointer"' : "";
 
-  return `<g class="dag-node dag-status-${node.status}"${filter}>
+  return `<g class="dag-node dag-status-${node.status}" data-phase="${node.phaseNumber}"${cursor}${filter}>
   <rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="6" ry="6" fill="var(--vscode-editor-background, #1e1e1e)" stroke="${color}" stroke-width="2"/>
   <text x="${node.x + node.width / 2}" y="${node.y + 24}" text-anchor="middle" font-weight="bold" font-size="13" fill="${color}">Phase ${escapeXml(String(node.phaseNumber))}</text>
   <text x="${node.x + node.width / 2}" y="${node.y + 44}" text-anchor="middle" font-size="11" fill="var(--vscode-foreground, #ccc)">${escapeXml(node.title)}</text>

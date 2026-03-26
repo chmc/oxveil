@@ -6,6 +6,7 @@ import type { OutputChannelManager } from "./views/outputChannel";
 import type { NotificationManager } from "./views/notifications";
 import type { ElapsedTimer } from "./views/elapsedTimer";
 import type { ProgressState } from "./types";
+import type { DependencyGraphPanel } from "./views/dependencyGraph";
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -15,6 +16,7 @@ export interface SessionWiringDeps {
   outputManager: OutputChannelManager;
   notifications: NotificationManager;
   elapsedTimer: ElapsedTimer;
+  dependencyGraph?: DependencyGraphPanel;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -77,6 +79,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   session.on("phases-changed", (progress) => {
     phaseTree.update({ progress });
     onDidChangeTreeData.fire(undefined);
+    deps.dependencyGraph?.update(progress);
 
     if (lastProgress) {
       notifications.onPhasesChanged(lastProgress, progress);
