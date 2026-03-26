@@ -86,13 +86,22 @@
       {
         "command": "oxveil.showDependencyGraph",
         "title": "Oxveil: Show Dependency Graph"
+      },
+      {
+        "command": "oxveil.viewDiff",
+        "title": "Oxveil: View Phase Diff"
       }
     ],
     "menus": {
       "view/item/context": [
         {
           "command": "oxveil.viewLog",
-          "when": "view == oxveil.phases && viewItem == phase",
+          "when": "view == oxveil.phases && viewItem =~ /^phase/",
+          "group": "navigation"
+        },
+        {
+          "command": "oxveil.viewDiff",
+          "when": "view == oxveil.phases && viewItem == phase-completed",
           "group": "navigation"
         },
         {

@@ -62,11 +62,18 @@ export class PhaseTreeProvider {
 
     return progress.phases.map((phase) => {
       const icon = STATUS_ICONS[phase.status];
+      const contextValue =
+        phase.status === "completed"
+          ? "phase-completed"
+          : phase.status === "in_progress"
+            ? "phase-running"
+            : "phase";
+
       const item: PhaseTreeItem = {
         label: `Phase ${phase.number}: ${phase.title}`,
         iconId: icon.id,
         iconColor: icon.color,
-        contextValue: "phase",
+        contextValue,
         phaseNumber: phase.number,
       };
 

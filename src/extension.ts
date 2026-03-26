@@ -21,6 +21,8 @@ import { parseArchive } from "./parsers/archive";
 import { stat } from "node:fs/promises";
 import { createTreeAdapter } from "./views/treeAdapter";
 import { DependencyGraphPanel } from "./views/dependencyGraph";
+import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
+import type { GitExecDeps } from "./core/gitIntegration";
 
 const execFileAsync = promisify(execFile);
 
@@ -277,6 +279,26 @@ export async function activate(
 
   _processManager = processManager;
 
+  // Git integration for phase diffs
+  let gitExec: GitExecDeps | undefined;
+  if (workspaceRoot) {
+    gitExec = {
+      exec: async (command: string, args: string[], cwd: string) => {
+        const { stdout } = await execFileAsync(command, args, { cwd });
+        return stdout;
+      },
+      cwd: workspaceRoot,
+    };
+
+    const diffProvider = new PhaseDiffProvider({ gitExec });
+    disposables.push(
+      vscode.workspace.registerTextDocumentContentProvider(
+        DIFF_URI_SCHEME,
+        diffProvider,
+      ),
+    );
+  }
+
   // Installer
   const installer = new Installer({
     createTerminal: (opts) => vscode.window.createTerminal(opts),
@@ -311,6 +333,7 @@ export async function activate(
       readdir: (dir: string) => fs.readdir(dir),
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
+      gitExec,
     }),
   );
 

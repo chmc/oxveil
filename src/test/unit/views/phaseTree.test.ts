@@ -213,6 +213,22 @@ describe("PhaseTreeProvider", () => {
     });
   });
 
+  it("sets contextValue based on phase status", () => {
+    const progress = makeProgress([
+      { number: 1, title: "Setup", status: "completed" },
+      { number: 2, title: "Build", status: "in_progress" },
+      { number: 3, title: "Test", status: "failed" },
+      { number: 4, title: "Deploy", status: "pending" },
+    ]);
+    const provider = new PhaseTreeProvider(makeDeps({ progress }));
+    const items = provider.getChildren();
+
+    expect(items[0].contextValue).toBe("phase-completed");
+    expect(items[1].contextValue).toBe("phase-running");
+    expect(items[2].contextValue).toBe("phase");
+    expect(items[3].contextValue).toBe("phase");
+  });
+
   it("returns empty transitions when states are identical", () => {
     const state = makeProgress([
       { number: 1, title: "Setup", status: "completed" },

@@ -8,6 +8,9 @@ import { findPhaseLogs } from "./views/logViewer";
 import type { PhaseTreeItem } from "./views/phaseTree";
 import type { ArchiveTreeItem } from "./views/archiveTree";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
+import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
+import type { GitExecDeps } from "./core/gitIntegration";
+import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 
 export interface CommandDeps {
   processManager: ProcessManager | undefined;
@@ -18,10 +21,11 @@ export interface CommandDeps {
   readdir: (dir: string) => Promise<string[]>;
   onArchiveRefresh?: () => void;
   dependencyGraph?: DependencyGraphPanel;
+  gitExec?: GitExecDeps;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, gitExec } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -154,6 +158,28 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand("oxveil.archiveRefresh", () => {
       onArchiveRefresh?.();
     }),
+    vscode.commands.registerCommand(
+      "oxveil.viewDiff",
+      async (treeItem?: { phaseNumber?: number | string }) => {
+        const phaseNumber = treeItem?.phaseNumber;
+        if (phaseNumber === undefined || !gitExec) {
+          vscode.window.showWarningMessage("Oxveil: No phase selected");
+          return;
+        }
+
+        const range = await findPhaseCommits(gitExec, phaseNumber);
+        if (!range) {
+          vscode.window.showInformationMessage(
+            `No commits found for Phase ${phaseNumber}`,
+          );
+          return;
+        }
+
+        const uri = vscode.Uri.parse(encodeDiffUri(phaseNumber));
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc, { preview: true });
+      },
+    ),
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
       dependencyGraph?.reveal(session.progress);
     }),
