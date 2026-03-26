@@ -14,7 +14,6 @@ import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
 import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
-import { shouldActivate } from "./core/featureFlag";
 import { wireSessionEvents } from "./sessionWiring";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
@@ -34,11 +33,6 @@ export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const config = vscode.workspace.getConfiguration("oxveil");
-
-  // Feature flag gate — skip all UI when experimental is disabled
-  if (!shouldActivate((key) => config.get(key))) {
-    return;
-  }
 
   const claudeloopPath = config.get<string>("claudeloopPath", "claudeloop");
 

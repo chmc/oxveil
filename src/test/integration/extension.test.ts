@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { shouldActivate } from "../../core/featureFlag";
 import { SessionState } from "../../core/sessionState";
 import { StatusBarManager } from "../../views/statusBar";
 import { PhaseTreeProvider } from "../../views/phaseTree";
@@ -83,28 +82,6 @@ describe("Extension integration", () => {
 
       expect(result.status).toBe("detected");
       expect(executor).toHaveBeenCalledWith("claudeloop", ["--version"]);
-    });
-  });
-
-  describe("feature flag gate", () => {
-    it("disables all UI when oxveil.experimental is false", () => {
-      const getConfig = (key: string) => {
-        if (key === "experimental") return false;
-        return undefined;
-      };
-
-      // When feature flag is off, shouldActivate returns false
-      // and extension.ts should skip all UI registration
-      expect(shouldActivate(getConfig)).toBe(false);
-    });
-
-    it("enables all UI when oxveil.experimental is true", () => {
-      const getConfig = (key: string) => {
-        if (key === "experimental") return true;
-        return undefined;
-      };
-
-      expect(shouldActivate(getConfig)).toBe(true);
     });
   });
 
