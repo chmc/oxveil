@@ -1,18 +1,17 @@
 import * as vscode from "vscode";
-import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import * as fs from "node:fs/promises";
 import { execFile, spawn as nodeSpawn } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
 import { SessionState } from "./core/sessionState";
-import { parseLock } from "./core/lock";
-import { WatcherManager } from "./core/watchers";
 import { ProcessManager } from "./core/processManager";
 import { Installer } from "./core/installer";
-import { parseProgress } from "./parsers/progress";
 import { StatusBarManager } from "./views/statusBar";
 import { PhaseTreeProvider } from "./views/phaseTree";
 import { OutputChannelManager } from "./views/outputChannel";
+import { registerCommands } from "./commands";
+import { initWorkspaceWatchers } from "./workspaceInit";
 
 const execFileAsync = promisify(execFile);
 
@@ -152,7 +151,6 @@ export async function activate(
     phaseTree.update({ progress });
     onDidChangeTreeData.fire(undefined);
 
-    // Update status bar with current phase info while running
     if (session.status === "running" && progress.currentPhaseIndex !== undefined) {
       const phase = progress.phases[progress.currentPhaseIndex];
       statusBar.update({
@@ -171,70 +169,13 @@ export async function activate(
   // Watchers
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (workspaceFolders && workspaceFolders.length > 0) {
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const debounceMs = config.get<number>("watchDebounceMs", 100);
-
-    const watcherManager = new WatcherManager({
-      workspaceRoot,
+    const watcherResult = await initWorkspaceWatchers({
+      workspaceFolders,
       debounceMs,
-      onLockChange: (content) => {
-        const lock = parseLock(content);
-        session.onLockChanged(lock);
-      },
-      onProgressChange: (content) => {
-        const progress = parseProgress(content);
-        session.onProgressChanged(progress);
-      },
-      onLogChange: (content) => {
-        session.onLogAppended(content);
-      },
-      createWatcher: (glob) => {
-        const watcher = vscode.workspace.createFileSystemWatcher(
-          new vscode.RelativePattern(workspaceFolders[0], ".claudeloop/**"),
-        );
-        return watcher;
-      },
-      readFile: async (filePath) => {
-        const bytes = await fs.readFile(filePath, "utf-8");
-        return bytes;
-      },
+      session,
     });
-
-    watcherManager.start();
-    disposables.push({ dispose: () => watcherManager.stop() });
-
-    // Check initial state
-    const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
-    try {
-      await fs.access(claudeloopDir);
-
-      let lockState = { locked: false as const };
-      let progress: ReturnType<typeof parseProgress> | undefined;
-
-      try {
-        const lockContent = await fs.readFile(
-          path.join(claudeloopDir, "lock"),
-          "utf-8",
-        );
-        lockState = parseLock(lockContent) as any;
-      } catch {
-        // No lock file
-      }
-
-      try {
-        const progressContent = await fs.readFile(
-          path.join(claudeloopDir, "PROGRESS.md"),
-          "utf-8",
-        );
-        progress = parseProgress(progressContent);
-      } catch {
-        // No PROGRESS.md
-      }
-
-      session.checkInitialState({ lock: lockState, progress });
-    } catch {
-      // No .claudeloop/ directory
-    }
+    disposables.push(...watcherResult.disposables);
   }
 
   // Re-detect on setting change
@@ -328,51 +269,13 @@ export async function activate(
 
   // Register commands
   disposables.push(
-    vscode.commands.registerCommand("oxveil.start", async () => {
-      if (!processManager) return;
-      try {
-        await processManager.spawn();
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        vscode.window.showErrorMessage(`Oxveil: Failed to start — ${msg}`);
-      }
-    }),
-    vscode.commands.registerCommand("oxveil.stop", async () => {
-      if (!processManager) return;
-      await processManager.stop();
-    }),
-    vscode.commands.registerCommand("oxveil.reset", async () => {
-      if (!processManager) return;
-      try {
-        await processManager.reset();
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        vscode.window.showErrorMessage(`Oxveil: Failed to reset — ${msg}`);
-      }
-    }),
-    vscode.commands.registerCommand("oxveil.forceUnlock", async () => {
-      if (!processManager) return;
-      await processManager.forceUnlock();
-      // Trigger lock re-read by emitting unlock
-      session.onLockChanged({ locked: false });
-    }),
-    vscode.commands.registerCommand("oxveil.install", async () => {
-      if (!installer.isSupported()) {
-        vscode.window.showErrorMessage(
-          "Oxveil: claudeloop installation is not supported on this platform",
-        );
-        return;
-      }
-      statusBar.update({ kind: "installing" });
-      await installer.install();
-    }),
+    ...registerCommands({ processManager, installer, session, statusBar }),
   );
 
   context.subscriptions.push(...disposables);
 }
 
 export async function deactivate(): Promise<void> {
-  // Give process manager a chance to cleanly shut down
   const pm = _processManager;
   if (pm?.isRunning) {
     await pm.deactivate();
