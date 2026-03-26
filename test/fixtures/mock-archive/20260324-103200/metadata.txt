@@ -1,0 +1,8 @@
+plan=ai-parsed-plan.md
+started=2026-03-24 10:32:00
+finished=2026-03-24 12:15:00
+status=completed
+phases_total=7
+phases_completed=7
+phases_failed=0
+claudeloop_version=0.22.1
