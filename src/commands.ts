@@ -7,6 +7,7 @@ import type { StatusBarManager } from "./views/statusBar";
 import { findPhaseLogs } from "./views/logViewer";
 import type { PhaseTreeItem } from "./views/phaseTree";
 import type { ArchiveTreeItem } from "./views/archiveTree";
+import type { DependencyGraphPanel } from "./views/dependencyGraph";
 
 export interface CommandDeps {
   processManager: ProcessManager | undefined;
@@ -16,10 +17,11 @@ export interface CommandDeps {
   workspaceRoot: string | undefined;
   readdir: (dir: string) => Promise<string[]>;
   onArchiveRefresh?: () => void;
+  dependencyGraph?: DependencyGraphPanel;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -151,6 +153,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     vscode.commands.registerCommand("oxveil.archiveRefresh", () => {
       onArchiveRefresh?.();
+    }),
+    vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
+      dependencyGraph?.reveal(session.progress);
     }),
   ];
 }

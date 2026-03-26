@@ -82,6 +82,10 @@
         "command": "oxveil.archiveRefresh",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "oxveil.showDependencyGraph",
+        "title": "Oxveil: Show Dependency Graph"
       }
     ],
     "menus": {
@@ -129,6 +133,10 @@
         {
           "command": "oxveil.install",
           "when": "!oxveil.detected"
+        },
+        {
+          "command": "oxveil.showDependencyGraph",
+          "when": "config.oxveil.experimental"
         }
       ]
     },

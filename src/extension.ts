@@ -20,6 +20,7 @@ import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
 import { stat } from "node:fs/promises";
 import { createTreeAdapter } from "./views/treeAdapter";
+import { DependencyGraphPanel } from "./views/dependencyGraph";
 
 const execFileAsync = promisify(execFile);
 
@@ -289,6 +290,12 @@ export async function activate(
     platform: process.platform,
   });
 
+  // Dependency graph webview
+  const dependencyGraph = new DependencyGraphPanel({
+    createWebviewPanel: vscode.window.createWebviewPanel,
+  });
+  disposables.push({ dispose: () => dependencyGraph.dispose() });
+
   // Register commands
   disposables.push(
     ...registerCommands({
@@ -299,6 +306,7 @@ export async function activate(
       workspaceRoot,
       readdir: (dir: string) => fs.readdir(dir),
       onArchiveRefresh: refreshArchive,
+      dependencyGraph,
     }),
   );
 
