@@ -19,6 +19,7 @@ import { wireSessionEvents } from "./sessionWiring";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
 import { stat } from "node:fs/promises";
+import { createTreeAdapter } from "./views/treeAdapter";
 
 const execFileAsync = promisify(execFile);
 
@@ -81,76 +82,26 @@ export async function activate(
     progress: null,
   });
 
-  const onDidChangeTreeData = new vscode.EventEmitter<string | undefined>();
-
-  const treeDataProvider: vscode.TreeDataProvider<string> = {
-    onDidChangeTreeData: onDidChangeTreeData.event,
-    getTreeItem(element: string): vscode.TreeItem {
-      const items = phaseTree.getChildren();
-      const idx = parseInt(element, 10);
-      const item = items[idx];
-      if (!item) return new vscode.TreeItem("");
-      const treeItem = new vscode.TreeItem(item.label);
-      treeItem.description = item.description;
-      if (item.iconId) {
-        treeItem.iconPath = new vscode.ThemeIcon(
-          item.iconId,
-          item.iconColor
-            ? new vscode.ThemeColor(item.iconColor)
-            : undefined,
-        );
-      }
-      if (item.contextValue) {
-        treeItem.contextValue = item.contextValue;
-      }
+  const { dataProvider: phaseDataProvider, emitter: onDidChangeTreeData } =
+    createTreeAdapter(phaseTree, (item, treeItem) => {
       if (item.phaseNumber !== undefined) {
         (treeItem as any).phaseNumber = item.phaseNumber;
       }
-      return treeItem;
-    },
-    getChildren(): string[] {
-      return phaseTree.getChildren().map((_, i) => String(i));
-    },
-  };
+    });
 
   const treeView = vscode.window.createTreeView("oxveil.phases", {
-    treeDataProvider,
+    treeDataProvider: phaseDataProvider,
   });
   disposables.push(treeView);
 
   // Archive tree view
   const archiveTree = new ArchiveTreeProvider();
-  const archiveDidChange = new vscode.EventEmitter<string | undefined>();
-
-  const archiveDataProvider: vscode.TreeDataProvider<string> = {
-    onDidChangeTreeData: archiveDidChange.event,
-    getTreeItem(element: string): vscode.TreeItem {
-      const items = archiveTree.getChildren();
-      const idx = parseInt(element, 10);
-      const item = items[idx];
-      if (!item) return new vscode.TreeItem("");
-      const treeItem = new vscode.TreeItem(item.label);
-      treeItem.description = item.description;
-      if (item.iconId) {
-        treeItem.iconPath = new vscode.ThemeIcon(
-          item.iconId,
-          item.iconColor
-            ? new vscode.ThemeColor(item.iconColor)
-            : undefined,
-        );
-      }
-      if (item.contextValue) {
-        treeItem.contextValue = item.contextValue;
-      }
+  const { dataProvider: archiveDataProvider, emitter: archiveDidChange } =
+    createTreeAdapter(archiveTree, (item, treeItem) => {
       if (item.archiveName) {
         (treeItem as any).archiveName = item.archiveName;
       }
-      return treeItem;
-    },
-    getChildren(): string[] {
-      return archiveTree.getChildren().map((_, i) => String(i));
-    },
-  };
+    });
 
   const archiveView = vscode.window.createTreeView("oxveil.archive", {
     treeDataProvider: archiveDataProvider,
