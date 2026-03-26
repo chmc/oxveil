@@ -3,7 +3,11 @@ import {
   PhaseTreeProvider,
   type PhaseTreeDeps,
 } from "../../../views/phaseTree";
-import type { ProgressState, PhaseStatus } from "../../../types";
+import type {
+  ProgressState,
+  PhaseStatus,
+  PhaseDependency,
+} from "../../../types";
 
 function makeDeps(overrides: Partial<PhaseTreeDeps> = {}): PhaseTreeDeps {
   return {
@@ -19,6 +23,7 @@ function makeProgress(
     title: string;
     status: PhaseStatus;
     attempts?: number;
+    dependencies?: PhaseDependency[];
   }>
 ): ProgressState {
   const currentPhaseIndex = phases.findIndex(
@@ -30,6 +35,7 @@ function makeProgress(
       title: p.title,
       status: p.status,
       attempts: p.attempts,
+      dependencies: p.dependencies,
     })),
     totalPhases: phases.length,
     currentPhaseIndex: currentPhaseIndex >= 0 ? currentPhaseIndex : undefined,
@@ -129,6 +135,55 @@ describe("PhaseTreeProvider", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].label).toContain("No active session");
+  });
+
+  it("shows dependency info in description", () => {
+    const progress = makeProgress([
+      {
+        number: 3,
+        title: "API",
+        status: "pending",
+        dependencies: [
+          { phaseNumber: 1, status: "completed" },
+          { phaseNumber: 2, status: "completed" },
+        ],
+      },
+    ]);
+    const provider = new PhaseTreeProvider(makeDeps({ progress }));
+    const items = provider.getChildren();
+
+    expect(items[0].description).toBe("depends on Phase 1, Phase 2");
+  });
+
+  it("combines attempts and dependencies in description", () => {
+    const progress = makeProgress([
+      {
+        number: 4,
+        title: "DB",
+        status: "failed",
+        attempts: 3,
+        dependencies: [
+          { phaseNumber: 1, status: "completed" },
+          { phaseNumber: 2, status: "completed" },
+        ],
+      },
+    ]);
+    const provider = new PhaseTreeProvider(makeDeps({ progress }));
+    const items = provider.getChildren();
+
+    expect(items[0].description).toBe(
+      "3 attempts · depends on Phase 1, Phase 2"
+    );
+  });
+
+  it("shows no description when no attempts and no dependencies", () => {
+    const progress = makeProgress([
+      { number: 1, title: "Setup", status: "completed" },
+    ]);
+    const provider = new PhaseTreeProvider(makeDeps({ progress }));
+    const items = provider.getChildren();
+
+    expect(items[0].description).toBeUndefined();
   });
 
   it("detects phase transitions between old and new state", () => {

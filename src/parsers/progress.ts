@@ -1,4 +1,9 @@
-import type { PhaseStatus, PhaseState, ProgressState } from "../types";
+import type {
+  PhaseStatus,
+  PhaseDependency,
+  PhaseState,
+  ProgressState,
+} from "../types";
 
 const VALID_STATUSES = new Set<PhaseStatus>([
   "pending",
@@ -10,6 +15,29 @@ const VALID_STATUSES = new Set<PhaseStatus>([
 // Match "### [any emoji/text] Phase N[.N]: Title"
 const PHASE_HEADER_RE =
   /^###\s+.*?Phase\s+(\d+(?:\.\d+)?)\s*:\s*(.+)$/;
+
+const DEP_PHASE_RE = /Phase\s+(\d+(?:\.\d+)?)\s*(✅|⏳|❌|🔄)?/g;
+
+const EMOJI_STATUS: Record<string, PhaseStatus> = {
+  "✅": "completed",
+  "⏳": "pending",
+  "❌": "failed",
+  "🔄": "in_progress",
+};
+
+function parseDependencies(line: string): PhaseDependency[] {
+  const deps: PhaseDependency[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = DEP_PHASE_RE.exec(line)) !== null) {
+    const rawNum = match[1];
+    const emoji = match[2];
+    deps.push({
+      phaseNumber: rawNum.includes(".") ? rawNum : Number(rawNum),
+      status: emoji ? (EMOJI_STATUS[emoji] ?? "unknown") : "unknown",
+    });
+  }
+  return deps;
+}
 
 function emptyState(): ProgressState {
   return { phases: [], totalPhases: 0 };
@@ -60,6 +88,11 @@ export function parseProgress(content: string): ProgressState {
         const n = parseInt(trimmed.slice(9).trim(), 10);
         if (!isNaN(n)) {
           current.attempts = n;
+        }
+      } else if (trimmed.startsWith("Depends on:")) {
+        const deps = parseDependencies(trimmed);
+        if (deps.length > 0) {
+          current.dependencies = deps;
         }
       }
     }

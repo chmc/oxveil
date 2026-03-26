@@ -13,6 +13,11 @@ export type StatusBarState =
 
 export type PhaseStatus = "pending" | "completed" | "in_progress" | "failed";
 
+export interface PhaseDependency {
+  phaseNumber: number | string;
+  status: PhaseStatus | "unknown";
+}
+
 export interface PhaseState {
   number: number | string;
   title: string;
@@ -20,6 +25,7 @@ export interface PhaseState {
   attempts?: number;
   started?: string;
   completed?: string;
+  dependencies?: PhaseDependency[];
 }
 
 export interface ProgressState {

@@ -65,8 +65,18 @@ export class PhaseTreeProvider {
         iconColor: icon.color,
       };
 
+      const parts: string[] = [];
       if (phase.attempts !== undefined && phase.attempts > 1) {
-        item.description = `${phase.attempts} attempts`;
+        parts.push(`${phase.attempts} attempts`);
+      }
+      if (phase.dependencies && phase.dependencies.length > 0) {
+        const depLabels = phase.dependencies.map(
+          (d) => `Phase ${d.phaseNumber}`
+        );
+        parts.push(`depends on ${depLabels.join(", ")}`);
+      }
+      if (parts.length > 0) {
+        item.description = parts.join(" · ");
       }
 
       return item;

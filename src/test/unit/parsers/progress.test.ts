@@ -167,6 +167,150 @@ Completed: 2026-03-25 10:15:00
     expect(result.currentPhaseIndex).toBeUndefined();
   });
 
+  describe("dependency parsing", () => {
+    it("parses single dependency with emoji status", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ✅ Phase 2: Core module
+Status: completed
+Depends on: Phase 1 ✅
+`;
+      const result = parseProgress(content);
+      expect(result.phases[0].dependencies).toEqual([
+        { phaseNumber: 1, status: "completed" },
+      ]);
+    });
+
+    it("parses multiple dependencies", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ⏳ Phase 5: Integration tests
+Status: pending
+Depends on: Phase 3 🔄 Phase 4 ⏳
+`;
+      const result = parseProgress(content);
+      expect(result.phases[0].dependencies).toEqual([
+        { phaseNumber: 3, status: "in_progress" },
+        { phaseNumber: 4, status: "pending" },
+      ]);
+    });
+
+    it("maps all emoji statuses correctly", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ⏳ Phase 5: All deps
+Status: pending
+Depends on: Phase 1 ✅ Phase 2 ⏳ Phase 3 ❌ Phase 4 🔄
+`;
+      const result = parseProgress(content);
+      const deps = result.phases[0].dependencies!;
+      expect(deps[0].status).toBe("completed");
+      expect(deps[1].status).toBe("pending");
+      expect(deps[2].status).toBe("failed");
+      expect(deps[3].status).toBe("in_progress");
+    });
+
+    it("sets status to unknown when emoji is missing", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ⏳ Phase 2: Build
+Status: pending
+Depends on: Phase 1
+`;
+      const result = parseProgress(content);
+      expect(result.phases[0].dependencies).toEqual([
+        { phaseNumber: 1, status: "unknown" },
+      ]);
+    });
+
+    it("leaves dependencies undefined when no Depends on line", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ✅ Phase 1: Setup
+Status: completed
+`;
+      const result = parseProgress(content);
+      expect(result.phases[0].dependencies).toBeUndefined();
+    });
+
+    it("ignores malformed Depends on line with no phase references", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ⏳ Phase 2: Build
+Status: pending
+Depends on: nothing useful here
+`;
+      const result = parseProgress(content);
+      expect(result.phases[0].dependencies).toBeUndefined();
+    });
+
+    it("handles decimal phase numbers in dependencies", () => {
+      const content = `# Progress for plan.md
+Last updated: 2026-03-25 10:00:00
+
+## Phase Details
+
+### ⏳ Phase 3: Build
+Status: pending
+Depends on: Phase 2.5 ✅
+`;
+      const result = parseProgress(content);
+      expect(result.phases[0].dependencies).toEqual([
+        { phaseNumber: "2.5", status: "completed" },
+      ]);
+    });
+
+    it("parses dependencies from mock-deps fixture", () => {
+      const content = readFixture("mock-deps");
+      const result = parseProgress(content);
+
+      // Phase 1: no deps
+      expect(result.phases[0].dependencies).toBeUndefined();
+      // Phase 2: depends on Phase 1
+      expect(result.phases[1].dependencies).toEqual([
+        { phaseNumber: 1, status: "completed" },
+      ]);
+      // Phase 5: depends on Phase 3 and Phase 4
+      expect(result.phases[4].dependencies).toEqual([
+        { phaseNumber: 3, status: "in_progress" },
+        { phaseNumber: 4, status: "pending" },
+      ]);
+    });
+
+    it("parses dependencies from mock-running fixture", () => {
+      const content = readFixture("mock-running");
+      const result = parseProgress(content);
+
+      // Phase 2: depends on Phase 1
+      expect(result.phases[1].dependencies).toEqual([
+        { phaseNumber: 1, status: "completed" },
+      ]);
+      // Phase 5: depends on Phase 3 and Phase 4
+      expect(result.phases[4].dependencies).toEqual([
+        { phaseNumber: 3, status: "pending" },
+        { phaseNumber: 4, status: "failed" },
+      ]);
+    });
+  });
+
   it("parses all-completed fixture correctly", () => {
     const content = readFixture("mock-done");
     const result = parseProgress(content);
