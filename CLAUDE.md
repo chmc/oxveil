@@ -14,8 +14,13 @@
 - Gate all unreleased features behind feature flags. See `.claude/skills/feature-flags.md`.
 - Do not create long-lived branches.
 - Do not ship ungated experimental features.
-- After completing UI-facing features, run the visual verification loop. See `.claude/skills/visual-verification.md`.
 - Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
+
+## Verification
+
+**Visual verification (mandatory):** After completing UI-facing features, invoke `/visual-verification`. Do not report the task as done until visual verification passes. Skip only for documentation-only or test-only changes with no implementation modifications.
+
+**Autonomous verification (mandatory):** Never suggest the user test something manually when you can do it yourself. If you can build, launch EDH, screenshot, and compare — do it without asking.
 
 ## Writing Style
 
