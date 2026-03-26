@@ -88,18 +88,23 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 │   - Installation (install.sh via terminal / WSL)         │
 │   - Configuration (VS Code settings → v0.3 wizard)       │
 ├───────────────┬────────────────┬─────────────────────────┤
-│   Tree Views  │  Output Ch.    │  Status Bar             │
-│   - Phases    │  - live.log    │  - Phase X/Y            │
-│               │                │  - Elapsed time         │
+│   Tree Views  │  Webviews      │  Status Bar             │
+│   - Phases    │  - Dep. Graph  │  - Phase X/Y            │
+│   - Archive   │                │  - Elapsed time         │
+├───────────────┼────────────────┼─────────────────────────┤
+│   Log Viewer  │  Diff Provider │  Output Channel         │
+│   - Phase logs│  - Git diffs   │  - live.log stream      │
 ├───────────────┴────────────────┴─────────────────────────┤
 │                     Parsers                               │
 │   - progress.ts (PROGRESS.md → ProgressState)            │
+│   - archive.ts  (archive dirs → ArchiveEntry[])          │
 ├──────────────────────────────────────────────────────────┤
 │                     Core                                  │
 │   - SessionState (state machine + EventEmitter)          │
 │   - Process Manager (spawn/stop/reset)                   │
 │   - Lock Manager (read-only lock observation)            │
 │   - Watcher (single FileSystemWatcher + debounce)        │
+│   - Git Integration (phase diffs via git)                │
 ├──────────────────────────────────────────────────────────┤
 │               claudeloop CLI (engine)                     │
 │   .claudeloop/ directory = IPC contract                   │
@@ -120,6 +125,7 @@ src/
 ├── core/
 │   ├── detection.ts          # claudeloop detection and version check
 │   ├── featureFlag.ts        # Feature flag gate (oxveil.experimental)
+│   ├── gitIntegration.ts     # Phase-specific git diff generation
 │   ├── installer.ts          # Platform-aware claudeloop installation
 │   ├── interfaces.ts         # Core interface definitions for DI
 │   ├── lock.ts               # Read-only lock file observation
@@ -127,32 +133,48 @@ src/
 │   ├── sessionState.ts       # State machine + EventEmitter
 │   └── watchers.ts           # Single FileSystemWatcher + debounce
 ├── parsers/
+│   ├── archive.ts            # Archive directory → ArchiveEntry[]
 │   └── progress.ts           # PROGRESS.md → ProgressState
 ├── views/
+│   ├── archiveTree.ts        # Archive browser tree view (replay/restore)
+│   ├── dagLayout.ts          # DAG layout algorithm for dependency graphs
+│   ├── dagSvg.ts             # SVG generation from DAG layout
+│   ├── dependencyGraph.ts    # Dependency graph webview panel
+│   ├── diffProvider.ts       # Virtual document provider for git diffs
 │   ├── elapsedTimer.ts       # Elapsed time display (updates every second)
-│   ├── notifications.ts      # User notifications for phase transitions
+│   ├── logViewer.ts          # Click-to-open phase log files
+│   ├── notifications.ts      # Smart failure notifications with attempt count
 │   ├── outputChannel.ts      # Output channel wrapper
-│   ├── phaseTree.ts          # Sidebar tree view provider
-│   └── statusBar.ts          # Status bar item
+│   ├── phaseTree.ts          # Sidebar tree view with dependency display
+│   ├── statusBar.ts          # Status bar item
+│   └── treeAdapter.ts        # Tree view adapter utilities
 └── test/
     ├── unit/
     │   ├── core/
     │   │   ├── detection.test.ts
     │   │   ├── featureFlag.test.ts
+    │   │   ├── gitIntegration.test.ts
     │   │   ├── installer.test.ts
     │   │   ├── lock.test.ts
     │   │   ├── processManager.test.ts
     │   │   ├── sessionState.test.ts
     │   │   └── watchers.test.ts
     │   ├── parsers/
+    │   │   ├── archive.test.ts
     │   │   └── progress.test.ts
     │   └── views/
+    │       ├── archiveTree.test.ts
+    │       ├── dagLayout.test.ts
+    │       ├── dagSvg.test.ts
+    │       ├── dependencyGraph.test.ts
     │       ├── elapsedTimer.test.ts
+    │       ├── logViewer.test.ts
     │       ├── notifications.test.ts
     │       ├── outputChannel.test.ts
     │       ├── phaseTree.test.ts
     │       └── statusBar.test.ts
     └── integration/
+        ├── commands.test.ts
         └── extension.test.ts
 ```
 
@@ -307,6 +329,70 @@ Pure function, no VS Code dependency.
 
 Thin wrapper around `vscode.window.createOutputChannel("Oxveil")`. Streams `live.log` content. Prefixes stderr lines with `[stderr]`.
 
+### Archive Parser
+
+Pure function, no VS Code dependency.
+
+**Input:** List of archive directory entries from `.claudeloop/archive/`.
+**Output:** `ArchiveEntry[]` with timestamp, phase info, and file paths.
+
+Used by the archive tree view to display past session runs. Supports replay (re-open logs) and restore (copy archive back to active session).
+
+### Archive Tree View
+
+`TreeDataProvider<ArchiveTreeItem>`. Displays archived session runs from `.claudeloop/archive/`.
+
+**Context menu actions:**
+- **Replay:** Opens archived log files in the output channel
+- **Restore:** Copies archived session data back to the active `.claudeloop/` directory
+
+### DAG Layout
+
+Pure function that computes a layered DAG layout from phase dependency data.
+
+**Input:** Phase list with dependency edges.
+**Output:** Node positions and edge paths for SVG rendering.
+
+Algorithm: topological sort → layer assignment → crossing minimization → coordinate assignment. No VS Code dependency — fully testable with Vitest.
+
+### DAG SVG Generator
+
+Converts DAG layout output into an SVG string for embedding in the dependency graph webview.
+
+Renders nodes as rounded rectangles with phase status colors. Edges drawn as paths between connected nodes. Supports click interaction — nodes emit messages to the webview host.
+
+### Dependency Graph Webview
+
+`WebviewPanel` that renders a live dependency graph of phases.
+
+**Live updates:** Subscribes to `phases-changed` events from SessionState. Re-renders the DAG on each update.
+
+**Interaction:** Clicking a phase node in the graph focuses the corresponding entry in the phase tree view.
+
+**Lifecycle:** Opened via command or context menu. Disposed when the panel is closed. Handles visibility changes to pause/resume updates.
+
+### Log Viewer
+
+Opens phase log files directly from the tree view context menu.
+
+**Flow:** Right-click a phase → "View Log" → opens the corresponding log file from `.claudeloop/` in a VS Code editor tab.
+
+### Diff Provider
+
+Virtual document provider (`TextDocumentContentProvider`) that generates git diffs for individual phases.
+
+**Flow:** Right-click a phase → "View Diff" → opens a diff view showing the git changes made during that phase.
+
+**Implementation:** Uses `gitIntegration.ts` to run `git diff` between the commits that bracket a phase's execution.
+
+### Git Integration
+
+Core module for extracting phase-specific git diffs.
+
+**Interface:** Provides methods to identify commits associated with each phase and generate diffs between them.
+
+**Usage:** Called by the diff provider to populate virtual diff documents. No VS Code dependency beyond `child_process` for running git commands.
+
 ## Interfaces
 
 Component boundaries are defined as interfaces for testability and replaceability.
@@ -390,8 +476,8 @@ Both repos share the same author. This enables tight coordination but requires d
 
 See [chmc/oxveil#1](https://github.com/chmc/oxveil/issues/1) for full milestone details.
 
-- **v0.1 — Entry Point, Run & Monitor:** claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), output channel, phase tree view, notifications
-- **v0.2 — Rich Monitoring:** Dependency graph webview, archive browser, click-to-open logs, phase git diffs
+- **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), output channel, phase tree view, notifications
+- **v0.2 — Rich Monitoring:** ✅ Dependency graph webview (live DAG with click interaction), archive browser (replay/restore), click-to-open phase logs, phase git diffs (View Diff context menu), smart failure notifications with attempt count
 - **v0.3 — Config & Plan Editing:** Config wizard webview, plan file language support, CodeLens, replay viewer
 - **v0.4 — Deep Integration:** Retry strategies, phase timeline, multi-root workspace, welcome walkthrough
 

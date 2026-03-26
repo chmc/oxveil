@@ -67,6 +67,16 @@ npm run release:local
 git push --follow-tags
 ```
 
+## Features
+
+- **Phase monitoring** — Live status bar, sidebar tree view, and notifications for phase transitions
+- **Dependency graph** — Interactive DAG webview showing phase dependencies with live updates
+- **Archive browser** — Browse past session runs with replay and restore actions
+- **Phase logs** — Click-to-open log files directly from the tree view
+- **Git diffs** — View per-phase git diffs via context menu
+- **Smart notifications** — Failure alerts with attempt count and quick actions (View Log)
+- **claudeloop management** — Detect, install, start, stop, and reset claudeloop from VS Code
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical overview, IPC contract, component details, and roadmap.
