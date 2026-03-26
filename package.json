@@ -58,9 +58,20 @@
       {
         "command": "oxveil.install",
         "title": "Oxveil: Install claudeloop"
+      },
+      {
+        "command": "oxveil.viewLog",
+        "title": "Oxveil: View Phase Log"
       }
     ],
     "menus": {
+      "view/item/context": [
+        {
+          "command": "oxveil.viewLog",
+          "when": "view == oxveil.phases && viewItem == phase",
+          "group": "navigation"
+        }
+      ],
       "commandPalette": [
         {
           "command": "oxveil.start",

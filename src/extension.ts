@@ -97,6 +97,12 @@ export async function activate(
             : undefined,
         );
       }
+      if (item.contextValue) {
+        treeItem.contextValue = item.contextValue;
+      }
+      if (item.phaseNumber !== undefined) {
+        (treeItem as any).phaseNumber = item.phaseNumber;
+      }
       return treeItem;
     },
     getChildren(): string[] {
@@ -270,7 +276,14 @@ export async function activate(
 
   // Register commands
   disposables.push(
-    ...registerCommands({ processManager, installer, session, statusBar }),
+    ...registerCommands({
+      processManager,
+      installer,
+      session,
+      statusBar,
+      workspaceRoot,
+      readdir: (dir: string) => fs.readdir(dir),
+    }),
   );
 
   context.subscriptions.push(...disposables);

@@ -10,6 +10,8 @@ export interface PhaseTreeItem {
   description?: string;
   iconId?: string;
   iconColor?: string;
+  contextValue?: string;
+  phaseNumber?: number | string;
 }
 
 export interface PhaseTransition {
@@ -63,6 +65,8 @@ export class PhaseTreeProvider {
         label: `Phase ${phase.number}: ${phase.title}`,
         iconId: icon.id,
         iconColor: icon.color,
+        contextValue: "phase",
+        phaseNumber: phase.number,
       };
 
       const parts: string[] = [];
