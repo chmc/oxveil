@@ -53,7 +53,7 @@ describe("NotificationManager", () => {
       );
     });
 
-    it("shows error notification with Show Output action when phase fails", async () => {
+    it("shows error notification with View Log and Show Output actions when phase fails", async () => {
       const win = makeWindow();
       const showOutput = vi.fn();
       const mgr = new NotificationManager({ window: win, onShowOutput: showOutput });
@@ -80,6 +80,7 @@ describe("NotificationManager", () => {
 
       expect(win.showErrorMessage).toHaveBeenCalledWith(
         "Phase 3 failed — Implement auth module",
+        "View Log",
         "Show Output",
         "Dismiss",
       );
@@ -87,6 +88,96 @@ describe("NotificationManager", () => {
       // Simulate user clicking "Show Output"
       await vi.waitFor(() => {
         expect(showOutput).toHaveBeenCalled();
+      });
+    });
+
+    it("includes attempt count in failure message when attempts > 1", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      const oldProgress = makeProgress({
+        phases: [
+          { number: 3, title: "Implement auth module", status: "in_progress", attempts: 3 },
+        ],
+        totalPhases: 5,
+        currentPhaseIndex: 0,
+      });
+
+      const newProgress = makeProgress({
+        phases: [
+          { number: 3, title: "Implement auth module", status: "failed", attempts: 3 },
+        ],
+        totalPhases: 5,
+        currentPhaseIndex: 0,
+      });
+
+      mgr.onPhasesChanged(oldProgress, newProgress);
+
+      expect(win.showErrorMessage).toHaveBeenCalledWith(
+        "Phase 3 failed — Implement auth module (attempt 3)",
+        "View Log",
+        "Show Output",
+        "Dismiss",
+      );
+    });
+
+    it("omits attempt count when attempts is 1", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      const oldProgress = makeProgress({
+        phases: [
+          { number: 3, title: "Implement auth module", status: "in_progress", attempts: 1 },
+        ],
+        totalPhases: 5,
+        currentPhaseIndex: 0,
+      });
+
+      const newProgress = makeProgress({
+        phases: [
+          { number: 3, title: "Implement auth module", status: "failed", attempts: 1 },
+        ],
+        totalPhases: 5,
+        currentPhaseIndex: 0,
+      });
+
+      mgr.onPhasesChanged(oldProgress, newProgress);
+
+      expect(win.showErrorMessage).toHaveBeenCalledWith(
+        "Phase 3 failed — Implement auth module",
+        "View Log",
+        "Show Output",
+        "Dismiss",
+      );
+    });
+
+    it("triggers onViewLog callback with correct phase number when View Log is clicked", async () => {
+      const win = makeWindow();
+      const viewLog = vi.fn();
+      const mgr = new NotificationManager({ window: win, onViewLog: viewLog });
+
+      const oldProgress = makeProgress({
+        phases: [
+          { number: 5, title: "Deploy service", status: "in_progress" },
+        ],
+        totalPhases: 8,
+        currentPhaseIndex: 0,
+      });
+
+      const newProgress = makeProgress({
+        phases: [
+          { number: 5, title: "Deploy service", status: "failed" },
+        ],
+        totalPhases: 8,
+        currentPhaseIndex: 0,
+      });
+
+      win.showErrorMessage.mockResolvedValue("View Log");
+
+      mgr.onPhasesChanged(oldProgress, newProgress);
+
+      await vi.waitFor(() => {
+        expect(viewLog).toHaveBeenCalledWith(5);
       });
     });
   });

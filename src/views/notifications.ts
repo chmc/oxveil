@@ -19,6 +19,7 @@ export interface NotificationWindow {
 export interface NotificationDeps {
   window: NotificationWindow;
   onShowOutput?: () => void;
+  onViewLog?: (phaseNumber: number | string) => void;
   onInstall?: () => void;
   onSetPath?: () => void;
   onStop?: () => void;
@@ -47,14 +48,21 @@ export class NotificationManager {
           `Phase ${t.phase} completed — ${t.title}`,
         );
       } else if (t.to === "failed") {
+        const attemptSuffix =
+          t.attempts !== undefined && t.attempts > 1
+            ? ` (attempt ${t.attempts})`
+            : "";
         this._deps.window
           .showErrorMessage(
-            `Phase ${t.phase} failed — ${t.title}`,
+            `Phase ${t.phase} failed — ${t.title}${attemptSuffix}`,
+            "View Log",
             "Show Output",
             "Dismiss",
           )
           .then((action) => {
-            if (action === "Show Output") {
+            if (action === "View Log") {
+              this._deps.onViewLog?.(t.phase);
+            } else if (action === "Show Output") {
               this._deps.onShowOutput?.();
             }
           });

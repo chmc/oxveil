@@ -152,6 +152,8 @@ export async function activate(
   const notifications = new NotificationManager({
     window: vscode.window,
     onShowOutput: () => outputChannel.show(true),
+    onViewLog: (phaseNumber) =>
+      vscode.commands.executeCommand("oxveil.viewLog", { phaseNumber }),
     onInstall: () => vscode.commands.executeCommand("oxveil.install"),
     onSetPath: () =>
       vscode.commands.executeCommand(

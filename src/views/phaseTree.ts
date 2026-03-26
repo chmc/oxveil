@@ -19,6 +19,7 @@ export interface PhaseTransition {
   title: string;
   from: PhaseStatus;
   to: PhaseStatus;
+  attempts?: number;
 }
 
 const STATUS_ICONS: Record<PhaseStatus, { id: string; color: string }> = {
@@ -103,6 +104,7 @@ export class PhaseTreeProvider {
           title: newPhase.title,
           from: oldPhase.status,
           to: newPhase.status,
+          attempts: newPhase.attempts,
         });
       }
     }
