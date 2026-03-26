@@ -4,6 +4,7 @@ import * as fs from "node:fs/promises";
 import { execFile, spawn as nodeSpawn } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
+import type { ProgressState } from "./types";
 import { SessionState } from "./core/sessionState";
 import { ProcessManager } from "./core/processManager";
 import { Installer } from "./core/installer";
@@ -12,6 +13,9 @@ import { PhaseTreeProvider } from "./views/phaseTree";
 import { OutputChannelManager } from "./views/outputChannel";
 import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
+import { NotificationManager } from "./views/notifications";
+import { ElapsedTimer } from "./views/elapsedTimer";
+import { shouldActivate } from "./core/featureFlag";
 
 const execFileAsync = promisify(execFile);
 
@@ -23,6 +27,12 @@ export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const config = vscode.workspace.getConfiguration("oxveil");
+
+  // Feature flag gate — skip all UI when experimental is disabled
+  if (!shouldActivate((key) => config.get(key))) {
+    return;
+  }
+
   const claudeloopPath = config.get<string>("claudeloopPath", "claudeloop");
 
   // Status bar
@@ -107,6 +117,38 @@ export async function activate(
   // Session state
   const session = new SessionState();
 
+  // Elapsed timer
+  const elapsedTimer = new ElapsedTimer((elapsed) => {
+    if (session.status === "running") {
+      const p = session.progress;
+      const currentPhase = p?.currentPhaseIndex !== undefined
+        ? (p.phases[p.currentPhaseIndex]?.number as number) ?? 1
+        : 1;
+      statusBar.update({
+        kind: "running",
+        currentPhase,
+        totalPhases: p?.totalPhases ?? 0,
+        elapsed,
+      });
+    }
+  });
+
+  // Notifications
+  const notifications = new NotificationManager({
+    window: vscode.window,
+    onShowOutput: () => outputChannel.show(true),
+    onInstall: () => vscode.commands.executeCommand("oxveil.install"),
+    onSetPath: () =>
+      vscode.commands.executeCommand(
+        "workbench.action.openSettings",
+        "oxveil.claudeloopPath",
+      ),
+    onStop: () => vscode.commands.executeCommand("oxveil.stop"),
+    onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
+  });
+
+  let lastProgress: ProgressState | undefined;
+
   session.on("state-changed", (_from, to) => {
     vscode.commands.executeCommand(
       "setContext",
@@ -116,6 +158,7 @@ export async function activate(
 
     switch (to) {
       case "running": {
+        elapsedTimer.start();
         const p = session.progress;
         const currentPhase = p?.currentPhaseIndex !== undefined
           ? (p.phases[p.currentPhaseIndex]?.number as number) ?? 1
@@ -124,14 +167,16 @@ export async function activate(
           kind: "running",
           currentPhase,
           totalPhases: p?.totalPhases ?? 0,
-          elapsed: "0m",
+          elapsed: elapsedTimer.elapsed,
         });
         break;
       }
       case "done":
-        statusBar.update({ kind: "done", elapsed: "0m" });
+        elapsedTimer.stop();
+        statusBar.update({ kind: "done", elapsed: elapsedTimer.elapsed });
         break;
       case "failed": {
+        elapsedTimer.stop();
         const fp = session.progress?.phases.find(
           (p) => p.status === "failed",
         );
@@ -142,6 +187,7 @@ export async function activate(
         break;
       }
       case "idle":
+        elapsedTimer.stop();
         statusBar.update({ kind: "idle" });
         break;
     }
@@ -151,13 +197,18 @@ export async function activate(
     phaseTree.update({ progress });
     onDidChangeTreeData.fire(undefined);
 
+    if (lastProgress) {
+      notifications.onPhasesChanged(lastProgress, progress);
+    }
+    lastProgress = progress;
+
     if (session.status === "running" && progress.currentPhaseIndex !== undefined) {
       const phase = progress.phases[progress.currentPhaseIndex];
       statusBar.update({
         kind: "running",
         currentPhase: phase?.number as number ?? 1,
         totalPhases: progress.totalPhases,
-        elapsed: "0m",
+        elapsed: elapsedTimer.elapsed,
       });
     }
   });
@@ -165,6 +216,16 @@ export async function activate(
   session.on("log-appended", (content) => {
     outputManager.onLogAppended(content);
   });
+
+  // Detection notifications
+  if (result.status === "not-found") {
+    notifications.onDetection("not-found");
+  } else if (result.status === "version-incompatible") {
+    notifications.onDetection("version-incompatible", {
+      found: result.version ?? "unknown",
+      required: MINIMUM_VERSION,
+    });
+  }
 
   // Watchers
   const workspaceFolders = vscode.workspace.workspaceFolders;
