@@ -27,6 +27,7 @@ export function createTreeAdapter<T extends TreeItemLike>(
 ): {
   dataProvider: vscode.TreeDataProvider<string>;
   emitter: vscode.EventEmitter<string | undefined>;
+  resolveItem: (element: string) => T | undefined;
 } {
   const emitter = new vscode.EventEmitter<string | undefined>();
 
@@ -60,5 +61,10 @@ export function createTreeAdapter<T extends TreeItemLike>(
     },
   };
 
-  return { dataProvider, emitter };
+  function resolveItem(element: string): T | undefined {
+    const idx = parseInt(element, 10);
+    return provider.getChildren()[idx];
+  }
+
+  return { dataProvider, emitter, resolveItem };
 }

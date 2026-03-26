@@ -22,10 +22,12 @@ export interface CommandDeps {
   onArchiveRefresh?: () => void;
   dependencyGraph?: DependencyGraphPanel;
   gitExec?: GitExecDeps;
+  resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
+  resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, gitExec } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -67,13 +69,14 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand(
       "oxveil.viewLog",
-      async (treeItem?: { phaseNumber?: number | string }) => {
+      async (arg?: string | { phaseNumber?: number | string }) => {
         if (!workspaceRoot) {
           vscode.window.showWarningMessage("Oxveil: No workspace open");
           return;
         }
 
-        const phaseNumber = treeItem?.phaseNumber;
+        const resolved = typeof arg === "string" ? resolvePhaseItem?.(arg) : arg;
+        const phaseNumber = resolved?.phaseNumber;
         if (phaseNumber === undefined) {
           vscode.window.showWarningMessage(
             "Oxveil: No phase selected",
@@ -116,13 +119,14 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     vscode.commands.registerCommand(
       "oxveil.archiveReplay",
-      async (treeItem?: { archiveName?: string }) => {
-        if (!workspaceRoot || !treeItem?.archiveName) return;
+      async (arg?: string | { archiveName?: string }) => {
+        const resolved = typeof arg === "string" ? resolveArchiveItem?.(arg) : arg;
+        if (!workspaceRoot || !resolved?.archiveName) return;
         const replayPath = path.join(
           workspaceRoot,
           ".claudeloop",
           "archive",
-          treeItem.archiveName,
+          resolved.archiveName,
           "replay.html",
         );
         await vscode.env.openExternal(vscode.Uri.file(replayPath));
@@ -130,8 +134,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     vscode.commands.registerCommand(
       "oxveil.archiveRestore",
-      async (treeItem?: { archiveName?: string }) => {
-        if (!processManager || !workspaceRoot || !treeItem?.archiveName) return;
+      async (arg?: string | { archiveName?: string }) => {
+        const resolved = typeof arg === "string" ? resolveArchiveItem?.(arg) : arg;
+        if (!processManager || !workspaceRoot || !resolved?.archiveName) return;
 
         if (processManager.isRunning) {
           vscode.window.showErrorMessage(
@@ -148,7 +153,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         if (confirm !== "Restore") return;
 
         try {
-          await processManager.restore(treeItem.archiveName);
+          await processManager.restore(resolved.archiveName);
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(`Oxveil: Failed to restore — ${msg}`);
@@ -160,8 +165,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand(
       "oxveil.viewDiff",
-      async (treeItem?: { phaseNumber?: number | string }) => {
-        const phaseNumber = treeItem?.phaseNumber;
+      async (arg?: string | { phaseNumber?: number | string }) => {
+        const resolved = typeof arg === "string" ? resolvePhaseItem?.(arg) : arg;
+        const phaseNumber = resolved?.phaseNumber;
         if (phaseNumber === undefined || !gitExec) {
           vscode.window.showWarningMessage("Oxveil: No phase selected");
           return;

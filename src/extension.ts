@@ -85,12 +85,15 @@ export async function activate(
     progress: null,
   });
 
-  const { dataProvider: phaseDataProvider, emitter: onDidChangeTreeData } =
-    createTreeAdapter(phaseTree, (item, treeItem) => {
-      if (item.phaseNumber !== undefined) {
-        (treeItem as any).phaseNumber = item.phaseNumber;
-      }
-    });
+  const {
+    dataProvider: phaseDataProvider,
+    emitter: onDidChangeTreeData,
+    resolveItem: resolvePhaseItem,
+  } = createTreeAdapter(phaseTree, (item, treeItem) => {
+    if (item.phaseNumber !== undefined) {
+      (treeItem as any).phaseNumber = item.phaseNumber;
+    }
+  });
 
   const treeView = vscode.window.createTreeView("oxveil.phases", {
     treeDataProvider: phaseDataProvider,
@@ -99,9 +102,12 @@ export async function activate(
 
   // Archive tree view
   const archiveTree = new ArchiveTreeProvider();
-  const { dataProvider: archiveDataProvider, emitter: archiveDidChange } =
-    createTreeAdapter(archiveTree, (item, treeItem) => {
-      if (item.archiveName) {
+  const {
+    dataProvider: archiveDataProvider,
+    emitter: archiveDidChange,
+    resolveItem: resolveArchiveItem,
+  } = createTreeAdapter(archiveTree, (item, treeItem) => {
+    if (item.archiveName) {
         (treeItem as any).archiveName = item.archiveName;
       }
     });
@@ -334,6 +340,8 @@ export async function activate(
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
       gitExec,
+      resolvePhaseItem: resolvePhaseItem,
+      resolveArchiveItem: resolveArchiveItem,
     }),
   );
 

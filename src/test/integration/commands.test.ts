@@ -154,3 +154,97 @@ describe("archive commands integration", () => {
     expect(onRefresh).toHaveBeenCalled();
   });
 });
+
+describe("context menu string element resolution", () => {
+  beforeEach(() => {
+    registeredCommands.clear();
+    vi.clearAllMocks();
+  });
+
+  it("viewLog resolves string element to phaseNumber via resolver", async () => {
+    const readdir = vi.fn(async () => ["phase-2.log"]);
+    const deps = makeDeps({
+      readdir,
+      resolvePhaseItem: (el: string) =>
+        el === "1" ? { phaseNumber: 2 } : undefined,
+    });
+    registerCommands(deps);
+
+    const handler = registeredCommands.get("oxveil.viewLog");
+    await handler!("1"); // VS Code passes string element from context menu
+
+    // Should resolve "1" → { phaseNumber: 2 } and look up logs for phase 2
+    expect(readdir).toHaveBeenCalledWith(
+      expect.stringContaining(".claudeloop/logs"),
+    );
+  });
+
+  it("viewLog shows warning when string element has no resolver", async () => {
+    const deps = makeDeps({ resolvePhaseItem: undefined });
+    registerCommands(deps);
+
+    const handler = registeredCommands.get("oxveil.viewLog");
+    await handler!("0");
+
+    expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+      "Oxveil: No phase selected",
+    );
+  });
+
+  it("archiveReplay resolves string element to archiveName", async () => {
+    const deps = makeDeps({
+      resolveArchiveItem: (el: string) =>
+        el === "0" ? { archiveName: "20260322-090000" } : undefined,
+    });
+    registerCommands(deps);
+
+    const handler = registeredCommands.get("oxveil.archiveReplay");
+    await handler!("0");
+
+    expect(vscode.Uri.file).toHaveBeenCalledWith(
+      "/workspace/.claudeloop/archive/20260322-090000/replay.html",
+    );
+    expect(vscode.env.openExternal).toHaveBeenCalled();
+  });
+
+  it("archiveRestore resolves string element to archiveName", async () => {
+    const pm = makeProcessManager({ isRunning: false });
+    vi.mocked(vscode.window.showWarningMessage).mockResolvedValue(
+      "Restore" as any,
+    );
+    const deps = makeDeps({
+      processManager: pm as any,
+      resolveArchiveItem: (el: string) =>
+        el === "2" ? { archiveName: "my-archive" } : undefined,
+    });
+    registerCommands(deps);
+
+    const handler = registeredCommands.get("oxveil.archiveRestore");
+    await handler!("2");
+
+    expect(pm.restore).toHaveBeenCalledWith("my-archive");
+  });
+
+  it("viewDiff resolves string element to phaseNumber", async () => {
+    const gitExec = {
+      exec: vi.fn(async () => ""),
+      cwd: "/workspace",
+    };
+    const deps = makeDeps({
+      gitExec,
+      resolvePhaseItem: (el: string) =>
+        el === "0" ? { phaseNumber: 1 } : undefined,
+    });
+    registerCommands(deps);
+
+    const handler = registeredCommands.get("oxveil.viewDiff");
+    await handler!("0");
+
+    // Should resolve "0" → { phaseNumber: 1 } and try to find commits
+    expect(gitExec.exec).toHaveBeenCalledWith(
+      "git",
+      expect.arrayContaining(["--grep=^Phase 1:"]),
+      "/workspace",
+    );
+  });
+});
