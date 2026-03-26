@@ -35,6 +35,11 @@
         {
           "id": "oxveil.phases",
           "name": "Phases"
+        },
+        {
+          "id": "oxveil.archive",
+          "name": "Past Runs",
+          "when": "config.oxveil.experimental"
         }
       ]
     },
@@ -62,6 +67,21 @@
       {
         "command": "oxveil.viewLog",
         "title": "Oxveil: View Phase Log"
+      },
+      {
+        "command": "oxveil.archiveReplay",
+        "title": "Replay",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "oxveil.archiveRestore",
+        "title": "Restore",
+        "icon": "$(history)"
+      },
+      {
+        "command": "oxveil.archiveRefresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -69,6 +89,23 @@
         {
           "command": "oxveil.viewLog",
           "when": "view == oxveil.phases && viewItem == phase",
+          "group": "navigation"
+        },
+        {
+          "command": "oxveil.archiveReplay",
+          "when": "view == oxveil.archive && viewItem == archive",
+          "group": "inline"
+        },
+        {
+          "command": "oxveil.archiveRestore",
+          "when": "view == oxveil.archive && viewItem == archive",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "oxveil.archiveRefresh",
+          "when": "view == oxveil.archive",
           "group": "navigation"
         }
       ],

@@ -16,6 +16,9 @@ import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
 import { shouldActivate } from "./core/featureFlag";
 import { wireSessionEvents } from "./sessionWiring";
+import { ArchiveTreeProvider } from "./views/archiveTree";
+import { parseArchive } from "./parsers/archive";
+import { stat } from "node:fs/promises";
 
 const execFileAsync = promisify(execFile);
 
@@ -115,6 +118,60 @@ export async function activate(
   });
   disposables.push(treeView);
 
+  // Archive tree view
+  const archiveTree = new ArchiveTreeProvider();
+  const archiveDidChange = new vscode.EventEmitter<string | undefined>();
+
+  const archiveDataProvider: vscode.TreeDataProvider<string> = {
+    onDidChangeTreeData: archiveDidChange.event,
+    getTreeItem(element: string): vscode.TreeItem {
+      const items = archiveTree.getChildren();
+      const idx = parseInt(element, 10);
+      const item = items[idx];
+      if (!item) return new vscode.TreeItem("");
+      const treeItem = new vscode.TreeItem(item.label);
+      treeItem.description = item.description;
+      if (item.iconId) {
+        treeItem.iconPath = new vscode.ThemeIcon(
+          item.iconId,
+          item.iconColor
+            ? new vscode.ThemeColor(item.iconColor)
+            : undefined,
+        );
+      }
+      if (item.contextValue) {
+        treeItem.contextValue = item.contextValue;
+      }
+      if (item.archiveName) {
+        (treeItem as any).archiveName = item.archiveName;
+      }
+      return treeItem;
+    },
+    getChildren(): string[] {
+      return archiveTree.getChildren().map((_, i) => String(i));
+    },
+  };
+
+  const archiveView = vscode.window.createTreeView("oxveil.archive", {
+    treeDataProvider: archiveDataProvider,
+  });
+  disposables.push(archiveView);
+
+  const refreshArchive = async () => {
+    if (!workspaceRoot) return;
+    const archiveRoot = path.join(workspaceRoot, ".claudeloop", "archive");
+    const entries = await parseArchive(
+      {
+        readdir: (dir: string) => fs.readdir(dir),
+        readFile: (p: string) => fs.readFile(p, "utf-8"),
+        isDirectory: async (p: string) => (await stat(p)).isDirectory(),
+      },
+      archiveRoot,
+    );
+    archiveTree.update(entries);
+    archiveDidChange.fire(undefined);
+  };
+
   // Output channel
   const outputChannel = vscode.window.createOutputChannel("Oxveil");
   disposables.push(outputChannel);
@@ -161,6 +218,13 @@ export async function activate(
     outputManager,
     notifications,
     elapsedTimer,
+  });
+
+  // Refresh archive when session ends
+  session.on("state-changed", (_from, to) => {
+    if (to === "done" || to === "failed") {
+      refreshArchive();
+    }
   });
 
   // Detection notifications
@@ -283,8 +347,12 @@ export async function activate(
       statusBar,
       workspaceRoot,
       readdir: (dir: string) => fs.readdir(dir),
+      onArchiveRefresh: refreshArchive,
     }),
   );
+
+  // Initial archive load
+  refreshArchive();
 
   context.subscriptions.push(...disposables);
 }

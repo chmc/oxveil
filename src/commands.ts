@@ -6,6 +6,7 @@ import type { SessionState } from "./core/sessionState";
 import type { StatusBarManager } from "./views/statusBar";
 import { findPhaseLogs } from "./views/logViewer";
 import type { PhaseTreeItem } from "./views/phaseTree";
+import type { ArchiveTreeItem } from "./views/archiveTree";
 
 export interface CommandDeps {
   processManager: ProcessManager | undefined;
@@ -14,10 +15,11 @@ export interface CommandDeps {
   statusBar: StatusBarManager;
   workspaceRoot: string | undefined;
   readdir: (dir: string) => Promise<string[]>;
+  onArchiveRefresh?: () => void;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -106,5 +108,49 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         await vscode.window.showTextDocument(doc);
       },
     ),
+    vscode.commands.registerCommand(
+      "oxveil.archiveReplay",
+      async (treeItem?: { archiveName?: string }) => {
+        if (!workspaceRoot || !treeItem?.archiveName) return;
+        const replayPath = path.join(
+          workspaceRoot,
+          ".claudeloop",
+          "archive",
+          treeItem.archiveName,
+          "replay.html",
+        );
+        await vscode.env.openExternal(vscode.Uri.file(replayPath));
+      },
+    ),
+    vscode.commands.registerCommand(
+      "oxveil.archiveRestore",
+      async (treeItem?: { archiveName?: string }) => {
+        if (!processManager || !workspaceRoot || !treeItem?.archiveName) return;
+
+        if (processManager.isRunning) {
+          vscode.window.showErrorMessage(
+            "Oxveil: Stop the current session first",
+          );
+          return;
+        }
+
+        const confirm = await vscode.window.showWarningMessage(
+          "Restore will overwrite current session state. Continue?",
+          { modal: true },
+          "Restore",
+        );
+        if (confirm !== "Restore") return;
+
+        try {
+          await processManager.restore(treeItem.archiveName);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          vscode.window.showErrorMessage(`Oxveil: Failed to restore — ${msg}`);
+        }
+      },
+    ),
+    vscode.commands.registerCommand("oxveil.archiveRefresh", () => {
+      onArchiveRefresh?.();
+    }),
   ];
 }
