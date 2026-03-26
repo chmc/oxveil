@@ -112,28 +112,46 @@ Data flows upward: watcher detects file changes → parsers transform raw conten
 
 ```
 src/
-├── extension.ts              # Activation, command registration, wiring
+├── extension.ts              # Activation, feature flag gate, command registration, wiring
+├── commands.ts               # Command handler registration
+├── types.ts                  # Shared type definitions (DetectionStatus, SessionStatus, etc.)
+├── sessionWiring.ts          # Connects session events to UI updates
+├── workspaceInit.ts          # File watcher setup for .claudeloop directory
 ├── core/
 │   ├── detection.ts          # claudeloop detection and version check
+│   ├── featureFlag.ts        # Feature flag gate (oxveil.experimental)
 │   ├── installer.ts          # Platform-aware claudeloop installation
-│   ├── sessionState.ts       # State machine + EventEmitter
-│   ├── processManager.ts     # Spawn/stop/reset claudeloop
+│   ├── interfaces.ts         # Core interface definitions for DI
 │   ├── lock.ts               # Read-only lock file observation
+│   ├── processManager.ts     # Spawn/stop/reset claudeloop
+│   ├── sessionState.ts       # State machine + EventEmitter
 │   └── watchers.ts           # Single FileSystemWatcher + debounce
 ├── parsers/
 │   └── progress.ts           # PROGRESS.md → ProgressState
 ├── views/
+│   ├── elapsedTimer.ts       # Elapsed time display (updates every second)
+│   ├── notifications.ts      # User notifications for phase transitions
+│   ├── outputChannel.ts      # Output channel wrapper
 │   ├── phaseTree.ts          # Sidebar tree view provider
-│   ├── statusBar.ts          # Status bar item
-│   └── outputChannel.ts      # Output channel wrapper
+│   └── statusBar.ts          # Status bar item
 └── test/
     ├── unit/
+    │   ├── core/
+    │   │   ├── detection.test.ts
+    │   │   ├── featureFlag.test.ts
+    │   │   ├── installer.test.ts
+    │   │   ├── lock.test.ts
+    │   │   ├── processManager.test.ts
+    │   │   ├── sessionState.test.ts
+    │   │   └── watchers.test.ts
     │   ├── parsers/
     │   │   └── progress.test.ts
-    │   └── core/
-    │       ├── detection.test.ts
-    │       ├── sessionState.test.ts
-    │       └── lock.test.ts
+    │   └── views/
+    │       ├── elapsedTimer.test.ts
+    │       ├── notifications.test.ts
+    │       ├── outputChannel.test.ts
+    │       ├── phaseTree.test.ts
+    │       └── statusBar.test.ts
     └── integration/
         └── extension.test.ts
 ```
