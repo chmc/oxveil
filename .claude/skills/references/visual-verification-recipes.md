@@ -25,7 +25,20 @@ screencapture -x /tmp/oxveil-preflight.png 2>&1
 rm -f /tmp/oxveil-preflight.png
 
 # 5. Close stale EDH windows
-osascript -e 'tell application "System Events" to close every window of process "Code" whose name contains "[Extension Development Host]"' 2>/dev/null
+# The AppleScript `close` verb does not work with Electron windows (-1708).
+# Use AXRaise + Cmd+W instead.
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        set edh to (every window whose name contains "[Extension Development Host]")
+        repeat with w in edh
+            perform action "AXRaise" of w
+            delay 0.3
+            keystroke "w" using command down
+            delay 0.5
+        end repeat
+    end tell
+end tell' 2>/dev/null
 ```
 
 ## Swift CGWindowID Script
@@ -112,10 +125,20 @@ tell application "System Events"
 end tell'
 
 # Close EDH window (for cleanup)
+# The AppleScript `close` verb does not work with Electron windows (-1708).
+# Use AXRaise + Cmd+W instead — same pattern as the interaction recipes.
 osascript -e '
 tell application "System Events"
     tell process "Code"
-        close (every window whose name contains "[Extension Development Host]")
+        set edh to (every window whose name contains "[Extension Development Host]")
+        if (count of edh) > 0 then
+            repeat with w in edh
+                perform action "AXRaise" of w
+                delay 0.3
+                keystroke "w" using command down
+                delay 0.5
+            end repeat
+        end if
     end tell
 end tell'
 ```
@@ -304,5 +327,5 @@ Iterations: {N}
 - **Build failure:** Log error. Do NOT launch EDH. Skip to Phase 6.
 - **Launch failure:** Retry once with 15s wait. If still fails, skip to Phase 6.
 - **Screenshot failure:** Retry once. If still fails, log "unavailable" and continue.
-- **osascript failure:** Verify window focus. Retry once.
+- **osascript failure:** Verify window focus via AXRaise before sending keystrokes. Retry once. Never use command palette "Close Window" — it targets whichever window is frontmost.
 - **Vision inconclusive:** Log "analysis inconclusive" and continue.
