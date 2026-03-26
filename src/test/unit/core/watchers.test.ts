@@ -141,6 +141,45 @@ describe("WatcherManager", () => {
     expect(onLogChange).not.toHaveBeenCalled();
   });
 
+  it("lock file deletion calls onLockChange with empty string", async () => {
+    const onLockChange = vi.fn();
+    const deps = makeDeps({
+      onLockChange,
+      readFile: vi.fn().mockRejectedValue(
+        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+      ),
+    });
+    const watcher = new WatcherManager(deps);
+    watcher.start();
+
+    const handler = watcher.getFileChangeHandler();
+    handler("/workspace/.claudeloop/lock");
+
+    await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
+
+    expect(onLockChange).toHaveBeenCalledTimes(1);
+    expect(onLockChange).toHaveBeenCalledWith("");
+  });
+
+  it("progress file deletion is silently ignored", async () => {
+    const onProgressChange = vi.fn();
+    const deps = makeDeps({
+      onProgressChange,
+      readFile: vi.fn().mockRejectedValue(
+        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+      ),
+    });
+    const watcher = new WatcherManager(deps);
+    watcher.start();
+
+    const handler = watcher.getFileChangeHandler();
+    handler("/workspace/.claudeloop/PROGRESS.md");
+
+    await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
+
+    expect(onProgressChange).not.toHaveBeenCalled();
+  });
+
   it("stop disposes watcher", () => {
     const deps = makeDeps();
     const watcher = new WatcherManager(deps);

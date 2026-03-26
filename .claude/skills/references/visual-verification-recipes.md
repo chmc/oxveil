@@ -131,19 +131,26 @@ Testing-only exception to the read-only IPC contract.
 [[ -f .claudeloop/lock ]] && { echo "ABORT: Real claudeloop session running. Do not mock."; exit 1; }
 
 # --- "idle" state: no .claudeloop/ directory ---
-rm -rf .claudeloop
+# Only remove if previously mocked (marker present)
+[[ -f .claudeloop/.MOCK_SESSION ]] && rm -rf .claudeloop
 
 # --- "running" state ---
 mkdir -p .claudeloop/logs
-echo '{"pid": 99999, "started": "2026-03-25T14:00:00Z"}' > .claudeloop/lock
+echo "mock-$(date +%s)" > .claudeloop/.MOCK_SESSION
+echo '99999' > .claudeloop/lock
 cat > .claudeloop/PROGRESS.md << 'PROGRESS_EOF'
-## Phase 1: Setup
-Status: complete
+## Phase Details
 
-## Phase 2: Implementation
-Status: running
+### ✅ Phase 1: Setup
+Status: completed
+Started: 2026-03-25 14:01:00
+Completed: 2026-03-25 14:01:30
 
-## Phase 3: Testing
+### 🔄 Phase 2: Implementation
+Status: in_progress
+Started: 2026-03-25 14:02:00
+
+### ⏳ Phase 3: Testing
 Status: pending
 PROGRESS_EOF
 echo "[2026-03-25 14:01:00] Phase 1 complete" > .claudeloop/live.log
@@ -151,28 +158,47 @@ echo "[2026-03-25 14:02:00] Phase 2 starting..." >> .claudeloop/live.log
 
 # --- "failed" state ---
 cat > .claudeloop/PROGRESS.md << 'PROGRESS_EOF'
-## Phase 1: Setup
-Status: complete
+## Phase Details
 
-## Phase 2: Implementation
+### ✅ Phase 1: Setup
+Status: completed
+Started: 2026-03-25 14:01:00
+Completed: 2026-03-25 14:01:30
+
+### ❌ Phase 2: Implementation
 Status: failed
+Started: 2026-03-25 14:02:00
+Attempts: 3
 PROGRESS_EOF
 
 # --- "done" state ---
 rm -f .claudeloop/lock
 cat > .claudeloop/PROGRESS.md << 'PROGRESS_EOF'
-## Phase 1: Setup
-Status: complete
+## Phase Details
 
-## Phase 2: Implementation
-Status: complete
+### ✅ Phase 1: Setup
+Status: completed
+Started: 2026-03-25 14:01:00
+Completed: 2026-03-25 14:01:30
 
-## Phase 3: Testing
-Status: complete
+### ✅ Phase 2: Implementation
+Status: completed
+Started: 2026-03-25 14:02:00
+Completed: 2026-03-25 14:05:00
+
+### ✅ Phase 3: Testing
+Status: completed
+Started: 2026-03-25 14:05:30
+Completed: 2026-03-25 14:08:00
 PROGRESS_EOF
 
 # --- Cleanup mock (always run in Phase 6) ---
-rm -rf .claudeloop
+# Only delete if this was a mock session. Refuse to delete real data.
+if [[ -f .claudeloop/.MOCK_SESSION ]]; then
+  rm -rf .claudeloop
+else
+  echo "WARNING: .claudeloop/ exists but is not a mock session. Skipping cleanup."
+fi
 ```
 
 ## claudeloop Fake CLI

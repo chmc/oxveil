@@ -79,7 +79,17 @@ export class WatcherManager {
   }
 
   private async _handleFile(filePath: string, fileType: FileType): Promise<void> {
-    const content = await this._deps.readFile(filePath);
+    let content: string;
+    try {
+      content = await this._deps.readFile(filePath);
+    } catch {
+      // File was deleted between the watcher event and the read.
+      // For lock files, treat as lock released (empty → parseLock returns unlocked).
+      if (fileType === "lock") {
+        this._deps.onLockChange("");
+      }
+      return;
+    }
 
     switch (fileType) {
       case "lock":
