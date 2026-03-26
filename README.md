@@ -40,6 +40,8 @@ Notes:
 | `npm run lint` | TypeScript type-checking via `tsc --noEmit` |
 | `npm test` | Run tests once |
 | `npm run test:watch` | Watch mode tests |
+| `npm run package` | Package extension to `oxveil.vsix` |
+| `npm run release:local` | Package and publish to Marketplace |
 
 ## Testing
 
@@ -47,6 +49,23 @@ Tests use [vitest](https://vitest.dev/), not the VS Code test runner. They run o
 
 - **Unit tests** (`src/test/unit/`) -- core modules and views with mocks
 - **Integration tests** (`src/test/integration/`) -- full activation wiring
+
+## Releasing
+
+Releases are automated via GitHub Actions. Go to **Actions > Release > Run workflow**, pick a bump type (or leave as `auto` to detect from conventional commits), and optionally tick pre-release.
+
+The workflow runs `scripts/release.mjs` to bump the version, then builds, lints, tests, packages the `.vsix`, publishes to VS Code Marketplace, pushes the commit+tag, and creates a GitHub Release.
+
+**Required secrets** (in a `release` GitHub environment):
+- `VSCE_PAT` — VS Code Marketplace Personal Access Token
+
+**Manual fallback** (if CI is broken):
+```sh
+npm version patch  # or minor/major
+npm run build && npm run lint && npm test
+npm run release:local
+git push --follow-tags
+```
 
 ## Architecture
 

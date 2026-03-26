@@ -9,6 +9,10 @@ node_modules/
 dist/
 package-lock.json
 
+# Release artifacts
+release_notes.md
+*.vsix
+
 # macOS
 .DS_Store
 ._*

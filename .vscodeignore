@@ -1,6 +1,7 @@
 .vscode/**
 src/**
 node_modules/**
+test/**
 .gitignore
 tsconfig.json
 vitest.config.ts
@@ -8,4 +9,15 @@ esbuild.mjs
 **/*.map
 **/*.test.ts
 .claudeloop/**
+.claude/**
+.github/**
+.superpowers/**
 docs/**
+scripts/**
+CLAUDE.md
+ARCHITECTURE.md
+PLAN.md
+release_notes.md
+*.vsix
+*.code-workspace
+verification-sessions/**

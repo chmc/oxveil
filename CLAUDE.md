@@ -15,6 +15,7 @@
 - Do not create long-lived branches.
 - Do not ship ungated experimental features.
 - After completing UI-facing features, run the visual verification loop. See `.claude/skills/visual-verification.md`.
+- Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
 
 ## Writing Style
 

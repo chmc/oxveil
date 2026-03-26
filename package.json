@@ -5,6 +5,10 @@
   "version": "0.1.0",
   "publisher": "chmc",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chmc/oxveil"
+  },
   "engines": {
     "vscode": "^1.100.0"
   },
@@ -126,13 +130,16 @@
     "watch": "node esbuild.mjs --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "package": "vsce package -o oxveil.vsix",
+    "release:local": "vsce package -o oxveil.vsix && vsce publish --packagePath oxveil.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.100.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0",
+    "@vscode/vsce": "^3.0.0",
     "vitest": "^3.0.0"
   }
 }

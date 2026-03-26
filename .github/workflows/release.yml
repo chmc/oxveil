@@ -1,0 +1,77 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (auto-detects from commits if 'auto')"
+        required: true
+        type: choice
+        options: [auto, major, minor, patch]
+        default: auto
+      pre_release:
+        description: "Publish as pre-release"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Configure git identity
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Bump version
+        run: |
+          if [ "${{ inputs.bump }}" = "auto" ]; then
+            node scripts/release.mjs
+          else
+            node scripts/release.mjs "${{ inputs.bump }}"
+          fi
+
+      - name: Build, lint, test
+        run: npm run build && npm run lint && npm test
+
+      - name: Package extension
+        run: |
+          flags=""
+          if [ "${{ inputs.pre_release }}" = "true" ]; then flags="--pre-release"; fi
+          npx vsce package $flags -o oxveil.vsix
+
+      - name: Publish to VS Code Marketplace
+        run: npx vsce publish --packagePath oxveil.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Push release commit and tag
+        run: git push && git push --tags
+
+      - name: Create GitHub Release
+        run: |
+          version=$(node -p "require('./package.json').version")
+          pre_flag=""
+          if [ "${{ inputs.pre_release }}" = "true" ]; then pre_flag="--prerelease"; fi
+          gh release create "v${version}" oxveil.vsix --generate-notes --title "v${version}" $pre_flag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
