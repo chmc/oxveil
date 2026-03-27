@@ -22,9 +22,18 @@
 - Do not create long-lived branches.
 - Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
 
+## Following Plan Instructions
+
+When executing a phase under claudeloop, the phase description is your specification. Follow it literally:
+
+- If the description says **"Action: `/skill-name`"**, invoke that skill via the Skill tool. Do not substitute programmatic checks for a skill invocation. Do not rationalize skipping it.
+- If the description contains a **checklist**, complete every item. Do not mark the phase done with items unchecked.
+- If the description says **"Compare against"** a mockup or reference, you must read that file and compare.
+- "I already have evidence" is not a reason to skip a specified action. The plan author chose that action deliberately.
+
 ## Verification
 
-**Visual verification (mandatory):** Every task in a plan must include a visual verification gate — no exceptions, including docs-only or test-only tasks. Invoke `/visual-verification`. Do not report the task as done until visual verification passes.
+**Visual verification (mandatory):** Every UI-facing task in a plan must include a visual verification gate. Invoke `/visual-verification`. Do not report the task as done until visual verification passes. Non-UI tasks (parsers, types, tests) do not require visual verification unless the plan explicitly requests it.
 
 **Autonomous verification (mandatory):** Never suggest the user test something manually when you can do it yourself. If you can build, launch EDH, screenshot, and compare — do it without asking.
 
