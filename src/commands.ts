@@ -8,6 +8,7 @@ import { findPhaseLogs } from "./views/logViewer";
 import type { PhaseTreeItem } from "./views/phaseTree";
 import type { ArchiveTreeItem } from "./views/archiveTree";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
+import type { ConfigWizardPanel } from "./views/configWizard";
 import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
 import type { GitExecDeps } from "./core/gitIntegration";
 import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
@@ -21,13 +22,14 @@ export interface CommandDeps {
   readdir: (dir: string) => Promise<string[]>;
   onArchiveRefresh?: () => void;
   dependencyGraph?: DependencyGraphPanel;
+  configWizard?: ConfigWizardPanel;
   gitExec?: GitExecDeps;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, configWizard, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -188,6 +190,17 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
       dependencyGraph?.reveal(session.progress);
+    }),
+    vscode.commands.registerCommand("oxveil.editConfig", () => {
+      if (!workspaceRoot) {
+        vscode.window.showWarningMessage("Oxveil: No workspace open");
+        return;
+      }
+      const configPath = require("node:path").join(
+        workspaceRoot,
+        ".claudeloop.conf",
+      );
+      configWizard?.reveal(configPath);
     }),
   ];
 }

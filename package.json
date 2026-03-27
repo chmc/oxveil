@@ -89,6 +89,10 @@
       {
         "command": "oxveil.viewDiff",
         "title": "Oxveil: View Phase Diff"
+      },
+      {
+        "command": "oxveil.editConfig",
+        "title": "Oxveil: Edit Config"
       }
     ],
     "menus": {
@@ -144,6 +148,9 @@
         },
         {
           "command": "oxveil.showDependencyGraph"
+        },
+        {
+          "command": "oxveil.editConfig"
         }
       ]
     },

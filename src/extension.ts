@@ -21,6 +21,7 @@ import { parseArchive } from "./parsers/archive";
 import { stat } from "node:fs/promises";
 import { createTreeAdapter } from "./views/treeAdapter";
 import { DependencyGraphPanel } from "./views/dependencyGraph";
+import { ConfigWizardPanel } from "./views/configWizard";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import type { GitExecDeps } from "./core/gitIntegration";
 
@@ -174,6 +175,15 @@ export async function activate(
   });
   disposables.push({ dispose: () => dependencyGraph.dispose() });
 
+  // Config wizard webview
+  const configWizard = new ConfigWizardPanel({
+    createWebviewPanel: vscode.window.createWebviewPanel as any,
+    readFile: (p: string) => fs.readFile(p, "utf-8"),
+    writeFile: (p: string, content: string) => fs.writeFile(p, content, "utf-8"),
+    sessionStatus: () => session.status,
+  });
+  disposables.push({ dispose: () => configWizard.dispose() });
+
   wireSessionEvents({
     session,
     statusBar,
@@ -299,6 +309,7 @@ export async function activate(
       readdir: (dir: string) => fs.readdir(dir),
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
+      configWizard,
       gitExec,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
