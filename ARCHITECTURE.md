@@ -463,8 +463,8 @@ Both repos share the same author. This enables tight coordination but requires d
 
 ## Release Strategy
 
-- **Trunk-based development** on `main` — see `.claude/skills/trunk-based-dev.md`
-- **Feature flags** with tiered approach — see `.claude/skills/feature-flags.md`
+- **Trunk-based development** on `main` — see `.claude/skills/trunk-based-dev/SKILL.md`
+- **Feature flags** with tiered approach — see `.claude/skills/feature-flags/SKILL.md`
 - **Automated releases** via GitHub Actions (`workflow_dispatch`) — see `.github/workflows/release.yml`
 - **Version bumps** auto-detected from conventional commits (`scripts/release.mjs`)
 - **Single artifact pipeline**: `vsce package` produces `.vsix`, same artifact published to Marketplace and attached to GitHub Release

@@ -42,7 +42,7 @@ Not published yet — remove entire `oxveil.experimental` system. Ship all featu
   - Remove `"when": "config.oxveil.experimental"` from archive view (line 42)
   - Remove `"when": "config.oxveil.experimental"` from dependency graph command palette entry (line 148)
 - `src/test/integration/` — Remove any tests that reference `shouldActivate` or set `oxveil.experimental`
-- `.claude/skills/feature-flags.md` — Update: no flags until marketplace publication
+- `.claude/skills/feature-flags/SKILL.md` — Update: no flags until marketplace publication
 
 **Gate:** `npm run test && npm run lint && npm run build`
 

@@ -37,4 +37,4 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 
 ## References
 
-See `.claude/skills/references/visual-verification-recipes.md` for all scripts, templates, and checklists.
+See `.claude/skills/visual-verification/references/visual-verification-recipes.md` for all scripts, templates, and checklists.

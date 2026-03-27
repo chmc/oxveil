@@ -17,7 +17,7 @@
 
 ## Development Process
 
-- Follow trunk-based development. See `.claude/skills/trunk-based-dev.md`.
+- Follow trunk-based development. See `.claude/skills/trunk-based-dev/SKILL.md`.
 - Oxveil is not yet published. Do not gate features behind feature flags — ship directly. Re-evaluate when publishing to VS Code Marketplace.
 - Do not create long-lived branches.
 - Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
