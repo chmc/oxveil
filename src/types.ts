@@ -57,6 +57,19 @@ export interface ConfigState {
   REFACTOR_MAX_RETRIES: number;
 }
 
+export interface PlanPhase {
+  number: number | string;
+  title: string;
+  headerLine: number;
+  status?: string;
+  dependencies?: string[];
+  bodyEndLine: number;
+}
+
+export interface PlanState {
+  phases: PlanPhase[];
+}
+
 export interface ParsedConfig {
   config: ConfigState;
   unknownKeys: Array<{ key: string; value: string }>;
