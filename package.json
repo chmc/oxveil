@@ -91,7 +91,7 @@
         "title": "Oxveil: View Phase Diff"
       },
       {
-        "command": "oxveil.editConfig",
+        "command": "oxveil.openConfigWizard",
         "title": "Oxveil: Edit Config"
       }
     ],
@@ -150,7 +150,8 @@
           "command": "oxveil.showDependencyGraph"
         },
         {
-          "command": "oxveil.editConfig"
+          "command": "oxveil.openConfigWizard",
+          "when": "oxveil.detected"
         }
       ]
     },

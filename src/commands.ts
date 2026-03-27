@@ -191,13 +191,14 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
       dependencyGraph?.reveal(session.progress);
     }),
-    vscode.commands.registerCommand("oxveil.editConfig", () => {
+    vscode.commands.registerCommand("oxveil.openConfigWizard", () => {
       if (!workspaceRoot) {
         vscode.window.showWarningMessage("Oxveil: No workspace open");
         return;
       }
-      const configPath = require("node:path").join(
+      const configPath = path.join(
         workspaceRoot,
+        ".claudeloop",
         ".claudeloop.conf",
       );
       configWizard?.reveal(configPath);
