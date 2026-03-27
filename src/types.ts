@@ -33,3 +33,32 @@ export interface ProgressState {
   currentPhaseIndex?: number;
   totalPhases: number;
 }
+
+export type Granularity = "phases" | "tasks" | "steps";
+
+export interface ConfigState {
+  PLAN_FILE: string;
+  PROGRESS_FILE: string;
+  MAX_RETRIES: number;
+  SIMPLE_MODE: boolean;
+  PHASE_PROMPT_FILE: string;
+  BASE_DELAY: number;
+  QUOTA_RETRY_INTERVAL: number;
+  SKIP_PERMISSIONS: boolean;
+  STREAM_TRUNCATE_LEN: number;
+  HOOKS_ENABLED: boolean;
+  MAX_PHASE_TIME: number;
+  IDLE_TIMEOUT: number;
+  VERIFY_TIMEOUT: number;
+  AI_PARSE: boolean;
+  GRANULARITY: Granularity;
+  VERIFY_PHASES: boolean;
+  REFACTOR_PHASES: boolean;
+  REFACTOR_MAX_RETRIES: number;
+}
+
+export interface ParsedConfig {
+  config: ConfigState;
+  unknownKeys: Array<{ key: string; value: string }>;
+  comments: string[];
+}
