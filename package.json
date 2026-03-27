@@ -114,6 +114,14 @@
       {
         "command": "oxveil.openConfigWizard",
         "title": "Oxveil: Edit Config"
+      },
+      {
+        "command": "oxveil.runFromPhase",
+        "title": "Oxveil: Run from Phase"
+      },
+      {
+        "command": "oxveil.markPhaseComplete",
+        "title": "Oxveil: Mark Phase Complete"
       }
     ],
     "menus": {
@@ -172,6 +180,14 @@
         },
         {
           "command": "oxveil.openConfigWizard",
+          "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.runFromPhase",
+          "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.markPhaseComplete",
           "when": "oxveil.detected"
         }
       ]

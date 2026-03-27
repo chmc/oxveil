@@ -188,6 +188,60 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         await vscode.window.showTextDocument(doc, { preview: true });
       },
     ),
+    vscode.commands.registerCommand(
+      "oxveil.runFromPhase",
+      async (arg?: { phaseNumber?: number | string }) => {
+        if (!processManager) return;
+        const phaseNumber = arg?.phaseNumber;
+        if (phaseNumber === undefined) {
+          vscode.window.showWarningMessage("Oxveil: No phase specified");
+          return;
+        }
+
+        if (processManager.isRunning) {
+          vscode.window.showErrorMessage(
+            "Oxveil: Stop the current session first",
+          );
+          return;
+        }
+
+        const confirm = await vscode.window.showWarningMessage(
+          `This will mark all phases before ${phaseNumber} as complete. Continue?`,
+          { modal: true },
+          "Run",
+        );
+        if (confirm !== "Run") return;
+
+        try {
+          await processManager.spawnFromPhase(phaseNumber);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          vscode.window.showErrorMessage(
+            `Oxveil: Failed to run from phase — ${msg}`,
+          );
+        }
+      },
+    ),
+    vscode.commands.registerCommand(
+      "oxveil.markPhaseComplete",
+      async (arg?: { phaseNumber?: number | string }) => {
+        if (!processManager) return;
+        const phaseNumber = arg?.phaseNumber;
+        if (phaseNumber === undefined) {
+          vscode.window.showWarningMessage("Oxveil: No phase specified");
+          return;
+        }
+
+        try {
+          await processManager.markComplete(phaseNumber);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          vscode.window.showErrorMessage(
+            `Oxveil: Failed to mark phase complete — ${msg}`,
+          );
+        }
+      },
+    ),
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
       dependencyGraph?.reveal(session.progress);
     }),

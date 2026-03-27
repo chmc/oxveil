@@ -23,6 +23,7 @@ import { createTreeAdapter } from "./views/treeAdapter";
 import { DependencyGraphPanel } from "./views/dependencyGraph";
 import { ConfigWizardPanel } from "./views/configWizard";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
+import { PlanCodeLensProvider } from "./views/planCodeLens";
 import type { GitExecDeps } from "./core/gitIntegration";
 
 const execFileAsync = promisify(execFile);
@@ -183,6 +184,16 @@ export async function activate(
     sessionStatus: () => session.status,
   });
   disposables.push({ dispose: () => configWizard.dispose() });
+
+  // CodeLens for plan files
+  const planCodeLens = new PlanCodeLensProvider();
+  disposables.push(
+    vscode.languages.registerCodeLensProvider(
+      { language: "claudeloop-plan" },
+      planCodeLens,
+    ),
+  );
+  disposables.push(planCodeLens);
 
   wireSessionEvents({
     session,

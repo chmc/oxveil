@@ -65,6 +65,28 @@ export class ProcessManager implements IProcessManager {
     return this._exitPromise!;
   }
 
+  async spawnFromPhase(phase: number | string): Promise<void> {
+    if (await this._deps.lockExists()) {
+      throw new Error("lock file exists — claudeloop is already running");
+    }
+
+    const settings = this._deps.getSettings();
+    const args = [
+      "--phase",
+      String(phase),
+      "--continue",
+      ...this._settingsToArgs(settings),
+    ];
+    this._spawnChild(args);
+    return this._exitPromise!;
+  }
+
+  async markComplete(phase: number | string): Promise<void> {
+    const args = ["--mark-complete", String(phase)];
+    this._spawnChild(args);
+    return this._exitPromise!;
+  }
+
   async restore(archiveName: string): Promise<void> {
     if (await this._deps.lockExists()) {
       throw new Error("lock file exists — claudeloop is already running");
