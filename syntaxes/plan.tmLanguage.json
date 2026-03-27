@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Claudeloop Plan",
+  "scopeName": "text.md.plan.oxveil",
+  "patterns": [
+    { "include": "#phase-header" },
+    { "include": "#top-level-heading" },
+    { "include": "#status-marker" },
+    { "include": "#depends-on" },
+    { "include": "#phase-reference" },
+    { "include": "text.html.markdown" }
+  ],
+  "repository": {
+    "phase-header": {
+      "match": "^(##)\\s+(Phase\\s+(\\d+(?:\\.\\d+)?)):\\s+(.+)$",
+      "captures": {
+        "1": { "name": "punctuation.definition.heading.markdown" },
+        "2": { "name": "entity.name.section.phase.oxveil" },
+        "3": { "name": "constant.numeric.phase-number.oxveil" },
+        "4": { "name": "entity.name.section.phase.oxveil" }
+      },
+      "name": "markup.heading.2.markdown"
+    },
+    "top-level-heading": {
+      "match": "^(#)\\s+(.+)$",
+      "captures": {
+        "1": { "name": "punctuation.definition.heading.markdown" },
+        "2": { "name": "markup.heading.1.markdown" }
+      },
+      "name": "markup.heading.1.markdown"
+    },
+    "status-marker": {
+      "match": "\\[status:\\s*[^\\]]+\\]",
+      "name": "entity.name.tag.status.oxveil"
+    },
+    "depends-on": {
+      "match": "\\*\\*Depends on:\\*\\*",
+      "name": "keyword.other.depends-on.oxveil"
+    },
+    "phase-reference": {
+      "match": "(?<=Depends on:\\*\\*\\s*)Phase\\s+\\d+(?:\\.\\d+)?|(?<=,\\s*)Phase\\s+\\d+(?:\\.\\d+)?",
+      "name": "entity.name.tag.phase-reference.oxveil"
+    }
+  }
+}

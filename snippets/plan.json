@@ -1,0 +1,28 @@
+{
+  "New Phase": {
+    "prefix": "phase",
+    "body": [
+      "## Phase ${1:N}: ${2:Title}",
+      "",
+      "[status: pending]",
+      "",
+      "- ${3:First task}",
+      "$0"
+    ],
+    "description": "New claudeloop phase header"
+  },
+  "Phase with Dependencies": {
+    "prefix": "phase-deps",
+    "body": [
+      "## Phase ${1:N}: ${2:Title}",
+      "",
+      "[status: pending]",
+      "",
+      "**Depends on:** Phase ${3:M}",
+      "",
+      "- ${4:First task}",
+      "$0"
+    ],
+    "description": "New claudeloop phase header with dependencies"
+  }
+}

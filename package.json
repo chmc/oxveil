@@ -21,6 +21,27 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "claudeloop-plan",
+        "aliases": ["Claudeloop Plan"],
+        "filenames": ["PLAN.md"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "claudeloop-plan",
+        "scopeName": "text.md.plan.oxveil",
+        "path": "./syntaxes/plan.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "claudeloop-plan",
+        "path": "./snippets/plan.json"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
