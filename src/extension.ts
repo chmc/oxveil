@@ -1,12 +1,13 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { execFile, spawn as nodeSpawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
 import { SessionState } from "./core/sessionState";
 import { ProcessManager } from "./core/processManager";
 import { Installer } from "./core/installer";
+import { createProcessManager } from "./processManagerFactory";
 import { StatusBarManager } from "./views/statusBar";
 import { PhaseTreeProvider } from "./views/phaseTree";
 import { OutputChannelManager } from "./views/outputChannel";
@@ -213,6 +214,23 @@ export async function activate(
     disposables.push(...watcherResult.disposables);
   }
 
+  // Shared re-detection handler
+  const refreshDetection = () =>
+    detection.detect().then((r) => {
+      vscode.commands.executeCommand(
+        "setContext",
+        "oxveil.detected",
+        r.status === "detected",
+      );
+      phaseTree.update({ detected: r.status === "detected" });
+      onDidChangeTreeData.fire(undefined);
+      if (r.status === "detected") {
+        statusBar.update({ kind: "ready" });
+      } else {
+        statusBar.update({ kind: "not-found" });
+      }
+    });
+
   // Re-detect on setting change
   const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration("oxveil.claudeloopPath")) {
@@ -220,20 +238,7 @@ export async function activate(
         .getConfiguration("oxveil")
         .get<string>("claudeloopPath", "claudeloop");
       detection.updatePath(newPath);
-      detection.detect().then((r) => {
-        vscode.commands.executeCommand(
-          "setContext",
-          "oxveil.detected",
-          r.status === "detected",
-        );
-        phaseTree.update({ detected: r.status === "detected" });
-        onDidChangeTreeData.fire(undefined);
-        if (r.status === "detected") {
-          statusBar.update({ kind: "ready" });
-        } else {
-          statusBar.update({ kind: "not-found" });
-        }
-      });
+      refreshDetection();
     }
   });
   disposables.push(configWatcher);
@@ -243,36 +248,10 @@ export async function activate(
   const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
 
   if (workspaceRoot && result.status === "detected") {
-    const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
-    processManager = new ProcessManager({
-      claudeloopPath: result.path ?? claudeloopPath,
+    processManager = createProcessManager({
+      claudeloopPath,
+      resolvedPath: result.path,
       workspaceRoot,
-      spawn: (cmd, args, opts) =>
-        nodeSpawn(cmd, args, opts as Parameters<typeof nodeSpawn>[2]),
-      lockExists: async () => {
-        try {
-          await fs.access(path.join(claudeloopDir, "lock"));
-          return true;
-        } catch {
-          return false;
-        }
-      },
-      deleteLock: async () => {
-        try {
-          await fs.unlink(path.join(claudeloopDir, "lock"));
-        } catch {
-          // Lock file already gone
-        }
-      },
-      getSettings: () => {
-        const c = vscode.workspace.getConfiguration("oxveil");
-        return {
-          verify: c.get<boolean>("verify", true),
-          refactor: c.get<boolean>("refactor", true),
-          dryRun: c.get<boolean>("dryRun", false),
-          aiParse: c.get<boolean>("aiParse", true),
-        };
-      },
       platform: process.platform,
     });
   }
@@ -304,20 +283,7 @@ export async function activate(
     createTerminal: (opts) => vscode.window.createTerminal(opts),
     onDidCloseTerminal: (cb) => vscode.window.onDidCloseTerminal(cb),
     onDetectionChanged: () => {
-      detection.detect().then((r) => {
-        vscode.commands.executeCommand(
-          "setContext",
-          "oxveil.detected",
-          r.status === "detected",
-        );
-        phaseTree.update({ detected: r.status === "detected" });
-        onDidChangeTreeData.fire(undefined);
-        if (r.status === "detected") {
-          statusBar.update({ kind: "ready" });
-        } else {
-          statusBar.update({ kind: "not-found" });
-        }
-      });
+      refreshDetection();
     },
     platform: process.platform,
   });
