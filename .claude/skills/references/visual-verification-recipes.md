@@ -5,6 +5,13 @@ description: Scripts, templates, and checklists for the visual verification loop
 
 # Visual Verification Recipes
 
+## Safety Rules
+
+- **`keystroke` is NOT process-scoped.** It always targets the system frontmost app, regardless of `tell process` target. Never use `keystroke` for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W).
+- **Use accessibility menu clicks for destructive operations.** `click menu item X of menu Y of menu bar 1` is process-scoped — it cannot misfire to another app.
+- **`AXRaise` before menu clicks** to ensure the correct Code window receives the action. AXRaise sets which window is front *within* the process.
+- **`set frontmost to true` before non-destructive keystrokes.** Required because `keystroke` goes to system frontmost.
+
 ## Pre-flight Checks
 
 Run all of these before starting a session. Abort on any failure.
@@ -25,8 +32,8 @@ screencapture -x /tmp/oxveil-preflight.png 2>&1
 rm -f /tmp/oxveil-preflight.png
 
 # 5. Close stale EDH windows
-# The AppleScript `close` verb does not work with Electron windows (-1708).
-# Use AXRaise + Cmd+W instead.
+# Use process-scoped menu click — cannot misfire to Terminal.
+# AXRaise makes the EDH the front window within Code so the menu action targets it.
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -34,7 +41,7 @@ tell application "System Events"
         repeat with w in edh
             perform action "AXRaise" of w
             delay 0.3
-            keystroke "w" using command down
+            click menu item "Close Window" of menu "File" of menu bar 1
             delay 0.5
         end repeat
     end tell
@@ -100,9 +107,12 @@ echo "EDH window found after ${i}s (WindowID: $WINDOW_ID)"
 ## osascript Interaction Recipes
 
 All recipes use `process "Code"` with window name filtering.
+`set frontmost to true` is mandatory before any `keystroke` — without it, the keystroke goes to whichever app has system focus.
 
 ```bash
 # Focus EDH window and open command palette
+# set frontmost to true: makes Code the system frontmost app (required for keystroke)
+# AXRaise: makes the EDH the front window within Code
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -125,8 +135,8 @@ tell application "System Events"
 end tell'
 
 # Close EDH window (for cleanup)
-# The AppleScript `close` verb does not work with Electron windows (-1708).
-# Use AXRaise + Cmd+W instead — same pattern as the interaction recipes.
+# Use process-scoped menu click — cannot misfire to Terminal.
+# AXRaise makes the EDH the front window within Code so the menu action targets it.
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -135,10 +145,22 @@ tell application "System Events"
             repeat with w in edh
                 perform action "AXRaise" of w
                 delay 0.3
-                keystroke "w" using command down
+                click menu item "Close Window" of menu "File" of menu bar 1
                 delay 0.5
             end repeat
         end if
+    end tell
+end tell'
+
+# Close active editor tab in EDH (e.g., Settings, Welcome)
+# Uses process-scoped menu click — cannot misfire to Terminal.
+# AXRaise ensures EDH is Code's front window so menu targets the right tab.
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+        delay 0.3
+        click menu item "Close Editor" of menu "File" of menu bar 1
     end tell
 end tell'
 ```
@@ -333,5 +355,5 @@ Iterations: {N}
 - **Build failure:** Log error. Do NOT launch EDH. Skip to Phase 6.
 - **Launch failure:** Retry once with 15s wait. If still fails, skip to Phase 6.
 - **Screenshot failure:** Retry once. If still fails, log "unavailable" and continue.
-- **osascript failure:** Verify window focus via AXRaise before sending keystrokes. Retry once. Never use command palette "Close Window" — it targets whichever window is frontmost.
+- **osascript failure:** Use menu clicks for destructive operations (close window/tab). Use `set frontmost to true` + AXRaise before non-destructive keystrokes. Retry once. Never use `keystroke` for Cmd+W/Cmd+Q — it targets the system frontmost app, not the `tell process` target.
 - **Vision inconclusive:** Log "analysis inconclusive" and continue.

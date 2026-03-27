@@ -2,6 +2,8 @@
 
 - NEVER recursively delete the `.claudeloop/` directory. It is managed by claudeloop and contains live runtime state.
 - During mock cleanup, only remove individual mock-created files (those newer than `.MOCK_SESSION` marker). Never `rm -rf .claudeloop`.
+- NEVER use `keystroke` via osascript for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W). `keystroke` always targets the system frontmost app, not the `tell process` target — it can kill the terminal. Use accessibility menu clicks instead (`click menu item` of the target process's menu bar), which are process-scoped.
+- For non-destructive keystrokes (Cmd+Shift+P, typing text, Enter, Escape), always `set frontmost to true` and `AXRaise` the target window first.
 
 ## Project
 
@@ -16,20 +18,21 @@
 ## Development Process
 
 - Follow trunk-based development. See `.claude/skills/trunk-based-dev.md`.
-- Gate all unreleased features behind feature flags. See `.claude/skills/feature-flags.md`.
+- Oxveil is not yet published. Do not gate features behind feature flags — ship directly. Re-evaluate when publishing to VS Code Marketplace.
 - Do not create long-lived branches.
-- Do not ship ungated experimental features.
 - Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
 
 ## Verification
 
-**Visual verification (mandatory):** After completing UI-facing features, invoke `/visual-verification`. Do not report the task as done until visual verification passes. Skip only for documentation-only or test-only changes with no implementation modifications.
+**Visual verification (mandatory):** Every task in a plan must include a visual verification gate — no exceptions, including docs-only or test-only tasks. Invoke `/visual-verification`. Do not report the task as done until visual verification passes.
 
 **Autonomous verification (mandatory):** Never suggest the user test something manually when you can do it yourself. If you can build, launch EDH, screenshot, and compare — do it without asking.
 
+**Plan review (mandatory):** Before requesting plan approval, launch 2-3 critic agents from different angles (feasibility, scope/completeness, alternatives). Never rush to ExitPlanMode without deep critical review.
+
 ## Writing Style
 
-- Write all AI-facing files (CLAUDE.md, skill files, memory files) in LLM-optimized format.
+- Write all AI-facing files (CLAUDE.md, skill files) in LLM-optimized format.
 - Use imperative voice and direct commands.
 - Front-load constraints and hard rules.
 - Use flat bullet lists, not prose paragraphs.
@@ -40,7 +43,7 @@
 
 When you notice a friction point, missing guardrail, or automation opportunity, raise it and suggest a concrete change targeting **CLAUDE.md**, **skills/hooks**, or **MCP tools/plugins**. Keep suggestions brief and actionable. Don't derail the current task — note it at a natural pause point.
 
-When a behavioral correction applies to this project, update CLAUDE.md or the relevant skill file — don't write a memory as a substitute. Rules scoped to a single workflow (e.g., releases, rebasing) belong in that workflow's skill file. CLAUDE.md is for cross-cutting project rules only. Memory is for ephemeral context and cross-project user preferences.
+When a behavioral correction applies to this project, update CLAUDE.md or the relevant skill file. Rules scoped to a single workflow (e.g., releases, rebasing) belong in that workflow's skill file. CLAUDE.md is for cross-cutting project rules only. NEVER use the memory system for this project — all persistent context belongs in CLAUDE.md or skill files.
 
 ## Documentation
 
