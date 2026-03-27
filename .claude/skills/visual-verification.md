@@ -28,7 +28,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 3. **Capture** — Screenshot via `screencapture -l <CGWindowID>`. Resize with `sips --resampleWidth 1568`. Save to `screenshots/NN-description.png`.
 4. **Analyze** — `Read` each screenshot. Compare against reference mockups in `docs/mockups/`. Tier 1 checks only (presence, text, gross layout, item count). Log findings to SESSION.md. For text content (output channel), verify programmatically instead.
 5. **Decide** — Critical/bug: fix code, go to Phase 1. Nit: log, continue to Phase 2. All states verified: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
-6. **Cleanup** — Close EDH window via osascript. Remove mock `.claudeloop/` if created. Verify no orphan processes. Write final result and completion time to SESSION.md.
+6. **Cleanup** — Close EDH window via osascript. Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Verify no orphan processes. Write final result and completion time to SESSION.md.
 
 ## Vision Analysis Tiers
 

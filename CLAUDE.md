@@ -1,3 +1,8 @@
+## Hard Rules
+
+- NEVER recursively delete the `.claudeloop/` directory. It is managed by claudeloop and contains live runtime state.
+- During mock cleanup, only remove individual mock-created files (those newer than `.MOCK_SESSION` marker). Never `rm -rf .claudeloop`.
+
 ## Project
 
 - Oxveil is a VS Code extension for managing AI coding workflows, powered by [claudeloop](https://github.com/chmc/claudeloop).

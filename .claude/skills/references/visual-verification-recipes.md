@@ -147,15 +147,20 @@ end tell'
 
 Prefer the claudeloop fake CLI (below) for end-to-end dynamic verification. Use manual mocking only for fast static state checks or states hard to trigger via claudeloop (e.g., stale lock after crash).
 
+> **SAFETY:** NEVER delete the `.claudeloop/` directory itself. Only remove individual mock-created files via the `.MOCK_SESSION` marker. See CLAUDE.md hard rules.
+
 Testing-only exception to the read-only IPC contract.
 
 ```bash
 # Check no real session is running
 [[ -f .claudeloop/lock ]] && { echo "ABORT: Real claudeloop session running. Do not mock."; exit 1; }
 
-# --- "idle" state: no .claudeloop/ directory ---
-# Only remove if previously mocked (marker present)
-[[ -f .claudeloop/.MOCK_SESSION ]] && rm -rf .claudeloop
+# --- "idle" state: no active session files ---
+# Remove mock-created files only. NEVER delete the directory itself.
+if [[ -f .claudeloop/.MOCK_SESSION ]]; then
+  find .claudeloop -newer .claudeloop/.MOCK_SESSION -not -path .claudeloop -delete 2>/dev/null
+  rm -f .claudeloop/.MOCK_SESSION
+fi
 
 # --- "running" state ---
 mkdir -p .claudeloop/logs
@@ -216,9 +221,10 @@ Completed: 2026-03-25 14:08:00
 PROGRESS_EOF
 
 # --- Cleanup mock (always run in Phase 6) ---
-# Only delete if this was a mock session. Refuse to delete real data.
+# Remove mock-created files only. NEVER delete the .claudeloop/ directory.
 if [[ -f .claudeloop/.MOCK_SESSION ]]; then
-  rm -rf .claudeloop
+  find .claudeloop -newer .claudeloop/.MOCK_SESSION -not -path .claudeloop -delete 2>/dev/null
+  rm -f .claudeloop/.MOCK_SESSION
 else
   echo "WARNING: .claudeloop/ exists but is not a mock session. Skipping cleanup."
 fi
@@ -275,7 +281,7 @@ fi
 
 - Remove fake bin dir: `rm -rf "$FAKE_BIN"`
 - Remove config dir: `rm -rf "$FAKE_CLAUDE_DIR"`
-- Remove `.claudeloop/` if created by the run
+- Do NOT remove `.claudeloop/`. It contains state written through claudeloop's normal pipeline. The next real run overwrites it naturally.
 
 ## SESSION.md Template
 
