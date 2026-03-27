@@ -260,6 +260,32 @@ export function buildHtml(
       return config;
     }
 
+    // Live preview update
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function updatePreview() {
+      const cfg = collectConfig();
+      const comment = '# claudeloop configuration — edit or delete freely';
+      const keys = [
+        'SIMPLE_MODE','SKIP_PERMISSIONS','HOOKS_ENABLED','AI_PARSE','VERIFY_PHASES','REFACTOR_PHASES',
+        'MAX_RETRIES','BASE_DELAY','QUOTA_RETRY_INTERVAL','STREAM_TRUNCATE_LEN','MAX_PHASE_TIME',
+        'IDLE_TIMEOUT','VERIFY_TIMEOUT','REFACTOR_MAX_RETRIES',
+        'PLAN_FILE','PROGRESS_FILE','PHASE_PROMPT_FILE','GRANULARITY'
+      ];
+      let html = '<div><span class="comment">' + escHtml(comment) + '</span></div>';
+      for (const k of keys) {
+        const v = cfg[k];
+        if (v === undefined) continue;
+        const vs = String(v);
+        let cls = 'val-str';
+        if (vs === 'true' || vs === 'false') cls = 'val-bool';
+        else if (/^\\d+$/.test(vs)) cls = 'val-num';
+        html += '<div><span class="key">' + escHtml(k) + '</span>=<span class="' + cls + '">' + escHtml(vs) + '</span></div>';
+      }
+      document.getElementById('preview-body').innerHTML = html;
+    }
+
     // Toggle click
     document.addEventListener('click', e => {
       const toggle = e.target.closest('.toggle[data-key]');
@@ -276,6 +302,7 @@ export function buildHtml(
         const warn = document.querySelector('.skip-warning');
         if (warn) warn.style.display = toggle.classList.contains('on') ? '' : 'none';
       }
+      updatePreview();
     });
 
     // Toggle keyboard support
@@ -286,6 +313,11 @@ export function buildHtml(
         e.preventDefault();
         toggle.click();
       }
+    });
+
+    // Live preview on input change
+    document.querySelectorAll('input[data-key], select[data-key]').forEach(el => {
+      el.addEventListener('input', updatePreview);
     });
 
     // Save
