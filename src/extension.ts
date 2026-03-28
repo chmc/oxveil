@@ -290,6 +290,18 @@ export async function activate(
     }),
   );
 
+  // Update visible webview panels when active session changes
+  manager.on("active-session-changed", (session) => {
+    if (!session) return;
+    const folderUri = session.folderUri;
+    if (dependencyGraph?.visible && dependencyGraph.currentFolderUri !== folderUri) {
+      dependencyGraph.reveal(session.sessionState.progress, folderUri);
+    }
+    if (executionTimeline?.visible && executionTimeline.currentFolderUri !== folderUri) {
+      executionTimeline.reveal(session.sessionState.progress, folderUri);
+    }
+  });
+
   // Handle workspace folder add/remove
   const folderChangeOpts = {
     manager,

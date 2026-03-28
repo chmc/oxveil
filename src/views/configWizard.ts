@@ -53,12 +53,22 @@ interface ConfigState {
 export class ConfigWizardPanel {
   private _panel: WebviewPanel | undefined;
   private readonly _deps: ConfigWizardDeps;
+  private _currentFolderUri: string | undefined;
 
   constructor(deps: ConfigWizardDeps) {
     this._deps = deps;
   }
 
-  async reveal(configPath: string): Promise<void> {
+  get currentFolderUri(): string | undefined {
+    return this._currentFolderUri;
+  }
+
+  get visible(): boolean {
+    return this._panel !== undefined;
+  }
+
+  async reveal(configPath: string, folderUri?: string): Promise<void> {
+    this._currentFolderUri = folderUri;
     if (this._panel) {
       this._panel.reveal();
     } else {

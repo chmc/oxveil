@@ -48,10 +48,12 @@ function makeSessionManager(workspaceRoot: string | undefined) {
         sessionState: { status: "idle", on: vi.fn(), onLockChanged: vi.fn(), progress: null },
         workspaceRoot,
         gitExec: undefined,
+        folderUri: `file://${workspaceRoot}`,
       }
     : undefined;
   return {
     getActiveSession: vi.fn(() => session),
+    getAllSessions: vi.fn(() => session ? [session] : []),
   };
 }
 
@@ -76,13 +78,13 @@ describe("walkthrough step completion", () => {
   });
 
   describe("step 2: configure", () => {
-    it("sets oxveil.walkthrough.configured when openConfigWizard is invoked", () => {
+    it("sets oxveil.walkthrough.configured when openConfigWizard is invoked", async () => {
       const configWizard = { reveal: vi.fn() } as any;
       registerCommands(makeDeps({ configWizard }));
 
       const handler = registeredCommands.get("oxveil.openConfigWizard");
       expect(handler).toBeDefined();
-      handler!();
+      await handler!();
 
       const ctx = setContextCalls.find(
         (c) => c.key === "oxveil.walkthrough.configured",
@@ -91,11 +93,11 @@ describe("walkthrough step completion", () => {
       expect(ctx!.value).toBe(true);
     });
 
-    it("does not set context when no workspace is open", () => {
+    it("does not set context when no workspace is open", async () => {
       registerCommands(makeDeps({ workspaceRoot: undefined }));
 
       const handler = registeredCommands.get("oxveil.openConfigWizard");
-      handler!();
+      await handler!();
 
       const ctx = setContextCalls.find(
         (c) => c.key === "oxveil.walkthrough.configured",

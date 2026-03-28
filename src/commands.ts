@@ -14,6 +14,7 @@ import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
 import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
+import { pickWorkspaceFolder } from "./views/folderPicker";
 
 export interface CommandDeps {
   sessionManager: WorkspaceSessionManager;
@@ -40,6 +41,29 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       session: active.sessionState,
       workspaceRoot: active.workspaceRoot,
       gitExec: active.gitExec,
+      folderUri: active.folderUri,
+    };
+  }
+
+  async function resolveFolder() {
+    const active = sessionManager.getActiveSession();
+    if (active) {
+      return {
+        processManager: active.processManager,
+        session: active.sessionState,
+        workspaceRoot: active.workspaceRoot,
+        gitExec: active.gitExec,
+        folderUri: active.folderUri,
+      };
+    }
+    const picked = await pickWorkspaceFolder(sessionManager);
+    if (!picked) return undefined;
+    return {
+      processManager: picked.processManager,
+      session: picked.sessionState,
+      workspaceRoot: picked.workspaceRoot,
+      gitExec: picked.gitExec,
+      folderUri: picked.folderUri,
     };
   }
 
@@ -266,35 +290,35 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       },
     ),
     vscode.commands.registerCommand("oxveil.openReplayViewer", async () => {
-      const active = getActive();
-      if (!active?.workspaceRoot) {
+      const resolved = await resolveFolder();
+      if (!resolved?.workspaceRoot) {
         vscode.window.showWarningMessage("Oxveil: No workspace open");
         return;
       }
-      const replayPath = path.join(active.workspaceRoot, ".claudeloop", "replay.html");
-      const claudeloopRoot = path.join(active.workspaceRoot, ".claudeloop");
-      await replayViewer?.reveal(replayPath, claudeloopRoot);
+      const replayPath = path.join(resolved.workspaceRoot, ".claudeloop", "replay.html");
+      const claudeloopRoot = path.join(resolved.workspaceRoot, ".claudeloop");
+      await replayViewer?.reveal(replayPath, claudeloopRoot, resolved.folderUri);
     }),
-    vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
-      const active = getActive();
-      dependencyGraph?.reveal(active?.session.progress);
+    vscode.commands.registerCommand("oxveil.showDependencyGraph", async () => {
+      const resolved = await resolveFolder();
+      dependencyGraph?.reveal(resolved?.session.progress, resolved?.folderUri);
     }),
-    vscode.commands.registerCommand("oxveil.showTimeline", () => {
-      const active = getActive();
-      executionTimeline?.reveal(active?.session.progress);
+    vscode.commands.registerCommand("oxveil.showTimeline", async () => {
+      const resolved = await resolveFolder();
+      executionTimeline?.reveal(resolved?.session.progress, resolved?.folderUri);
     }),
-    vscode.commands.registerCommand("oxveil.openConfigWizard", () => {
-      const active = getActive();
-      if (!active?.workspaceRoot) {
+    vscode.commands.registerCommand("oxveil.openConfigWizard", async () => {
+      const resolved = await resolveFolder();
+      if (!resolved?.workspaceRoot) {
         vscode.window.showWarningMessage("Oxveil: No workspace open");
         return;
       }
       const configPath = path.join(
-        active.workspaceRoot,
+        resolved.workspaceRoot,
         ".claudeloop",
         ".claudeloop.conf",
       );
-      configWizard?.reveal(configPath);
+      configWizard?.reveal(configPath, resolved.folderUri);
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.configured", true);
     }),
     registerAiParsePlanCommand(sessionManager),

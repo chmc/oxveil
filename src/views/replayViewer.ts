@@ -24,12 +24,22 @@ export interface WebviewPanel {
 export class ReplayViewerPanel {
   private _panel: WebviewPanel | undefined;
   private readonly _deps: ReplayViewerDeps;
+  private _currentFolderUri: string | undefined;
 
   constructor(deps: ReplayViewerDeps) {
     this._deps = deps;
   }
 
-  async reveal(replayPath: string, claudeloopRoot: string): Promise<void> {
+  get currentFolderUri(): string | undefined {
+    return this._currentFolderUri;
+  }
+
+  get visible(): boolean {
+    return this._panel !== undefined;
+  }
+
+  async reveal(replayPath: string, claudeloopRoot: string, folderUri?: string): Promise<void> {
+    this._currentFolderUri = folderUri;
     let html: string;
     try {
       html = await this._deps.readFile(replayPath);

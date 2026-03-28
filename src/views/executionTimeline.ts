@@ -12,12 +12,22 @@ export interface ExecutionTimelineDeps {
 export class ExecutionTimelinePanel {
   private _panel: vscode.WebviewPanel | undefined;
   private readonly _deps: ExecutionTimelineDeps;
+  private _currentFolderUri: string | undefined;
 
   constructor(deps: ExecutionTimelineDeps) {
     this._deps = deps;
   }
 
-  reveal(progress: ProgressState | undefined): void {
+  get currentFolderUri(): string | undefined {
+    return this._currentFolderUri;
+  }
+
+  get visible(): boolean {
+    return this._panel?.visible ?? false;
+  }
+
+  reveal(progress: ProgressState | undefined, folderUri?: string): void {
+    this._currentFolderUri = folderUri;
     if (this._panel) {
       this._panel.reveal();
     } else {
