@@ -50,7 +50,7 @@ end tell' 2>/dev/null
 
 ## Swift CGWindowID Script
 
-CGWindowList uses owner name `"Visual Studio Code"` (not "Code" or "Electron"). osascript System Events uses process name `"Code"`. These are different APIs.
+CGWindowList and osascript System Events both use `"Code"` (derived from `CFBundleName` in VS Code's `Info.plist`). This value is installation-dependent — Insiders uses `"Code - Insiders"`. If window lookup fails, verify the owner name with the Swift snippet below.
 
 ```bash
 # Get CGWindowID for the Extension Development Host window
@@ -60,7 +60,7 @@ let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) a
 for w in windows {
     let owner = w["kCGWindowOwnerName"] as? String ?? ""
     let name = w["kCGWindowName"] as? String ?? ""
-    if owner == "Visual Studio Code" && name.contains("[Extension Development Host]") {
+    if owner == "Code" && name.contains("[Extension Development Host]") {
         print(w["kCGWindowNumber"] as? Int ?? 0)
         break
     }
@@ -92,7 +92,7 @@ let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) a
 for w in windows {
     let owner = w["kCGWindowOwnerName"] as? String ?? ""
     let name = w["kCGWindowName"] as? String ?? ""
-    if owner == "Visual Studio Code" && name.contains("[Extension Development Host]") {
+    if owner == "Code" && name.contains("[Extension Development Host]") {
         print(w["kCGWindowNumber"] as? Int ?? 0)
         break
     }
@@ -310,7 +310,7 @@ fi
 ```markdown
 # Verification: {context-title}
 Started: {YYYY-MM-DD HH:MM:SS}
-Platform: macOS (osascript: "Code", CGWindowList: "Visual Studio Code")
+Platform: macOS (process/owner name: "Code")
 
 ## Log
 {HH:MM:SS} {ACTION} {description} — {result}
