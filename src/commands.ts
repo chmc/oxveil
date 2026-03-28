@@ -9,6 +9,7 @@ import { findPhaseLogs } from "./views/logViewer";
 import type { PhaseTreeItem } from "./views/phaseTree";
 import type { ArchiveTreeItem } from "./views/archiveTree";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
+import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { ConfigWizardPanel } from "./views/configWizard";
 import type { ReplayViewerPanel } from "./views/replayViewer";
 import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
@@ -25,6 +26,7 @@ export interface CommandDeps {
   readdir: (dir: string) => Promise<string[]>;
   onArchiveRefresh?: () => void;
   dependencyGraph?: DependencyGraphPanel;
+  executionTimeline?: ExecutionTimelinePanel;
   configWizard?: ConfigWizardPanel;
   replayViewer?: ReplayViewerPanel;
   gitExec?: GitExecDeps;
@@ -33,7 +35,7 @@ export interface CommandDeps {
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, configWizard, replayViewer, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -258,6 +260,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
       dependencyGraph?.reveal(session.progress);
+    }),
+    vscode.commands.registerCommand("oxveil.showTimeline", () => {
+      executionTimeline?.reveal(session.progress);
     }),
     vscode.commands.registerCommand("oxveil.openConfigWizard", () => {
       if (!workspaceRoot) {

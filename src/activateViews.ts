@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { stat } from "node:fs/promises";
 import { DependencyGraphPanel } from "./views/dependencyGraph";
+import { ExecutionTimelinePanel } from "./views/executionTimeline";
 import { ConfigWizardPanel } from "./views/configWizard";
 import { ReplayViewerPanel } from "./views/replayViewer";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
@@ -21,6 +22,7 @@ export interface WebviewPanelsDeps {
 
 export interface WebviewPanelsResult {
   dependencyGraph: DependencyGraphPanel;
+  executionTimeline: ExecutionTimelinePanel;
   configWizard: ConfigWizardPanel;
   replayViewer: ReplayViewerPanel;
   planCodeLens: PlanCodeLensProvider;
@@ -35,6 +37,12 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     executeCommand: vscode.commands.executeCommand,
   });
   disposables.push({ dispose: () => dependencyGraph.dispose() });
+
+  const executionTimeline = new ExecutionTimelinePanel({
+    createWebviewPanel: vscode.window.createWebviewPanel,
+    executeCommand: vscode.commands.executeCommand,
+  });
+  disposables.push({ dispose: () => executionTimeline.dispose() });
 
   const configWizard = new ConfigWizardPanel({
     createWebviewPanel: vscode.window.createWebviewPanel as any,
@@ -70,7 +78,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     );
   }
 
-  return { dependencyGraph, configWizard, replayViewer, planCodeLens, disposables };
+  return { dependencyGraph, executionTimeline, configWizard, replayViewer, planCodeLens, disposables };
 }
 
 export interface ArchiveViewDeps {

@@ -153,7 +153,7 @@ export async function activate(
   const gitExec = createGitExec(workspaceRoot);
   const panels = createWebviewPanels({ session, workspaceRoot, gitExec });
   disposables.push(...panels.disposables);
-  const { dependencyGraph, configWizard, replayViewer } = panels;
+  const { dependencyGraph, executionTimeline, configWizard, replayViewer } = panels;
 
   wireSessionEvents({
     session,
@@ -164,6 +164,7 @@ export async function activate(
     notifications,
     elapsedTimer,
     dependencyGraph,
+    executionTimeline,
   });
 
   // Refresh archive when session ends
@@ -274,6 +275,7 @@ export async function activate(
       readdir: (dir: string) => fs.readdir(dir),
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
+      executionTimeline,
       configWizard,
       replayViewer,
       gitExec,

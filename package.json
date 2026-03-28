@@ -134,6 +134,10 @@
       {
         "command": "oxveil.createPlan",
         "title": "Oxveil: Create Plan"
+      },
+      {
+        "command": "oxveil.showTimeline",
+        "title": "Oxveil: Show Timeline"
       }
     ],
     "menus": {
@@ -212,6 +216,10 @@
         },
         {
           "command": "oxveil.createPlan"
+        },
+        {
+          "command": "oxveil.showTimeline",
+          "when": "oxveil.detected"
         }
       ]
     },
