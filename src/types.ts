@@ -7,9 +7,9 @@ export type StatusBarState =
   | { kind: "installing" }
   | { kind: "ready" }
   | { kind: "idle" }
-  | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string }
-  | { kind: "failed"; failedPhase: number }
-  | { kind: "done"; elapsed: string };
+  | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string }
+  | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string }
+  | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string };
 
 export type PhaseStatus = "pending" | "completed" | "in_progress" | "failed";
 

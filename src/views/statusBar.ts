@@ -45,23 +45,32 @@ export class StatusBarManager {
         this._item.backgroundColor = undefined;
         break;
 
-      case "running":
-        this._item.text = `$(sync~spin) Oxveil: Phase ${state.currentPhase}/${state.totalPhases} | ${state.elapsed}`;
+      case "running": {
+        const prefix = state.folderName ? `${state.folderName} — ` : "";
+        const suffix = state.otherRootsSummary ? ` (${state.otherRootsSummary})` : "";
+        this._item.text = `$(sync~spin) Oxveil: ${prefix}Phase ${state.currentPhase}/${state.totalPhases} | ${state.elapsed}${suffix}`;
         this._item.tooltip = `Running — Phase ${state.currentPhase} of ${state.totalPhases} (${state.elapsed} elapsed)`;
         this._item.backgroundColor = undefined;
         break;
+      }
 
-      case "failed":
-        this._item.text = `$(error) Oxveil: Phase ${state.failedPhase} failed`;
+      case "failed": {
+        const prefix = state.folderName ? `${state.folderName} — ` : "";
+        const suffix = state.otherRootsSummary ? ` (${state.otherRootsSummary})` : "";
+        this._item.text = `$(error) Oxveil: ${prefix}Phase ${state.failedPhase} failed${suffix}`;
         this._item.tooltip = `Phase ${state.failedPhase} failed — click for details`;
         this._item.backgroundColor = { id: "statusBarItem.errorBackground" };
         break;
+      }
 
-      case "done":
-        this._item.text = `$(check) Oxveil: done | ${state.elapsed}`;
+      case "done": {
+        const prefix = state.folderName ? `${state.folderName} — ` : "";
+        const suffix = state.otherRootsSummary ? ` (${state.otherRootsSummary})` : "";
+        this._item.text = `$(check) Oxveil: ${prefix}done | ${state.elapsed}${suffix}`;
         this._item.tooltip = `All phases completed (${state.elapsed})`;
         this._item.backgroundColor = undefined;
         break;
+      }
     }
 
     this._item.show();

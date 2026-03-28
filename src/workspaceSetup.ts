@@ -45,18 +45,42 @@ export function initFolderSessions(opts: InitFolderSessionsOpts): void {
   }
 }
 
-export type SessionWiringContext = Omit<SessionWiringDeps, "session" | "folderUri" | "folderName" | "isActiveSession">;
+export type SessionWiringContext = Omit<SessionWiringDeps, "session" | "folderUri" | "folderName" | "getOtherRootsSummary" | "isActiveSession">;
+
+function computeOtherRootsSummary(
+  manager: WorkspaceSessionManager,
+  excludeUri: string,
+): string | undefined {
+  const others = manager.getAllSessions().filter((s) => s.folderUri !== excludeUri);
+  if (others.length === 0) return undefined;
+
+  const counts = new Map<string, number>();
+  for (const s of others) {
+    const status = s.sessionState.status;
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+  }
+
+  const parts: string[] = [];
+  for (const [status, count] of counts) {
+    parts.push(`+${count} ${status}`);
+  }
+  return parts.length > 0 ? parts.join(", ") : undefined;
+}
 
 function sessionWiringDeps(
   ws: WorkspaceSession,
   manager: WorkspaceSessionManager,
   wiringCtx: SessionWiringContext,
 ): SessionWiringDeps {
+  const isMultiRoot = manager.getAllSessions().length > 1;
   return {
     ...wiringCtx,
     session: ws.sessionState,
     folderUri: ws.folderUri,
-    folderName: path.basename(ws.workspaceRoot),
+    folderName: isMultiRoot ? path.basename(ws.workspaceRoot) : undefined,
+    getOtherRootsSummary: isMultiRoot
+      ? () => computeOtherRootsSummary(manager, ws.folderUri)
+      : undefined,
     isActiveSession: () => manager.getActiveSession() === ws,
   };
 }

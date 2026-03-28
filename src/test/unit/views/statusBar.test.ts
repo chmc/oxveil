@@ -107,6 +107,86 @@ describe("StatusBarManager", () => {
     expect(item.command).toBe("oxveil.phases.focus");
   });
 
+  it("renders running state with folder prefix in multi-root", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({
+      kind: "running",
+      currentPhase: 3,
+      totalPhases: 5,
+      elapsed: "4m",
+      folderName: "my-api",
+    });
+
+    expect(item.text).toBe("$(sync~spin) Oxveil: my-api — Phase 3/5 | 4m");
+    expect(item.tooltip).toBe("Running — Phase 3 of 5 (4m elapsed)");
+  });
+
+  it("renders running state with folder prefix and other-roots summary", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({
+      kind: "running",
+      currentPhase: 3,
+      totalPhases: 5,
+      elapsed: "4m",
+      folderName: "my-api",
+      otherRootsSummary: "+1 idle",
+    });
+
+    expect(item.text).toBe("$(sync~spin) Oxveil: my-api — Phase 3/5 | 4m (+1 idle)");
+    expect(item.tooltip).toBe("Running — Phase 3 of 5 (4m elapsed)");
+  });
+
+  it("renders failed state with folder prefix", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({ kind: "failed", failedPhase: 3, folderName: "my-api" });
+
+    expect(item.text).toBe("$(error) Oxveil: my-api — Phase 3 failed");
+  });
+
+  it("renders done state with folder prefix", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({ kind: "done", elapsed: "24m", folderName: "my-api" });
+
+    expect(item.text).toBe("$(check) Oxveil: my-api — done | 24m");
+  });
+
+  it("renders done state with other-roots summary", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({
+      kind: "done",
+      elapsed: "24m",
+      folderName: "my-api",
+      otherRootsSummary: "+2 running",
+    });
+
+    expect(item.text).toBe("$(check) Oxveil: my-api — done | 24m (+2 running)");
+  });
+
+  it("omits folder prefix when folderName undefined (single-root)", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({
+      kind: "running",
+      currentPhase: 3,
+      totalPhases: 7,
+      elapsed: "12m",
+    });
+
+    // Same as existing running test — no prefix
+    expect(item.text).toBe("$(sync~spin) Oxveil: Phase 3/7 | 12m");
+  });
+
   it("disposes status bar item", () => {
     const item = makeStatusBarItem();
     let disposed = false;

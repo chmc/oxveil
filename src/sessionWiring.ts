@@ -21,6 +21,7 @@ export interface SessionWiringDeps {
   executionTimeline?: ExecutionTimelinePanel;
   folderUri: string;
   folderName?: string;
+  getOtherRootsSummary?: () => string | undefined;
   isActiveSession: () => boolean;
 }
 
@@ -58,12 +59,19 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           currentPhase,
           totalPhases: p?.totalPhases ?? 0,
           elapsed: elapsedTimer.elapsed,
+          folderName: deps.folderName,
+          otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
         break;
       }
       case "done":
         elapsedTimer.stop();
-        statusBar.update({ kind: "done", elapsed: elapsedTimer.elapsed });
+        statusBar.update({
+          kind: "done",
+          elapsed: elapsedTimer.elapsed,
+          folderName: deps.folderName,
+          otherRootsSummary: deps.getOtherRootsSummary?.(),
+        });
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         break;
       case "failed": {
@@ -74,6 +82,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         statusBar.update({
           kind: "failed",
           failedPhase: (fp?.number as number) ?? 0,
+          folderName: deps.folderName,
+          otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
         break;
       }
@@ -104,6 +114,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         currentPhase: phase?.number as number ?? 1,
         totalPhases: progress.totalPhases,
         elapsed: elapsedTimer.elapsed,
+        folderName: deps.folderName,
+        otherRootsSummary: deps.getOtherRootsSummary?.(),
       });
     }
   });
