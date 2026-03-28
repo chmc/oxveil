@@ -5,7 +5,6 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
 import { SessionState } from "./core/sessionState";
-import { ProcessManager } from "./core/processManager";
 import { Installer } from "./core/installer";
 import { createProcessManager } from "./processManagerFactory";
 import { StatusBarManager } from "./views/statusBar";
@@ -19,6 +18,7 @@ import { wireSessionEvents } from "./sessionWiring";
 import { createTreeAdapter } from "./views/treeAdapter";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import type { GitExecDeps } from "./core/gitIntegration";
+import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 
 const execFileAsync = promisify(execFile);
 
@@ -114,13 +114,35 @@ export async function activate(
   disposables.push(outputChannel);
   const outputManager = new OutputChannelManager(outputChannel);
 
-  // Session state
-  const session = new SessionState();
+  // Workspace session manager (per-folder sessions)
+  const manager = new WorkspaceSessionManager({
+    getActiveFolderUri: () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return workspaceFolders?.[0]?.uri.toString();
+      return vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.toString();
+    },
+  });
+
+  // Create one session per workspace folder
+  if (workspaceFolders && result.status === "detected") {
+    for (const folder of workspaceFolders) {
+      const root = folder.uri.fsPath;
+      const ws = manager.createSession({ folderUri: folder.uri.toString(), workspaceRoot: root });
+      ws.processManager = createProcessManager({
+        claudeloopPath,
+        resolvedPath: result.path,
+        workspaceRoot: root,
+        platform: process.platform,
+      });
+      ws.gitExec = createGitExec(root);
+    }
+  }
 
   // Elapsed timer
   const elapsedTimer = new ElapsedTimer((elapsed) => {
-    if (session.status === "running") {
-      const p = session.progress;
+    const active = manager.getActiveSession();
+    if (active?.sessionState.status === "running") {
+      const p = active.sessionState.progress;
       const currentPhase = p?.currentPhaseIndex !== undefined
         ? (p.phases[p.currentPhaseIndex]?.number as number) ?? 1
         : 1;
@@ -150,29 +172,32 @@ export async function activate(
   });
 
   // Webview panels, CodeLens, and diff provider
-  const gitExec = createGitExec(workspaceRoot);
-  const panels = createWebviewPanels({ session, workspaceRoot, gitExec });
+  const activeSession = manager.getActiveSession();
+  const activeState = activeSession?.sessionState ?? new SessionState();
+  const gitExec = activeSession?.gitExec ?? createGitExec(workspaceRoot);
+  const panels = createWebviewPanels({ session: activeState, workspaceRoot, gitExec });
   disposables.push(...panels.disposables);
   const { dependencyGraph, executionTimeline, configWizard, replayViewer } = panels;
 
-  wireSessionEvents({
-    session,
-    statusBar,
-    phaseTree,
-    onDidChangeTreeData,
-    outputManager,
-    notifications,
-    elapsedTimer,
-    dependencyGraph,
-    executionTimeline,
-  });
-
-  // Refresh archive when session ends
-  session.on("state-changed", (_from, to) => {
-    if (to === "done" || to === "failed") {
-      refreshArchive();
-    }
-  });
+  // Wire each session's events
+  for (const ws of manager.getAllSessions()) {
+    wireSessionEvents({
+      session: ws.sessionState,
+      statusBar,
+      phaseTree,
+      onDidChangeTreeData,
+      outputManager,
+      notifications,
+      elapsedTimer,
+      dependencyGraph,
+      executionTimeline,
+    });
+    ws.sessionState.on("state-changed", (_from, to) => {
+      if (to === "done" || to === "failed") {
+        refreshArchive();
+      }
+    });
+  }
 
   // Detection notifications
   if (result.status === "not-found") {
@@ -184,13 +209,13 @@ export async function activate(
     });
   }
 
-  // Watchers
+  // Watchers (Phase 9 will make this per-folder; for now pass active session)
   if (workspaceFolders && workspaceFolders.length > 0) {
     const debounceMs = config.get<number>("watchDebounceMs", 100);
     const watcherResult = await initWorkspaceWatchers({
       workspaceFolders,
       debounceMs,
-      session,
+      session: activeState,
     });
     disposables.push(...watcherResult.disposables);
   }
@@ -240,19 +265,7 @@ export async function activate(
   });
   disposables.push(configWatcher);
 
-  // Process manager
-  let processManager: ProcessManager | undefined;
-
-  if (workspaceRoot && result.status === "detected") {
-    processManager = createProcessManager({
-      claudeloopPath,
-      resolvedPath: result.path,
-      workspaceRoot,
-      platform: process.platform,
-    });
-  }
-
-  _processManager = processManager;
+  _sessionManager = manager;
 
   // Installer
   const installer = new Installer({
@@ -264,21 +277,22 @@ export async function activate(
     platform: process.platform,
   });
 
-  // Register commands
+  // Register commands (uses active session at registration time; commands
+  // that need live session should eventually look up manager.getActiveSession())
   disposables.push(
     ...registerCommands({
-      processManager,
+      processManager: activeSession?.processManager,
       installer,
-      session,
+      session: activeState,
       statusBar,
-      workspaceRoot,
+      workspaceRoot: activeSession?.workspaceRoot ?? workspaceRoot,
       readdir: (dir: string) => fs.readdir(dir),
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
       executionTimeline,
       configWizard,
       replayViewer,
-      gitExec,
+      gitExec: activeSession?.gitExec ?? gitExec,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
     }),
@@ -287,19 +301,70 @@ export async function activate(
   // Initial archive load
   refreshArchive();
 
+  // Active folder tracking
+  disposables.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      manager.notifyActiveChanged();
+    }),
+  );
+
+  // Handle workspace folder add/remove
+  disposables.push(
+    vscode.workspace.onDidChangeWorkspaceFolders((e) => {
+      for (const added of e.added) {
+        const ws = manager.createSession({
+          folderUri: added.uri.toString(),
+          workspaceRoot: added.uri.fsPath,
+        });
+        if (result.status === "detected") {
+          ws.processManager = createProcessManager({
+            claudeloopPath,
+            resolvedPath: result.path,
+            workspaceRoot: added.uri.fsPath,
+            platform: process.platform,
+          });
+          ws.gitExec = createGitExec(added.uri.fsPath);
+          wireSessionEvents({
+            session: ws.sessionState,
+            statusBar,
+            phaseTree,
+            onDidChangeTreeData,
+            outputManager,
+            notifications,
+            elapsedTimer,
+            dependencyGraph,
+            executionTimeline,
+          });
+          ws.sessionState.on("state-changed", (_from, to) => {
+            if (to === "done" || to === "failed") {
+              refreshArchive();
+            }
+          });
+        }
+      }
+      for (const removed of e.removed) {
+        manager.removeSession(removed.uri.toString());
+      }
+    }),
+  );
+
   context.subscriptions.push(...disposables);
 }
 
+// Expose for deactivate access
+let _sessionManager: WorkspaceSessionManager | undefined;
+
 export async function deactivate(): Promise<void> {
-  const pm = _processManager;
-  if (pm?.isRunning) {
-    await pm.deactivate();
+  if (_sessionManager) {
+    for (const ws of _sessionManager.getAllSessions()) {
+      if (ws.processManager?.isRunning) {
+        await ws.processManager.deactivate();
+      }
+    }
+    _sessionManager.dispose();
   }
 
   for (const d of disposables) {
     d.dispose();
   }
 }
-
-// Expose for deactivate access
-let _processManager: ProcessManager | undefined;
