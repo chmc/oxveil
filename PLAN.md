@@ -1,394 +1,624 @@
-# Oxveil v0.3 — Config & Plan Editing
+# Oxveil v0.4 — Deep Integration
 
 ## Context
 
-v0.1 (entry point, run & monitor) and v0.2 (rich monitoring with dependency graph, archive browser, smart notifications, phase diffs) are complete. v0.3 replaces CLI prompts with native VS Code UI for configuration and plan editing — the planned A-to-B progression from the issue.
+v0.1-v0.3 are complete (monitoring, config wizard, plan editing, CodeLens, replay). v0.4 adds power-user features: execution timeline, welcome walkthrough, and multi-root workspace support. Retry strategy picker and prompt template editor are deferred — they require claudeloop CLI changes that don't exist yet (`--retry-strategy` flag, template variable engine). GitHub issues will track them.
 
-All required claudeloop CLI flags already exist: `--phase N`, `--mark-complete N`, `--continue`, `--ai-parse`, `--granularity <level>`. No cross-repo changes needed. Oxveil is not yet published — no feature flags needed.
+**Ordering rationale:** Ship low-risk, self-contained features first (walkthrough, timeline), then tackle multi-root workspace (high-risk core refactoring) last. This way walkthrough and timeline are shippable even if multi-root hits blockers.
 
-## Architectural Decisions
+## Scope
 
-### Config file ownership (ADR 0003)
-Extension writes to `.claudeloop/.claudeloop.conf` — bidirectional file ownership. Acceptable because: (a) claudeloop documents it as "edit or delete freely", (b) only read at startup, (c) round-trip editor preserving unknown keys and comments. VS Code settings control CLI flags at spawn; `.claudeloop.conf` controls claudeloop internals. No overlap.
+**In scope (from mockups):**
+- Welcome Walkthrough — VS Code walkthrough API onboarding (mockup: `docs/mockups/v04-deep-integration.html` "Welcome Walkthrough" section)
+- Execution Timeline — Gantt-style webview (mockup: same file, "Execution Timeline" section)
+- Multi-root Workspace — folder-scoped sessions (mockup: `docs/mockups/v04-multi-root.html`)
 
-### Plan language support (ADR 0004)
-Dedicated language ID `claudeloop-plan` for `PLAN.md` files — not injection into all markdown. Scopes highlighting and CodeLens to plan files only.
+**Deferred (create GH issues):**
+- Retry Strategy Picker — needs claudeloop `--retry-strategy` CLI flag
+- Prompt Template Editor — needs claudeloop template variable engine
 
-### Replay viewer CSP
-Nonce injection via regex on the single `<script>` and `<style>` tags in claudeloop's replay.html before loading into webview. Follows `dependencyGraph.ts` CSP pattern.
+**Documentation:**
+- ARCHITECTURE.md updates throughout
+- ADRs for architectural decisions
+- World-class README as final task
 
-### Feature flag removal
-Not published yet — remove entire `oxveil.experimental` system. Ship all features directly.
+## Key Files
 
----
+- `src/extension.ts` — activation, wiring (line 278: `workspaceFolders?.[0]` = single-root hardcode)
+- `src/sessionWiring.ts` — connects session events to views (`SessionWiringDeps` interface)
+- `src/types.ts` — PhaseState has `started`/`completed` timestamps (format: `YYYY-MM-DD HH:MM:SS`, local time)
+- `src/views/dependencyGraph.ts` — reference pattern for webview panels (Deps interface, `reveal()`, `update()`)
+- `src/parsers/progress.ts` — parses PROGRESS.md → ProgressState
+- `src/core/processManager.ts` — spawns claudeloop with args
+- `src/workspaceInit.ts` — file watcher setup (also hardcoded `workspaceFolders[0]`)
+- `src/commands.ts` — command registration (`CommandDeps` interface with 11 fields)
+- `package.json` — contributes section for commands, views, walkthroughs, menus
+- `test/fixtures/mock-running/PROGRESS.md` — sample with timestamps and attempt strategies
 
-## Implementation Tasks
+## Reusable Patterns
 
-**MANDATORY RULE:** Every implementation task MUST be followed by a visual verification gate task. Run `/visual-verification` at each gate. No exceptions. Each task produces a visible increment; the gate confirms it.
+- **Webview panel:** `DependencyGraphPanel` at `src/views/dependencyGraph.ts` — Deps interface, `reveal()`, `update()`, `dispose()`, `onDidReceiveMessage` for interactions
+- **Pure parser:** Input string → typed output, crash-proof try-catch, no VS Code deps (see `parsers/progress.ts`)
+- **Tree adapter:** `createTreeAdapter()` at `src/views/treeAdapter.ts` wraps tree providers
+- **Session wiring:** `wireSessionEvents()` at `src/sessionWiring.ts` subscribes views to SessionState events
+- **Elapsed timer:** `ElapsedTimer` at `src/views/elapsedTimer.ts` for interval-based UI updates
 
-### Task 1: Remove feature flag system
-**Visual increment:** Extension activates unconditionally. Archive view and Dependency Graph always available.
+## Research Findings
 
-**Delete:**
-- `src/core/featureFlag.ts`
-- `src/test/unit/core/featureFlag.test.ts`
+**Walkthrough API:**
+- `contributes.walkthroughs` in package.json — declarative, steps have `completionEvents` array
+- Completion events: `onContext:key`, `onCommand:id`, `onView:id`, `onLink:url`, `extensionInstalled:id`, `onSettingChanged:id`
+- Media: `{ "markdown": "./media/file.md" }` or `{ "image": "./media/file.png", "altText": "..." }`. Paths relative to extension root.
+- Action buttons in step descriptions via markdown links: `[Button Label](command:extension.commandId)`
+- Gotcha: walkthroughs may not appear until VS Code reload (known issue #232425)
 
-**Modify:**
-- `src/extension.ts`:
-  - Remove `import { shouldActivate } from "./core/featureFlag"` (line 17)
-  - Remove the `if (!shouldActivate(...)) { return; }` guard block (lines 38-41)
-- `package.json`:
-  - Remove `oxveil.experimental` from `contributes.configuration.properties`
-  - Remove `"when": "config.oxveil.experimental"` from archive view (line 42)
-  - Remove `"when": "config.oxveil.experimental"` from dependency graph command palette entry (line 148)
-- `src/test/integration/` — Remove any tests that reference `shouldActivate` or set `oxveil.experimental`
-- `.claude/skills/feature-flags/SKILL.md` — Update: no flags until marketplace publication
+**Webview CSP for timeline scripts:**
+- `DependencyGraphPanel` uses nonce-based CSP: `script-src 'nonce-${nonce}'` (line 72 of `dependencyGraph.ts`)
+- `setInterval` works fine with nonce-based CSP — same pattern as existing webviews
+- Inline script via `<script nonce="${nonce}">` block
 
-**Gate:** `npm run test && npm run lint && npm run build`
+**QuickPick for folder picker:**
+- `QuickPickItem` fields: `label` (supports `$(icon)` theme icons), `description` (gray, same line), `detail` (second line below)
+- For rich two-line layout: use `label` for folder name with icon, `detail` for session status
+- Over 800 codicon theme icons available via `$(identifier)` syntax
 
-### Task 2: GATE — Visual verification of flag removal
-**Compare against:** existing v0.2 behavior — everything works unconditionally
-**Checklist:**
-- Launch Extension Development Host (EDH) via `npm run build` then F5
-- Confirm extension activates and shows status bar on startup (no settings needed)
-- Open sidebar: Archive view ("Past Runs") visible unconditionally
-- Open command palette (Cmd+Shift+P): "Oxveil: Show Dependency Graph" available
-- Open VS Code Settings (Cmd+,), search "oxveil": `experimental` setting no longer appears
-- Confirm all existing v0.1/v0.2 features still work (start, stop, phase tree, output channel)
+**Multi-root singleton mapping** (from `extension.ts` line-by-line analysis):
+- Singletons that become per-folder: `session` (L139), `processManager` (L277-287), `gitExec` (L293-309), `elapsedTimer` (L142-155), watcher manager (L236-245)
+- Global singletons (shared): `statusBar` (L50), `phaseTree` (L81), `outputChannel` (L134), `installer` (L312), `dependencyGraph` (L174), `configWizard` (L181), `replayViewer` (L190)
+- `workspaceInit.ts` hardcodes `[0]` at lines 23 and 41 — needs per-folder loop with folder-specific `RelativePattern`
+- `sessionWiring.ts` wires one session to views — multi-root needs `isActiveSession()` guard so only active session drives UI
 
-**Action:** `/visual-verification`
+## Design Simplifications
 
-### Task 3: Config parser + types
-**Visual increment:** Tests pass for config parser. No UI yet — this is a pure-function foundation.
+- **Pending phases in timeline:** The mockup shows estimated durations ("~4m"). There is no data source for estimates — claudeloop doesn't emit them. Simplification: pending phases render as zero-width dashed markers at the timeline's right edge. Document this deviation.
+- **Walkthrough media:** Use simple markdown content (not custom SVG illustrations) to avoid scope creep. VS Code walkthrough API supports markdown media.
+- **Multi-root tree view:** Folder grouping only shown when `workspaceFolders.length > 1`. Single-root behavior must be identical to v0.3.
 
-**Create:**
-- `src/parsers/config.ts` — Pure function parser/serializer following `src/parsers/progress.ts` pattern:
-  - `parseConfig(content: string): ParsedConfig` — Round-trip safe. Skips `#` comments (preserves them), trims whitespace, maps 18 known keys to typed fields. Unknown keys preserved as raw pairs.
-  - `serializeConfig(parsed: ParsedConfig): string` — Writes back key=value format with comment header, preserving unknown keys and original comments.
-  - 18 known keys matching `load_config()` in claudeloop `lib/config.sh`: PLAN_FILE, PROGRESS_FILE, MAX_RETRIES, SIMPLE_MODE, PHASE_PROMPT_FILE, BASE_DELAY, QUOTA_RETRY_INTERVAL, SKIP_PERMISSIONS, STREAM_TRUNCATE_LEN, HOOKS_ENABLED, MAX_PHASE_TIME, IDLE_TIMEOUT, VERIFY_TIMEOUT, AI_PARSE, GRANULARITY, VERIFY_PHASES, REFACTOR_PHASES, REFACTOR_MAX_RETRIES
-- `src/types.ts` — Add:
-  - `ConfigState` interface with 18 typed fields (strings, numbers, booleans, `"phases" | "tasks" | "steps"` union for GRANULARITY)
-  - `ParsedConfig { config: ConfigState; unknownKeys: Array<{key: string, value: string}>; comments: string[] }`
-- `src/test/unit/parsers/config.test.ts` — Tests: round-trip preservation, comment handling, unknown keys passthrough, missing keys default, boolean string parsing ("true"/"false"), empty file, malformed lines
+## Multi-root Design Decisions (finalized via brainstorming)
 
-**Gate:** `npm run test && npm run lint && npm run build`
+Mockup: `docs/mockups/v04-multi-root.html`
 
-### Task 4: GATE — Visual verification of config parser
-**Checklist:**
-- Run `npm run test` — all config parser tests pass
-- Run `npm run lint` — no type errors in new files
-- Confirm `src/parsers/config.ts` exports `parseConfig` and `serializeConfig`
-- Confirm `src/types.ts` has `ConfigState` and `ParsedConfig` interfaces
-- Confirm round-trip test: parse then serialize produces equivalent output
-
-**Action:** `/visual-verification`
-
-### Task 5: Config wizard webview
-**Visual increment:** "Oxveil: Edit Config" opens a two-column form webview matching the mockup.
-**Mockup reference:** `docs/mockups/v03-config-wizard-webview.png`, `docs/mockups/v03-config-plan-editing.html`
-
-**Create:**
-- `src/views/configWizard.ts` — `ConfigWizardPanel` with `ConfigWizardDeps` interface (follows `src/views/dependencyGraph.ts` pattern):
-  - Constructor takes: `{ createWebviewPanel, readFile, writeFile, sessionStatus }` deps
-  - `reveal(configPath: string)` — Reads file, parses with `parseConfig`, renders HTML form
-  - Message passing: webview sends `{ type: "save", config }` or `{ type: "reload" }`, extension writes via `writeFile`
-  - **Two-column layout** (per mockup): form on left, live config preview on right
-  - **Header bar:** "claudeloop Configuration" with gear icon (per mockup)
-  - Form sections (per mockup layout with all 18 claudeloop config keys):
-    - **EXECUTION:** MAX_RETRIES (number 0-10), BASE_DELAY (number), QUOTA_RETRY_INTERVAL (number), MAX_PHASE_TIME (number), IDLE_TIMEOUT (number), VERIFY_TIMEOUT (number)
-    - **BEHAVIOR:** VERIFY_PHASES (toggle), REFACTOR_PHASES (toggle), REFACTOR_MAX_RETRIES (number), AI_PARSE (toggle), GRANULARITY (dropdown phases/tasks/steps, visible when AI_PARSE=true), SIMPLE_MODE (toggle), SKIP_PERMISSIONS (toggle + warning), HOOKS_ENABLED (toggle)
-    - **PATHS:** PLAN_FILE (text), PROGRESS_FILE (text), PHASE_PROMPT_FILE (text)
-    - **ADVANCED:** STREAM_TRUNCATE_LEN (number)
-  - **Note:** Mockup shows a simplified subset (AI Provider, Model, Dry run, Working Directory) that don't map to claudeloop config keys. Implementation covers all 18 actual `.claudeloop.conf` keys instead. The mockup layout (two-column, toggles, header, preview) is followed but form fields reflect the real config format.
-  - **Live config preview panel** on right: "GENERATED CONFIG PREVIEW" label, shows `.claudeloop.conf` with syntax coloring (keys: `#9cdcfe`, string values: `#ce9178`, numbers: `#b5cea8`, booleans: `#569cd6`, comments: `#6a9955`)
-  - Footer: "Reset to Defaults" (secondary) and "Save Configuration" (primary blue) buttons
-  - CSP with crypto nonce (same as `dependencyGraph.ts` line 72)
-  - VS Code theme CSS variables, toggle on-state `#007acc`
-  - `getState`/`setState` webview API for form persistence across tab switches
-  - Warning banner when `sessionStatus()` returns `"running"`
-  - Missing `.claudeloop/` directory: show "Run claudeloop first" message
-  - `onDidDispose` cleanup
-- `src/test/unit/views/configWizard.test.ts` — Message handler tests, form state, preview generation
-
-**Gate:** `npm run test && npm run lint && npm run build`
-
-### Task 6: Config wizard wiring + command
-**Visual increment:** "Oxveil: Edit Config" command works end-to-end in EDH.
-
-**Modify:**
-- `package.json` — Add to `contributes.commands`: `{ "command": "oxveil.openConfigWizard", "title": "Oxveil: Edit Config" }`. Add to `commandPalette` menus: `{ "command": "oxveil.openConfigWizard", "when": "oxveil.detected" }`
-- `src/commands.ts` — Add `configWizard?: ConfigWizardPanel` to `CommandDeps`. Register `oxveil.openConfigWizard` handler that calls `configWizard.reveal(configPath)` where `configPath = path.join(workspaceRoot, ".claudeloop", ".claudeloop.conf")`.
-- `src/extension.ts` — Instantiate `ConfigWizardPanel` with deps, push to disposables, pass to `registerCommands`.
-
-**Gate:** `npm run test && npm run lint && npm run build`
-
-### Task 7: GATE — Visual verification of config wizard
-**Compare against:** `docs/mockups/v03-config-wizard-webview.png`, `docs/mockups/v03-config-plan-editing.html`
-**Checklist:**
-- Launch EDH, run "Oxveil: Edit Config" from command palette
-- Webview opens with two-column layout: form left, preview right
-- Header shows "claudeloop Configuration" with gear icon
-- Three form sections: EXECUTION (dropdown, text, numbers), BEHAVIOR (toggles), PATHS (text inputs)
-- Live preview panel updates as form values change with syntax-colored key=value output
-- Toggles render with blue (#007acc) active state
-- Footer shows "Reset to Defaults" and "Save Configuration" buttons
-- Save button writes to `.claudeloop/.claudeloop.conf`
-- Reload reflects saved values
-
-**Action:** `/visual-verification`
-
-### Task 8: Plan language support — grammar + snippets
-**Visual increment:** Opening PLAN.md shows syntax highlighting with phase headers in blue, status markers in yellow.
-**Mockup reference:** `docs/mockups/v03-plan-editor-with-codelens.png`, `docs/mockups/v03-config-plan-editing.html`
-
-**Create:**
-- `syntaxes/plan.tmLanguage.json` — Standalone grammar:
-  - Scope: `text.md.plan.oxveil`
-  - Extends markdown base patterns
-  - Custom patterns (per mockup):
-    - Phase headers `## Phase N[.N]: Title` → `entity.name.section.phase` (blue `#569cd6`)
-    - Phase numbers → `constant.numeric.phase-number`
-    - Top-level heading `# Title` → `markup.heading.1` (bold blue)
-    - Status markers `[status: ...]` → `entity.name.tag.status` (yellow `#dcdcaa`)
-    - `**Depends on:**` → `keyword.other.depends-on`
-    - Phase references `Phase N` in dependency lines → `entity.name.tag.phase-reference`
-- `snippets/plan.json` — Snippets: `phase` (new phase header) and `phase-deps` (phase with dependencies), scoped to `claudeloop-plan`
-- `language-configuration.json` — Bracket pairs, auto-closing, comment rules (markdown defaults)
-
-**Modify:**
-- `package.json`:
-  - Add `contributes.languages`: `[{ "id": "claudeloop-plan", "aliases": ["Claudeloop Plan"], "filenames": ["PLAN.md"], "configuration": "./language-configuration.json" }]`
-  - Add `contributes.grammars`: `[{ "language": "claudeloop-plan", "scopeName": "text.md.plan.oxveil", "path": "./syntaxes/plan.tmLanguage.json" }]`
-  - Add `contributes.snippets`: `[{ "language": "claudeloop-plan", "path": "./snippets/plan.json" }]`
-
-**Gate:** `npm run build` (no TS to lint, grammar is JSON)
-
-### Task 9: GATE — Visual verification of plan language support
-**Compare against:** `docs/mockups/v03-plan-editor-with-codelens.png`, `docs/mockups/v03-config-plan-editing.html`
-**Checklist:**
-- Launch EDH, open or create a `PLAN.md` file
-- Confirm language mode shows "Claudeloop Plan" in status bar (not "Markdown")
-- Phase headers (`## Phase 1: Title`) highlighted in blue
-- Status markers (`[status: complete]`) highlighted in yellow
-- Bullet list items in standard text color
-- Bold text (file paths) renders correctly
-- Type `phase` → snippet completion triggers, inserts phase template
-
-**Action:** `/visual-verification`
-
-### Task 10: Plan parser
-**Visual increment:** Tests pass for plan parser. Foundation for CodeLens.
-
-**Create:**
-- `src/parsers/plan.ts` — Pure function following `src/parsers/progress.ts` pattern:
-  - `parsePlan(content: string): PlanState` — Extracts phase headers (`##`/`###` + `Phase N[.N]: Title`), status markers `[status: ...]`, dependency lines `**Depends on:**`, body ranges (0-indexed line numbers for CodeLens placement)
-  - Canonical format only. Empty content → `{ phases: [] }`. Decimal phase numbers supported.
-- `src/types.ts` — Add:
-  - `PlanPhase { number: number | string; title: string; headerLine: number; status?: string; dependencies?: string[]; bodyEndLine: number }`
-  - `PlanState { phases: PlanPhase[] }`
-- `src/test/unit/parsers/plan.test.ts` — Tests: decimal phases, mixed `##`/`###`, dependencies, status markers, empty plan, no headers, malformed headers
-
-**Gate:** `npm run test && npm run lint && npm run build`
-
-### Task 11: GATE — Visual verification of plan parser
-**Checklist:**
-- Run `npm run test` — all plan parser tests pass
-- Run `npm run lint` — no type errors
-- Confirm `src/parsers/plan.ts` exports `parsePlan`
-- Confirm `src/types.ts` has `PlanPhase` and `PlanState` interfaces
-- Confirm parser handles: empty input, single phase, multiple phases with deps, decimal numbers
-
-**Action:** `/visual-verification`
-
-### Task 12: CodeLens on phase headings
-**Visual increment:** PLAN.md shows inline actions above each phase header: "Run from here | Mark complete | View log".
-**Mockup reference:** `docs/mockups/v03-plan-editor-with-codelens.png`, `docs/mockups/v03-config-plan-editing.html`
-
-**Create:**
-- `src/views/planCodeLens.ts`:
-  - Pure function `computePlanLenses(content: string): Array<{ line: number; phaseNumber: number | string; title: string }>` — Testable without VS Code. Reuses regex from `src/parsers/plan.ts`.
-  - `PlanCodeLensProvider` implementing `vscode.CodeLensProvider` — Thin adapter. 3 actions per phase (per mockup):
-    - "Run from here" → `oxveil.runFromPhase`
-    - "Mark complete" → `oxveil.markPhaseComplete`
-    - "View log" → existing `oxveil.viewLog` with `{ phaseNumber: N }`
-  - Pending phase actions: "Mark complete" and "View log" are dimmed (disabled command) per mockup
-- `src/test/unit/views/planCodeLens.test.ts` — Tests for `computePlanLenses`
-
-**Modify:**
-- `src/core/processManager.ts` — Add methods (all through existing `_spawnChild(args)` pattern):
-  - `spawnFromPhase(phase: number | string)` — `["--phase", String(phase), "--continue", ...settingsArgs]`. Lock check first.
-  - `markComplete(phase: number | string)` — `["--mark-complete", String(phase)]`. Short-lived, waits for exit.
-- `src/core/interfaces.ts` — Add `spawnFromPhase` and `markComplete` to `IProcessManager`
-- `package.json`:
-  - Add commands: `oxveil.runFromPhase` ("Oxveil: Run from Phase"), `oxveil.markPhaseComplete` ("Oxveil: Mark Phase Complete")
-  - Add to `commandPalette`: both gated with `"when": "oxveil.detected"`
-- `src/commands.ts` — Register both commands. `runFromPhase` shows confirmation dialog ("This will mark all phases before N as complete. Continue?") and checks `processManager.isRunning`.
-- `src/extension.ts`:
-  - Register `CodeLensProvider` with `{ language: "claudeloop-plan" }` selector
-  - Push disposable to `disposables[]`
-
-**Gate:** `npm run test && npm run lint && npm run build`
-
-### Task 13: GATE — Visual verification of CodeLens
-**Compare against:** `docs/mockups/v03-plan-editor-with-codelens.png`, `docs/mockups/v03-config-plan-editing.html`
-**Checklist:**
-- Launch EDH, open PLAN.md
-- CodeLens appears above each `## Phase N:` header
-- Three actions per phase: "Run from here", "Mark complete", "View log"
-- For pending phases: "Mark complete" and "View log" appear grayed out
-- Click "Run from here" → confirmation dialog appears
-- Click "View log" on a completed phase → opens log file
-
-**Action:** `/visual-verification`
-
-### Task 14: Inline replay viewer
-**Visual increment:** "Oxveil: Open Replay" opens replay.html in a VS Code webview tab.
-**Mockup reference:** `docs/mockups/v03-replay-viewer.png`, `docs/mockups/v03-config-plan-editing.html`
-
-**Create:**
-- `src/views/replayViewer.ts` — `ReplayViewerPanel` with `ReplayViewerDeps` interface (follows `dependencyGraph.ts` pattern):
-  - `reveal(replayPath: string)` — Reads replay.html from disk, injects nonces into `<script>` and `<style>` tags via regex, sets CSP meta tag, sets as `webview.html`
-  - `localResourceRoots` set to `.claudeloop/` directory
-  - Missing file → info message "No replay available"
-  - `onDidDispose` cleanup
-- `src/test/unit/views/replayViewer.test.ts` — Nonce injection, missing file, panel lifecycle
-
-**Note:** claudeloop's existing replay.html already contains its own timeline, playback controls, and styled content (matching the mockup's visual). The viewer embeds this HTML — it does not rebuild the UI from scratch. The mockup represents the rendered result.
-
-**Modify:**
-- `package.json` — Add command `oxveil.openReplayViewer` ("Oxveil: Open Replay"), `when: "oxveil.detected"`
-- `src/commands.ts`:
-  - Register `oxveil.openReplayViewer` — Opens current session `.claudeloop/replay.html`
-  - Modify existing `oxveil.archiveReplay` — Open in webview instead of `openExternal`
-  - Add `replayViewer?: ReplayViewerPanel` to `CommandDeps`
-- `src/extension.ts` — Instantiate `ReplayViewerPanel`, push to disposables, pass to `registerCommands`
-
-**Gate:** `npm run test && npm run lint && npm run build`
-
-### Task 15: GATE — Visual verification of replay viewer
-**Compare against:** `docs/mockups/v03-replay-viewer.png`, `docs/mockups/v03-config-plan-editing.html`
-**Checklist:**
-- Launch EDH, run "Oxveil: Open Replay" from command palette
-- Replay.html renders in a webview tab (not external browser)
-- Header shows replay title and playback controls
-- Timeline scrubber with progress bar visible
-- Monospace content area shows phase execution steps
-- Respects dark/light theme (replay.html has `prefers-color-scheme`)
-- Right-click archived run in Past Runs → "Replay" opens in webview (not browser)
-- Open Developer Tools (Help → Toggle Developer Tools): no CSP errors in console
-
-**Action:** `/visual-verification`
-
-### Task 16: AI parse command
-**Visual increment:** "Oxveil: AI Parse Plan" shows a quick-pick with 4 granularity options.
-**Mockup reference:** `docs/mockups/v03-ai-parse-granularity-picker.png`, `docs/mockups/v03-config-plan-editing.html`
-
-**Modify:**
-- `package.json` — Add command `oxveil.aiParsePlan` ("Oxveil: AI Parse Plan"), `when: "oxveil.detected && !oxveil.processRunning"`
-- `src/core/processManager.ts` — Add `aiParse(granularity: string): Promise<void>` — `["--ai-parse", "--granularity", granularity]` through `_spawnChild`. Lock check first.
-- `src/core/interfaces.ts` — Add `aiParse` to `IProcessManager`
-- `src/commands.ts` — Register `oxveil.aiParsePlan`:
-  1. Check PLAN.md exists in workspace → if not, error "No plan file found. Create a PLAN.md first."
-  2. `showQuickPick` with 4 items (per mockup):
-     - `{ label: "Coarse — 3-5 phases", description: "High-level phases. Good for small tasks or quick iterations.", value: "coarse" }`
-     - `{ label: "Medium — 5-10 phases (default)", description: "Balanced breakdown. Each phase is a meaningful unit of work.", value: "medium" }`
-     - `{ label: "Fine — 10-20 phases", description: "Granular phases. Best for complex tasks requiring careful monitoring.", value: "fine" }`
-     - `{ label: "Custom...", description: "Enter a custom prompt to guide phase generation.", value: "custom" }`
-  3. If "Custom..." selected → `showInputBox({ prompt: "Enter custom granularity prompt" })`. On cancel → return.
-  4. `withProgress({ location: ProgressLocation.Notification, title: "Parsing plan..." })` during execution
-  5. Success: open parsed plan in editor
-  6. Failure: error notification with "View Output" action
-
-**Gate:** `npm run test && npm run lint && npm run build`
-
-### Task 17: GATE — Visual verification of AI parse command
-**Compare against:** `docs/mockups/v03-ai-parse-granularity-picker.png`, `docs/mockups/v03-config-plan-editing.html`
-**Checklist:**
-- Launch EDH, run "Oxveil: AI Parse Plan" from command palette
-- Quick-pick shows 4 options: Coarse, Medium (default), Fine, Custom
-- Each option has title and description matching mockup
-- Select "Custom..." → input box appears for custom prompt
-- Cancel input box → command cancels gracefully
-- Progress notification appears during execution (if claudeloop available)
-- Error message appears when no PLAN.md exists
-
-**Action:** `/visual-verification`
-
-### Task 18: Documentation + ADRs
-**Visual increment:** Updated docs reflecting v0.3 features and architectural decisions.
-
-**Create:**
-- `docs/adr/0003-config-wizard-webview.md` — Webview form for `.claudeloop.conf`. Bidirectional file ownership model. Using ADR template from `docs/adr/TEMPLATE.md`.
-- `docs/adr/0004-plan-language-support.md` — Dedicated language ID + TextMate grammar (not injection, not semantic tokens).
-- `docs/adr/0005-feature-flag-removal.md` — Removal of feature flag system before marketplace publication.
-
-**Modify:**
-- `docs/adr/README.md` — Add entries for ADRs 0003-0005
-- `ARCHITECTURE.md` — Add v0.3 components (config parser, plan parser, config wizard webview, plan language, CodeLens provider, replay viewer), update file structure listing, mark v0.3 in roadmap
-- `README.md` — Add v0.3 features section describing all 5 features
-
-**Gate:** `npm run build`
-
-### Task 19: GATE — Visual verification of documentation
-**Compare against:** `docs/adr/TEMPLATE.md` for format, existing ADRs 0001-0002 for style
-**Checklist:**
-- ADRs 0003-0005 exist in `docs/adr/` with correct template format, titles, status "Accepted"
-- `docs/adr/README.md` lists all 5 ADRs (0001-0005) with titles
-- `ARCHITECTURE.md` includes v0.3 components and updated file structure
-- `README.md` v0.3 section describes config wizard, plan language, CodeLens, replay viewer, AI parse
-- All docs render correctly in markdown preview
-
-**Action:** `/visual-verification`
+- **Tree view:** Folder grouping — collapsible folder nodes (with folder icon + name) as top-level items. Phases nested underneath. Each folder shows session status badge (e.g., `3/5`, `idle`, `done`, `failed`). Badge in header shows root count.
+- **Status bar:** Folder name prefix + other-roots summary — `$(sync~spin) Oxveil: my-api — Phase 3/5 | 4m` with `+1 idle` suffix. Single-root: no folder name (unchanged).
+- **Folder picker:** Rich quick pick with two-line items — folder name (bold) on first line, session status detail on second line (e.g., "Running — Phase 3/5 | 4m"). Status icon on right. Skipped for single-root and when folder is implicit from context.
 
 ---
 
-## Build Order
+## Phases (17 small tasks — each touches 1-3 files, easy to implement and verify)
+
+### Phase 1: Welcome walkthrough — declaration + media
+
+Register walkthrough in `package.json` under `contributes.walkthroughs`. Create walkthrough media.
+
+**Implementation:**
+- Add to `package.json` `contributes.walkthroughs` array:
+  - ID: `oxveil.welcome`, title: "Get Started with Oxveil", description: "Set up and run your first AI coding workflow"
+  - 4 steps with IDs: `detect`, `configure`, `createPlan`, `runSession`
+  - Each step has: `id`, `title`, `description` (markdown with `[Button](command:id)` links), `media` (markdown file), `completionEvents`
+  - Step 1: title "Detect claudeloop", description includes `[Install claudeloop](command:oxveil.install)`, completionEvents: `["onContext:oxveil.detected"]`
+  - Step 2: title "Configure your workflow", description includes `[Open Configuration Wizard](command:oxveil.openConfigWizard)`, completionEvents: `["onCommand:oxveil.openConfigWizard"]`
+  - Step 3: title "Create your first plan", description includes `[Create PLAN.md](command:oxveil.createPlan)` (new command — creates template PLAN.md), completionEvents: `["onContext:oxveil.walkthrough.hasPlan"]`
+  - Step 4: title "Run your first session", description includes `[Start claudeloop](command:oxveil.start)`, completionEvents: `["onContext:oxveil.walkthrough.hasRun"]`
+- Create `media/walkthrough/` directory with 4 markdown files (one per step's media panel). Keep content simple — explain what the step does and what to expect. VS Code renders these as HTML in the walkthrough panel.
+- Register new command `oxveil.createPlan` that creates a template `PLAN.md` file in the workspace root (quick-start scaffold)
+- **Gotcha:** Walkthrough media paths are relative to extension root. Use `"media": { "markdown": "./media/walkthrough/detect.md" }` format.
+- **Gotcha:** Walkthroughs may not appear immediately after installation — requires VS Code reload. This is a known VS Code issue (#232425).
+
+**Files:** `package.json`, `media/walkthrough/*.md` (4 new files)
+
+**Action:** `/visual-verification` — launch Extension Development Host, open command palette → "Get Started", verify "Welcome to Oxveil" walkthrough appears with 4 steps. Compare against mockup walkthrough section.
+
+---
+
+### Phase 2: Welcome walkthrough — step completion logic
+
+Wire walkthrough step completion events to extension state.
+
+**Implementation:**
+- Step 1 (Detect): Already covered — `oxveil.detected` context key is set in `extension.ts` line 62-66 on activation
+- Step 2 (Configure): In the `oxveil.openConfigWizard` command handler in `commands.ts`, add `vscode.commands.executeCommand('setContext', 'oxveil.walkthrough.configured', true)` after revealing config wizard
+- Step 3 (Create plan): Add a `FileSystemWatcher` for `**/PLAN.md` in `extension.ts`. On create, set context key `oxveil.walkthrough.hasPlan`. On activation, check if `PLAN.md` exists and set key accordingly
+- Step 4 (Run session): In `sessionWiring.ts`, when session state transitions to `done`, set context key `oxveil.walkthrough.hasRun`
+- Add unit tests verifying context keys are set at the right moments
+- Read `package.json` `contributes.walkthroughs` (from Phase 1) to confirm step IDs and completion event names match
+
+**Files:** `src/extension.ts`, `src/commands.ts`, `src/sessionWiring.ts`, `src/test/unit/views/walkthrough.test.ts` (new)
+
+**Action:** `/visual-verification` — launch EDH, open walkthrough. Verify step 1 shows green check if claudeloop detected. Open config wizard → verify step 2 completes. Create a PLAN.md → verify step 3 completes. Progress bar updates correctly.
+
+---
+
+### Phase 3: Execution timeline — types + parser + unit tests
+
+Create the timeline data model and computation logic. Test-verified phase (no webview yet).
+
+**Implementation:**
+1. **Types** in `src/types.ts`:
+   ```
+   TimelineBar { phase: number|string; title: string; status: PhaseStatus; startOffsetMs: number; durationMs: number; label: string }
+   TimelineData { bars: TimelineBar[]; totalElapsedMs: number; nowOffsetMs: number; maxTimeMs: number }
+   ```
+
+2. **Parser** `src/parsers/timeline.ts`: Pure function `computeTimeline(progress: ProgressState, now: Date): TimelineData`
+   - Parse `started`/`completed` timestamps (format: `YYYY-MM-DD HH:MM:SS`, treat as local time — no timezone in claudeloop output)
+   - Compute each bar's `startOffsetMs` relative to earliest phase start
+   - Completed phases: `durationMs` = completed - started
+   - Running phases: `durationMs` = now - started
+   - Failed phases: `durationMs` = completed - started (or now - started if no completed timestamp)
+   - Pending phases: `startOffsetMs` = maxTimeMs, `durationMs` = 0 (zero-width marker)
+   - `label`: format duration as `M:SS` for completed/failed, `"running..."` for in_progress, `"pending"` for pending
+   - Handle edge cases: missing timestamps (treat as 0 offset), single phase, all pending
+
+3. **Unit tests** `src/test/unit/parsers/timeline.test.ts`:
+   - Use `test/fixtures/mock-running/PROGRESS.md` fixture data (has completed, running, failed, pending phases)
+   - Test: bar positions, durations, NOW offset, label formatting
+   - Test: empty progress state → empty timeline
+   - Test: all-pending → valid but empty-looking timeline
+
+**Files:** `src/types.ts`, `src/parsers/timeline.ts` (new), `src/test/unit/parsers/timeline.test.ts` (new)
+
+**Demo:** `npm test` — new timeline parser tests pass. Inspect test output for correct bar positions.
+
+**Action:** Run `npm test` and `npm run lint`. All tests pass including new timeline parser tests.
+
+---
+
+### Phase 4: Execution timeline — HTML renderer + tests
+
+Create the Gantt chart HTML generator as a pure function.
+
+**Implementation:**
+- `src/views/timelineHtml.ts`: Pure function `renderTimelineHtml(data: TimelineData, nonce: string, cspSource: string): string`
+- Match mockup layout: time axis with tick marks at regular intervals, phase label column (160px left), gantt tracks filling remaining width
+- Bar CSS classes: `.complete` (background: `#2e7d32`), `.running` (`#0e639c` + box-shadow), `.failed` (`#c72e2e`), `.pending` (`#333` + dashed border)
+- Header bar: codicon `graph-line` icon + "Execution Timeline" title + total elapsed time (right-aligned, green `#4ec9b0`)
+- Time axis: compute tick positions dynamically based on `maxTimeMs` — show 5-7 ticks labeled as `Nm`
+- Grid lines: vertical lines at each tick
+- Pending phases: thin dashed markers at right edge
+- Include `<style>` block with all CSS inline (VS Code webview CSP)
+- NOW indicator: vertical blue line (`#007acc`, 2px wide) at `nowOffsetMs` position with "NOW Xm" label
+- Pulse animation: running bars show `running...` text with CSS `@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }`
+- Add `<script nonce="${nonce}">` block: `setInterval` every 10s advances the NOW line position (no message roundtrip)
+- Unit tests: verify HTML contains expected CSS classes, time axis ticks, bar elements, NOW line, pulse keyframes
+
+**Files:** `src/views/timelineHtml.ts` (new), `src/test/unit/views/timelineHtml.test.ts` (new)
+
+**Action:** Run `npm test` and `npm run lint`. All tests pass.
+
+---
+
+### Phase 5: Execution timeline — webview panel + command registration
+
+Create the webview panel and register the command to open it.
+
+**Implementation:**
+- `src/views/executionTimeline.ts`: Follow `DependencyGraphPanel` pattern exactly
+  - `ExecutionTimelineDeps { createWebviewPanel, executeCommand }`
+  - `reveal(progress: ProgressState | undefined): void` — creates or shows panel, calls `renderTimelineHtml`
+  - `update(progress: ProgressState): void` — re-renders HTML with new data
+  - `dispose(): void`
+  - CSP: nonce-based `script-src 'nonce-${nonce}'` (same as dependency graph, line 72)
+  - On panel creation: `enableScripts: true`, `retainContextWhenHidden: true`
+- Add `oxveil.showTimeline` to `package.json` `contributes.commands` (title: "Oxveil: Show Timeline")
+- Add when-clause: `oxveil.detected` (same as `oxveil.showDependencyGraph`)
+- Add command handler in `commands.ts` that calls `executionTimeline.reveal(session.progress)`
+- Reference `oxveil.showDependencyGraph` menu entries in `package.json` — add matching entries for timeline
+- Unit tests for webview panel (mock panel creation, verify reveal/update/dispose)
+
+**Files:** `src/views/executionTimeline.ts` (new), `src/commands.ts`, `package.json`, `src/test/unit/views/executionTimeline.test.ts` (new)
+
+**Action:** `/visual-verification` — launch EDH, run "Oxveil: Show Timeline" from command palette. Compare webview against mockup "Execution Timeline" section. Verify: phase bars with correct colors, labels on left, time axis with ticks, header with total time.
+
+---
+
+### Phase 6: Execution timeline — extension wiring + live updates
+
+Wire timeline panel to extension lifecycle and live session events.
+
+**Implementation:**
+- `src/extension.ts`: Instantiate `ExecutionTimelinePanel` (same pattern as `DependencyGraphPanel` at lines 174-178). Add to disposables. Pass to `wireSessionEvents` and `registerCommands`.
+- `src/sessionWiring.ts`: Add `executionTimeline?: ExecutionTimelinePanel` to `SessionWiringDeps` interface. In `phases-changed` handler, call `deps.executionTimeline?.update(newProgress)`.
+
+**Files:** `src/extension.ts`, `src/sessionWiring.ts`
+
+**Action:** `/visual-verification` — launch EDH with mock session data (copy `test/fixtures/mock-running/` to workspace `.claudeloop/`). Verify: timeline updates when phases change, NOW line visible and blue, running bars pulse.
+
+---
+
+### Phase 7: Multi-root — WorkspaceSession + Manager classes + tests
+
+Create per-folder session infrastructure as standalone classes. No extension.ts changes — pure infrastructure.
+
+**Implementation:**
+1. **WorkspaceSession** (`src/core/workspaceSession.ts`): Bundles per-folder state: `folderUri`, `workspaceRoot`, `sessionState: SessionState`, `processManager: ProcessManager | undefined`, `gitExec: GitExecDeps | undefined`. Constructor creates `SessionState` instance. `dispose()` cleans up. No VS Code dependency.
+
+2. **WorkspaceSessionManager** (`src/core/workspaceSessionManager.ts`): `Map<string, WorkspaceSession>` keyed by folder URI. Methods: `createSession()`, `getSession()`, `getActiveSession()` (based on injected resolver), `getAllSessions()`, `removeSession()`, `dispose()`. Event: `onDidChangeActiveSession`. Deps: `{ getActiveFolderUri(): string | undefined }`.
+
+3. **Unit tests**: both classes fully tested. Verify single-folder case works identically.
+
+**Files:** `src/core/workspaceSession.ts` (new), `src/core/workspaceSessionManager.ts` (new), `src/test/unit/core/workspaceSession.test.ts` (new), `src/test/unit/core/workspaceSessionManager.test.ts` (new)
+
+**Action:** Run `npm test` and `npm run lint`. All tests pass (existing + new).
+
+---
+
+### Phase 8: Multi-root — extension.ts per-folder session + PM creation
+
+Replace singleton session/processManager/gitExec in `extension.ts` with `WorkspaceSessionManager`.
+
+**Pre-flight:** Run `npm test`. All existing tests must pass.
+
+**Transformation blueprint — extension.ts line-by-line:**
+
+Lines to **KEEP UNCHANGED** (global singletons):
+- L39-41: config reading
+- L43-50: statusBar creation
+- L52-78: detection + context keys + status bar update
+- L80-99: phaseTree + treeAdapter + treeView
+- L101-116: archiveTree + treeAdapter + archiveView
+- L133-136: outputChannel + outputManager
+- L157-171: notifications
+- L173-178: dependencyGraph
+- L180-195: configWizard + replayViewer
+- L197-205: planCodeLens
+- L225-233: detection notifications
+- L247-274: refreshDetection + configWatcher
+- L311-319: installer
+
+Lines to **REPLACE** (singleton → per-folder):
 
 ```
-Task 1 (flag removal) → Task 2 (verify)
-    |
-    +→ Task 3 (config parser) → Task 4 (verify)
-    |       |
-    |       +→ Task 5 (config webview) → Task 6 (wiring) → Task 7 (verify)
-    |
-    +→ Task 8 (plan grammar) → Task 9 (verify)
-    |       |
-    |       +→ Task 10 (plan parser) → Task 11 (verify)
-    |               |
-    |               +→ Task 12 (CodeLens) → Task 13 (verify)
-    |
-    +→ Task 14 (replay) → Task 15 (verify)
-    |
-    +→ Task 16 (AI parse) → Task 17 (verify)
-                                    |
-                            Task 18 (docs) → Task 19 (verify)
+DELETE L139: const session = new SessionState();
+REPLACE WITH:
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  const manager = new WorkspaceSessionManager({
+    getActiveFolderUri: () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return workspaceFolders?.[0]?.uri.toString();
+      return vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.toString();
+    },
+  });
+
+  // Create one session per folder
+  if (workspaceFolders && result.status === "detected") {
+    for (const folder of workspaceFolders) {
+      const root = folder.uri.fsPath;
+      const ws = manager.createSession(folder.uri.toString(), root, {});
+      // PM per folder (moves L281-287 logic here)
+      ws.processManager = createProcessManager({
+        claudeloopPath, resolvedPath: result.path, workspaceRoot: root, platform: process.platform,
+      });
+      // GitExec per folder (moves L293-300 logic here)
+      ws.gitExec = {
+        exec: async (cmd, args, cwd) => { const { stdout } = await execFileAsync(cmd, args, { cwd }); return stdout; },
+        cwd: root,
+      };
+    }
+  }
 ```
 
-Sequential execution order for claudeloop:
-1→2→3→4→5→6→7→8→9→10→11→12→13→14→15→16→17→18→19
+```
+DELETE L142-155: const elapsedTimer = new ElapsedTimer(...)
+REPLACE WITH:
+  const elapsedTimer = new ElapsedTimer((elapsed) => {
+    const active = manager.getActiveSession();
+    if (active?.sessionState.status === "running") {
+      const p = active.sessionState.progress;
+      const currentPhase = p?.currentPhaseIndex !== undefined
+        ? (p.phases[p.currentPhaseIndex]?.number as number) ?? 1 : 1;
+      statusBar.update({ kind: "running", currentPhase, totalPhases: p?.totalPhases ?? 0, elapsed });
+    }
+  });
+```
 
-## Critical Files
+```
+DELETE L118-131: const refreshArchive = async () => { ... }
+REPLACE WITH:
+  const refreshArchive = async () => {
+    const active = manager.getActiveSession();
+    if (!active) return;
+    const archiveRoot = path.join(active.workspaceRoot, ".claudeloop", "archive");
+    // ... rest same but using active.workspaceRoot
+  };
+```
 
-| File | Role |
-|------|------|
-| `src/core/featureFlag.ts` | Delete entirely |
-| `src/parsers/progress.ts` | Reference pattern for new parsers |
-| `src/views/dependencyGraph.ts` | Reference pattern for webview panels |
-| `src/core/processManager.ts` | Add `spawnFromPhase`, `markComplete`, `aiParse` |
-| `src/core/interfaces.ts` | Update `IProcessManager` |
-| `src/commands.ts` | Register 5 new commands, update `CommandDeps` |
-| `src/extension.ts` | Wire new components, remove `shouldActivate`, register disposables |
-| `package.json` | Commands, language, grammar, snippets, remove experimental |
+```
+DELETE L207-223: wireSessionEvents() + session.on("state-changed") archive listener
+REPLACE WITH:
+  // Wire each session's events
+  for (const ws of manager.getAllSessions()) {
+    wireSessionEvents({
+      session: ws.sessionState, statusBar, phaseTree, onDidChangeTreeData,
+      outputManager, notifications, elapsedTimer, dependencyGraph,
+    });
+    ws.sessionState.on("state-changed", (_from, to) => {
+      if (to === "done" || to === "failed") refreshArchive();
+    });
+  }
+```
 
-## Package.json Changes Summary
+```
+DELETE L236-245: initWorkspaceWatchers() with single session
+(This moves to Phase 9 — keep a placeholder call that passes manager)
+```
 
-- Remove `oxveil.experimental` setting and its 2 `when` clauses
-- 5 new commands: `openConfigWizard`, `runFromPhase`, `markPhaseComplete`, `openReplayViewer`, `aiParsePlan`
-- 5 new `commandPalette` entries with `when` clauses
-- 1 language contribution (`claudeloop-plan` for `PLAN.md`)
-- 1 grammar contribution (`syntaxes/plan.tmLanguage.json`)
-- 1 snippet contribution (`snippets/plan.json`)
+```
+DELETE L277-289: processManager + workspaceRoot + _processManager
+DELETE L292-309: gitExec + diffProvider
+REPLACE WITH:
+  // PM and gitExec already created per-folder above
+  // DiffProvider needs active session's gitExec
+  const diffProvider = new PhaseDiffProvider({
+    gitExec: { get exec() { return manager.getActiveSession()?.gitExec?.exec ?? (async () => ""); },
+               get cwd() { return manager.getActiveSession()?.workspaceRoot ?? ""; } },
+  });
+  disposables.push(vscode.workspace.registerTextDocumentContentProvider(DIFF_URI_SCHEME, diffProvider));
 
-## Deliverable
+  _sessionManager = manager; // replaces _processManager
+```
 
-Create `PLAN.md` in workspace root with the 19 phases in claudeloop format. Each phase is self-contained with full context for a fresh Claude instance.
+```
+DELETE L322-338: registerCommands() with single PM/session/workspaceRoot
+REPLACE WITH:
+  const active = manager.getActiveSession();
+  disposables.push(...registerCommands({
+    processManager: active?.processManager,
+    installer, session: active?.sessionState ?? new SessionState(),
+    statusBar, workspaceRoot: active?.workspaceRoot,
+    readdir: (dir) => fs.readdir(dir), onArchiveRefresh: refreshArchive,
+    dependencyGraph, configWizard, replayViewer,
+    gitExec: active?.gitExec, resolvePhaseItem, resolveArchiveItem,
+  }));
+```
+
+```
+DELETE L346-358: deactivate() + _processManager
+REPLACE WITH:
+  let _sessionManager: WorkspaceSessionManager | undefined;
+
+  export async function deactivate(): Promise<void> {
+    if (_sessionManager) {
+      for (const ws of _sessionManager.getAllSessions()) {
+        if (ws.processManager?.isRunning) await ws.processManager.deactivate();
+      }
+      _sessionManager.dispose();
+    }
+    for (const d of disposables) d.dispose();
+  }
+```
+
+**Active folder tracking:**
+```
+  // Listen for active editor changes
+  disposables.push(vscode.window.onDidChangeActiveTextEditor(() => {
+    manager.checkActiveFolder(); // fires onDidChangeActiveSession if folder changed
+  }));
+
+  // Handle workspace folder add/remove
+  disposables.push(vscode.workspace.onDidChangeWorkspaceFolders((e) => {
+    for (const added of e.added) {
+      const ws = manager.createSession(added.uri.toString(), added.uri.fsPath, {});
+      // create PM + gitExec for new folder...
+    }
+    for (const removed of e.removed) {
+      manager.removeSession(removed.uri.toString());
+    }
+  }));
+```
+
+**Files:** `src/extension.ts`
+
+**Post-flight:** Run `npm test` and `npm run lint`. ALL existing tests must pass.
+
+**Action:** `/visual-verification` — launch EDH with single-root workspace. Verify extension activates, basic features work (phase tree, status bar, start/stop). Then multi-root — verify no errors on activation.
+
+---
+
+### Phase 9: Multi-root — workspaceInit.ts per-folder watchers
+
+Refactor watcher setup for per-folder routing.
+
+**Concrete changes:**
+- Line 23 (`workspaceFolders[0].uri.fsPath`): Loop through all folders.
+- Line 41 (`RelativePattern(workspaceFolders[0], ".claudeloop/**")`): Per-folder `RelativePattern`.
+- Lines 30, 34, 37 (`session.onLockChanged`, etc.): Route to folder-specific `WorkspaceSession.sessionState` using closure over folder URI.
+- New signature: accept sessions from `WorkspaceSessionManager`, create one `WatcherManager` per folder.
+- Lines 54-84 (initial state check): Replicate per folder.
+
+**Files:** `src/workspaceInit.ts`
+
+**Post-flight:** Run `npm test` and `npm run lint`.
+
+**Action:** `/visual-verification` — launch EDH with mock `.claudeloop/` data. Verify watchers detect file changes and update session state.
+
+---
+
+### Phase 10: Multi-root — sessionWiring.ts active session guard
+
+Update session event wiring so only the active session drives the UI.
+
+**Concrete changes:**
+- `SessionWiringDeps` interface (line 11): Add `folderName?: string` and `isActiveSession: () => boolean`.
+- `session.on("state-changed")` (line 35): Only update `statusBar` and `elapsedTimer` if `isActiveSession()` returns true.
+- `session.on("phases-changed")` (line 79): Only update `phaseTree` and `dependencyGraph` if active.
+- `session.on("log-appended")` (line 100): Prefix output with `[folderName]` when multi-root.
+- In `extension.ts`: call `wireSessionEvents` once per `WorkspaceSession`, passing `isActiveSession` check.
+
+**Files:** `src/sessionWiring.ts`, `src/extension.ts`
+
+**Post-flight:** Run `npm test` and `npm run lint`.
+
+**Action:** `/visual-verification` — launch EDH with single-root, verify status bar and tree update normally. Multi-root: verify only active folder drives UI.
+
+---
+
+### Phase 11: Multi-root — commands.ts folder-aware handlers
+
+Update command handlers to resolve workspace folder at runtime.
+
+**Concrete changes:**
+- `CommandDeps` interface (lines 18-32): Add `sessionManager: WorkspaceSessionManager`.
+- Folder-scoped fields resolved at runtime: `processManager` (L19), `session` (L21), `workspaceRoot` (L23), `gitExec` (L29).
+- Global fields unchanged: `installer` (L20), `statusBar` (L22), `readdir` (L24), webview panels (L26-28).
+- Each command handler: `const active = deps.sessionManager.getActiveSession(); if (!active) return;` then extract `processManager`/`session`/`workspaceRoot` from it.
+- Commands using `workspaceRoot` for path construction (lines 78, 129, 138, 250, 254, 266): resolve from active session.
+- Update integration tests: `CommandDeps` now includes `sessionManager`.
+
+**Regression checklist:** Phase tree, status bar, start/stop/reset, dependency graph, config wizard, archive, replay, CodeLens, diffs, logs, timeline, walkthrough — all must work in single-root.
+
+**Files:** `src/commands.ts`, `src/test/integration/commands.test.ts`
+
+**Post-flight:** Run `npm test` and `npm run lint`. ALL existing tests pass.
+
+**Action:** `/visual-verification` — launch EDH single-root, run through regression checklist. Then multi-root: verify commands work.
+
+---
+
+### Phase 12: Multi-root — phaseTree.ts hierarchical tree view
+
+Update phase tree to show folder grouping when multi-root.
+
+**Concrete changes:**
+- Replace `_deps: PhaseTreeDeps` (line 32) with `Map<string, { folderName: string; progress: ProgressState | null }>`.
+- `getChildren(element?)`: No element AND multi-root → folder nodes (collapsible, `codicon-folder` icon, name label, status badge "3/5"/"idle"/"done"/"failed"). Element is folder URI → that folder's phase items. Single-root → flat list (unchanged).
+- Add `getParent(element)` for tree navigation.
+- New `update(folderUri, folderName, progress)` replaces old `update(deps)`.
+- Folder node `contextValue`: `"oxveil-folder"`. Phase node `contextValue`: unchanged.
+
+**Files:** `src/views/phaseTree.ts`, `src/test/unit/views/phaseTree.test.ts`
+
+**Action:** `/visual-verification` — launch EDH multi-root. Verify folder grouping in tree. Compare against `docs/mockups/v04-multi-root.html` "Phase Tree" section. Single-root: flat list unchanged.
+
+---
+
+### Phase 13: Multi-root — statusBar.ts folder prefix + summary
+
+Update status bar for multi-root folder context.
+
+**Concrete changes:**
+- `StatusBarState` in `src/types.ts`: Add `folderName?: string` and `otherRootsSummary?: string` to running/failed/done variants.
+- `update()` in `src/views/statusBar.ts`: When `folderName` present, show `Oxveil: ${folderName} — Phase X/Y | Xm`. When `otherRootsSummary` present, show `+1 idle` etc. as tooltip or suffix.
+- Single-root: `folderName` undefined → no prefix (unchanged).
+- Update caller in `sessionWiring.ts`/`extension.ts` to pass folder name and compute other-roots summary from `manager.getAllSessions()`.
+
+**Files:** `src/types.ts`, `src/views/statusBar.ts`, `src/test/unit/views/statusBar.test.ts`
+
+**Action:** `/visual-verification` — launch EDH multi-root. Verify status bar shows `Oxveil: my-api — Phase 3/5 | 4m` with `+1 idle` suffix. Compare against mockup. Single-root: unchanged.
+
+---
+
+### Phase 14: Multi-root — folderPicker.ts utility + tests
+
+Create the folder picker for multi-root command resolution.
+
+**Implementation:**
+- `pickWorkspaceFolder(manager: WorkspaceSessionManager, placeHolder?: string): Promise<WorkspaceSession | undefined>`
+- Single-root: return only session immediately (no picker shown).
+- Multi-root: `vscode.window.showQuickPick` with rich `QuickPickItem`:
+  - `label`: `$(folder) folder-name` (theme icon)
+  - `detail`: `Running — Phase 3/5 | 4m` or `Idle — No active session` or `Done — 7/7 phases | 18m`
+- Unit tests: single-root returns without picker, multi-root calls showQuickPick.
+
+**Files:** `src/views/folderPicker.ts` (new), `src/test/unit/views/folderPicker.test.ts` (new)
+
+**Action:** Run `npm test` and `npm run lint`. All tests pass.
+
+---
+
+### Phase 15: Multi-root — webview panels folder scoping
+
+Add folder context to each webview panel so they show the correct folder's data.
+
+**Concrete changes:**
+- Each panel (`executionTimeline.ts`, `dependencyGraph.ts`, `configWizard.ts`, `replayViewer.ts`): Add `currentFolderUri: string` field. Add `folderUri` parameter to `reveal()` method.
+- In `commands.ts`: before opening a webview, resolve folder via tree context → active editor → folder picker. Pass `folderUri` to `reveal()`.
+- On `onDidChangeActiveSession`: if panel is visible and folder changed, call `update()` with new folder's data.
+
+**Files:** `src/views/executionTimeline.ts`, `src/views/dependencyGraph.ts`, `src/views/configWizard.ts`, `src/views/replayViewer.ts`, `src/commands.ts`
+
+**Post-flight:** Run `npm test` and `npm run lint`.
+
+**Action:** `/visual-verification` — launch EDH multi-root. Run "Oxveil: Start" → folder picker. Run "Oxveil: Show Timeline" → correct folder's data. Compare picker against `docs/mockups/v04-multi-root.html` "Folder Picker" section.
+
+---
+
+### Phase 16: Documentation — ARCHITECTURE.md + ADRs + GitHub issues
+
+Update all documentation and create GitHub issues for deferred features.
+
+**Implementation:**
+1. **ARCHITECTURE.md** — add/update sections:
+   - **ExecutionTimelinePanel**: webview component description, data flow (ProgressState → computeTimeline → renderTimelineHtml → webview)
+   - **Welcome Walkthrough**: contributes.walkthroughs declaration, step completion events, context keys
+   - **WorkspaceSessionManager**: multi-root architecture, WorkspaceSession class, folder-scoping pattern, active folder tracking
+   - **FolderPicker**: utility for multi-root command resolution
+   - Update architecture diagram: add timeline panel, walkthrough, session manager
+   - Update file structure listing with all new files
+   - Update commands table: add `oxveil.showTimeline`
+   - Update roadmap: v0.4 complete, v0.5 preview (retry strategies, prompt template editor)
+
+2. **ADRs** (next numbers after existing 0005):
+   - `docs/adr/0006-execution-timeline-webview.md` — decision to create separate webview panel (vs extending dependency graph), inline SVG/HTML approach (consistent with DAG pattern), timestamp handling (local time assumption)
+   - `docs/adr/0007-multi-root-workspace-sessions.md` — decision to use WorkspaceSessionManager pattern, per-folder session isolation, active folder tracking, backward compatibility with single-root
+
+3. **Update `docs/adr/README.md`** index with new entries
+
+4. **GitHub issues** (via `gh issue create` on `chmc/oxveil`):
+   - **Retry Strategy Picker** — title: "v0.5: Retry strategy picker for failed phases". Body: reference mockup (`docs/mockups/v04-deep-integration.html` "Retry Strategy Picker" section), note prerequisite (claudeloop `--retry-strategy standard|stripped|targeted` CLI flag), describe 3 strategies, reference PROGRESS.md `Attempt N Strategy` fields, list Oxveil implementation scope (quick-pick UI, ProcessManager.retryWithStrategy, notification wiring)
+   - **Prompt Template Editor** — title: "v0.5: Prompt template editor with live preview". Body: reference mockup section, note prerequisite (claudeloop template variable engine with `{{variable}}` syntax), describe side-by-side editor/preview webview, list Oxveil scope (template parser, HTML renderer, webview panel, bidirectional file sync)
+
+**Files:** `ARCHITECTURE.md`, `docs/adr/0006-execution-timeline-webview.md` (new), `docs/adr/0007-multi-root-workspace-sessions.md` (new), `docs/adr/README.md`
+
+**Action:** Read updated ARCHITECTURE.md — verify accuracy against implemented code. All new components documented. ADRs follow `docs/adr/TEMPLATE.md` format. Verify GitHub issues created with `gh issue list`.
+
+---
+
+### Phase 17: World-class README
+
+Rewrite `README.md` to match the quality and structure of https://github.com/chmc/claudeloop README. The user must immediately understand what Oxveil does and why they want it.
+
+**Implementation:**
+Read the claudeloop README first (at https://github.com/chmc/claudeloop or via `gh repo view chmc/claudeloop --json description`) to understand its structure and tone.
+
+Structure:
+1. **Hero**: Extension name + one-line tagline + 3 key value proposition bullets
+2. **Screenshot section**: Feature screenshots with captions — use `docs/screenshots/` for images. Create placeholder image references (`![Phase Tree](docs/screenshots/phase-tree.png)`) — actual screenshots will be captured during visual verification
+3. **Quick start**: 3 steps — install extension, detect/install claudeloop, start first session. Include the walkthrough as the recommended onboarding path.
+4. **Features** organized by category:
+   - **Monitoring**: Phase tree, status bar, dependency graph, execution timeline, notifications
+   - **Execution**: Start/stop/reset, run-from-phase, mark complete, archive/restore
+   - **Configuration**: Config wizard (bidirectional `.claudeloop.conf` editor), VS Code settings
+   - **Plan editing**: Syntax highlighting (TextMate grammar), CodeLens actions, AI Parse Plan
+   - **Archive & replay**: Past runs browser, replay viewer, restore from archive
+   - **Onboarding**: Welcome walkthrough (detect → configure → plan → run)
+   - **Multi-root workspaces**: Per-folder sessions, folder-aware commands, folder picker
+5. **Requirements**: VS Code ^1.100.0, claudeloop >= 0.22.0, Node.js >= 20
+6. **Settings**: Table of all `oxveil.*` settings with types and defaults
+7. **Commands**: Table of all `oxveil.*` commands with descriptions and when-clauses
+8. **Architecture**: Brief overview + pointer to ARCHITECTURE.md
+9. **Development**: Setup, build, test, release (concise — this is user-facing README, not contributor guide)
+10. **License**
+
+**Tone:** Clear, confident, user-focused. Explain what problems Oxveil solves (no more CLI juggling, visual monitoring, one-click execution). Match claudeloop README's directness.
+
+**Files:** `README.md`
+
+**Action:** `/visual-verification` — open README in VS Code markdown preview. Verify: renders cleanly, all sections present, links work, tables formatted correctly. Compare structure and polish against claudeloop README at https://github.com/chmc/claudeloop.
+
+---
+
+## Verification
+
+After all phases complete:
+1. `npm run build` — clean build, no errors
+2. `npm run lint` — no type errors
+3. `npm test` — all tests pass (existing + new)
+4. Launch Extension Development Host — verify all features:
+   - Welcome walkthrough visible in "Get Started" with correct step states
+   - Execution timeline opens via "Oxveil: Show Timeline", renders Gantt chart
+   - Multi-root workspace: folder grouping in tree, folder name in status bar, folder picker on commands
+   - All v0.1-v0.3 features still work (regression check): phase tree, status bar, start/stop, dependency graph, config wizard, archive browser, replay viewer, CodeLens, plan syntax highlighting, View Diff, View Log
+5. README renders well in VS Code preview and on GitHub
+6. ARCHITECTURE.md accurate and complete
+7. ADRs follow template format
+8. GitHub issues for deferred features exist

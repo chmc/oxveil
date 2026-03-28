@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oxveil v0.4 — Multi-Root Workspace</title>
+<link rel="stylesheet" href="https://unpkg.com/@vscode/codicons@0.0.36/dist/codicon.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1e1e1e;
+    color: #cccccc;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  h1 { color: #ffffff; font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+  .version-badge {
+    display: inline-block; background: #007acc; color: #fff;
+    font-size: 12px; font-weight: 600; padding: 2px 10px;
+    border-radius: 10px; margin-left: 12px; vertical-align: middle;
+  }
+  .page-subtitle { color: #888; font-size: 14px; margin-bottom: 40px; }
+  .section { margin-bottom: 48px; }
+  .section-title {
+    color: #569cd6; font-size: 18px; font-weight: 600;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .codicon { font-size: 18px; }
+  .section-desc { color: #888; font-size: 13px; margin-bottom: 16px; }
+  .divider { border: none; border-top: 1px solid #333; margin: 32px 0; }
+  .state-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  /* ===== TREE VIEW ===== */
+  .tree-panel {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    width: 320px;
+  }
+  .tree-header {
+    background: #333333;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #cccccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tree-header .badge {
+    background: #007acc;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+  .tree-folder {
+    padding: 4px 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #cccccc;
+    background: #2a2d2e;
+    cursor: pointer;
+    border-top: 1px solid #333;
+  }
+  .tree-folder:first-of-type {
+    border-top: none;
+  }
+  .tree-folder .chevron {
+    font-size: 10px;
+    color: #007acc;
+    width: 12px;
+    text-align: center;
+  }
+  .tree-folder .folder-name {
+    font-weight: 600;
+  }
+  .tree-folder .folder-status {
+    margin-left: auto;
+    font-size: 10px;
+  }
+  .tree-folder .folder-status.running { color: #4ec9b0; }
+  .tree-folder .folder-status.idle { color: #888; }
+  .tree-folder .folder-status.done { color: #4ec9b0; }
+  .tree-folder .folder-status.failed { color: #f44747; }
+  .tree-item {
+    padding: 4px 12px 4px 32px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: default;
+  }
+  .tree-item:hover {
+    background: #2a2d2e;
+  }
+  .tree-item.active {
+    background: #094771;
+  }
+  .tree-item .codicon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .tree-item .icon-green { color: #4ec9b0; }
+  .tree-item .icon-blue { color: #007acc; }
+  .tree-item .icon-red { color: #f44747; }
+  .tree-item .icon-gray { color: #666; }
+  .tree-item .icon-dim { color: #555; }
+  .tree-welcome {
+    padding: 8px 12px 8px 32px;
+    color: #888;
+    font-size: 12px;
+  }
+  .tree-states {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .spin {
+    animation: spin 1.5s linear infinite;
+    display: inline-block;
+  }
+
+  /* ===== STATUS BAR ===== */
+  .statusbar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .statusbar {
+    background: #007acc;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #fff;
+    border-radius: 3px;
+    gap: 6px;
+    position: relative;
+  }
+  .statusbar.error-bg {
+    background: #c72e2e;
+  }
+  .statusbar.idle-bg {
+    background: #333333;
+    border: 1px solid #444;
+  }
+  .statusbar .codicon {
+    font-size: 14px;
+  }
+  .statusbar-label {
+    position: absolute;
+    right: 12px;
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    font-style: italic;
+  }
+  .statusbar.idle-bg .statusbar-label {
+    color: #888;
+  }
+  .statusbar .other-roots {
+    margin-left: auto;
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
+  /* ===== QUICK PICK ===== */
+  .palette {
+    background: #252526;
+    border: 1px solid #007acc;
+    border-radius: 6px;
+    width: 480px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .palette-input {
+    width: 100%;
+    background: #3c3c3c;
+    border: none;
+    padding: 10px 14px;
+    color: #cccccc;
+    font-size: 14px;
+    border-radius: 6px 6px 0 0;
+    outline: none;
+  }
+  .picker-item {
+    padding: 8px 14px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .picker-item:hover, .picker-item.active {
+    background: #094771;
+  }
+  .picker-item .codicon {
+    font-size: 16px;
+    color: #dcb67a;
+    flex-shrink: 0;
+  }
+  .picker-item .item-content {
+    flex: 1;
+  }
+  .picker-item .item-name {
+    color: #cccccc;
+    font-weight: 500;
+  }
+  .picker-item .item-detail {
+    font-size: 11px;
+    color: #888;
+    margin-top: 1px;
+  }
+  .picker-item .item-detail.running { color: #4ec9b0; }
+  .picker-item .item-detail.done { color: #2e7d32; }
+  .picker-item .item-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Oxveil <span class="version-badge">v0.4</span></h1>
+<p class="page-subtitle">Multi-Root Workspace — folder-scoped sessions with grouped tree view, contextual status bar, and folder picker</p>
+
+<!-- ===== PHASE TREE VIEW WITH FOLDER GROUPING ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-list-tree"></span>
+    Phase Tree View — Folder Grouping
+  </div>
+  <p class="section-desc">When multiple workspace folders are open, phases are grouped under collapsible folder nodes. Each folder shows its session status. Single-root workspaces show the flat list (unchanged from v0.1).</p>
+
+  <div class="tree-states">
+    <!-- Multi-root: one running, one idle -->
+    <div>
+      <div class="state-label">Multi-Root: Running + Idle</div>
+      <div class="tree-panel">
+        <div class="tree-header">
+          Oxveil: Phases
+          <span class="badge">2 roots</span>
+        </div>
+        <!-- Folder 1: Running -->
+        <div class="tree-folder">
+          <span class="chevron">&#9660;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">my-api</span>
+          <span class="folder-status running">3/5</span>
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 1: Setup project
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 2: Core implementation
+        </div>
+        <div class="tree-item active">
+          <span class="codicon codicon-sync spin icon-blue"></span>
+          Phase 3: API integration
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-circle-outline icon-gray"></span>
+          Phase 4: Database migration
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-circle-outline icon-gray"></span>
+          Phase 5: Final testing
+        </div>
+        <!-- Folder 2: Idle -->
+        <div class="tree-folder">
+          <span class="chevron">&#9660;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">my-lib</span>
+          <span class="folder-status idle">idle</span>
+        </div>
+        <div class="tree-welcome">No active session</div>
+      </div>
+    </div>
+
+    <!-- Multi-root: one done, one failed -->
+    <div>
+      <div class="state-label">Multi-Root: Done + Failed</div>
+      <div class="tree-panel">
+        <div class="tree-header">
+          Oxveil: Phases
+          <span class="badge">2 roots</span>
+        </div>
+        <!-- Folder 1: Done -->
+        <div class="tree-folder">
+          <span class="chevron">&#9660;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">shared-utils</span>
+          <span class="folder-status done">done</span>
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 1: Refactor exports
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 2: Update types
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 3: Run tests
+        </div>
+        <!-- Folder 2: Failed -->
+        <div class="tree-folder">
+          <span class="chevron">&#9660;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">my-api</span>
+          <span class="folder-status failed">failed</span>
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-check icon-green"></span>
+          Phase 1: Setup project
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-error icon-red"></span>
+          Phase 2: Auth module
+        </div>
+        <div class="tree-item">
+          <span class="codicon codicon-debug-step-over icon-dim"></span>
+          Phase 3: API routes
+        </div>
+      </div>
+    </div>
+
+    <!-- Multi-root: collapsed folder -->
+    <div>
+      <div class="state-label">Multi-Root: Collapsed</div>
+      <div class="tree-panel">
+        <div class="tree-header">
+          Oxveil: Phases
+          <span class="badge">3 roots</span>
+        </div>
+        <div class="tree-folder">
+          <span class="chevron">&#9654;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">my-api</span>
+          <span class="folder-status running">3/5</span>
+        </div>
+        <div class="tree-folder">
+          <span class="chevron">&#9654;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">my-lib</span>
+          <span class="folder-status idle">idle</span>
+        </div>
+        <div class="tree-folder">
+          <span class="chevron">&#9654;</span>
+          <span class="codicon codicon-folder" style="color:#dcb67a;font-size:14px"></span>
+          <span class="folder-name">shared-utils</span>
+          <span class="folder-status done">done</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== STATUS BAR ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-layout-statusbar"></span>
+    Status Bar — Folder Context
+  </div>
+  <p class="section-desc">Multi-root adds a folder name prefix and a summary of other roots. Single-root status bar is unchanged from v0.1. Click focuses the phase tree view.</p>
+
+  <div class="statusbar-container">
+    <div class="state-label">Multi-Root: Running (active folder)</div>
+    <div class="statusbar">
+      <span class="codicon codicon-sync spin"></span>
+      Oxveil: my-api &mdash; Phase 3/5 | 4m
+      <span class="other-roots">+1 idle</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Multi-Root: Running (two folders active)</div>
+    <div class="statusbar">
+      <span class="codicon codicon-sync spin"></span>
+      Oxveil: my-api &mdash; Phase 3/5 | 4m
+      <span class="other-roots">+1 running</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Multi-Root: Failed</div>
+    <div class="statusbar error-bg">
+      <span class="codicon codicon-error"></span>
+      Oxveil: my-api &mdash; Phase 2 failed
+      <span class="other-roots">+1 done</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Multi-Root: Done</div>
+    <div class="statusbar" style="background:#2e7d32">
+      <span class="codicon codicon-check"></span>
+      Oxveil: shared-utils &mdash; done | 12m
+      <span class="other-roots">+1 idle</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Multi-Root: All idle</div>
+    <div class="statusbar idle-bg">
+      <span class="codicon codicon-symbol-event" style="color:#888"></span>
+      Oxveil: idle
+      <span class="statusbar-label">2 roots</span>
+    </div>
+
+    <div class="state-label" style="margin-top:12px">Single-Root: Running (unchanged)</div>
+    <div class="statusbar">
+      <span class="codicon codicon-sync spin"></span>
+      Oxveil: Phase 3/5 | 4m
+      <span class="statusbar-label">single-root</span>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ===== FOLDER PICKER ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="codicon codicon-folder-opened"></span>
+    Folder Picker
+  </div>
+  <p class="section-desc">Shown when a command needs a workspace folder in multi-root context. Skipped for single-root or when folder is implicit (e.g., triggered from tree view context menu). Two-line items with session status.</p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;">
+    <!-- Start command picker -->
+    <div>
+      <div class="state-label">Oxveil: Start</div>
+      <div class="palette">
+        <input class="palette-input" value="Select workspace folder to start" readonly>
+        <div>
+          <div class="picker-item active">
+            <span class="codicon codicon-folder"></span>
+            <div class="item-content">
+              <div class="item-name">my-api</div>
+              <div class="item-detail running">Running &mdash; Phase 3/5 | 4m</div>
+            </div>
+            <span class="item-icon" style="color:#007acc"><span class="codicon codicon-sync spin"></span></span>
+          </div>
+          <div class="picker-item">
+            <span class="codicon codicon-folder"></span>
+            <div class="item-content">
+              <div class="item-name">my-lib</div>
+              <div class="item-detail">Idle &mdash; No active session</div>
+            </div>
+          </div>
+          <div class="picker-item">
+            <span class="codicon codicon-folder"></span>
+            <div class="item-content">
+              <div class="item-name">shared-utils</div>
+              <div class="item-detail done">Done &mdash; 3/3 phases | 12m</div>
+            </div>
+            <span class="item-icon" style="color:#4ec9b0"><span class="codicon codicon-check"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Show Timeline picker -->
+    <div>
+      <div class="state-label">Oxveil: Show Timeline</div>
+      <div class="palette">
+        <input class="palette-input" value="Select workspace folder for timeline" readonly>
+        <div>
+          <div class="picker-item active">
+            <span class="codicon codicon-folder"></span>
+            <div class="item-content">
+              <div class="item-name">my-api</div>
+              <div class="item-detail running">Running &mdash; Phase 3/5 | 4m</div>
+            </div>
+            <span class="item-icon" style="color:#007acc"><span class="codicon codicon-sync spin"></span></span>
+          </div>
+          <div class="picker-item">
+            <span class="codicon codicon-folder"></span>
+            <div class="item-content">
+              <div class="item-name">shared-utils</div>
+              <div class="item-detail done">Done &mdash; 3/3 phases | 12m</div>
+            </div>
+            <span class="item-icon" style="color:#4ec9b0"><span class="codicon codicon-check"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
