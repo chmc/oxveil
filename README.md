@@ -15,10 +15,6 @@ npm install
 npm run build
 ```
 
-## Enable the extension
-
-Set `oxveil.experimental` to `true` in VS Code settings. Without this, the extension activates but silently does nothing (feature flag gate). This is the most common gotcha for new developers.
-
 ## Running
 
 **Quick check:** Press F5 to build and launch the Extension Development Host. After making changes, run `npm run build` and reload the dev host with Cmd+R.
@@ -76,6 +72,11 @@ git push --follow-tags
 - **Git diffs** — View per-phase git diffs via context menu
 - **Smart notifications** — Failure alerts with attempt count and quick actions (View Log)
 - **claudeloop management** — Detect, install, start, stop, and reset claudeloop from VS Code
+- **Config wizard** — Graphical editor for `.claudeloop.conf` with bidirectional file sync
+- **Plan language support** — Syntax highlighting for plan files via dedicated TextMate grammar
+- **CodeLens actions** — Inline run/diff/log actions at phase headers in plan files
+- **AI Parse Plan** — Parse plan content into phases with configurable granularity
+- **Replay viewer** — Inline webview for replaying archived session runs
 
 ## Architecture
 

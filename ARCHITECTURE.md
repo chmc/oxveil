@@ -88,16 +88,23 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 │   - Installation (install.sh via terminal / WSL)         │
 │   - Configuration (VS Code settings → v0.3 wizard)       │
 ├───────────────┬────────────────┬─────────────────────────┤
-│   Tree Views  │  Webviews      │  Status Bar             │
-│   - Phases    │  - Dep. Graph  │  - Phase X/Y            │
-│   - Archive   │                │  - Elapsed time         │
-├───────────────┼────────────────┼─────────────────────────┤
-│   Log Viewer  │  Diff Provider │  Output Channel         │
-│   - Phase logs│  - Git diffs   │  - live.log stream      │
-├───────────────┴────────────────┴─────────────────────────┤
-│                     Parsers                               │
-│   - progress.ts (PROGRESS.md → ProgressState)            │
-│   - archive.ts  (archive dirs → ArchiveEntry[])          │
+│   Tree Views  │  Webviews       │  Status Bar             │
+│   - Phases    │  - Dep. Graph   │  - Phase X/Y            │
+│   - Archive   │  - Config Wizard│  - Elapsed time         │
+│               │  - Replay Viewer│                         │
+├───────────────┼─────────────────┼─────────────────────────┤
+│   Log Viewer  │  Diff Provider  │  Output Channel         │
+│   - Phase logs│  - Git diffs    │  - live.log stream      │
+├───────────────┼─────────────────┼─────────────────────────┤
+│   CodeLens    │  Plan Language  │                         │
+│   - Run phase │  - TextMate     │                         │
+│   - View diff │    grammar      │                         │
+├───────────────┴─────────────────┴─────────────────────────┤
+│                     Parsers                                │
+│   - progress.ts (PROGRESS.md → ProgressState)             │
+│   - archive.ts  (archive dirs → ArchiveEntry[])           │
+│   - config.ts   (.claudeloop.conf → ConfigState)          │
+│   - plan.ts     (PLAN.md → PlanState)                     │
 ├──────────────────────────────────────────────────────────┤
 │                     Core                                  │
 │   - SessionState (state machine + EventEmitter)          │
@@ -116,15 +123,16 @@ Data flows upward: watcher detects file changes → parsers transform raw conten
 ## File Structure
 
 ```
+syntaxes/
+└── plan.tmLanguage.json      # TextMate grammar for claudeloop-plan language
 src/
-├── extension.ts              # Activation, feature flag gate, command registration, wiring
+├── extension.ts              # Activation, command registration, wiring
 ├── commands.ts               # Command handler registration
 ├── types.ts                  # Shared type definitions (DetectionStatus, SessionStatus, etc.)
 ├── sessionWiring.ts          # Connects session events to UI updates
 ├── workspaceInit.ts          # File watcher setup for .claudeloop directory
 ├── core/
 │   ├── detection.ts          # claudeloop detection and version check
-│   ├── featureFlag.ts        # Feature flag gate (oxveil.experimental)
 │   ├── gitIntegration.ts     # Phase-specific git diff generation
 │   ├── installer.ts          # Platform-aware claudeloop installation
 │   ├── interfaces.ts         # Core interface definitions for DI
@@ -134,9 +142,13 @@ src/
 │   └── watchers.ts           # Single FileSystemWatcher + debounce
 ├── parsers/
 │   ├── archive.ts            # Archive directory → ArchiveEntry[]
+│   ├── config.ts             # .claudeloop.conf → ConfigState (key=value parsing)
+│   ├── plan.ts               # PLAN.md → PlanState (phase structure + dependencies)
 │   └── progress.ts           # PROGRESS.md → ProgressState
 ├── views/
 │   ├── archiveTree.ts        # Archive browser tree view (replay/restore)
+│   ├── configWizard.ts       # Config wizard webview panel lifecycle
+│   ├── configWizardHtml.ts   # Config wizard HTML generation
 │   ├── dagLayout.ts          # DAG layout algorithm for dependency graphs
 │   ├── dagSvg.ts             # SVG generation from DAG layout
 │   ├── dependencyGraph.ts    # Dependency graph webview panel
@@ -146,13 +158,14 @@ src/
 │   ├── notifications.ts      # Smart failure notifications with attempt count
 │   ├── outputChannel.ts      # Output channel wrapper
 │   ├── phaseTree.ts          # Sidebar tree view with dependency display
+│   ├── planCodeLens.ts       # CodeLens actions for plan file phases
+│   ├── replayViewer.ts       # Inline replay viewer webview panel
 │   ├── statusBar.ts          # Status bar item
 │   └── treeAdapter.ts        # Tree view adapter utilities
 └── test/
     ├── unit/
     │   ├── core/
     │   │   ├── detection.test.ts
-    │   │   ├── featureFlag.test.ts
     │   │   ├── gitIntegration.test.ts
     │   │   ├── installer.test.ts
     │   │   ├── lock.test.ts
@@ -161,9 +174,12 @@ src/
     │   │   └── watchers.test.ts
     │   ├── parsers/
     │   │   ├── archive.test.ts
+    │   │   ├── config.test.ts
+    │   │   ├── plan.test.ts
     │   │   └── progress.test.ts
     │   └── views/
     │       ├── archiveTree.test.ts
+    │       ├── configWizard.test.ts
     │       ├── dagLayout.test.ts
     │       ├── dagSvg.test.ts
     │       ├── dependencyGraph.test.ts
@@ -172,13 +188,15 @@ src/
     │       ├── notifications.test.ts
     │       ├── outputChannel.test.ts
     │       ├── phaseTree.test.ts
+    │       ├── planCodeLens.test.ts
+    │       ├── replayViewer.test.ts
     │       └── statusBar.test.ts
     └── integration/
         ├── commands.test.ts
         └── extension.test.ts
 ```
 
-Future parsers (plan, config) and webview providers are added when their milestones begin — not stubbed in advance.
+Parsers and webview providers are added as their milestones are implemented.
 
 ## User-Facing Surface
 
@@ -198,7 +216,6 @@ Future parsers (plan, config) and webview providers are added when their milesto
 |-----|------|---------|-------------|
 | `oxveil.claudeloopPath` | string | `"claudeloop"` | Path to claudeloop executable |
 | `oxveil.watchDebounceMs` | number | `100` | Debounce interval for file watcher events |
-| `oxveil.experimental` | boolean | `false` | Enable experimental features |
 | `oxveil.verify` | boolean | `true` | Run verification after each phase (`--verify`) |
 | `oxveil.refactor` | boolean | `true` | Run refactoring after each phase (`--refactor`) |
 | `oxveil.dryRun` | boolean | `false` | Preview plan without executing (`--dry-run`) |
@@ -393,6 +410,58 @@ Core module for extracting phase-specific git diffs.
 
 **Usage:** Called by the diff provider to populate virtual diff documents. No VS Code dependency beyond `child_process` for running git commands.
 
+### Config Parser
+
+Pure function, no VS Code dependency.
+
+**Input:** Raw `.claudeloop.conf` content string (key=value format).
+**Output:** Parsed config object with typed values.
+
+Handles serialization round-trips — parse then serialize preserves unknown keys and comments. Used by the config wizard webview to read and write config files.
+
+### Config Wizard Webview
+
+`WebviewPanel` that renders `.claudeloop.conf` as an editable form.
+
+**Bidirectional sync:** Reads config file on open, watches for external changes via `FileSystemWatcher`, writes back on form edits.
+
+**Architecture:** Split into `configWizard.ts` (panel lifecycle, message passing) and `configWizardHtml.ts` (HTML generation). The config parser handles all file I/O.
+
+**Validation:** Known keys get type-appropriate form inputs. Unknown keys are preserved on round-trip but flagged visually.
+
+### Plan Parser
+
+Pure function, no VS Code dependency.
+
+**Input:** Raw plan file content string.
+**Output:** Structured phase list with dependencies, gates, and descriptions.
+
+Used by the CodeLens provider to anchor actions to phase boundaries and by the AI Parse Plan command to process plan content.
+
+### Plan Language Support
+
+Dedicated language ID (`claudeloop-plan`) with a TextMate grammar for plan files.
+
+**Grammar:** `syntaxes/plan.tmLanguage.json` scopes phase headers, dependency lines, gate declarations, and status markers.
+
+**Association:** Registered for `PLAN.md` filename pattern in `package.json`.
+
+### Plan CodeLens Provider
+
+`CodeLensProvider` registered for the `claudeloop-plan` language ID.
+
+**Actions:** Provides inline actions at phase headers — run phase, view diff, view log. Grays out actions for pending phases that cannot be executed yet.
+
+**AI Parse Plan:** Command palette action that parses plan content with configurable granularity (quick-pick for detail level).
+
+### Replay Viewer
+
+`WebviewPanel` that displays inline replay of archived session runs.
+
+**Flow:** Opened from the archive tree context menu. Renders phase progression, log output, and status transitions in a scrollable timeline view.
+
+**CSP:** Uses `unsafe-inline` for inline event handlers in the webview HTML.
+
 ## Interfaces
 
 Component boundaries are defined as interfaces for testability and replaceability.
@@ -464,7 +533,7 @@ Both repos share the same author. This enables tight coordination but requires d
 ## Release Strategy
 
 - **Trunk-based development** on `main` — see `.claude/skills/trunk-based-dev/SKILL.md`
-- **Feature flags** with tiered approach — see `.claude/skills/feature-flags/SKILL.md`
+- **No feature flags** — ship directly on trunk (see [ADR 0005](docs/adr/0005-feature-flag-removal.md))
 - **Automated releases** via GitHub Actions (`workflow_dispatch`) — see `.github/workflows/release.yml`
 - **Version bumps** auto-detected from conventional commits (`scripts/release.mjs`)
 - **Single artifact pipeline**: `vsce package` produces `.vsix`, same artifact published to Marketplace and attached to GitHub Release
@@ -478,7 +547,7 @@ See [chmc/oxveil#1](https://github.com/chmc/oxveil/issues/1) for full milestone 
 
 - **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), output channel, phase tree view, notifications
 - **v0.2 — Rich Monitoring:** ✅ Dependency graph webview (live DAG with click interaction), archive browser (replay/restore), click-to-open phase logs, phase git diffs (View Diff context menu), smart failure notifications with attempt count
-- **v0.3 — Config & Plan Editing:** Config wizard webview, plan file language support, CodeLens, replay viewer
+- **v0.3 — Config & Plan Editing:** ✅ Config wizard webview, plan file language support (TextMate grammar + CodeLens), AI Parse Plan command, replay viewer, feature flag removal
 - **v0.4 — Deep Integration:** Retry strategies, phase timeline, multi-root workspace, welcome walkthrough
 
 Each milestone adds its own parsers, views, and infrastructure when work begins — not before.
