@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,20 +15,24 @@ import { initWorkspaceWatchers } from "./workspaceInit";
 import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
 import { wireSessionEvents } from "./sessionWiring";
-import { ArchiveTreeProvider } from "./views/archiveTree";
-import { parseArchive } from "./parsers/archive";
-import { stat } from "node:fs/promises";
 import { createTreeAdapter } from "./views/treeAdapter";
-import { DependencyGraphPanel } from "./views/dependencyGraph";
-import { ConfigWizardPanel } from "./views/configWizard";
-import { ReplayViewerPanel } from "./views/replayViewer";
-import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
-import { PlanCodeLensProvider } from "./views/planCodeLens";
+import { createWebviewPanels, createArchiveView } from "./activateViews";
 import type { GitExecDeps } from "./core/gitIntegration";
 
 const execFileAsync = promisify(execFile);
 
 const MINIMUM_VERSION = "0.22.0";
+
+function createGitExec(workspaceRoot: string | undefined): GitExecDeps | undefined {
+  if (!workspaceRoot) return undefined;
+  return {
+    exec: async (command: string, args: string[], cwd: string) => {
+      const { stdout } = await execFileAsync(command, args, { cwd });
+      return stdout;
+    },
+    cwd: workspaceRoot,
+  };
+}
 
 const disposables: vscode.Disposable[] = [];
 
@@ -99,36 +102,11 @@ export async function activate(
   disposables.push(treeView);
 
   // Archive tree view
-  const archiveTree = new ArchiveTreeProvider();
-  const {
-    dataProvider: archiveDataProvider,
-    emitter: archiveDidChange,
-    resolveItem: resolveArchiveItem,
-  } = createTreeAdapter(archiveTree, (item, treeItem) => {
-    if (item.archiveName) {
-        (treeItem as any).archiveName = item.archiveName;
-      }
-    });
-
-  const archiveView = vscode.window.createTreeView("oxveil.archive", {
-    treeDataProvider: archiveDataProvider,
-  });
-  disposables.push(archiveView);
-
-  const refreshArchive = async () => {
-    if (!workspaceRoot) return;
-    const archiveRoot = path.join(workspaceRoot, ".claudeloop", "archive");
-    const entries = await parseArchive(
-      {
-        readdir: (dir: string) => fs.readdir(dir),
-        readFile: (p: string) => fs.readFile(p, "utf-8"),
-        isDirectory: async (p: string) => (await stat(p)).isDirectory(),
-      },
-      archiveRoot,
-    );
-    archiveTree.update(entries);
-    archiveDidChange.fire(undefined);
-  };
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
+  const archive = createArchiveView({ workspaceRoot });
+  disposables.push(archive.archiveView);
+  const { resolveArchiveItem, refreshArchive } = archive;
 
   // Output channel
   const outputChannel = vscode.window.createOutputChannel("Oxveil");
@@ -170,39 +148,11 @@ export async function activate(
     onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
   });
 
-  // Dependency graph webview
-  const dependencyGraph = new DependencyGraphPanel({
-    createWebviewPanel: vscode.window.createWebviewPanel,
-    executeCommand: vscode.commands.executeCommand,
-  });
-  disposables.push({ dispose: () => dependencyGraph.dispose() });
-
-  // Config wizard webview
-  const configWizard = new ConfigWizardPanel({
-    createWebviewPanel: vscode.window.createWebviewPanel as any,
-    readFile: (p: string) => fs.readFile(p, "utf-8"),
-    writeFile: (p: string, content: string) => fs.writeFile(p, content, "utf-8"),
-    sessionStatus: () => session.status,
-  });
-  disposables.push({ dispose: () => configWizard.dispose() });
-
-  // Replay viewer webview
-  const replayViewer = new ReplayViewerPanel({
-    createWebviewPanel: vscode.window.createWebviewPanel as any,
-    readFile: (p: string) => fs.readFile(p, "utf-8"),
-    showInformationMessage: (msg: string) => vscode.window.showInformationMessage(msg),
-  });
-  disposables.push({ dispose: () => replayViewer.dispose() });
-
-  // CodeLens for plan files
-  const planCodeLens = new PlanCodeLensProvider();
-  disposables.push(
-    vscode.languages.registerCodeLensProvider(
-      { language: "claudeloop-plan" },
-      planCodeLens,
-    ),
-  );
-  disposables.push(planCodeLens);
+  // Webview panels, CodeLens, and diff provider
+  const gitExec = createGitExec(workspaceRoot);
+  const panels = createWebviewPanels({ session, workspaceRoot, gitExec });
+  disposables.push(...panels.disposables);
+  const { dependencyGraph, configWizard, replayViewer } = panels;
 
   wireSessionEvents({
     session,
@@ -233,7 +183,6 @@ export async function activate(
   }
 
   // Watchers
-  const workspaceFolders = vscode.workspace.workspaceFolders;
   if (workspaceFolders && workspaceFolders.length > 0) {
     const debounceMs = config.get<number>("watchDebounceMs", 100);
     const watcherResult = await initWorkspaceWatchers({
@@ -275,7 +224,6 @@ export async function activate(
 
   // Process manager
   let processManager: ProcessManager | undefined;
-  const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
 
   if (workspaceRoot && result.status === "detected") {
     processManager = createProcessManager({
@@ -287,26 +235,6 @@ export async function activate(
   }
 
   _processManager = processManager;
-
-  // Git integration for phase diffs
-  let gitExec: GitExecDeps | undefined;
-  if (workspaceRoot) {
-    gitExec = {
-      exec: async (command: string, args: string[], cwd: string) => {
-        const { stdout } = await execFileAsync(command, args, { cwd });
-        return stdout;
-      },
-      cwd: workspaceRoot,
-    };
-
-    const diffProvider = new PhaseDiffProvider({ gitExec });
-    disposables.push(
-      vscode.workspace.registerTextDocumentContentProvider(
-        DIFF_URI_SCHEME,
-        diffProvider,
-      ),
-    );
-  }
 
   // Installer
   const installer = new Installer({
