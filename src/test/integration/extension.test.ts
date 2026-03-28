@@ -41,10 +41,8 @@ describe("Extension integration", () => {
     });
 
     it("tree view provider returns children", () => {
-      const tree = new PhaseTreeProvider({
-        detected: true,
-        progress: null,
-      });
+      const tree = new PhaseTreeProvider(true);
+      tree.update("file:///workspace", "workspace", null);
 
       const children = tree.getChildren();
 
@@ -53,16 +51,14 @@ describe("Extension integration", () => {
     });
 
     it("tree view registered with phases", () => {
-      const tree = new PhaseTreeProvider({
-        detected: true,
-        progress: {
-          phases: [
-            { number: 1, title: "Setup", status: "completed" },
-            { number: 2, title: "Build", status: "in_progress" },
-          ],
-          totalPhases: 3,
-          currentPhaseIndex: 1,
-        },
+      const tree = new PhaseTreeProvider(true);
+      tree.update("file:///workspace", "workspace", {
+        phases: [
+          { number: 1, title: "Setup", status: "completed" },
+          { number: 2, title: "Build", status: "in_progress" },
+        ],
+        totalPhases: 3,
+        currentPhaseIndex: 1,
       });
 
       const children = tree.getChildren();
@@ -110,7 +106,8 @@ describe("Extension integration", () => {
 
     it("phase transition → tree update + notification", () => {
       const session = new SessionState();
-      const tree = new PhaseTreeProvider({ detected: true, progress: null });
+      const tree = new PhaseTreeProvider(true);
+      tree.update("file:///workspace", "workspace", null);
       const win = {
         showInformationMessage: vi.fn().mockResolvedValue(undefined),
         showWarningMessage: vi.fn().mockResolvedValue(undefined),
@@ -123,7 +120,7 @@ describe("Extension integration", () => {
       session.on("phases-changed", (progress) => {
         const old = lastProgress;
         lastProgress = progress;
-        tree.update({ progress });
+        tree.update("file:///workspace", "workspace", progress);
         if (old) {
           notifications.onPhasesChanged(old, progress);
         }

@@ -139,6 +139,7 @@ describe("walkthrough step completion", () => {
           stop: vi.fn(),
           elapsed: 0,
         } as any,
+        folderUri: "file:///test",
         isActiveSession: () => true,
       };
 
@@ -178,6 +179,7 @@ describe("walkthrough step completion", () => {
           stop: vi.fn(),
           elapsed: 0,
         } as any,
+        folderUri: "file:///test",
         isActiveSession: () => true,
       };
 

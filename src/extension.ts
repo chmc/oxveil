@@ -13,7 +13,7 @@ import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
 import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
-import { createTreeAdapter } from "./views/treeAdapter";
+import { createTreeAdapter, createHierarchicalTreeAdapter } from "./views/treeAdapter";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import {
@@ -74,16 +74,13 @@ export async function activate(
   }
 
   // Phase tree view
-  const phaseTree = new PhaseTreeProvider({
-    detected: result.status === "detected",
-    progress: null,
-  });
+  const phaseTree = new PhaseTreeProvider(result.status === "detected");
 
   const {
     dataProvider: phaseDataProvider,
     emitter: onDidChangeTreeData,
     resolveItem: resolvePhaseItem,
-  } = createTreeAdapter(phaseTree, (item, treeItem) => {
+  } = createHierarchicalTreeAdapter(phaseTree, (item, treeItem) => {
     if (item.phaseNumber !== undefined) {
       (treeItem as any).phaseNumber = item.phaseNumber;
     }
@@ -97,6 +94,14 @@ export async function activate(
   // Archive tree view
   const workspaceFolders = vscode.workspace.workspaceFolders;
   const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
+
+  // Seed initial folder entries so single/multi-root tree works immediately
+  if (workspaceFolders) {
+    for (const folder of workspaceFolders) {
+      phaseTree.update(folder.uri.toString(), folder.name, null);
+    }
+  }
+
   const archive = createArchiveView({ workspaceRoot });
   disposables.push(archive.archiveView);
   const { resolveArchiveItem, refreshArchive } = archive;
@@ -225,7 +230,7 @@ export async function activate(
         "oxveil.detected",
         r.status === "detected",
       );
-      phaseTree.update({ detected: r.status === "detected" });
+      phaseTree.updateDetected(r.status === "detected");
       onDidChangeTreeData.fire(undefined);
       if (r.status === "detected") {
         statusBar.update({ kind: "ready" });

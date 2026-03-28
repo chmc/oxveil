@@ -19,6 +19,7 @@ export interface SessionWiringDeps {
   elapsedTimer: ElapsedTimer;
   dependencyGraph?: DependencyGraphPanel;
   executionTimeline?: ExecutionTimelinePanel;
+  folderUri: string;
   folderName?: string;
   isActiveSession: () => boolean;
 }
@@ -85,7 +86,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
 
   session.on("phases-changed", (progress) => {
     if (deps.isActiveSession()) {
-      phaseTree.update({ progress });
+      phaseTree.update(deps.folderUri, deps.folderName ?? "", progress);
       onDidChangeTreeData.fire(undefined);
       deps.dependencyGraph?.update(progress);
       deps.executionTimeline?.update(progress);
