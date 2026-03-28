@@ -122,6 +122,10 @@
       {
         "command": "oxveil.markPhaseComplete",
         "title": "Oxveil: Mark Phase Complete"
+      },
+      {
+        "command": "oxveil.openReplayViewer",
+        "title": "Oxveil: Open Replay"
       }
     ],
     "menus": {
@@ -188,6 +192,10 @@
         },
         {
           "command": "oxveil.markPhaseComplete",
+          "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.openReplayViewer",
           "when": "oxveil.detected"
         }
       ]

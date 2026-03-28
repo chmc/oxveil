@@ -9,6 +9,7 @@ import type { PhaseTreeItem } from "./views/phaseTree";
 import type { ArchiveTreeItem } from "./views/archiveTree";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ConfigWizardPanel } from "./views/configWizard";
+import type { ReplayViewerPanel } from "./views/replayViewer";
 import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
 import type { GitExecDeps } from "./core/gitIntegration";
 import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
@@ -23,13 +24,14 @@ export interface CommandDeps {
   onArchiveRefresh?: () => void;
   dependencyGraph?: DependencyGraphPanel;
   configWizard?: ConfigWizardPanel;
+  replayViewer?: ReplayViewerPanel;
   gitExec?: GitExecDeps;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, configWizard, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, configWizard, replayViewer, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
@@ -131,7 +133,8 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
           resolved.archiveName,
           "replay.html",
         );
-        await vscode.env.openExternal(vscode.Uri.file(replayPath));
+        const claudeloopRoot = path.join(workspaceRoot, ".claudeloop");
+        await replayViewer?.reveal(replayPath, claudeloopRoot);
       },
     ),
     vscode.commands.registerCommand(
@@ -242,6 +245,15 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         }
       },
     ),
+    vscode.commands.registerCommand("oxveil.openReplayViewer", async () => {
+      if (!workspaceRoot) {
+        vscode.window.showWarningMessage("Oxveil: No workspace open");
+        return;
+      }
+      const replayPath = path.join(workspaceRoot, ".claudeloop", "replay.html");
+      const claudeloopRoot = path.join(workspaceRoot, ".claudeloop");
+      await replayViewer?.reveal(replayPath, claudeloopRoot);
+    }),
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
       dependencyGraph?.reveal(session.progress);
     }),

@@ -22,6 +22,7 @@ import { stat } from "node:fs/promises";
 import { createTreeAdapter } from "./views/treeAdapter";
 import { DependencyGraphPanel } from "./views/dependencyGraph";
 import { ConfigWizardPanel } from "./views/configWizard";
+import { ReplayViewerPanel } from "./views/replayViewer";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import { PlanCodeLensProvider } from "./views/planCodeLens";
 import type { GitExecDeps } from "./core/gitIntegration";
@@ -185,6 +186,14 @@ export async function activate(
   });
   disposables.push({ dispose: () => configWizard.dispose() });
 
+  // Replay viewer webview
+  const replayViewer = new ReplayViewerPanel({
+    createWebviewPanel: vscode.window.createWebviewPanel as any,
+    readFile: (p: string) => fs.readFile(p, "utf-8"),
+    showInformationMessage: (msg: string) => vscode.window.showInformationMessage(msg),
+  });
+  disposables.push({ dispose: () => replayViewer.dispose() });
+
   // CodeLens for plan files
   const planCodeLens = new PlanCodeLensProvider();
   disposables.push(
@@ -321,6 +330,7 @@ export async function activate(
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
       configWizard,
+      replayViewer,
       gitExec,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,

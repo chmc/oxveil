@@ -130,17 +130,18 @@ describe("archive commands integration", () => {
     expect(pm.restore).toHaveBeenCalledWith("my-archive");
   });
 
-  it("archiveReplay opens replay.html via openExternal", async () => {
-    const deps = makeDeps();
+  it("archiveReplay opens replay.html in webview via replayViewer", async () => {
+    const replayViewer = { reveal: vi.fn().mockResolvedValue(undefined), dispose: vi.fn() };
+    const deps = makeDeps({ replayViewer: replayViewer as any });
     registerCommands(deps);
 
     const handler = registeredCommands.get("oxveil.archiveReplay");
     await handler!({ archiveName: "20260322-090000" });
 
-    expect(vscode.Uri.file).toHaveBeenCalledWith(
+    expect(replayViewer.reveal).toHaveBeenCalledWith(
       "/workspace/.claudeloop/archive/20260322-090000/replay.html",
+      "/workspace/.claudeloop",
     );
-    expect(vscode.env.openExternal).toHaveBeenCalled();
   });
 
   it("archiveRefresh calls onArchiveRefresh callback", () => {
@@ -192,7 +193,9 @@ describe("context menu string element resolution", () => {
   });
 
   it("archiveReplay resolves string element to archiveName", async () => {
+    const replayViewer = { reveal: vi.fn().mockResolvedValue(undefined), dispose: vi.fn() };
     const deps = makeDeps({
+      replayViewer: replayViewer as any,
       resolveArchiveItem: (el: string) =>
         el === "0" ? { archiveName: "20260322-090000" } : undefined,
     });
@@ -201,10 +204,10 @@ describe("context menu string element resolution", () => {
     const handler = registeredCommands.get("oxveil.archiveReplay");
     await handler!("0");
 
-    expect(vscode.Uri.file).toHaveBeenCalledWith(
+    expect(replayViewer.reveal).toHaveBeenCalledWith(
       "/workspace/.claudeloop/archive/20260322-090000/replay.html",
+      "/workspace/.claudeloop",
     );
-    expect(vscode.env.openExternal).toHaveBeenCalled();
   });
 
   it("archiveRestore resolves string element to archiveName", async () => {
