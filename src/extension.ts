@@ -6,7 +6,6 @@ import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
-import { createProcessManager } from "./processManagerFactory";
 import { StatusBarManager } from "./views/statusBar";
 import { PhaseTreeProvider } from "./views/phaseTree";
 import { OutputChannelManager } from "./views/outputChannel";
@@ -14,26 +13,19 @@ import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
 import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
-import { wireSessionEvents } from "./sessionWiring";
 import { createTreeAdapter } from "./views/treeAdapter";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
-import type { GitExecDeps } from "./core/gitIntegration";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
+import {
+  createGitExec,
+  initFolderSessions,
+  wireAllSessions,
+  handleWorkspaceFolderChange,
+} from "./workspaceSetup";
 
 const execFileAsync = promisify(execFile);
 
 const MINIMUM_VERSION = "0.22.0";
-
-function createGitExec(workspaceRoot: string | undefined): GitExecDeps | undefined {
-  if (!workspaceRoot) return undefined;
-  return {
-    exec: async (command: string, args: string[], cwd: string) => {
-      const { stdout } = await execFileAsync(command, args, { cwd });
-      return stdout;
-    },
-    cwd: workspaceRoot,
-  };
-}
 
 const disposables: vscode.Disposable[] = [];
 
@@ -125,17 +117,13 @@ export async function activate(
 
   // Create one session per workspace folder
   if (workspaceFolders && result.status === "detected") {
-    for (const folder of workspaceFolders) {
-      const root = folder.uri.fsPath;
-      const ws = manager.createSession({ folderUri: folder.uri.toString(), workspaceRoot: root });
-      ws.processManager = createProcessManager({
-        claudeloopPath,
-        resolvedPath: result.path,
-        workspaceRoot: root,
-        platform: process.platform,
-      });
-      ws.gitExec = createGitExec(root);
-    }
+    initFolderSessions({
+      manager,
+      folders: workspaceFolders,
+      claudeloopPath,
+      resolvedPath: result.path,
+      platform: process.platform,
+    });
   }
 
   // Elapsed timer
@@ -180,24 +168,17 @@ export async function activate(
   const { dependencyGraph, executionTimeline, configWizard, replayViewer } = panels;
 
   // Wire each session's events
-  for (const ws of manager.getAllSessions()) {
-    wireSessionEvents({
-      session: ws.sessionState,
-      statusBar,
-      phaseTree,
-      onDidChangeTreeData,
-      outputManager,
-      notifications,
-      elapsedTimer,
-      dependencyGraph,
-      executionTimeline,
-    });
-    ws.sessionState.on("state-changed", (_from, to) => {
-      if (to === "done" || to === "failed") {
-        refreshArchive();
-      }
-    });
-  }
+  const wiringCtx = {
+    statusBar,
+    phaseTree,
+    onDidChangeTreeData,
+    outputManager,
+    notifications,
+    elapsedTimer,
+    dependencyGraph,
+    executionTimeline,
+  };
+  wireAllSessions(manager, wiringCtx, refreshArchive);
 
   // Detection notifications
   if (result.status === "not-found") {
@@ -309,42 +290,18 @@ export async function activate(
   );
 
   // Handle workspace folder add/remove
+  const folderChangeOpts = {
+    manager,
+    detected: result.status === "detected",
+    claudeloopPath,
+    resolvedPath: result.path,
+    platform: process.platform,
+    wiringCtx,
+    onArchiveDone: refreshArchive,
+  };
   disposables.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
-      for (const added of e.added) {
-        const ws = manager.createSession({
-          folderUri: added.uri.toString(),
-          workspaceRoot: added.uri.fsPath,
-        });
-        if (result.status === "detected") {
-          ws.processManager = createProcessManager({
-            claudeloopPath,
-            resolvedPath: result.path,
-            workspaceRoot: added.uri.fsPath,
-            platform: process.platform,
-          });
-          ws.gitExec = createGitExec(added.uri.fsPath);
-          wireSessionEvents({
-            session: ws.sessionState,
-            statusBar,
-            phaseTree,
-            onDidChangeTreeData,
-            outputManager,
-            notifications,
-            elapsedTimer,
-            dependencyGraph,
-            executionTimeline,
-          });
-          ws.sessionState.on("state-changed", (_from, to) => {
-            if (to === "done" || to === "failed") {
-              refreshArchive();
-            }
-          });
-        }
-      }
-      for (const removed of e.removed) {
-        manager.removeSession(removed.uri.toString());
-      }
+      handleWorkspaceFolderChange(e, folderChangeOpts);
     }),
   );
 
