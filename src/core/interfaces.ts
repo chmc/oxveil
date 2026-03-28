@@ -21,6 +21,7 @@ export interface IProcessManager {
   spawn(): Promise<void>;
   spawnFromPhase(phase: number | string): Promise<void>;
   markComplete(phase: number | string): Promise<void>;
+  aiParse(granularity: string): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;
   readonly isRunning: boolean;

@@ -241,6 +241,40 @@ describe("ProcessManager", () => {
     });
   });
 
+  describe("aiParse", () => {
+    it("spawns with --ai-parse and --granularity flags", async () => {
+      const pm = createManager();
+      pm.aiParse("medium");
+      await flushMicrotasks();
+
+      expect(spawnCalls).toHaveLength(1);
+      expect(spawnCalls[0].args).toEqual(["--ai-parse", "--granularity", "medium"]);
+
+      closeCallback?.(0);
+    });
+
+    it("passes custom granularity string", async () => {
+      const pm = createManager();
+      pm.aiParse("create exactly 7 phases");
+      await flushMicrotasks();
+
+      expect(spawnCalls[0].args).toEqual([
+        "--ai-parse",
+        "--granularity",
+        "create exactly 7 phases",
+      ]);
+
+      closeCallback?.(0);
+    });
+
+    it("rejects when lock file exists", async () => {
+      lockExists.mockResolvedValue(true);
+      const pm = createManager();
+
+      await expect(pm.aiParse("coarse")).rejects.toThrow("lock file exists");
+    });
+  });
+
   describe("reset", () => {
     it("spawns with --reset flag", async () => {
       const pm = createManager();

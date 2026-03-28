@@ -126,6 +126,10 @@
       {
         "command": "oxveil.openReplayViewer",
         "title": "Oxveil: Open Replay"
+      },
+      {
+        "command": "oxveil.aiParsePlan",
+        "title": "Oxveil: AI Parse Plan"
       }
     ],
     "menus": {
@@ -197,6 +201,10 @@
         {
           "command": "oxveil.openReplayViewer",
           "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.aiParsePlan",
+          "when": "oxveil.detected && !oxveil.processRunning"
         }
       ]
     },
