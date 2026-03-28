@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
@@ -192,6 +193,22 @@ export async function activate(
     });
     disposables.push(...watcherResult.disposables);
   }
+
+  // Walkthrough: PLAN.md watcher + activation check
+  if (workspaceRoot) {
+    const planPath = path.join(workspaceRoot, "PLAN.md");
+    try {
+      await fs.access(planPath);
+      await vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
+    } catch {
+      // PLAN.md doesn't exist yet
+    }
+  }
+  const planWatcher = vscode.workspace.createFileSystemWatcher("**/PLAN.md");
+  planWatcher.onDidCreate(() => {
+    vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
+  });
+  disposables.push(planWatcher);
 
   // Shared re-detection handler
   const refreshDetection = () =>

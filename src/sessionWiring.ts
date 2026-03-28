@@ -57,6 +57,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       case "done":
         elapsedTimer.stop();
         statusBar.update({ kind: "done", elapsed: elapsedTimer.elapsed });
+        vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         break;
       case "failed": {
         elapsedTimer.stop();

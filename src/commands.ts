@@ -270,6 +270,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         ".claudeloop.conf",
       );
       configWizard?.reveal(configPath);
+      vscode.commands.executeCommand("setContext", "oxveil.walkthrough.configured", true);
     }),
     registerAiParsePlanCommand(processManager, workspaceRoot),
     vscode.commands.registerCommand("oxveil.createPlan", async () => {
