@@ -323,5 +323,12 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     registerAiParsePlanCommand(sessionManager),
     registerCreatePlanCommand(() => getActive()?.workspaceRoot),
+    vscode.commands.registerCommand("oxveil.welcome", () =>
+      vscode.commands.executeCommand(
+        "workbench.action.openWalkthrough",
+        "chmc.oxveil#oxveil.welcome",
+        false,
+      ),
+    ),
   ];
 }

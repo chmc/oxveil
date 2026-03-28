@@ -138,6 +138,10 @@
       {
         "command": "oxveil.showTimeline",
         "title": "Oxveil: Show Timeline"
+      },
+      {
+        "command": "oxveil.welcome",
+        "title": "Oxveil: Welcome"
       }
     ],
     "menus": {
@@ -220,6 +224,9 @@
         {
           "command": "oxveil.showTimeline",
           "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.welcome"
         }
       ]
     },
