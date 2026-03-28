@@ -130,6 +130,10 @@
       {
         "command": "oxveil.aiParsePlan",
         "title": "Oxveil: AI Parse Plan"
+      },
+      {
+        "command": "oxveil.createPlan",
+        "title": "Oxveil: Create Plan"
       }
     ],
     "menus": {
@@ -205,9 +209,65 @@
         {
           "command": "oxveil.aiParsePlan",
           "when": "oxveil.detected && !oxveil.processRunning"
+        },
+        {
+          "command": "oxveil.createPlan"
         }
       ]
     },
+    "walkthroughs": [
+      {
+        "id": "oxveil.welcome",
+        "title": "Get Started with Oxveil",
+        "description": "Set up and run your first AI coding workflow",
+        "steps": [
+          {
+            "id": "detect",
+            "title": "Detect claudeloop",
+            "description": "Oxveil needs [claudeloop](https://github.com/chmc/claudeloop) to manage AI coding sessions.\n\n[Install claudeloop](command:oxveil.install)",
+            "media": {
+              "markdown": "./media/walkthrough/detect.md"
+            },
+            "completionEvents": [
+              "onContext:oxveil.detected"
+            ]
+          },
+          {
+            "id": "configure",
+            "title": "Configure your workflow",
+            "description": "Customize claudeloop settings for your project — model, flags, and execution options.\n\n[Open Configuration Wizard](command:oxveil.openConfigWizard)",
+            "media": {
+              "markdown": "./media/walkthrough/configure.md"
+            },
+            "completionEvents": [
+              "onCommand:oxveil.openConfigWizard"
+            ]
+          },
+          {
+            "id": "createPlan",
+            "title": "Create your first plan",
+            "description": "A plan file (`PLAN.md`) defines the phases claudeloop will execute.\n\n[Create PLAN.md](command:oxveil.createPlan)",
+            "media": {
+              "markdown": "./media/walkthrough/createPlan.md"
+            },
+            "completionEvents": [
+              "onContext:oxveil.walkthrough.hasPlan"
+            ]
+          },
+          {
+            "id": "runSession",
+            "title": "Run your first session",
+            "description": "Launch claudeloop to execute your plan phase by phase.\n\n[Start claudeloop](command:oxveil.start)",
+            "media": {
+              "markdown": "./media/walkthrough/runSession.md"
+            },
+            "completionEvents": [
+              "onContext:oxveil.walkthrough.hasRun"
+            ]
+          }
+        ]
+      }
+    ],
     "configuration": {
       "title": "Oxveil",
       "properties": {
