@@ -68,31 +68,7 @@ describe("ReplayViewerPanel", () => {
     expect(deps.mockPanel.reveal).toHaveBeenCalledTimes(1);
   });
 
-  it("injects nonce into script tags", async () => {
-    const deps = makeDeps();
-    const panel = new ReplayViewerPanel(deps);
-
-    await panel.reveal("/path/replay.html", "/root");
-
-    const html = deps.mockPanel.webview.html;
-    const nonceMatch = html.match(/nonce="([a-f0-9]+)"/);
-    expect(nonceMatch).toBeTruthy();
-    expect(html).toContain(`<script nonce="${nonceMatch![1]}"`);
-  });
-
-  it("injects nonce into style tags", async () => {
-    const deps = makeDeps();
-    const panel = new ReplayViewerPanel(deps);
-
-    await panel.reveal("/path/replay.html", "/root");
-
-    const html = deps.mockPanel.webview.html;
-    const nonceMatch = html.match(/nonce="([a-f0-9]+)"/);
-    expect(nonceMatch).toBeTruthy();
-    expect(html).toContain(`<style nonce="${nonceMatch![1]}"`);
-  });
-
-  it("injects CSP meta tag", async () => {
+  it("injects CSP meta tag with unsafe-inline", async () => {
     const deps = makeDeps();
     const panel = new ReplayViewerPanel(deps);
 
@@ -102,19 +78,18 @@ describe("ReplayViewerPanel", () => {
     expect(html).toContain("Content-Security-Policy");
     expect(html).toContain("https://mock.csp");
     expect(html).toContain("default-src 'none'");
+    expect(html).toContain("script-src 'unsafe-inline'");
+    expect(html).toContain("style-src https://mock.csp 'unsafe-inline'");
   });
 
-  it("CSP nonce matches script/style nonces", async () => {
+  it("does not inject nonces into script or style tags", async () => {
     const deps = makeDeps();
     const panel = new ReplayViewerPanel(deps);
 
     await panel.reveal("/path/replay.html", "/root");
 
     const html = deps.mockPanel.webview.html;
-    const nonceMatch = html.match(/nonce="([a-f0-9]+)"/);
-    const nonce = nonceMatch![1];
-    expect(html).toContain(`script-src 'nonce-${nonce}'`);
-    expect(html).toContain(`style-src https://mock.csp 'nonce-${nonce}'`);
+    expect(html).not.toMatch(/nonce="[a-f0-9]+"/);
   });
 
   it("shows info message when file is missing", async () => {
@@ -172,18 +147,6 @@ describe("ReplayViewerPanel", () => {
 
     await panel.reveal("/path/replay.html", "/root");
     expect(deps.createWebviewPanel).toHaveBeenCalledTimes(2);
-  });
-
-  it("preserves script tags that already have nonce", async () => {
-    const deps = makeDeps({
-      readFile: vi.fn(async () => '<html><head></head><body><script nonce="existing">x</script></body></html>'),
-    });
-    const panel = new ReplayViewerPanel(deps);
-
-    await panel.reveal("/path/replay.html", "/root");
-
-    const html = deps.mockPanel.webview.html;
-    expect(html).toContain('nonce="existing"');
   });
 
   it("injects CSP after head tag", async () => {
