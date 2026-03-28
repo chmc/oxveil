@@ -28,8 +28,8 @@ describe("computePlanLenses", () => {
     const lenses = computePlanLenses(content);
 
     expect(lenses).toHaveLength(2);
-    expect(lenses[0]).toEqual({ line: 2, phaseNumber: 1, title: "Setup" });
-    expect(lenses[1]).toEqual({ line: 5, phaseNumber: 2, title: "Build" });
+    expect(lenses[0]).toEqual({ line: 2, phaseNumber: 1, title: "Setup", status: undefined });
+    expect(lenses[1]).toEqual({ line: 5, phaseNumber: 2, title: "Build", status: undefined });
   });
 
   it("detects ### phase headers", () => {
@@ -56,8 +56,8 @@ describe("computePlanLenses", () => {
     const lenses = computePlanLenses(content);
 
     expect(lenses).toHaveLength(2);
-    expect(lenses[0]).toEqual({ line: 0, phaseNumber: 1, title: "Launch" });
-    expect(lenses[1]).toEqual({ line: 2, phaseNumber: 2, title: "Verify" });
+    expect(lenses[0]).toEqual({ line: 0, phaseNumber: 1, title: "Launch", status: undefined });
+    expect(lenses[1]).toEqual({ line: 2, phaseNumber: 2, title: "Verify", status: undefined });
   });
 
   it("ignores malformed headers", () => {
@@ -66,6 +66,32 @@ describe("computePlanLenses", () => {
 
     expect(lenses).toHaveLength(1);
     expect(lenses[0].title).toBe("Valid");
+  });
+
+  it("extracts status from [status: ...] lines", () => {
+    const content = [
+      "## Phase 1: Setup",
+      "[status: complete]",
+      "- Do things",
+      "",
+      "## Phase 2: Build",
+      "[status: running]",
+      "- More things",
+      "",
+      "## Phase 3: Test",
+      "[status: pending]",
+      "- Test things",
+      "",
+      "## Phase 4: Deploy",
+      "No status here.",
+    ].join("\n");
+    const lenses = computePlanLenses(content);
+
+    expect(lenses).toHaveLength(4);
+    expect(lenses[0].status).toBe("complete");
+    expect(lenses[1].status).toBe("running");
+    expect(lenses[2].status).toBe("pending");
+    expect(lenses[3].status).toBeUndefined();
   });
 
   it("returns correct line numbers with preamble content", () => {
