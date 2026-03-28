@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import * as path from "node:path";
 import { promisify } from "node:util";
 import type { GitExecDeps } from "./core/gitIntegration";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
@@ -44,7 +45,20 @@ export function initFolderSessions(opts: InitFolderSessionsOpts): void {
   }
 }
 
-export type SessionWiringContext = Omit<SessionWiringDeps, "session">;
+export type SessionWiringContext = Omit<SessionWiringDeps, "session" | "folderName" | "isActiveSession">;
+
+function sessionWiringDeps(
+  ws: WorkspaceSession,
+  manager: WorkspaceSessionManager,
+  wiringCtx: SessionWiringContext,
+): SessionWiringDeps {
+  return {
+    ...wiringCtx,
+    session: ws.sessionState,
+    folderName: path.basename(ws.workspaceRoot),
+    isActiveSession: () => manager.getActiveSession() === ws,
+  };
+}
 
 /**
  * Wires session events for all existing sessions and attaches archive-refresh on done/failed.
@@ -55,7 +69,7 @@ export function wireAllSessions(
   onArchiveDone: () => void,
 ): void {
   for (const ws of manager.getAllSessions()) {
-    wireSessionEvents({ ...wiringCtx, session: ws.sessionState });
+    wireSessionEvents(sessionWiringDeps(ws, manager, wiringCtx));
     ws.sessionState.on("state-changed", (_from, to) => {
       if (to === "done" || to === "failed") {
         onArchiveDone();
@@ -94,7 +108,7 @@ export function handleWorkspaceFolderChange(
         platform: opts.platform,
       });
       ws.gitExec = createGitExec(added.uri.fsPath);
-      wireSessionEvents({ ...opts.wiringCtx, session: ws.sessionState });
+      wireSessionEvents(sessionWiringDeps(ws, opts.manager, opts.wiringCtx));
       ws.sessionState.on("state-changed", (_from, to) => {
         if (to === "done" || to === "failed") {
           opts.onArchiveDone();

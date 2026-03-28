@@ -124,6 +124,7 @@ describe("walkthrough step completion", () => {
           stop: vi.fn(),
           elapsed: 0,
         } as any,
+        isActiveSession: () => true,
       };
 
       wireSessionEvents(wiringDeps);
@@ -162,6 +163,7 @@ describe("walkthrough step completion", () => {
           stop: vi.fn(),
           elapsed: 0,
         } as any,
+        isActiveSession: () => true,
       };
 
       wireSessionEvents(wiringDeps);

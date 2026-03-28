@@ -19,6 +19,8 @@ export interface SessionWiringDeps {
   elapsedTimer: ElapsedTimer;
   dependencyGraph?: DependencyGraphPanel;
   executionTimeline?: ExecutionTimelinePanel;
+  folderName?: string;
+  isActiveSession: () => boolean;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -35,6 +37,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   let lastProgress: ProgressState | undefined;
 
   session.on("state-changed", (_from, to) => {
+    if (!deps.isActiveSession()) return;
+
     vscode.commands.executeCommand(
       "setContext",
       "oxveil.processRunning",
@@ -80,17 +84,19 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   });
 
   session.on("phases-changed", (progress) => {
-    phaseTree.update({ progress });
-    onDidChangeTreeData.fire(undefined);
-    deps.dependencyGraph?.update(progress);
-    deps.executionTimeline?.update(progress);
+    if (deps.isActiveSession()) {
+      phaseTree.update({ progress });
+      onDidChangeTreeData.fire(undefined);
+      deps.dependencyGraph?.update(progress);
+      deps.executionTimeline?.update(progress);
+    }
 
     if (lastProgress) {
       notifications.onPhasesChanged(lastProgress, progress);
     }
     lastProgress = progress;
 
-    if (session.status === "running" && progress.currentPhaseIndex !== undefined) {
+    if (deps.isActiveSession() && session.status === "running" && progress.currentPhaseIndex !== undefined) {
       const phase = progress.phases[progress.currentPhaseIndex];
       statusBar.update({
         kind: "running",
@@ -102,6 +108,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   });
 
   session.on("log-appended", (content) => {
-    outputManager.onLogAppended(content);
+    const prefix = deps.folderName ? `[${deps.folderName}] ` : "";
+    outputManager.onLogAppended(`${prefix}${content}`);
   });
 }
