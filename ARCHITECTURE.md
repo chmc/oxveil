@@ -91,22 +91,30 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 │   Tree Views  │  Webviews       │  Status Bar             │
 │   - Phases    │  - Dep. Graph   │  - Phase X/Y            │
 │   - Archive   │  - Config Wizard│  - Elapsed time         │
-│               │  - Replay Viewer│                         │
+│               │  - Replay Viewer│  - Folder prefix        │
+│               │  - Timeline     │    (multi-root)         │
 ├───────────────┼─────────────────┼─────────────────────────┤
 │   Log Viewer  │  Diff Provider  │  Output Channel         │
 │   - Phase logs│  - Git diffs    │  - live.log stream      │
 ├───────────────┼─────────────────┼─────────────────────────┤
-│   CodeLens    │  Plan Language  │                         │
-│   - Run phase │  - TextMate     │                         │
-│   - View diff │    grammar      │                         │
+│   CodeLens    │  Plan Language  │  Welcome Walkthrough    │
+│   - Run phase │  - TextMate     │  - 4-step onboarding    │
+│   - View diff │    grammar      │  - Context key tracking │
+├───────────────┼─────────────────┼─────────────────────────┤
+│   FolderPicker│                 │                         │
+│   - Multi-root│                 │                         │
+│     resolution│                 │                         │
 ├───────────────┴─────────────────┴─────────────────────────┤
 │                     Parsers                                │
 │   - progress.ts (PROGRESS.md → ProgressState)             │
 │   - archive.ts  (archive dirs → ArchiveEntry[])           │
 │   - config.ts   (.claudeloop.conf → ConfigState)          │
 │   - plan.ts     (PLAN.md → PlanState)                     │
+│   - timeline.ts (ProgressState → TimelineData)            │
 ├──────────────────────────────────────────────────────────┤
 │                     Core                                  │
+│   - WorkspaceSessionManager (multi-root session hub)     │
+│   - WorkspaceSession (per-folder session container)      │
 │   - SessionState (state machine + EventEmitter)          │
 │   - Process Manager (spawn/stop/reset)                   │
 │   - Lock Manager (read-only lock observation)            │
@@ -123,45 +131,60 @@ Data flows upward: watcher detects file changes → parsers transform raw conten
 ## File Structure
 
 ```
+media/
+└── walkthrough/
+    ├── detect.md                 # Walkthrough step 1: detect claudeloop
+    ├── configure.md              # Walkthrough step 2: configure settings
+    ├── createPlan.md             # Walkthrough step 3: create a plan
+    └── runSession.md             # Walkthrough step 4: run a session
 syntaxes/
-└── plan.tmLanguage.json      # TextMate grammar for claudeloop-plan language
+└── plan.tmLanguage.json          # TextMate grammar for claudeloop-plan language
 src/
-├── extension.ts              # Activation, command registration, wiring
-├── commands.ts               # Command handler registration
-├── types.ts                  # Shared type definitions (DetectionStatus, SessionStatus, etc.)
-├── sessionWiring.ts          # Connects session events to UI updates
-├── workspaceInit.ts          # File watcher setup for .claudeloop directory
+├── extension.ts                  # Activation, command registration, wiring
+├── activateViews.ts              # View instantiation and webview panel factory
+├── commands.ts                   # Command handler registration
+├── commands/
+│   └── createPlan.ts             # Plan creation command with walkthrough trigger
+├── types.ts                      # Shared type definitions (DetectionStatus, SessionStatus, etc.)
+├── sessionWiring.ts              # Connects session events to UI updates
+├── workspaceInit.ts              # File watcher setup for .claudeloop directory
 ├── core/
-│   ├── detection.ts          # claudeloop detection and version check
-│   ├── gitIntegration.ts     # Phase-specific git diff generation
-│   ├── installer.ts          # Platform-aware claudeloop installation
-│   ├── interfaces.ts         # Core interface definitions for DI
-│   ├── lock.ts               # Read-only lock file observation
-│   ├── processManager.ts     # Spawn/stop/reset claudeloop
-│   ├── sessionState.ts       # State machine + EventEmitter
-│   └── watchers.ts           # Single FileSystemWatcher + debounce
+│   ├── detection.ts              # claudeloop detection and version check
+│   ├── gitIntegration.ts         # Phase-specific git diff generation
+│   ├── installer.ts              # Platform-aware claudeloop installation
+│   ├── interfaces.ts             # Core interface definitions for DI
+│   ├── lock.ts                   # Read-only lock file observation
+│   ├── processManager.ts         # Spawn/stop/reset claudeloop
+│   ├── sessionState.ts           # State machine + EventEmitter
+│   ├── watchers.ts               # Single FileSystemWatcher + debounce
+│   ├── workspaceSession.ts       # Per-folder session container
+│   └── workspaceSessionManager.ts # Multi-root session hub + active folder tracking
 ├── parsers/
-│   ├── archive.ts            # Archive directory → ArchiveEntry[]
-│   ├── config.ts             # .claudeloop.conf → ConfigState (key=value parsing)
-│   ├── plan.ts               # PLAN.md → PlanState (phase structure + dependencies)
-│   └── progress.ts           # PROGRESS.md → ProgressState
+│   ├── archive.ts                # Archive directory → ArchiveEntry[]
+│   ├── config.ts                 # .claudeloop.conf → ConfigState (key=value parsing)
+│   ├── plan.ts                   # PLAN.md → PlanState (phase structure + dependencies)
+│   ├── progress.ts               # PROGRESS.md → ProgressState
+│   └── timeline.ts               # ProgressState → TimelineData (bar positions + durations)
 ├── views/
-│   ├── archiveTree.ts        # Archive browser tree view (replay/restore)
-│   ├── configWizard.ts       # Config wizard webview panel lifecycle
-│   ├── configWizardHtml.ts   # Config wizard HTML generation
-│   ├── dagLayout.ts          # DAG layout algorithm for dependency graphs
-│   ├── dagSvg.ts             # SVG generation from DAG layout
-│   ├── dependencyGraph.ts    # Dependency graph webview panel
-│   ├── diffProvider.ts       # Virtual document provider for git diffs
-│   ├── elapsedTimer.ts       # Elapsed time display (updates every second)
-│   ├── logViewer.ts          # Click-to-open phase log files
-│   ├── notifications.ts      # Smart failure notifications with attempt count
-│   ├── outputChannel.ts      # Output channel wrapper
-│   ├── phaseTree.ts          # Sidebar tree view with dependency display
-│   ├── planCodeLens.ts       # CodeLens actions for plan file phases
-│   ├── replayViewer.ts       # Inline replay viewer webview panel
-│   ├── statusBar.ts          # Status bar item
-│   └── treeAdapter.ts        # Tree view adapter utilities
+│   ├── archiveTree.ts            # Archive browser tree view (replay/restore)
+│   ├── configWizard.ts           # Config wizard webview panel lifecycle
+│   ├── configWizardHtml.ts       # Config wizard HTML generation
+│   ├── dagLayout.ts              # DAG layout algorithm for dependency graphs
+│   ├── dagSvg.ts                 # SVG generation from DAG layout
+│   ├── dependencyGraph.ts        # Dependency graph webview panel
+│   ├── diffProvider.ts           # Virtual document provider for git diffs
+│   ├── elapsedTimer.ts           # Elapsed time display (updates every second)
+│   ├── executionTimeline.ts      # Execution timeline webview panel
+│   ├── folderPicker.ts           # Multi-root folder picker (quick-pick UI)
+│   ├── logViewer.ts              # Click-to-open phase log files
+│   ├── notifications.ts          # Smart failure notifications with attempt count
+│   ├── outputChannel.ts          # Output channel wrapper
+│   ├── phaseTree.ts              # Sidebar tree view with dependency display
+│   ├── planCodeLens.ts           # CodeLens actions for plan file phases
+│   ├── replayViewer.ts           # Inline replay viewer webview panel
+│   ├── statusBar.ts              # Status bar item
+│   ├── timelineHtml.ts           # Timeline HTML/CSS/JS generation
+│   └── treeAdapter.ts            # Tree view adapter utilities
 └── test/
     ├── unit/
     │   ├── core/
@@ -171,12 +194,15 @@ src/
     │   │   ├── lock.test.ts
     │   │   ├── processManager.test.ts
     │   │   ├── sessionState.test.ts
-    │   │   └── watchers.test.ts
+    │   │   ├── watchers.test.ts
+    │   │   ├── workspaceSession.test.ts
+    │   │   └── workspaceSessionManager.test.ts
     │   ├── parsers/
     │   │   ├── archive.test.ts
     │   │   ├── config.test.ts
     │   │   ├── plan.test.ts
-    │   │   └── progress.test.ts
+    │   │   ├── progress.test.ts
+    │   │   └── timeline.test.ts
     │   └── views/
     │       ├── archiveTree.test.ts
     │       ├── configWizard.test.ts
@@ -184,13 +210,17 @@ src/
     │       ├── dagSvg.test.ts
     │       ├── dependencyGraph.test.ts
     │       ├── elapsedTimer.test.ts
+    │       ├── executionTimeline.test.ts
+    │       ├── folderPicker.test.ts
     │       ├── logViewer.test.ts
     │       ├── notifications.test.ts
     │       ├── outputChannel.test.ts
     │       ├── phaseTree.test.ts
     │       ├── planCodeLens.test.ts
     │       ├── replayViewer.test.ts
-    │       └── statusBar.test.ts
+    │       ├── statusBar.test.ts
+    │       ├── timelineHtml.test.ts
+    │       └── walkthrough.test.ts
     └── integration/
         ├── commands.test.ts
         └── extension.test.ts
@@ -209,6 +239,7 @@ Parsers and webview providers are added as their milestones are implemented.
 | `oxveil.reset` | Oxveil: Reset | claudeloop detected |
 | `oxveil.forceUnlock` | Oxveil: Force Unlock | claudeloop detected |
 | `oxveil.install` | Oxveil: Install claudeloop | claudeloop not detected |
+| `oxveil.showTimeline` | Oxveil: Show Execution Timeline | claudeloop detected |
 
 ### Settings
 
@@ -462,6 +493,67 @@ Dedicated language ID (`claudeloop-plan`) with a TextMate grammar for plan files
 
 **CSP:** Uses `unsafe-inline` for inline event handlers in the webview HTML.
 
+### Execution Timeline Panel
+
+`WebviewPanel` that renders a Gantt-style horizontal timeline of phase execution.
+
+**Data flow:** `ProgressState` → `computeTimeline()` (parser) → `renderTimelineHtml()` (HTML generator) → webview panel.
+
+**Timeline parser** (`parsers/timeline.ts`): Pure function. Converts phase states into `TimelineBar` objects with start time, duration, and offset. Handles pending/in_progress/completed/failed phases. Assumes local timestamps from PROGRESS.md (no timezone conversion — see [ADR 0006](docs/adr/0006-execution-timeline-webview.md)).
+
+**HTML renderer** (`views/timelineHtml.ts`): Generates inline HTML/CSS/JS. Renders horizontal bars per phase with status colors, grid lines, time axis ticks, and a "NOW" indicator line that auto-updates via `setInterval`.
+
+**Lifecycle:** Opened via `oxveil.showTimeline` command. Subscribes to `phases-changed` events from SessionState. Re-renders on each update. Disposed when panel is closed.
+
+**Architecture decision:** Separate webview panel rather than extending the dependency graph — see [ADR 0006](docs/adr/0006-execution-timeline-webview.md). Uses inline SVG/HTML consistent with the DAG rendering pattern.
+
+### Welcome Walkthrough
+
+VS Code native walkthrough (`contributes.walkthroughs` in `package.json`) that guides new users through first-time setup.
+
+**Steps:**
+1. **Detect claudeloop** — completed when `oxveil.detected` context key is set (on activation when claudeloop is found)
+2. **Configure settings** — completed when `oxveil.walkthrough.configured` is set (on `oxveil.openConfigWizard` invocation)
+3. **Create a plan** — completed when `oxveil.walkthrough.hasPlan` is set (on `oxveil.createPlan` or when PLAN.md detected)
+4. **Run a session** — completed when `oxveil.walkthrough.hasRun` is set (on session transition to `done`)
+
+**Step content:** Markdown files in `media/walkthrough/`. Each step has a primary action button that invokes the relevant command.
+
+**Context key wiring:** Keys are set via `vscode.commands.executeCommand('setContext', key, true)` at various points: `extension.ts` (detection), `commands.ts` (configure), `commands/createPlan.ts` (plan creation), `sessionWiring.ts` (run completion).
+
+### WorkspaceSessionManager
+
+Central hub for multi-root workspace support. Manages per-folder sessions and tracks which folder is currently active.
+
+**Pattern:** One `WorkspaceSession` per workspace folder. Each session owns its own `SessionState`, `ProcessManager`, and `GitIntegration` instances. The manager is the single source of truth for session lookup and lifecycle.
+
+**Interface:**
+- `createSession(init)` — creates or retrieves a session for a folder URI
+- `getSession(folderUri)` — lookup by URI
+- `getActiveSession()` — returns the currently active session
+- `getAllSessions()` — all sessions across the workspace
+- `removeSession(folderUri)` — dispose and remove
+- `notifyActiveChanged()` — emit `active-session-changed` event
+
+**WorkspaceSession** (`core/workspaceSession.ts`): Container class holding `folderUri`, `workspaceRoot`, `sessionState`, `processManager`, and `gitExec` for a single workspace folder.
+
+**Backward compatibility:** In single-root workspaces, the manager creates one session automatically. All existing commands and views work unchanged — they resolve through the manager's active session.
+
+**Folder scoping:** Webview panels, tree views, and status bar display are scoped to the active folder. The status bar shows a folder prefix in multi-root workspaces. Phase tree groups phases by folder with a summary of other-root statuses.
+
+### Folder Picker
+
+Utility function (`views/folderPicker.ts`) for resolving which workspace folder a command targets in multi-root workspaces.
+
+**Function:** `pickWorkspaceFolder(manager, placeHolder?) → Promise<WorkspaceSession | undefined>`
+
+**Behavior:**
+- Single session: returns it immediately (no UI)
+- No sessions: returns `undefined`
+- Multiple sessions: shows a VS Code quick-pick with folder names and status details (idle/running/done/failed, phase progress)
+
+**Usage:** Called by the `resolveFolder()` helper in `commands.ts` when no active session is set. Commands that operate on a specific folder (start, stop, reset) route through this picker.
+
 ## Interfaces
 
 Component boundaries are defined as interfaces for testability and replaceability.
@@ -548,6 +640,7 @@ See [chmc/oxveil#1](https://github.com/chmc/oxveil/issues/1) for full milestone 
 - **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), output channel, phase tree view, notifications
 - **v0.2 — Rich Monitoring:** ✅ Dependency graph webview (live DAG with click interaction), archive browser (replay/restore), click-to-open phase logs, phase git diffs (View Diff context menu), smart failure notifications with attempt count
 - **v0.3 — Config & Plan Editing:** ✅ Config wizard webview, plan file language support (TextMate grammar + CodeLens), AI Parse Plan command, replay viewer, feature flag removal
-- **v0.4 — Deep Integration:** Retry strategies, phase timeline, multi-root workspace, welcome walkthrough
+- **v0.4 — Deep Integration:** ✅ Execution timeline webview, multi-root workspace sessions (WorkspaceSessionManager, folder picker, folder-scoped views), welcome walkthrough (4-step onboarding with context key tracking)
+- **v0.5 — Advanced Workflows:** Retry strategy picker (3 strategies: standard/stripped/targeted), prompt template editor with live preview
 
 Each milestone adds its own parsers, views, and infrastructure when work begins — not before.
