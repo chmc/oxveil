@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import type { ProcessManager } from "../core/processManager";
+import type { WorkspaceSessionManager } from "../core/workspaceSessionManager";
 
 interface GranularityItem extends vscode.QuickPickItem {
   value: string;
@@ -34,10 +34,12 @@ const GRANULARITY_ITEMS: GranularityItem[] = [
 ];
 
 export function registerAiParsePlanCommand(
-  processManager: ProcessManager | undefined,
-  workspaceRoot: string | undefined,
+  sessionManager: WorkspaceSessionManager,
 ): vscode.Disposable {
   return vscode.commands.registerCommand("oxveil.aiParsePlan", async () => {
+    const active = sessionManager.getActiveSession();
+    const processManager = active?.processManager;
+    const workspaceRoot = active?.workspaceRoot;
     if (!processManager || !workspaceRoot) return;
 
     const planPath = path.join(workspaceRoot, "PLAN.md");

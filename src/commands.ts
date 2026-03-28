@@ -1,9 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import type { ProcessManager } from "./core/processManager";
 import type { Installer } from "./core/installer";
-import type { SessionState } from "./core/sessionState";
 import type { StatusBarManager } from "./views/statusBar";
 import { findPhaseLogs } from "./views/logViewer";
 import type { PhaseTreeItem } from "./views/phaseTree";
@@ -13,57 +11,69 @@ import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { ConfigWizardPanel } from "./views/configWizard";
 import type { ReplayViewerPanel } from "./views/replayViewer";
 import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
-import type { GitExecDeps } from "./core/gitIntegration";
 import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
+import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 
 export interface CommandDeps {
-  processManager: ProcessManager | undefined;
+  sessionManager: WorkspaceSessionManager;
   installer: Installer;
-  session: SessionState;
   statusBar: StatusBarManager;
-  workspaceRoot: string | undefined;
   readdir: (dir: string) => Promise<string[]>;
   onArchiveRefresh?: () => void;
   dependencyGraph?: DependencyGraphPanel;
   executionTimeline?: ExecutionTimelinePanel;
   configWizard?: ConfigWizardPanel;
   replayViewer?: ReplayViewerPanel;
-  gitExec?: GitExecDeps;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { processManager, installer, session, statusBar, workspaceRoot, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, gitExec, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, resolvePhaseItem, resolveArchiveItem } = deps;
+
+  function getActive() {
+    const active = sessionManager.getActiveSession();
+    if (!active) return undefined;
+    return {
+      processManager: active.processManager,
+      session: active.sessionState,
+      workspaceRoot: active.workspaceRoot,
+      gitExec: active.gitExec,
+    };
+  }
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
-      if (!processManager) return;
+      const active = getActive();
+      if (!active?.processManager) return;
       try {
-        await processManager.spawn();
+        await active.processManager.spawn();
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         vscode.window.showErrorMessage(`Oxveil: Failed to start — ${msg}`);
       }
     }),
     vscode.commands.registerCommand("oxveil.stop", async () => {
-      if (!processManager) return;
-      await processManager.stop();
+      const active = getActive();
+      if (!active?.processManager) return;
+      await active.processManager.stop();
     }),
     vscode.commands.registerCommand("oxveil.reset", async () => {
-      if (!processManager) return;
+      const active = getActive();
+      if (!active?.processManager) return;
       try {
-        await processManager.reset();
+        await active.processManager.reset();
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         vscode.window.showErrorMessage(`Oxveil: Failed to reset — ${msg}`);
       }
     }),
     vscode.commands.registerCommand("oxveil.forceUnlock", async () => {
-      if (!processManager) return;
-      await processManager.forceUnlock();
-      session.onLockChanged({ locked: false });
+      const active = getActive();
+      if (!active?.processManager) return;
+      await active.processManager.forceUnlock();
+      active.session.onLockChanged({ locked: false });
     }),
     vscode.commands.registerCommand("oxveil.install", async () => {
       if (!installer.isSupported()) {
@@ -78,7 +88,8 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand(
       "oxveil.viewLog",
       async (arg?: string | { phaseNumber?: number | string }) => {
-        if (!workspaceRoot) {
+        const active = getActive();
+        if (!active?.workspaceRoot) {
           vscode.window.showWarningMessage("Oxveil: No workspace open");
           return;
         }
@@ -93,7 +104,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         }
 
         const logs = await findPhaseLogs(
-          { workspaceRoot, readdir },
+          { workspaceRoot: active.workspaceRoot, readdir },
           phaseNumber,
         );
 
@@ -128,26 +139,28 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand(
       "oxveil.archiveReplay",
       async (arg?: string | { archiveName?: string }) => {
+        const active = getActive();
         const resolved = typeof arg === "string" ? resolveArchiveItem?.(arg) : arg;
-        if (!workspaceRoot || !resolved?.archiveName) return;
+        if (!active?.workspaceRoot || !resolved?.archiveName) return;
         const replayPath = path.join(
-          workspaceRoot,
+          active.workspaceRoot,
           ".claudeloop",
           "archive",
           resolved.archiveName,
           "replay.html",
         );
-        const claudeloopRoot = path.join(workspaceRoot, ".claudeloop");
+        const claudeloopRoot = path.join(active.workspaceRoot, ".claudeloop");
         await replayViewer?.reveal(replayPath, claudeloopRoot);
       },
     ),
     vscode.commands.registerCommand(
       "oxveil.archiveRestore",
       async (arg?: string | { archiveName?: string }) => {
+        const active = getActive();
         const resolved = typeof arg === "string" ? resolveArchiveItem?.(arg) : arg;
-        if (!processManager || !workspaceRoot || !resolved?.archiveName) return;
+        if (!active?.processManager || !active.workspaceRoot || !resolved?.archiveName) return;
 
-        if (processManager.isRunning) {
+        if (active.processManager.isRunning) {
           vscode.window.showErrorMessage(
             "Oxveil: Stop the current session first",
           );
@@ -162,7 +175,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         if (confirm !== "Restore") return;
 
         try {
-          await processManager.restore(resolved.archiveName);
+          await active.processManager.restore(resolved.archiveName);
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(`Oxveil: Failed to restore — ${msg}`);
@@ -175,14 +188,15 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand(
       "oxveil.viewDiff",
       async (arg?: string | { phaseNumber?: number | string }) => {
+        const active = getActive();
         const resolved = typeof arg === "string" ? resolvePhaseItem?.(arg) : arg;
         const phaseNumber = resolved?.phaseNumber;
-        if (phaseNumber === undefined || !gitExec) {
+        if (phaseNumber === undefined || !active?.gitExec) {
           vscode.window.showWarningMessage("Oxveil: No phase selected");
           return;
         }
 
-        const range = await findPhaseCommits(gitExec, phaseNumber);
+        const range = await findPhaseCommits(active.gitExec, phaseNumber);
         if (!range) {
           vscode.window.showInformationMessage(
             `No commits found for Phase ${phaseNumber}`,
@@ -198,14 +212,15 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand(
       "oxveil.runFromPhase",
       async (arg?: { phaseNumber?: number | string }) => {
-        if (!processManager) return;
+        const active = getActive();
+        if (!active?.processManager) return;
         const phaseNumber = arg?.phaseNumber;
         if (phaseNumber === undefined) {
           vscode.window.showWarningMessage("Oxveil: No phase specified");
           return;
         }
 
-        if (processManager.isRunning) {
+        if (active.processManager.isRunning) {
           vscode.window.showErrorMessage(
             "Oxveil: Stop the current session first",
           );
@@ -220,7 +235,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         if (confirm !== "Run") return;
 
         try {
-          await processManager.spawnFromPhase(phaseNumber);
+          await active.processManager.spawnFromPhase(phaseNumber);
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(
@@ -232,7 +247,8 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand(
       "oxveil.markPhaseComplete",
       async (arg?: { phaseNumber?: number | string }) => {
-        if (!processManager) return;
+        const active = getActive();
+        if (!active?.processManager) return;
         const phaseNumber = arg?.phaseNumber;
         if (phaseNumber === undefined) {
           vscode.window.showWarningMessage("Oxveil: No phase specified");
@@ -240,7 +256,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         }
 
         try {
-          await processManager.markComplete(phaseNumber);
+          await active.processManager.markComplete(phaseNumber);
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(
@@ -250,40 +266,45 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       },
     ),
     vscode.commands.registerCommand("oxveil.openReplayViewer", async () => {
-      if (!workspaceRoot) {
+      const active = getActive();
+      if (!active?.workspaceRoot) {
         vscode.window.showWarningMessage("Oxveil: No workspace open");
         return;
       }
-      const replayPath = path.join(workspaceRoot, ".claudeloop", "replay.html");
-      const claudeloopRoot = path.join(workspaceRoot, ".claudeloop");
+      const replayPath = path.join(active.workspaceRoot, ".claudeloop", "replay.html");
+      const claudeloopRoot = path.join(active.workspaceRoot, ".claudeloop");
       await replayViewer?.reveal(replayPath, claudeloopRoot);
     }),
     vscode.commands.registerCommand("oxveil.showDependencyGraph", () => {
-      dependencyGraph?.reveal(session.progress);
+      const active = getActive();
+      dependencyGraph?.reveal(active?.session.progress);
     }),
     vscode.commands.registerCommand("oxveil.showTimeline", () => {
-      executionTimeline?.reveal(session.progress);
+      const active = getActive();
+      executionTimeline?.reveal(active?.session.progress);
     }),
     vscode.commands.registerCommand("oxveil.openConfigWizard", () => {
-      if (!workspaceRoot) {
+      const active = getActive();
+      if (!active?.workspaceRoot) {
         vscode.window.showWarningMessage("Oxveil: No workspace open");
         return;
       }
       const configPath = path.join(
-        workspaceRoot,
+        active.workspaceRoot,
         ".claudeloop",
         ".claudeloop.conf",
       );
       configWizard?.reveal(configPath);
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.configured", true);
     }),
-    registerAiParsePlanCommand(processManager, workspaceRoot),
+    registerAiParsePlanCommand(sessionManager),
     vscode.commands.registerCommand("oxveil.createPlan", async () => {
-      if (!workspaceRoot) {
+      const active = getActive();
+      if (!active?.workspaceRoot) {
         vscode.window.showWarningMessage("Oxveil: No workspace open");
         return;
       }
-      const planPath = path.join(workspaceRoot, "PLAN.md");
+      const planPath = path.join(active.workspaceRoot, "PLAN.md");
       try {
         await fs.access(planPath);
         const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(planPath));

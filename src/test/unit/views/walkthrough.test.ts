@@ -41,15 +41,30 @@ import { wireSessionEvents, type SessionWiringDeps } from "../../../sessionWirin
 
 const registeredCommands = new Map<string, Function>();
 
-function makeDeps(overrides: Partial<CommandDeps> = {}): CommandDeps {
+function makeSessionManager(workspaceRoot: string | undefined) {
+  const session = workspaceRoot !== undefined
+    ? {
+        processManager: undefined,
+        sessionState: { status: "idle", on: vi.fn(), onLockChanged: vi.fn(), progress: null },
+        workspaceRoot,
+        gitExec: undefined,
+      }
+    : undefined;
   return {
-    processManager: undefined,
+    getActiveSession: vi.fn(() => session),
+  };
+}
+
+function makeDeps(overrides: Partial<CommandDeps> & { workspaceRoot?: string | undefined } = {}): CommandDeps {
+  const { workspaceRoot: wr, ...rest } = overrides;
+  // Default to "/workspace" unless explicitly set to undefined
+  const resolvedRoot = "workspaceRoot" in overrides ? wr : "/workspace";
+  return {
+    sessionManager: makeSessionManager(resolvedRoot) as any,
     installer: { isSupported: vi.fn(() => true), install: vi.fn() } as any,
-    session: { status: "idle", on: vi.fn(), onLockChanged: vi.fn() } as any,
     statusBar: { update: vi.fn() } as any,
-    workspaceRoot: "/workspace",
     readdir: vi.fn(async () => []),
-    ...overrides,
+    ...rest,
   };
 }
 

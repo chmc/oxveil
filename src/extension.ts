@@ -258,22 +258,18 @@ export async function activate(
     platform: process.platform,
   });
 
-  // Register commands (uses active session at registration time; commands
-  // that need live session should eventually look up manager.getActiveSession())
+  // Register commands — handlers resolve active session at runtime
   disposables.push(
     ...registerCommands({
-      processManager: activeSession?.processManager,
+      sessionManager: manager,
       installer,
-      session: activeState,
       statusBar,
-      workspaceRoot: activeSession?.workspaceRoot ?? workspaceRoot,
       readdir: (dir: string) => fs.readdir(dir),
       onArchiveRefresh: refreshArchive,
       dependencyGraph,
       executionTimeline,
       configWizard,
       replayViewer,
-      gitExec: activeSession?.gitExec ?? gitExec,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
     }),

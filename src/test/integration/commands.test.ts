@@ -57,16 +57,40 @@ function makeProcessManager(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeDeps(overrides: Partial<CommandDeps> = {}): CommandDeps {
+function makeSessionManager(overrides: {
+  processManager?: any;
+  workspaceRoot?: string;
+  gitExec?: any;
+} = {}) {
+  const pm = overrides.processManager ?? makeProcessManager();
+  const session = {
+    processManager: pm,
+    sessionState: { status: "idle", on: vi.fn(), onLockChanged: vi.fn(), progress: null },
+    workspaceRoot: overrides.workspaceRoot ?? "/workspace",
+    gitExec: overrides.gitExec,
+  };
   return {
-    processManager: makeProcessManager() as any,
+    getActiveSession: vi.fn(() => session),
+    _session: session,
+  };
+}
+
+function makeDeps(overrides: Partial<CommandDeps> & {
+  processManager?: any;
+  gitExec?: any;
+  workspaceRoot?: string;
+} = {}): CommandDeps {
+  const { processManager, gitExec, workspaceRoot, ...rest } = overrides;
+  const sm = (processManager || gitExec || workspaceRoot)
+    ? makeSessionManager({ processManager, gitExec, workspaceRoot })
+    : makeSessionManager();
+  return {
+    sessionManager: sm as any,
     installer: { isSupported: vi.fn(() => true), install: vi.fn() } as any,
-    session: { status: "idle", on: vi.fn(), onLockChanged: vi.fn() } as any,
     statusBar: { update: vi.fn() } as any,
-    workspaceRoot: "/workspace",
     readdir: vi.fn(async () => []),
     onArchiveRefresh: vi.fn(),
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -263,4 +287,3 @@ describe("context menu string element resolution", () => {
     );
   });
 });
-
