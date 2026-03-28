@@ -70,6 +70,22 @@ export interface PlanState {
   phases: PlanPhase[];
 }
 
+export interface TimelineBar {
+  phase: number | string;
+  title: string;
+  status: PhaseStatus;
+  startOffsetMs: number;
+  durationMs: number;
+  label: string;
+}
+
+export interface TimelineData {
+  bars: TimelineBar[];
+  totalElapsedMs: number;
+  nowOffsetMs: number;
+  maxTimeMs: number;
+}
+
 export interface ParsedConfig {
   config: ConfigState;
   unknownKeys: Array<{ key: string; value: string }>;
