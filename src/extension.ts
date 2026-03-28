@@ -190,13 +190,13 @@ export async function activate(
     });
   }
 
-  // Watchers (Phase 9 will make this per-folder; for now pass active session)
+  // Per-folder file watchers
   if (workspaceFolders && workspaceFolders.length > 0) {
     const debounceMs = config.get<number>("watchDebounceMs", 100);
     const watcherResult = await initWorkspaceWatchers({
       workspaceFolders,
       debounceMs,
-      session: activeState,
+      manager,
     });
     disposables.push(...watcherResult.disposables);
   }

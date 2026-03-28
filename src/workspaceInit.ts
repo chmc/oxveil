@@ -3,13 +3,13 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseLock } from "./core/lock";
 import { WatcherManager } from "./core/watchers";
-import { SessionState } from "./core/sessionState";
 import { parseProgress } from "./parsers/progress";
+import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 
 export interface WorkspaceInitDeps {
   workspaceFolders: readonly vscode.WorkspaceFolder[];
   debounceMs: number;
-  session: SessionState;
+  manager: WorkspaceSessionManager;
 }
 
 export interface WorkspaceInitResult {
@@ -19,71 +19,78 @@ export interface WorkspaceInitResult {
 export async function initWorkspaceWatchers(
   deps: WorkspaceInitDeps,
 ): Promise<WorkspaceInitResult> {
-  const { workspaceFolders, debounceMs, session } = deps;
-  const workspaceRoot = workspaceFolders[0].uri.fsPath;
+  const { workspaceFolders, debounceMs, manager } = deps;
+  const disposables: vscode.Disposable[] = [];
 
-  const watcherManager = new WatcherManager({
-    workspaceRoot,
-    debounceMs,
-    onLockChange: (content) => {
-      const lock = parseLock(content);
-      session.onLockChanged(lock);
-    },
-    onProgressChange: (content) => {
-      const progress = parseProgress(content);
-      session.onProgressChanged(progress);
-    },
-    onLogChange: (content) => {
-      session.onLogAppended(content);
-    },
-    createWatcher: (_glob) => {
-      const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(workspaceFolders[0], ".claudeloop/**"),
-      );
-      return watcher;
-    },
-    readFile: async (filePath) => {
-      const bytes = await fs.readFile(filePath, "utf-8");
-      return bytes;
-    },
-  });
+  for (const folder of workspaceFolders) {
+    const folderUri = folder.uri.toString();
+    const workspaceRoot = folder.uri.fsPath;
+    const session = manager.getSession(folderUri);
+    if (!session) continue;
 
-  watcherManager.start();
+    const watcherManager = new WatcherManager({
+      workspaceRoot,
+      debounceMs,
+      onLockChange: (content) => {
+        const lock = parseLock(content);
+        session.sessionState.onLockChanged(lock);
+      },
+      onProgressChange: (content) => {
+        const progress = parseProgress(content);
+        session.sessionState.onProgressChanged(progress);
+      },
+      onLogChange: (content) => {
+        session.sessionState.onLogAppended(content);
+      },
+      createWatcher: (_glob) => {
+        const watcher = vscode.workspace.createFileSystemWatcher(
+          new vscode.RelativePattern(folder, ".claudeloop/**"),
+        );
+        return watcher;
+      },
+      readFile: async (filePath) => {
+        const bytes = await fs.readFile(filePath, "utf-8");
+        return bytes;
+      },
+    });
 
-  // Check initial state
-  const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
-  try {
-    await fs.access(claudeloopDir);
+    watcherManager.start();
 
-    let lockState = { locked: false as const };
-    let progress: ReturnType<typeof parseProgress> | undefined;
-
+    // Check initial state for this folder
+    const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
     try {
-      const lockContent = await fs.readFile(
-        path.join(claudeloopDir, "lock"),
-        "utf-8",
-      );
-      lockState = parseLock(lockContent) as any;
+      await fs.access(claudeloopDir);
+
+      let lockState = { locked: false as const };
+      let progress: ReturnType<typeof parseProgress> | undefined;
+
+      try {
+        const lockContent = await fs.readFile(
+          path.join(claudeloopDir, "lock"),
+          "utf-8",
+        );
+        lockState = parseLock(lockContent) as any;
+      } catch {
+        // No lock file
+      }
+
+      try {
+        const progressContent = await fs.readFile(
+          path.join(claudeloopDir, "PROGRESS.md"),
+          "utf-8",
+        );
+        progress = parseProgress(progressContent);
+      } catch {
+        // No PROGRESS.md
+      }
+
+      session.sessionState.checkInitialState({ lock: lockState, progress });
     } catch {
-      // No lock file
+      // No .claudeloop/ directory for this folder
     }
 
-    try {
-      const progressContent = await fs.readFile(
-        path.join(claudeloopDir, "PROGRESS.md"),
-        "utf-8",
-      );
-      progress = parseProgress(progressContent);
-    } catch {
-      // No PROGRESS.md
-    }
-
-    session.checkInitialState({ lock: lockState, progress });
-  } catch {
-    // No .claudeloop/ directory
+    disposables.push({ dispose: () => watcherManager.stop() });
   }
 
-  return {
-    disposables: [{ dispose: () => watcherManager.stop() }],
-  };
+  return { disposables };
 }
