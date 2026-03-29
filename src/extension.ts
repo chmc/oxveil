@@ -170,7 +170,7 @@ export async function activate(
   const gitExec = activeSession?.gitExec ?? createGitExec(workspaceRoot);
   const panels = createWebviewPanels({ session: activeState, workspaceRoot, gitExec });
   disposables.push(...panels.disposables);
-  const { dependencyGraph, executionTimeline, configWizard, replayViewer } = panels;
+  const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel } = panels;
 
   // Wire each session's events
   const wiringCtx = {
@@ -275,6 +275,7 @@ export async function activate(
       executionTimeline,
       configWizard,
       replayViewer,
+      archiveTimelinePanel,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
     }),

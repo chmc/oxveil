@@ -121,4 +121,4 @@ export async function parseArchive(
   return results;
 }
 
-export { extractTimestamp, computeDuration, formatDate, parseMetadata as _parseMetadataForTest };
+export { extractTimestamp, computeDuration, formatDate, parseMetadata };

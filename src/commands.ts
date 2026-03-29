@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import type { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
+import { parseProgress } from "./parsers/progress";
+import { type ArchiveMetadata, parseMetadata } from "./parsers/archive";
 import { registerCreatePlanCommand } from "./commands/createPlan";
 import type { Installer } from "./core/installer";
 import type { StatusBarManager } from "./views/statusBar";
@@ -26,12 +30,13 @@ export interface CommandDeps {
   executionTimeline?: ExecutionTimelinePanel;
   configWizard?: ConfigWizardPanel;
   replayViewer?: ReplayViewerPanel;
+  archiveTimelinePanel?: ArchiveTimelinePanel;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, resolvePhaseItem, resolveArchiveItem } = deps;
 
   function getActive() {
     const active = sessionManager.getActiveSession();
@@ -204,6 +209,55 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(`Oxveil: Failed to restore — ${msg}`);
         }
+      },
+    ),
+    vscode.commands.registerCommand(
+      "oxveil.archiveTimeline",
+      async (arg?: string | { archiveName?: string }) => {
+        const active = getActive();
+        const resolved = typeof arg === "string" ? resolveArchiveItem?.(arg) : arg;
+        if (!active?.workspaceRoot || !resolved?.archiveName) return;
+
+        const archiveDir = path.join(
+          active.workspaceRoot,
+          ".claudeloop",
+          "archive",
+          resolved.archiveName,
+        );
+
+        let progressContent: string;
+        try {
+          progressContent = await fs.readFile(
+            path.join(archiveDir, "PROGRESS.md"),
+            "utf-8",
+          );
+        } catch {
+          vscode.window.showInformationMessage(
+            "Oxveil: No timeline data for this run",
+          );
+          return;
+        }
+
+        const progress = parseProgress(progressContent);
+        if (progress.phases.length === 0) {
+          vscode.window.showInformationMessage(
+            "Oxveil: No timeline data for this run",
+          );
+          return;
+        }
+
+        let metadata: ArchiveMetadata | null = null;
+        try {
+          const metaContent = await fs.readFile(
+            path.join(archiveDir, "metadata.txt"),
+            "utf-8",
+          );
+          metadata = parseMetadata(metaContent);
+        } catch {
+          // metadata is optional — proceed with null
+        }
+
+        archiveTimelinePanel?.reveal(resolved.archiveName, progress, metadata);
       },
     ),
     vscode.commands.registerCommand("oxveil.archiveRefresh", () => {

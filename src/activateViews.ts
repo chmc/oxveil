@@ -6,6 +6,7 @@ import { DependencyGraphPanel } from "./views/dependencyGraph";
 import { ExecutionTimelinePanel } from "./views/executionTimeline";
 import { ConfigWizardPanel } from "./views/configWizard";
 import { ReplayViewerPanel } from "./views/replayViewer";
+import { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import { PlanCodeLensProvider } from "./views/planCodeLens";
 import { ArchiveTreeProvider } from "./views/archiveTree";
@@ -25,6 +26,7 @@ export interface WebviewPanelsResult {
   executionTimeline: ExecutionTimelinePanel;
   configWizard: ConfigWizardPanel;
   replayViewer: ReplayViewerPanel;
+  archiveTimelinePanel: ArchiveTimelinePanel;
   planCodeLens: PlanCodeLensProvider;
   disposables: vscode.Disposable[];
 }
@@ -59,6 +61,11 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
   });
   disposables.push({ dispose: () => replayViewer.dispose() });
 
+  const archiveTimelinePanel = new ArchiveTimelinePanel({
+    createWebviewPanel: vscode.window.createWebviewPanel,
+  });
+  disposables.push({ dispose: () => archiveTimelinePanel.dispose() });
+
   const planCodeLens = new PlanCodeLensProvider();
   disposables.push(
     vscode.languages.registerCodeLensProvider(
@@ -78,7 +85,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     );
   }
 
-  return { dependencyGraph, executionTimeline, configWizard, replayViewer, planCodeLens, disposables };
+  return { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, planCodeLens, disposables };
 }
 
 export interface ArchiveViewDeps {

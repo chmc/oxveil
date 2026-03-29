@@ -6,7 +6,7 @@ import {
   extractTimestamp,
   computeDuration,
   formatDate,
-  _parseMetadataForTest as parseMetadata,
+  parseMetadata,
   type ArchiveParseDeps,
 } from "../../../parsers/archive";
 

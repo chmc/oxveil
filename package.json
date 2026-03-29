@@ -94,6 +94,11 @@
         "icon": "$(open-preview)"
       },
       {
+        "command": "oxveil.archiveTimeline",
+        "title": "Show Timeline",
+        "icon": "$(graph-line)"
+      },
+      {
         "command": "oxveil.archiveRestore",
         "title": "Restore",
         "icon": "$(history)"
@@ -158,6 +163,11 @@
         },
         {
           "command": "oxveil.archiveReplay",
+          "when": "view == oxveil.archive && viewItem == archive",
+          "group": "inline"
+        },
+        {
+          "command": "oxveil.archiveTimeline",
           "when": "view == oxveil.archive && viewItem == archive",
           "group": "inline"
         },
@@ -227,6 +237,10 @@
         },
         {
           "command": "oxveil.welcome"
+        },
+        {
+          "command": "oxveil.archiveTimeline",
+          "when": "false"
         }
       ]
     },
