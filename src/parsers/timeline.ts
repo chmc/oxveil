@@ -1,6 +1,6 @@
 import type { ProgressState, TimelineBar, TimelineData } from "../types";
 
-function parseTimestamp(ts: string): number {
+export function parseTimestamp(ts: string): number {
   // Format: "YYYY-MM-DD HH:MM:SS" — treat as local time
   const [date, time] = ts.split(" ");
   if (!date || !time) return 0;

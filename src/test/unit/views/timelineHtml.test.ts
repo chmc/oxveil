@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderTimelineHtml } from "../../../views/timelineHtml";
+import type { TimelineHeader } from "../../../views/timelineHtml";
 import type { TimelineData } from "../../../types";
 
 function makeData(overrides?: Partial<TimelineData>): TimelineData {
@@ -44,6 +45,14 @@ function makeData(overrides?: Partial<TimelineData>): TimelineData {
     ...overrides,
   };
 }
+
+const testHeader: TimelineHeader = {
+  title: "Test Plan",
+  date: "Mar 28",
+  duration: "5m",
+  status: "completed",
+  phaseCount: 3,
+};
 
 describe("renderTimelineHtml", () => {
   const nonce = "test-nonce-123";
@@ -157,5 +166,50 @@ describe("renderTimelineHtml", () => {
     // Should have multiple tick marks with minute labels
     expect(html).toContain("0m");
     expect(html).toContain("5m");
+  });
+
+  it("renders header bar when header is provided", () => {
+    const html = renderTimelineHtml(makeData(), nonce, cspSource, testHeader);
+    expect(html).toContain("Past Run Timeline");
+    expect(html).toContain("Test Plan");
+    expect(html).toContain("Mar 28");
+    expect(html).toContain("3 phases");
+    expect(html).toContain("5m");
+    expect(html).toContain("READ-ONLY");
+  });
+
+  it("omits NOW line when header is provided", () => {
+    const html = renderTimelineHtml(makeData(), nonce, cspSource, testHeader);
+    expect(html).not.toContain('class="now-line"');
+    expect(html).not.toContain('class="now-label"');
+  });
+
+  it("omits setInterval script when header is provided", () => {
+    const html = renderTimelineHtml(makeData(), nonce, cspSource, testHeader);
+    expect(html).not.toContain("setInterval");
+  });
+
+  it("renders status icon for completed header", () => {
+    const html = renderTimelineHtml(makeData(), nonce, cspSource, testHeader);
+    expect(html).toContain("✓");
+  });
+
+  it("renders status icon for failed header", () => {
+    const failedHeader = { ...testHeader, status: "failed" };
+    const html = renderTimelineHtml(makeData(), nonce, cspSource, failedHeader);
+    expect(html).toContain("✗");
+  });
+
+  it("renders question mark icon for unknown status header", () => {
+    const unknownHeader = { ...testHeader, status: "unknown" };
+    const html = renderTimelineHtml(makeData(), nonce, cspSource, unknownHeader);
+    expect(html).toContain("?");
+    expect(html).not.toContain("✓");
+  });
+
+  it("still renders NOW line when no header", () => {
+    const html = renderTimelineHtml(makeData(), nonce, cspSource);
+    expect(html).toContain('class="now-line"');
+    expect(html).toContain("setInterval");
   });
 });

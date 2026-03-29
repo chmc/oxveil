@@ -1,5 +1,13 @@
 import type { TimelineData } from "../types";
 
+export interface TimelineHeader {
+  title: string;
+  date: string;
+  duration: string;
+  status: string;
+  phaseCount: number;
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -56,7 +64,10 @@ export function renderTimelineHtml(
   data: TimelineData,
   nonce: string,
   cspSource: string,
+  header?: TimelineHeader,
 ): string {
+  // Serves both live (no header) and archive (with header) timeline views.
+  const isArchive = !!header;
   const ticks = computeTicks(data.maxTimeMs);
   const timelineWidth = Math.max(data.maxTimeMs, data.nowOffsetMs, 1);
 
@@ -77,6 +88,25 @@ export function renderTimelineHtml(
   const nowPct = (data.nowOffsetMs / timelineWidth) * 100;
   const nowMinutes = Math.round(data.nowOffsetMs / 60_000);
   const nowLineHtml = `<div class="now-line" style="left:${nowPct}%"><span class="now-label">NOW ${nowMinutes}m</span></div>`;
+
+  const statusIcon = header?.status === "completed" ? "✓"
+    : header?.status === "failed" ? "✗"
+    : "?";
+  const statusColor = header?.status === "completed" ? "#2e7d32"
+    : header?.status === "failed" ? "#c72e2e"
+    : "#888";
+
+  const headerBarHtml = header
+    ? `<div class="archive-header">
+      <span style="color:${statusColor}">${statusIcon}</span>
+      <span class="archive-title">${escapeHtml(header.title)}</span>
+      <span class="archive-meta">${escapeHtml(header.date)} · ${header.phaseCount} phases · ${escapeHtml(header.duration)}</span>
+      <span class="archive-badge">READ-ONLY</span>
+    </div>`
+    : "";
+
+  const headerTitle = isArchive ? "Past Run Timeline" : "Execution Timeline";
+  const nowHtml = isArchive ? "" : nowLineHtml;
 
   const barsHtml = data.bars
     .map((bar) => {
@@ -139,6 +169,11 @@ export function renderTimelineHtml(
     .now-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #007acc; z-index: 10; }
     .now-label { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #007acc; font-weight: 600; white-space: nowrap; }
 
+    .archive-header { background: var(--vscode-titleBar-activeBackground, #2d2d3d); padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--vscode-panel-border, #444); font-size: 13px; }
+    .archive-title { font-weight: 600; color: var(--vscode-foreground, #ccc); }
+    .archive-meta { color: #888; font-size: 11px; }
+    .archive-badge { margin-left: auto; font-size: 10px; background: #333; color: #888; padding: 2px 6px; border-radius: 3px; }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
@@ -149,9 +184,10 @@ export function renderTimelineHtml(
 <body>
   <div class="timeline-header">
     <span class="icon codicon codicon-graph-line">&#x2197;</span>
-    Execution Timeline
+    ${headerTitle}
     <span class="elapsed">Total: ${formatElapsed(data.totalElapsedMs)}</span>
   </div>
+  ${headerBarHtml}
   <div class="timeline-container">
     <div class="chart">
       <div class="time-axis">
@@ -159,12 +195,12 @@ export function renderTimelineHtml(
       </div>
       <div class="tracks">
         ${gridLinesHtml}
-        ${nowLineHtml}
+        ${nowHtml}
         ${barsHtml}
       </div>
     </div>
   </div>
-
+${isArchive ? "" : `
   <script nonce="${nonce}">
     (function() {
       var startTime = Date.now();
@@ -181,7 +217,7 @@ export function renderTimelineHtml(
         if (nowLabel) nowLabel.textContent = 'NOW ' + Math.round(newNowMs / 60000) + 'm';
       }, 10000);
     })();
-  </script>
+  </script>`}
 </body>
 </html>`;
 }
