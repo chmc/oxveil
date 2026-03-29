@@ -10,7 +10,7 @@ export interface ArchiveCommandDeps {
   getActive: () =>
     | {
         workspaceRoot: string;
-        processManager: { isRunning: boolean; restore(name: string): Promise<void> };
+        processManager?: { isRunning: boolean; restore(name: string): Promise<void> };
       }
     | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
