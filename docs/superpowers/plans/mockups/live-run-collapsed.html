@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Run Panel - Collapsed Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1e1e1e; color: #d4d4d4; font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
+
+  .tab-bar { display: flex; background: #252526; border-bottom: 1px solid #1e1e1e; height: 35px; align-items: stretch; }
+  .tab { padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #969696; border-right: 1px solid #1e1e1e; }
+  .tab.active { background: #1e1e1e; color: #fff; }
+
+  /* Collapsed dashboard */
+  .dashboard-collapsed { padding: 8px 20px; border-bottom: 1px solid #333; background: #252526; display: flex; justify-content: space-between; align-items: center; }
+  .dashboard-toggle { font-size: 11px; color: #569cd6; cursor: pointer; }
+  .collapsed-summary { display: flex; align-items: center; gap: 16px; font-size: 12px; }
+  .collapsed-status { display: flex; align-items: center; gap: 6px; }
+  .collapsed-status .dot { color: #0e639c; font-size: 14px; }
+  .collapsed-status .name { color: #e0e0e0; font-weight: 500; }
+  .collapsed-stats { display: flex; gap: 12px; color: #888; font-size: 11px; }
+  .collapsed-phase { color: #569cd6; font-size: 11px; }
+
+  /* Todo section (always visible even when dashboard collapsed) */
+  .todo-section { padding: 10px 20px; border-bottom: 1px solid #333; background: #252526; }
+  .todo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .todo-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .todo-count { font-size: 11px; color: #569cd6; }
+  .todo-bar { height: 3px; background: #333; border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+  .todo-bar-fill { height: 100%; background: #4ec9b0; border-radius: 2px; }
+  .todo-list { display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; }
+  .todo-item.done { color: #6a9955; }
+  .todo-item.current { color: #569cd6; }
+  .todo-item.pending { color: #555; }
+
+  /* Log stream */
+  .log-stream { padding: 10px 20px; font-family: 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 11.5px; line-height: 1.65; }
+  .show-earlier { text-align: center; font-size: 10px; color: #555; cursor: pointer; margin-bottom: 6px; padding: 4px; }
+  .log-ts { color: #555; }
+  .log-tool { color: #569cd6; font-weight: 500; }
+  .log-path { color: #888; }
+  .log-cmd { color: #ce9178; }
+  .log-todo { color: #4ec9b0; }
+  .log-warn { color: #cca700; }
+  .log-text { color: #888; font-style: italic; }
+  .log-phase-header { font-weight: 600; color: #569cd6; border-top: 1px solid #333; padding-top: 8px; margin-top: 4px; }
+  .log-phase-badge { background: #0e639c; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-right: 6px; }
+  .log-divider { display: block; border-top: 1px solid #333; margin: 4px 0; }
+  .log-error { color: #f44747; }
+  .thinking { display: inline-flex; align-items: center; gap: 6px; }
+  .thinking-dot { color: #0e639c; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <div class="tab">$(​) claude oxveil</div>
+  <div class="tab active">&#9670; Live Run</div>
+</div>
+
+<!-- Collapsed dashboard - single line -->
+<div class="dashboard-collapsed">
+  <div class="collapsed-summary">
+    <span class="dashboard-toggle">&#9654; Dashboard</span>
+    <div class="collapsed-status">
+      <span class="dot">&#9679;</span>
+      <span class="name">refactor-auth-middleware</span>
+    </div>
+    <span class="collapsed-phase">Phase 3/5: Write integration tests</span>
+  </div>
+  <div class="collapsed-stats">
+    <span>&#9201; 4m 32s</span>
+    <span>$1.24</span>
+    <span>Todos: 4/7</span>
+  </div>
+</div>
+
+<!-- Todo section - always visible even when dashboard collapsed -->
+<div class="todo-section">
+  <div class="todo-header">
+    <span class="todo-label">Phase 3 Todos</span>
+    <span class="todo-count">4/7 done</span>
+  </div>
+  <div class="todo-bar"><div class="todo-bar-fill" style="width: 57%;"></div></div>
+  <div class="todo-list">
+    <div class="todo-item done">&#10003; Set up test database fixtures</div>
+    <div class="todo-item done">&#10003; Write auth flow happy path test</div>
+    <div class="todo-item done">&#10003; Write token expiry test</div>
+    <div class="todo-item done">&#10003; Write invalid credentials test</div>
+    <div class="todo-item current">&#9656; Writing rate limiting test...</div>
+    <div class="todo-item pending">&#9675; Write concurrent session test</div>
+    <div class="todo-item pending">&#9675; Run full test suite</div>
+  </div>
+</div>
+
+<!-- Log stream -->
+<div class="log-stream">
+  <div class="show-earlier">&#9650; Show earlier output (847 lines) &#9650;</div>
+
+  <div class="log-line"><span class="log-ts">[14:28:50]</span> <span class="log-warn">&#9888; Phase 2: exited non-zero but signal file present &#8212; treating as completed</span></div>
+  <div class="log-line"><span class="log-ts">[14:28:50]</span> <span class="log-divider"></span></div>
+  <div class="log-line log-phase-header"><span class="log-ts">[14:29:01]</span> <span class="log-phase-badge">Phase 3/5</span> Write integration tests</div>
+  <div class="log-line"><span class="log-ts">[14:29:01]</span> Attempt 1/15</div>
+  <div class="log-line"><span class="log-ts">[14:29:01]</span> <span class="log-divider"></span></div>
+  <div class="log-line"><span class="log-ts">[14:29:05]</span> <span class="log-tool">[Tool: Read]</span> <span class="log-path">src/middleware/auth.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:06]</span> <span class="log-tool">[Tool: Read]</span> <span class="log-path">src/middleware/rateLimiter.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:07]</span> <span class="log-tool">[Tool: Grep]</span> <span class="log-path">pattern: "validateToken" in src/</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:08]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/auth.integration.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:12]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "auth"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:18]</span> <span class="log-todo">[Todos: 2/7 done]</span> <span class="log-text">&#9656; "Writing token expiry test"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:20]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/auth.expiry.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:25]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "expiry"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:28]</span> <span class="log-error">[Result [error]: 204 chars] Error: expected 401 but received 403...</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:30]</span> <span class="log-text">The test failed because the error code mapping is wrong. Let me fix the auth handler...</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:32]</span> <span class="log-tool">[Tool: Read]</span> <span class="log-path">src/middleware/auth.ts:45-60</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:34]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/middleware/auth.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:38]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "expiry"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:42]</span> <span class="log-todo">[Todos: 3/7 done]</span> <span class="log-text">&#9656; "Writing invalid credentials test"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:44]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/auth.invalid.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:48]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "invalid"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:55]</span> <span class="log-todo">[Todos: 4/7 done]</span> <span class="log-text">&#9656; "Writing rate limiting test"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:56]</span> <span class="log-tool">[Tool: Read]</span> <span class="log-path">src/middleware/rateLimiter.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:58]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/rateLimiter.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:30:02]</span> <span class="thinking-dot">&#9679;</span> <span class="log-text">thinking...</span></div>
+</div>
+
+</body>
+</html>

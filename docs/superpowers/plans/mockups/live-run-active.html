@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Run Panel - Active State</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1e1e1e; color: #d4d4d4; font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
+
+  /* VS Code tab bar mock */
+  .tab-bar { display: flex; background: #252526; border-bottom: 1px solid #1e1e1e; height: 35px; align-items: stretch; }
+  .tab { padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #969696; border-right: 1px solid #1e1e1e; cursor: pointer; }
+  .tab.active { background: #1e1e1e; color: #fff; border-bottom: 1px solid #1e1e1e; }
+  .tab .close { opacity: 0; font-size: 14px; margin-left: 4px; }
+  .tab.active .close { opacity: 0.5; }
+  .tab-icon { font-size: 14px; }
+
+  /* Dashboard */
+  .dashboard { padding: 16px 20px; border-bottom: 1px solid #333; background: #252526; }
+  .dashboard-toggle { font-size: 11px; color: #569cd6; cursor: pointer; margin-bottom: 10px; user-select: none; }
+  .title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .title-bar .name { display: flex; align-items: center; gap: 8px; }
+  .title-bar .name .dot { color: #0e639c; font-size: 18px; }
+  .title-bar .name span { font-size: 14px; font-weight: 600; color: #e0e0e0; }
+  .title-bar .stats { display: flex; gap: 20px; font-size: 12px; color: #888; }
+
+  .phase-list { display: flex; flex-direction: column; gap: 2px; }
+  .phase-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 3px; font-size: 12.5px; }
+  .phase-row.active { background: rgba(14, 99, 156, 0.15); }
+  .phase-row.pending { opacity: 0.45; }
+  .phase-icon { width: 16px; text-align: center; font-size: 13px; }
+  .phase-icon.completed { color: #4ec9b0; }
+  .phase-icon.running { color: #569cd6; }
+  .phase-icon.pending { color: #555; }
+  .phase-icon.failed { color: #f44747; }
+  .phase-num { color: #6a9955; min-width: 60px; }
+  .phase-num.active { color: #569cd6; font-weight: 600; }
+  .phase-title { flex: 1; }
+  .phase-title.active { color: #e0e0e0; font-weight: 500; }
+  .phase-meta { font-size: 11px; color: #555; text-align: right; min-width: 100px; }
+  .phase-meta.active { color: #569cd6; }
+
+  /* Todo section */
+  .todo-section { margin-top: 12px; padding: 10px 12px; background: #1e1e1e; border-radius: 4px; border: 1px solid #333; }
+  .todo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .todo-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .todo-count { font-size: 11px; color: #569cd6; }
+  .todo-bar { height: 3px; background: #333; border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+  .todo-bar-fill { height: 100%; background: #4ec9b0; border-radius: 2px; transition: width 0.3s; }
+  .todo-list { display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; }
+  .todo-item.done { color: #6a9955; }
+  .todo-item.current { color: #569cd6; }
+  .todo-item.pending { color: #555; }
+
+  /* Log stream */
+  .log-stream { padding: 10px 20px; font-family: 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 11.5px; line-height: 1.65; }
+  .show-earlier { text-align: center; font-size: 10px; color: #555; cursor: pointer; margin-bottom: 6px; padding: 4px; }
+  .show-earlier:hover { color: #888; }
+
+  .log-line { white-space: pre; }
+  .log-ts { color: #555; }
+  .log-tool { color: #569cd6; font-weight: 500; }
+  .log-path { color: #888; }
+  .log-cmd { color: #ce9178; }
+  .log-todo { color: #4ec9b0; }
+  .log-warn { color: #cca700; }
+  .log-success { color: #4ec9b0; }
+  .log-error { color: #f44747; }
+  .log-text { color: #888; font-style: italic; }
+  .log-phase-header { font-weight: 600; color: #569cd6; border-top: 1px solid #333; padding-top: 8px; margin-top: 4px; }
+  .log-phase-badge { background: #0e639c; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-right: 6px; }
+  .log-divider { display: block; border-top: 1px solid #333; margin: 4px 0; }
+  .log-session { color: #888; font-size: 10.5px; background: #252526; padding: 2px 6px; border-radius: 3px; }
+  .log-refactor { color: #ce9178; }
+  .log-todo-create { color: #569cd6; }
+
+  .thinking { display: inline-flex; align-items: center; gap: 6px; }
+  .thinking-dot { color: #0e639c; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; animation: spin 1s linear infinite; }
+</style>
+</head>
+<body>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <div class="tab"><span class="tab-icon">$()</span> claude oxveil</div>
+  <div class="tab active"><span class="tab-icon">&#9670;</span> Live Run <span class="close">x</span></div>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard">
+  <div class="dashboard-toggle">&#9660; Dashboard</div>
+  <div class="title-bar">
+    <div class="name">
+      <span class="dot">&#9679;</span>
+      <span>Running: refactor-auth-middleware</span>
+    </div>
+    <div class="stats">
+      <span>&#9201; 4m 32s</span>
+      <span>&#128176; $1.24</span>
+    </div>
+  </div>
+
+  <div class="phase-list">
+    <div class="phase-row">
+      <span class="phase-icon completed">&#10003;</span>
+      <span class="phase-num">Phase 1:</span>
+      <span class="phase-title">Extract middleware types</span>
+      <span class="phase-meta">39s &middot; $0.19</span>
+    </div>
+    <div class="phase-row">
+      <span class="phase-icon completed">&#10003;</span>
+      <span class="phase-num">Phase 2:</span>
+      <span class="phase-title">Implement new auth handler</span>
+      <span class="phase-meta">2m 22s &middot; $0.44</span>
+    </div>
+    <div class="phase-row active">
+      <span class="phase-icon running"><span class="spinner">&#8635;</span></span>
+      <span class="phase-num active">Phase 3:</span>
+      <span class="phase-title active">Write integration tests</span>
+      <span class="phase-meta active">1m 31s...</span>
+    </div>
+    <div class="phase-row pending">
+      <span class="phase-icon pending">&#9675;</span>
+      <span class="phase-num">Phase 4:</span>
+      <span class="phase-title">Update documentation</span>
+      <span class="phase-meta"></span>
+    </div>
+    <div class="phase-row pending">
+      <span class="phase-icon pending">&#9675;</span>
+      <span class="phase-num">Phase 5:</span>
+      <span class="phase-title">Visual verification</span>
+      <span class="phase-meta"></span>
+    </div>
+  </div>
+
+  <div class="todo-section">
+    <div class="todo-header">
+      <span class="todo-label">Phase 3 Todos</span>
+      <span class="todo-count">4/7 done</span>
+    </div>
+    <div class="todo-bar"><div class="todo-bar-fill" style="width: 57%;"></div></div>
+    <div class="todo-list">
+      <div class="todo-item done">&#10003; Set up test database fixtures</div>
+      <div class="todo-item done">&#10003; Write auth flow happy path test</div>
+      <div class="todo-item done">&#10003; Write token expiry test</div>
+      <div class="todo-item done">&#10003; Write invalid credentials test</div>
+      <div class="todo-item current">&#9656; Writing rate limiting test...</div>
+      <div class="todo-item pending">&#9675; Write concurrent session test</div>
+      <div class="todo-item pending">&#9675; Run full test suite</div>
+    </div>
+  </div>
+</div>
+
+<!-- Log stream -->
+<div class="log-stream">
+  <div class="show-earlier">&#9650; Show earlier output (847 lines) &#9650;</div>
+
+  <div class="log-line log-phase-header"><span class="log-ts">[14:29:01]</span> <span class="log-phase-badge">Phase 3/5</span> Write integration tests</div>
+  <div class="log-line"><span class="log-ts">[14:29:01]</span> Attempt 1/15</div>
+  <div class="log-line"><span class="log-ts">[14:29:01]</span> <span class="log-divider"></span></div>
+  <div class="log-line"><span class="log-ts">[14:29:05]</span> <span class="log-tool">[Tool: Read]</span> <span class="log-path">src/middleware/auth.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:06]</span> <span class="log-tool">[Tool: Grep]</span> <span class="log-path">pattern: "validateToken" in src/</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:08]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/auth.integration.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:12]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "auth"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:20]</span> <span class="log-todo">[Todos: 3/7 done]</span> <span class="log-text">&#9656; "Writing invalid credentials test"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:22]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/auth.invalid.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:28]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "invalid"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:35]</span> <span class="log-todo">[Todos: 4/7 done]</span> <span class="log-text">&#9656; "Writing rate limiting test"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:36]</span> <span class="log-tool">[Tool: Read]</span> <span class="log-path">src/middleware/rateLimiter.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:38]</span> <span class="log-tool">[Tool: Write]</span> <span class="log-path">src/tests/rateLimiter.test.ts</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:40]</span> <span class="log-text">I'm now writing the rate limiting integration test that verifies request throttling under concurrent load...</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:45]</span> <span class="log-tool">[Tool: Bash]</span> <span class="log-cmd">npm test -- --grep "rate"</span></div>
+  <div class="log-line"><span class="log-ts">[14:29:50]</span> <span class="thinking-dot">&#9679;</span> <span class="log-text">thinking...</span></div>
+</div>
+
+</body>
+</html>
