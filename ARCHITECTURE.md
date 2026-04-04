@@ -60,7 +60,7 @@ Spawn claudeloop as a child process. Monitor via file-based IPC.
 
 ### Monitoring
 
-Watch `.claudeloop/` files for state changes. Render in tree views, status bar, and output channel.
+Watch `.claudeloop/` files for state changes. Render in tree views, status bar, and Live Run Panel.
 
 ## IPC Contract
 
@@ -94,8 +94,8 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 │               │  - Replay Viewer│  - Folder prefix        │
 │               │  - Timeline     │    (multi-root)         │
 ├───────────────┼─────────────────┼─────────────────────────┤
-│   Log Viewer  │  Diff Provider  │  Output Channel         │
-│   - Phase logs│  - Git diffs    │  - live.log stream      │
+│   Log Viewer  │  Diff Provider  │  Live Run Panel         │
+│   - Phase logs│  - Git diffs    │  - Dashboard + log      │
 ├───────────────┼─────────────────┼─────────────────────────┤
 │   CodeLens    │  Plan Language  │  Welcome Walkthrough    │
 │   - Run phase │  - TextMate     │  - 4-step onboarding    │
@@ -373,9 +373,23 @@ Pure function, no VS Code dependency.
 
 **Click action:** Focuses the phase tree view.
 
-### Output Channel
+### Live Run Panel
 
-Thin wrapper around `vscode.window.createOutputChannel("Oxveil")`. Streams `live.log` content. Prefixes stderr lines with `[stderr]`.
+Webview panel (`LiveRunPanel`) that displays real-time session progress. Replaces the output channel.
+
+**Dashboard section:**
+- Phase list with status icons (✓ completed, ↻ running, ✗ failed, ○ pending)
+- Collapsible: toggle between full phase list and single-line summary
+- Cost accumulator parsed from log lines (`cost=$X.XX`)
+- Collapse state persisted via `liveRunDashboardCollapsed` config
+
+**Todo progress:** Parsed from log pattern `[Todos: N/T done] ▸ "current item"`. Shows progress bar and current item. Always visible even when dashboard is collapsed.
+
+**Completion banner:** Shown on run finish. Green for success (✓), red for failure (✗). Displays duration, phase count, total cost. "Open Replay" button opens the replay viewer.
+
+**Log stream:** Formatted log lines streamed below the dashboard. Auto-scrolls. Lines formatted by `logFormatter` with CSS classes for timestamps, tools, paths, commands, todos, errors.
+
+**Auto-open:** Controlled by `oxveil.liveRunAutoOpen` setting (default: true).
 
 ### Archive Parser
 
@@ -391,7 +405,7 @@ Used by the archive tree view to display past session runs. Supports replay (re-
 `TreeDataProvider<ArchiveTreeItem>`. Displays archived session runs from `.claudeloop/archive/`.
 
 **Context menu actions:**
-- **Replay:** Opens archived log files in the output channel
+- **Replay:** Opens archived log files in the replay viewer
 - **Restore:** Copies archived session data back to the active `.claudeloop/` directory
 
 ### DAG Layout
@@ -637,10 +651,10 @@ Both repos share the same author. This enables tight coordination but requires d
 
 See [chmc/oxveil#1](https://github.com/chmc/oxveil/issues/1) for full milestone details.
 
-- **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), output channel, phase tree view, notifications
+- **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), phase tree view, notifications
 - **v0.2 — Rich Monitoring:** ✅ Dependency graph webview (live DAG with click interaction), archive browser (replay/restore), click-to-open phase logs, phase git diffs (View Diff context menu), smart failure notifications with attempt count
 - **v0.3 — Config & Plan Editing:** ✅ Config wizard webview, plan file language support (TextMate grammar + CodeLens), AI Parse Plan command, replay viewer, feature flag removal
-- **v0.4 — Deep Integration:** ✅ Execution timeline webview, multi-root workspace sessions (WorkspaceSessionManager, folder picker, folder-scoped views), welcome walkthrough (4-step onboarding with context key tracking)
+- **v0.4 — Deep Integration:** ✅ Execution timeline webview, multi-root workspace sessions (WorkspaceSessionManager, folder picker, folder-scoped views), welcome walkthrough (4-step onboarding with context key tracking), Live Run Panel (collapsible dashboard, todo progress, completion banner, log formatter)
 - **v0.5 — Advanced Workflows:** Retry strategy picker (3 strategies: standard/stripped/targeted), prompt template editor with live preview
 
 Each milestone adds its own parsers, views, and infrastructure when work begins — not before.

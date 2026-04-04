@@ -120,5 +120,23 @@ describe("renderCompletionBannerHtml", () => {
   it("renders failure banner for failed", () => {
     const html = renderCompletionBannerHtml("failed", { totalCost: 2.0, totalPhases: 3 });
     expect(html).toContain("Run Failed");
+    expect(html).toContain("run-failed");
+    expect(html).toContain("&#10007;");
+  });
+
+  it("includes ✓ icon for done status", () => {
+    const html = renderCompletionBannerHtml("done");
+    expect(html).toContain("&#10003;");
+    expect(html).not.toContain("run-failed");
+  });
+
+  it("includes duration when provided", () => {
+    const html = renderCompletionBannerHtml("done", { durationMs: 125000 });
+    expect(html).toContain("2m 05s");
+  });
+
+  it("formats short duration as seconds only", () => {
+    const html = renderCompletionBannerHtml("done", { durationMs: 45000 });
+    expect(html).toContain("45s");
   });
 });

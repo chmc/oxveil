@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/vscode-%5E1.100.0-blue" alt="VS Code">
 </p>
 
-- **See everything** — phase tree, dependency graph, execution timeline, and status bar show exactly where your run stands
+- **See everything** — Live Run Panel, phase tree, dependency graph, execution timeline, and status bar show exactly where your run stands
 - **Control everything** — start, stop, reset, run from any phase, mark complete, archive and replay — all without leaving the editor
 - **Configure everything** — graphical config wizard, syntax-highlighted plan editing, AI-powered plan decomposition
 
@@ -25,7 +25,7 @@ Oxveil puts everything in one place. Live monitoring, one-click execution contro
 
 | | Terminal | **Oxveil** |
 |---|---|---|
-| **Monitor progress** | Tail log files | Live phase tree + status bar |
+| **Monitor progress** | Tail log files | Live Run Panel + phase tree + status bar |
 | **Control execution** | CLI flags | Click to start, stop, run from phase |
 | **Edit config** | Hand-edit `.claudeloop.conf` | Graphical wizard with bidirectional sync |
 | **Write plans** | Plain text editor | Syntax highlighting + CodeLens actions |
@@ -46,6 +46,7 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
 
 | Feature | Description |
 |---------|-------------|
+| **Live Run Panel** | Webview dashboard with collapsible phase list, todo progress bar, formatted log stream, and completion banner |
 | **Phase tree** | Sidebar tree view with live status icons, click-to-open logs, and context menu actions |
 | **Status bar** | Real-time phase name and progress in the VS Code status bar |
 | **Dependency graph** | Interactive DAG webview showing phase dependencies with live updates |

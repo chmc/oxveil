@@ -42,6 +42,7 @@ export class LiveRunPanel {
   private _todoDone = 0;
   private _todoTotal = 0;
   private _todoCurrentItem: string | undefined;
+  private _runStartedAt: number | undefined;
 
   constructor(deps: LiveRunPanelDeps) {
     this._deps = deps;
@@ -63,6 +64,9 @@ export class LiveRunPanel {
   reveal(progress: ProgressState, folderUri?: string): void {
     this._currentFolderUri = folderUri;
     this._lastProgress = progress;
+    if (!this._runStartedAt) {
+      this._runStartedAt = Date.now();
+    }
 
     if (!this._panel) {
       const nonce = randomBytes(16).toString("hex");
@@ -145,9 +149,11 @@ export class LiveRunPanel {
 
   onRunFinished(status?: string): void {
     if (!this._panel) return;
+    const durationMs = this._runStartedAt ? Date.now() - this._runStartedAt : undefined;
     const html = renderCompletionBannerHtml(status ?? "done", {
       totalCost: this._totalCost || undefined,
       totalPhases: this._lastProgress?.totalPhases,
+      durationMs,
     });
     this._panel.webview.postMessage({ type: "run-finished", html });
   }
@@ -156,6 +162,7 @@ export class LiveRunPanel {
     this._logOffset = 0;
     this._logBuffer = [];
     this._totalCost = 0;
+    this._runStartedAt = undefined;
   }
 
   dispose(): void {

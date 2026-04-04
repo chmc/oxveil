@@ -111,15 +111,25 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
 export interface CompletionBannerOptions {
   totalCost?: number;
   totalPhases?: number;
+  durationMs?: number;
 }
 
 export function renderCompletionBannerHtml(status: string, options?: CompletionBannerOptions): string {
-  const title = status === "done" ? "Run Completed" : "Run Failed";
+  const icon = status === "done" ? "&#10003; " : "&#10007; ";
+  const title = status === "done" ? `${icon}Run Completed` : `${icon}Run Failed`;
+  const bannerClass = status === "done" ? "run-finished-banner" : "run-finished-banner run-failed";
   const costText = options?.totalCost != null ? `$${options.totalCost.toFixed(2)}` : "";
   const phasesText = options?.totalPhases != null ? `${options.totalPhases} phases` : "";
-  const stats = [phasesText, costText].filter(Boolean).join(" \u2022 ");
+  let durationText = "";
+  if (options?.durationMs != null) {
+    const totalSec = Math.floor(options.durationMs / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    durationText = m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
+  }
+  const stats = [durationText, phasesText, costText].filter(Boolean).join(" \u2022 ");
 
-  return `<div class="run-finished-banner">
+  return `<div class="${bannerClass}">
   <div class="title">${title}</div>
   ${stats ? `<div class="stats">${stats}</div>` : ""}
   <button class="open-replay" onclick="postOpenReplay()">Open Replay</button>
@@ -193,6 +203,9 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
     .run-finished-banner .title { font-size: 14px; font-weight: 600; color: #4ec9b0; margin-bottom: 4px; }
     .run-finished-banner .stats { font-size: 12px; color: #888; margin-bottom: 8px; }
     .run-finished-banner button { background: #2e7d32; color: #fff; border: none; padding: 6px 16px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+    .run-failed { background: rgba(244, 67, 54, 0.12); border-color: #c62828; }
+    .run-failed .title { color: #f44747; }
+    .run-failed button { background: #c62828; }
 
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .spinner { display: inline-block; animation: spin 1s linear infinite; }
@@ -236,12 +249,11 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
           }
           scrollToBottom();
         } else if (msg.type === "run-finished") {
-          var banner = document.createElement("div");
-          banner.className = "run-finished-banner";
-          banner.innerHTML = '<div class="title">Run Completed</div>'
-            + '<div class="stats">' + (msg.summary || "") + '</div>'
-            + '<button onclick="postOpenReplay()">Open Replay</button>';
-          logContainer.parentNode.insertBefore(banner, logContainer);
+          var wrapper = document.createElement("div");
+          wrapper.innerHTML = msg.html;
+          if (wrapper.firstChild) {
+            logContainer.parentNode.insertBefore(wrapper.firstChild, logContainer);
+          }
         } else if (msg.type === "log-trim") {
           var count = msg.count || 0;
           for (var j = 0; j < count && logContainer.firstChild; j++) {
