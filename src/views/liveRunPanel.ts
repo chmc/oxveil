@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { ProgressState } from "../types";
-import { renderDashboardHtml, type DashboardOptions } from "./liveRunHtml";
+import { renderDashboardHtml, renderCompletionBannerHtml, type DashboardOptions } from "./liveRunHtml";
 import { renderLiveRunShell } from "./liveRunHtml";
 import { formatLogLine } from "../parsers/logFormatter";
 
@@ -39,6 +39,9 @@ export class LiveRunPanel {
   private _totalCost = 0;
   private _collapsed = false;
   private _lastProgress: ProgressState | undefined;
+  private _todoDone = 0;
+  private _todoTotal = 0;
+  private _todoCurrentItem: string | undefined;
 
   constructor(deps: LiveRunPanelDeps) {
     this._deps = deps;
@@ -80,7 +83,7 @@ export class LiveRunPanel {
             this._sendDashboard(this._lastProgress);
           }
         } else if (msg.type === "open-replay") {
-          this._deps.executeCommand("oxveil.openReplay");
+          this._deps.executeCommand("oxveil.openReplayViewer");
         }
       });
     } else {
@@ -106,12 +109,24 @@ export class LiveRunPanel {
     const newLines = newContent.split("\n").filter((l) => l.length > 0);
     if (newLines.length === 0) return;
 
-    // Parse cost from session summary lines
+    // Parse cost and todo progress from log lines
+    let todoUpdated = false;
     for (const line of newLines) {
       const costMatch = line.match(/cost=\$([0-9.]+)/);
       if (costMatch) {
         this._totalCost += parseFloat(costMatch[1]) || 0;
       }
+      const todoMatch = line.match(/\[Todos:\s*(\d+)\/(\d+)\s+done\]\s*\u25b8\s*"([^"]*)"/);
+      if (todoMatch) {
+        this._todoDone = parseInt(todoMatch[1], 10);
+        this._todoTotal = parseInt(todoMatch[2], 10);
+        this._todoCurrentItem = todoMatch[3];
+        todoUpdated = true;
+      }
+    }
+
+    if (todoUpdated && this._panel && this._lastProgress) {
+      this._sendDashboard(this._lastProgress);
     }
 
     const maxLines = this._getMaxLines();
@@ -128,8 +143,13 @@ export class LiveRunPanel {
     }
   }
 
-  onRunFinished(_status?: string): void {
-    // Stub — implemented in Task 3
+  onRunFinished(status?: string): void {
+    if (!this._panel) return;
+    const html = renderCompletionBannerHtml(status ?? "done", {
+      totalCost: this._totalCost || undefined,
+      totalPhases: this._lastProgress?.totalPhases,
+    });
+    this._panel.webview.postMessage({ type: "run-finished", html });
   }
 
   clear(): void {
@@ -147,6 +167,9 @@ export class LiveRunPanel {
     const options: DashboardOptions = {
       totalCost: this._totalCost || undefined,
       collapsed: this._collapsed,
+      todoDone: this._todoTotal > 0 ? this._todoDone : undefined,
+      todoTotal: this._todoTotal > 0 ? this._todoTotal : undefined,
+      todoCurrentItem: this._todoCurrentItem,
     };
     const html = renderDashboardHtml(progress, options);
     this._panel!.webview.postMessage({ type: "dashboard", html });

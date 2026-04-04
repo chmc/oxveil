@@ -51,8 +51,30 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
     return '<div class="dashboard-empty">No active run</div>';
   }
 
+  const collapsed = !!options?.collapsed;
   const costDisplay =
     options?.totalCost != null ? `$${options.totalCost.toFixed(2)}` : "\u2014";
+
+  const todoHtml =
+    options?.todoTotal != null && options.todoTotal > 0
+      ? `<div class="todo-progress">
+  <div class="todo-header">
+    <span class="todo-label">Todos</span>
+    <span class="todo-count">${options.todoDone ?? 0}/${options.todoTotal} done</span>
+  </div>
+  <div class="todo-bar"><div class="todo-bar-fill" style="width: ${Math.round(((options.todoDone ?? 0) / options.todoTotal) * 100)}%;"></div></div>
+  ${options.todoCurrentItem ? `<div class="todo-current">${escapeHtml(options.todoCurrentItem)}</div>` : ""}
+</div>`
+      : "";
+
+  if (collapsed) {
+    const completed = progress.phases.filter((p) => p.status === "completed").length;
+    return `<div class="dashboard-collapsed">
+  <span class="dashboard-toggle">&#9660; Expand</span>
+  <span class="collapsed-summary">${completed}/${progress.phases.length} phases \u2022 ${costDisplay}</span>
+  ${todoHtml}
+</div>`;
+  }
 
   const phasesHtml = progress.phases
     .map((phase, i) => {
@@ -74,19 +96,8 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
     })
     .join("\n");
 
-  const todoHtml =
-    options?.todoTotal != null && options.todoTotal > 0
-      ? `<div class="todo-section">
-  <div class="todo-header">
-    <span class="todo-label">Todos</span>
-    <span class="todo-count">${options.todoDone ?? 0}/${options.todoTotal} done</span>
-  </div>
-  <div class="todo-bar"><div class="todo-bar-fill" style="width: ${Math.round(((options.todoDone ?? 0) / options.todoTotal) * 100)}%;"></div></div>
-  ${options.todoCurrentItem ? `<div class="todo-current">${escapeHtml(options.todoCurrentItem)}</div>` : ""}
-</div>`
-      : "";
-
   return `<div class="dashboard-content">
+  <span class="dashboard-toggle">&#9650; Collapse</span>
   <div class="dashboard-header">
     <span class="cost">${costDisplay}</span>
   </div>
@@ -94,6 +105,24 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
     ${phasesHtml}
   </div>
   ${todoHtml}
+</div>`;
+}
+
+export interface CompletionBannerOptions {
+  totalCost?: number;
+  totalPhases?: number;
+}
+
+export function renderCompletionBannerHtml(status: string, options?: CompletionBannerOptions): string {
+  const title = status === "done" ? "Run Completed" : "Run Failed";
+  const costText = options?.totalCost != null ? `$${options.totalCost.toFixed(2)}` : "";
+  const phasesText = options?.totalPhases != null ? `${options.totalPhases} phases` : "";
+  const stats = [phasesText, costText].filter(Boolean).join(" \u2022 ");
+
+  return `<div class="run-finished-banner">
+  <div class="title">${title}</div>
+  ${stats ? `<div class="stats">${stats}</div>` : ""}
+  <button class="open-replay" onclick="postOpenReplay()">Open Replay</button>
 </div>`;
 }
 

@@ -78,6 +78,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           folderName: deps.folderName,
           otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
+        deps.liveRunPanel?.onRunFinished("done");
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         break;
       case "failed": {
@@ -91,6 +92,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           folderName: deps.folderName,
           otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
+        deps.liveRunPanel?.onRunFinished("failed");
         break;
       }
       case "idle":
