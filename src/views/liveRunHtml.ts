@@ -156,6 +156,7 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
     .log-phase-badge { background: #0e639c; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-right: 6px; }
     .log-divider { display: block; border-top: 1px solid #333; margin: 4px 0; }
     .log-session { color: #888; font-size: 10.5px; background: #252526; padding: 2px 6px; border-radius: 3px; }
+    .log-todo-create { color: #4ec9b0; font-style: italic; }
     .log-refactor { color: #ce9178; }
 
     /* Completion banner */
