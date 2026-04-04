@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import type { SessionState } from "./core/sessionState";
 import type { StatusBarManager } from "./views/statusBar";
 import type { PhaseTreeProvider } from "./views/phaseTree";
-import type { OutputChannelManager } from "./views/outputChannel";
+import type { LiveRunPanel } from "./views/liveRunPanel";
 import type { NotificationManager } from "./views/notifications";
 import type { ElapsedTimer } from "./views/elapsedTimer";
 import type { ProgressState } from "./types";
@@ -14,7 +14,7 @@ export interface SessionWiringDeps {
   statusBar: StatusBarManager;
   phaseTree: PhaseTreeProvider;
   onDidChangeTreeData: vscode.EventEmitter<string | undefined>;
-  outputManager: OutputChannelManager;
+  liveRunPanel?: LiveRunPanel;
   notifications: NotificationManager;
   elapsedTimer: ElapsedTimer;
   dependencyGraph?: DependencyGraphPanel;
@@ -22,6 +22,7 @@ export interface SessionWiringDeps {
   folderUri: string;
   folderName?: string;
   getOtherRootsSummary?: () => string | undefined;
+  getConfig?: (key: string) => any;
   isActiveSession: () => boolean;
 }
 
@@ -31,7 +32,6 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     statusBar,
     phaseTree,
     onDidChangeTreeData,
-    outputManager,
     notifications,
     elapsedTimer,
   } = deps;
@@ -62,6 +62,12 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           folderName: deps.folderName,
           otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
+        if (deps.liveRunPanel) {
+          const autoOpen = deps.getConfig?.("liveRunAutoOpen") ?? true;
+          if (autoOpen) {
+            deps.liveRunPanel.reveal(p ?? { phases: [], totalPhases: 0 }, deps.folderUri);
+          }
+        }
         break;
       }
       case "done":
@@ -100,6 +106,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       onDidChangeTreeData.fire(undefined);
       deps.dependencyGraph?.update(progress);
       deps.executionTimeline?.update(progress);
+      deps.liveRunPanel?.onProgressChanged(progress);
     }
 
     if (lastProgress) {
@@ -121,7 +128,6 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   });
 
   session.on("log-appended", (content) => {
-    const prefix = deps.folderName ? `[${deps.folderName}] ` : "";
-    outputManager.onLogAppended(`${prefix}${content}`);
+    deps.liveRunPanel?.onLogAppended(content);
   });
 }

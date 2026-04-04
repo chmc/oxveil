@@ -8,7 +8,6 @@ import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
 import { PhaseTreeProvider } from "./views/phaseTree";
-import { OutputChannelManager } from "./views/outputChannel";
 import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
 import { NotificationManager } from "./views/notifications";
@@ -106,11 +105,6 @@ export async function activate(
   disposables.push(archive.archiveView);
   const { resolveArchiveItem, refreshArchive } = archive;
 
-  // Output channel
-  const outputChannel = vscode.window.createOutputChannel("Oxveil");
-  disposables.push(outputChannel);
-  const outputManager = new OutputChannelManager(outputChannel);
-
   // Workspace session manager (per-folder sessions)
   const manager = new WorkspaceSessionManager({
     getActiveFolderUri: () => {
@@ -151,7 +145,11 @@ export async function activate(
   // Notifications
   const notifications = new NotificationManager({
     window: vscode.window,
-    onShowOutput: () => outputChannel.show(true),
+    onShowOutput: () => {
+      const active = manager.getActiveSession();
+      const progress = active?.sessionState.progress ?? { phases: [], totalPhases: 0 };
+      liveRunPanel.reveal(progress, active?.folderUri);
+    },
     onViewLog: (phaseNumber) =>
       vscode.commands.executeCommand("oxveil.viewLog", { phaseNumber }),
     onInstall: () => vscode.commands.executeCommand("oxveil.install"),
@@ -170,18 +168,19 @@ export async function activate(
   const gitExec = activeSession?.gitExec ?? createGitExec(workspaceRoot);
   const panels = createWebviewPanels({ session: activeState, workspaceRoot, gitExec });
   disposables.push(...panels.disposables);
-  const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel } = panels;
+  const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel } = panels;
 
   // Wire each session's events
   const wiringCtx = {
     statusBar,
     phaseTree,
     onDidChangeTreeData,
-    outputManager,
+    liveRunPanel,
     notifications,
     elapsedTimer,
     dependencyGraph,
     executionTimeline,
+    getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
   };
   wireAllSessions(manager, wiringCtx, refreshArchive);
 
@@ -276,6 +275,7 @@ export async function activate(
       configWizard,
       replayViewer,
       archiveTimelinePanel,
+      liveRunPanel,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
     }),
@@ -300,6 +300,9 @@ export async function activate(
     }
     if (executionTimeline?.visible && executionTimeline.currentFolderUri !== folderUri) {
       executionTimeline.reveal(session.sessionState.progress, folderUri);
+    }
+    if (liveRunPanel?.visible && liveRunPanel.currentFolderUri !== folderUri) {
+      liveRunPanel.reveal(session.sessionState.progress ?? { phases: [], totalPhases: 0 }, folderUri);
     }
   });
 

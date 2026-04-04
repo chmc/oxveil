@@ -134,7 +134,7 @@ describe("walkthrough step completion", () => {
         statusBar: { update: vi.fn() } as any,
         phaseTree: { update: vi.fn() } as any,
         onDidChangeTreeData: { fire: vi.fn() } as any,
-        outputManager: { onLogAppended: vi.fn() } as any,
+        liveRunPanel: { onLogAppended: vi.fn(), onProgressChanged: vi.fn(), reveal: vi.fn() } as any,
         notifications: { onPhasesChanged: vi.fn() } as any,
         elapsedTimer: {
           start: vi.fn(),
@@ -174,7 +174,7 @@ describe("walkthrough step completion", () => {
         statusBar: { update: vi.fn() } as any,
         phaseTree: { update: vi.fn() } as any,
         onDidChangeTreeData: { fire: vi.fn() } as any,
-        outputManager: { onLogAppended: vi.fn() } as any,
+        liveRunPanel: { onLogAppended: vi.fn(), onProgressChanged: vi.fn(), reveal: vi.fn() } as any,
         notifications: { onPhasesChanged: vi.fn() } as any,
         elapsedTimer: {
           start: vi.fn(),

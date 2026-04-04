@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { SessionState } from "../../core/sessionState";
 import { StatusBarManager } from "../../views/statusBar";
 import { PhaseTreeProvider } from "../../views/phaseTree";
-import { OutputChannelManager } from "../../views/outputChannel";
+import { LiveRunPanel } from "../../views/liveRunPanel";
 import { NotificationManager } from "../../views/notifications";
 import { ElapsedTimer } from "../../views/elapsedTimer";
 import { Detection } from "../../core/detection";
@@ -19,13 +19,17 @@ function makeStatusBarItem() {
   };
 }
 
-function makeOutputChannel() {
-  return {
-    appendLine: vi.fn(),
-    append: vi.fn(),
-    show: vi.fn(),
-    dispose: vi.fn(),
-  };
+function makeLiveRunPanel() {
+  return new LiveRunPanel({
+    createWebviewPanel: vi.fn().mockReturnValue({
+      webview: { html: "", cspSource: "", postMessage: vi.fn(), onDidReceiveMessage: vi.fn() },
+      reveal: vi.fn(),
+      onDidDispose: vi.fn(),
+      dispose: vi.fn(),
+    }),
+    executeCommand: vi.fn(),
+    getConfig: vi.fn(),
+  });
 }
 
 describe("Extension integration", () => {
@@ -199,18 +203,18 @@ describe("Extension integration", () => {
       vi.useRealTimers();
     });
 
-    it("log content flows to output channel via session", () => {
-      const channel = makeOutputChannel();
-      const outputManager = new OutputChannelManager(channel as any);
+    it("log content flows to live run panel via session", () => {
+      const panel = makeLiveRunPanel();
       const session = new SessionState();
+      const spy = vi.spyOn(panel, "onLogAppended");
 
       session.on("log-appended", (content) => {
-        outputManager.onLogAppended(content);
+        panel.onLogAppended(content);
       });
 
       session.onLogAppended("Building phase 1...\n");
 
-      expect(channel.append).toHaveBeenCalledWith("Building phase 1...\n");
+      expect(spy).toHaveBeenCalledWith("Building phase 1...\n");
     });
 
     it("detection not-found triggers notification", () => {

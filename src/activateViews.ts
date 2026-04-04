@@ -9,6 +9,7 @@ import { ReplayViewerPanel } from "./views/replayViewer";
 import { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import { PlanCodeLensProvider } from "./views/planCodeLens";
+import { LiveRunPanel } from "./views/liveRunPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
 import { createTreeAdapter } from "./views/treeAdapter";
@@ -27,6 +28,7 @@ export interface WebviewPanelsResult {
   configWizard: ConfigWizardPanel;
   replayViewer: ReplayViewerPanel;
   archiveTimelinePanel: ArchiveTimelinePanel;
+  liveRunPanel: LiveRunPanel;
   planCodeLens: PlanCodeLensProvider;
   disposables: vscode.Disposable[];
 }
@@ -66,6 +68,13 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
   });
   disposables.push({ dispose: () => archiveTimelinePanel.dispose() });
 
+  const liveRunPanel = new LiveRunPanel({
+    createWebviewPanel: vscode.window.createWebviewPanel,
+    executeCommand: vscode.commands.executeCommand,
+    getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
+  });
+  disposables.push({ dispose: () => liveRunPanel.dispose() });
+
   const planCodeLens = new PlanCodeLensProvider();
   disposables.push(
     vscode.languages.registerCodeLensProvider(
@@ -85,7 +94,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     );
   }
 
-  return { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, planCodeLens, disposables };
+  return { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planCodeLens, disposables };
 }
 
 export interface ArchiveViewDeps {

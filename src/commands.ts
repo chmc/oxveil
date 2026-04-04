@@ -12,6 +12,7 @@ import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { ConfigWizardPanel } from "./views/configWizard";
 import type { ReplayViewerPanel } from "./views/replayViewer";
+import type { LiveRunPanel } from "./views/liveRunPanel";
 import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
 import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
@@ -29,12 +30,13 @@ export interface CommandDeps {
   configWizard?: ConfigWizardPanel;
   replayViewer?: ReplayViewerPanel;
   archiveTimelinePanel?: ArchiveTimelinePanel;
+  liveRunPanel?: LiveRunPanel;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, resolvePhaseItem, resolveArchiveItem } = deps;
 
   function getActive() {
     const active = sessionManager.getActiveSession();
@@ -281,6 +283,11 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       );
       configWizard?.reveal(configPath, resolved.folderUri);
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.configured", true);
+    }),
+    vscode.commands.registerCommand("oxveil.showLiveRun", async () => {
+      const resolved = await resolveFolder();
+      if (!resolved) return;
+      liveRunPanel?.reveal(resolved.session.progress ?? { phases: [], totalPhases: 0 }, resolved.folderUri);
     }),
     registerAiParsePlanCommand(sessionManager),
     registerCreatePlanCommand(() => getActive()?.workspaceRoot),

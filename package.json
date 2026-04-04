@@ -147,6 +147,10 @@
       {
         "command": "oxveil.welcome",
         "title": "Oxveil: Welcome"
+      },
+      {
+        "command": "oxveil.showLiveRun",
+        "title": "Oxveil: Show Live Run"
       }
     ],
     "menus": {
@@ -241,6 +245,10 @@
         {
           "command": "oxveil.archiveTimeline",
           "when": "false"
+        },
+        {
+          "command": "oxveil.showLiveRun",
+          "when": "oxveil.detected"
         }
       ]
     },
@@ -329,6 +337,23 @@
           "type": "boolean",
           "default": true,
           "description": "Auto-parse plan into phases (--ai-parse)"
+        },
+        "oxveil.liveRunAutoOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open Live Run panel when a session starts"
+        },
+        "oxveil.liveRunDashboardCollapsed": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start with the dashboard section collapsed in the Live Run panel"
+        },
+        "oxveil.liveRunLogLines": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 100,
+          "maximum": 10000,
+          "description": "Maximum number of log lines to retain in the Live Run panel"
         }
       }
     }
