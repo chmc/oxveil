@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { ProgressState } from "../types";
 import { renderDashboardHtml, type DashboardOptions } from "./liveRunHtml";
 import { renderLiveRunShell } from "./liveRunHtml";
-import { escapeHtml } from "../utils/html";
+import { formatLogLine } from "../parsers/logFormatter";
 
 export interface LiveRunPanelDeps {
   createWebviewPanel: (
@@ -123,7 +123,7 @@ export class LiveRunPanel {
     }
 
     if (this._panel) {
-      const lines = newLines.map((l) => escapeHtml(l));
+      const lines = newLines.map((l) => formatLogLine(l));
       this._panel.webview.postMessage({ type: "log-append", lines });
     }
   }
@@ -154,7 +154,7 @@ export class LiveRunPanel {
 
   private _flushBuffer(): void {
     if (this._logBuffer.length > 0 && this._panel) {
-      const lines = this._logBuffer.map((l) => escapeHtml(l));
+      const lines = this._logBuffer.map((l) => formatLogLine(l));
       this._panel.webview.postMessage({ type: "log-append", lines });
     }
   }

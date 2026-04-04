@@ -123,8 +123,8 @@ describe("LiveRunPanel", () => {
     );
     // Second call should only contain line3, not line1+line2 again
     expect(logCalls).toHaveLength(2);
-    expect(logCalls[1][0].lines).not.toContain("line1");
-    expect(logCalls[1][0].lines).toContainEqual("line3");
+    expect(logCalls[1][0].lines).not.toContainEqual('<div class="log-line">line1</div>');
+    expect(logCalls[1][0].lines).toContainEqual('<div class="log-line">line3</div>');
   });
 
   it("buffers log when panel not open, replays on reveal", () => {
@@ -153,8 +153,8 @@ describe("LiveRunPanel", () => {
     );
     // Buffer should contain at most 5 lines
     const allLines = logCalls.flatMap((c: any) => c[0].lines);
-    expect(allLines).not.toContainEqual("line0");
-    expect(allLines).toContainEqual("line9");
+    expect(allLines).not.toContainEqual('<div class="log-line">line0</div>');
+    expect(allLines).toContainEqual('<div class="log-line">line9</div>');
   });
 
   it("dispose cleans up", () => {
