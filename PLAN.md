@@ -30,6 +30,9 @@
 
 ### Task 1: Extend `renderTimelineHtml` with optional header
 
+**Spec:** `docs/superpowers/specs/2026-03-28-archive-timeline-viewer-design.md` §Header Bar, §NOW Line Suppression
+**Mockups:** `docs/superpowers/plans/mockups/live-run-completed.{html,png}` (banner style reference), `docs/superpowers/plans/mockups/live-run-active.{html,png}` (NOW line to suppress in archive mode)
+
 **Files:**
 - Modify: `src/views/timelineHtml.ts:1-187`
 - Modify: `src/test/unit/views/timelineHtml.test.ts`
@@ -202,6 +205,9 @@ git commit -m "feat: add optional header to renderTimelineHtml for archive view"
 ---
 
 ### Task 2: Create `ArchiveTimelinePanel`
+
+**Spec:** `docs/superpowers/specs/2026-03-28-archive-timeline-viewer-design.md` §Panel Lifecycle, §Webview Content
+**Mockups:** `docs/superpowers/plans/mockups/live-run-completed.{html,png}` (header bar visual reference for archive panel)
 
 **Files:**
 - Create: `src/views/archiveTimelinePanel.ts`
@@ -539,6 +545,8 @@ git commit -m "feat: add ArchiveTimelinePanel for read-only past run timelines"
 
 ### Task 3: Register command and wire into extension
 
+**Spec:** `docs/superpowers/specs/2026-03-28-archive-timeline-viewer-design.md` §Command Registration, §Extension Wiring
+
 **Files:**
 - Modify: `src/commands.ts:19-31` (CommandDeps), `src/commands.ts:163-178` (near archive commands)
 - Modify: `src/activateViews.ts:22-30` (WebviewPanelsResult), `src/activateViews.ts:32-82` (createWebviewPanels)
@@ -734,6 +742,9 @@ git commit -m "feat: register oxveil.archiveTimeline command and wire into exten
 
 ### Task 4: Visual verification
 
+**Spec:** `docs/superpowers/specs/2026-03-28-archive-timeline-viewer-design.md` §Acceptance Criteria
+**Mockups:** Compare against all `docs/superpowers/plans/mockups/live-run-*.png` for visual consistency — `live-run-active.png` (timeline layout), `live-run-completed.png` (banner/header style), `live-run-collapsed.png` (overall VS Code integration)
+
 - [ ] **Step 1: Build the extension**
 
 Run: `npm run compile` (or equivalent build command)
@@ -756,6 +767,8 @@ Verify:
 ---
 
 ### Task 5: Documentation
+
+**Spec:** `docs/superpowers/specs/2026-03-28-archive-timeline-viewer-design.md`
 
 - [ ] **Step 1: Create ADR**
 
