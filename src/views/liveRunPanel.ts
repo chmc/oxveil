@@ -123,8 +123,8 @@ export class LiveRunPanel {
     }
 
     if (this._panel) {
-      const html = newLines.map((l) => escapeHtml(l)).join("\n");
-      this._panel.webview.postMessage({ type: "log-append", html });
+      const lines = newLines.map((l) => escapeHtml(l));
+      this._panel.webview.postMessage({ type: "log-append", lines });
     }
   }
 
@@ -154,8 +154,8 @@ export class LiveRunPanel {
 
   private _flushBuffer(): void {
     if (this._logBuffer.length > 0 && this._panel) {
-      const html = this._logBuffer.map((l) => escapeHtml(l)).join("\n");
-      this._panel.webview.postMessage({ type: "log-append", html });
+      const lines = this._logBuffer.map((l) => escapeHtml(l));
+      this._panel.webview.postMessage({ type: "log-append", lines });
     }
   }
 
