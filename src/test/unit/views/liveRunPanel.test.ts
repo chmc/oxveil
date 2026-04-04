@@ -175,4 +175,52 @@ describe("LiveRunPanel", () => {
       expect.objectContaining({ type: "dashboard" }),
     );
   });
+
+  it("handles toggle-dashboard message", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+    mockPanel._simulateMessage({ type: "toggle-dashboard" });
+    // Should re-send dashboard (with toggled state)
+    expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "dashboard" }),
+    );
+  });
+
+  it("handles open-replay message", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel._simulateMessage({ type: "open-replay" });
+    expect(deps.executeCommand).toHaveBeenCalledWith("oxveil.openReplayViewer");
+  });
+
+  it("onRunFinished sends run-finished message", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+    panel.onRunFinished("done");
+    expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "run-finished" }),
+    );
+  });
+
+  it("tracks todo progress from log lines", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+    panel.onLogAppended('[14:00:00] [Todos: 3/7 done] \u25b8 "Writing test"\n');
+    // Should re-send dashboard with todo data
+    const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "dashboard",
+    );
+    expect(dashCalls.length).toBeGreaterThanOrEqual(1);
+  });
 });

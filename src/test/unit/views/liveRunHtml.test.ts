@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderLiveRunShell, renderDashboardHtml } from "../../../views/liveRunHtml";
+import { renderLiveRunShell, renderDashboardHtml, renderCompletionBannerHtml } from "../../../views/liveRunHtml";
 import type { ProgressState } from "../../../types";
 
 const nonce = "abc123";
@@ -80,5 +80,45 @@ describe("renderDashboardHtml", () => {
     const empty: ProgressState = { phases: [], totalPhases: 0 };
     const html = renderDashboardHtml(empty);
     expect(html).toContain("No active run");
+  });
+
+  it("renders collapse toggle", () => {
+    expect(renderDashboardHtml(progress)).toContain("dashboard-toggle");
+  });
+
+  it("renders todo progress when provided", () => {
+    const html = renderDashboardHtml(progress, { todoDone: 4, todoTotal: 7, todoCurrentItem: "Writing test" });
+    expect(html).toContain("todo-progress");
+    expect(html).toContain("4/7");
+    expect(html).toContain("Writing test");
+  });
+
+  it("omits todo when not provided", () => {
+    expect(renderDashboardHtml(progress)).not.toContain("todo-progress");
+  });
+
+  it("renders collapsed summary bar", () => {
+    const html = renderDashboardHtml(progress, { collapsed: true });
+    expect(html).toContain("dashboard-collapsed");
+    expect(html).not.toContain("phase-list");
+  });
+
+  it("shows todo progress even when collapsed", () => {
+    const html = renderDashboardHtml(progress, { collapsed: true, todoDone: 2, todoTotal: 5 });
+    expect(html).toContain("todo-progress");
+  });
+});
+
+describe("renderCompletionBannerHtml", () => {
+  it("renders success banner for done", () => {
+    const html = renderCompletionBannerHtml("done", { totalCost: 5.99, totalPhases: 5 });
+    expect(html).toContain("Run Completed");
+    expect(html).toContain("$5.99");
+    expect(html).toContain("open-replay");
+  });
+
+  it("renders failure banner for failed", () => {
+    const html = renderCompletionBannerHtml("failed", { totalCost: 2.0, totalPhases: 3 });
+    expect(html).toContain("Run Failed");
   });
 });
