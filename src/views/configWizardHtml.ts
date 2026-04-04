@@ -1,3 +1,5 @@
+import { escapeHtml } from "../utils/html";
+
 interface ConfigState {
   PLAN_FILE: string;
   PROGRESS_FILE: string;
@@ -61,14 +63,6 @@ function textHtml(
   <div class="form-label">${label}<span class="hint">${hint}</span></div>
   <div class="form-input"><input type="text" data-key="${key}" value="${escapeHtml(value)}" style="font-family:monospace;font-size:12px"></div>
 </div>`;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export function buildPreviewHtml(text: string): string {

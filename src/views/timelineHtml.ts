@@ -1,4 +1,5 @@
 import type { TimelineData } from "../types";
+import { escapeHtml } from "../utils/html";
 
 export interface TimelineHeader {
   title: string;
@@ -6,14 +7,6 @@ export interface TimelineHeader {
   duration: string;
   status: string;
   phaseCount: number;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 function formatElapsed(ms: number): string {
