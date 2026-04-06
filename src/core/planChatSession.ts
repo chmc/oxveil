@@ -29,8 +29,7 @@ export class PlanChatSession {
       shellPath: this._deps.claudePath,
       shellArgs: [
         "--append-system-prompt", systemPrompt,
-        "--permission-mode", "default",
-        "--allowedTools", "Edit,Write,Read,Glob,Grep,Bash",
+        "--permission-mode", "plan",
       ],
       location: { viewColumn: 1 },
     });

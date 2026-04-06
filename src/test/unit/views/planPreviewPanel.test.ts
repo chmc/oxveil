@@ -41,6 +41,8 @@ Do stuff
 Oops duplicate
 `;
 
+const ACTIVE_PLAN_PATH = "/workspace/.claude/plans/typed-hugging-dawn.md";
+
 function makeMockWatcher() {
   const handlers: Record<string, (() => void)[]> = { change: [], create: [], delete: [] };
   return {
@@ -69,7 +71,8 @@ function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel:
   const mockWatcher = makeMockWatcher();
   return {
     createWebviewPanel: vi.fn(() => mockPanel) as any,
-    readFile: vi.fn(async () => VALID_PLAN),
+    readFile: vi.fn(async (_path: string) => VALID_PLAN),
+    findActivePlanFile: vi.fn(async () => ACTIVE_PLAN_PATH),
     onAnnotation: vi.fn(),
     createFileSystemWatcher: vi.fn(() => mockWatcher.watcher),
     _panel: mockPanel,
@@ -106,7 +109,7 @@ describe("PlanPreviewPanel", () => {
     expect(deps._panel.reveal).toHaveBeenCalledTimes(1);
   });
 
-  it("onFileChanged() reads PLAN.md and sends parsed data to webview", async () => {
+  it("onFileChanged() finds active plan file and sends parsed data to webview", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
@@ -114,20 +117,35 @@ describe("PlanPreviewPanel", () => {
 
     await panel.onFileChanged();
 
-    expect(deps.readFile).toHaveBeenCalled();
+    expect(deps.findActivePlanFile).toHaveBeenCalled();
+    expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     expect(deps._panel.webview.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: "update" }),
     );
-    // Should contain phase card HTML
     const call = deps._panel.webview.postMessage.mock.calls[0][0];
     expect(call.html).toContain("Phase 1");
     expect(call.html).toContain("Setup");
   });
 
+  it("onFileChanged() when no active plan file shows empty state", async () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    deps.findActivePlanFile = vi.fn(async () => undefined);
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    mockPanel.webview.postMessage.mockClear();
+
+    await panel.onFileChanged();
+
+    expect(deps.readFile).not.toHaveBeenCalled();
+    const call = mockPanel.webview.postMessage.mock.calls[0][0];
+    expect(call.type).toBe("update");
+  });
+
   it("onFileChanged() with invalid plan sends validation errors", async () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);
-    deps.readFile = vi.fn(async () => INVALID_PLAN);
+    deps.readFile = vi.fn(async (_path: string) => INVALID_PLAN);
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
     mockPanel.webview.postMessage.mockClear();
@@ -143,7 +161,7 @@ describe("PlanPreviewPanel", () => {
   it("onFileChanged() with content but no phases shows raw markdown fallback", async () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);
-    deps.readFile = vi.fn(async () => "This is just some text\nwith no phase headers");
+    deps.readFile = vi.fn(async (_path: string) => "This is just some text\nwith no phase headers");
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
     mockPanel.webview.postMessage.mockClear();
@@ -160,7 +178,7 @@ describe("PlanPreviewPanel", () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     await panel.onFileChanged();
-    expect(deps.readFile).not.toHaveBeenCalled();
+    expect(deps.findActivePlanFile).not.toHaveBeenCalled();
   });
 
   it("setSessionActive(false) sends session ended state", async () => {
@@ -227,11 +245,11 @@ describe("PlanPreviewPanel", () => {
     beforeEach(() => { vi.useFakeTimers(); });
     afterEach(() => { vi.useRealTimers(); });
 
-    it("startWatching creates a file system watcher", () => {
+    it("startWatching creates a file system watcher for .claude/plans/", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.startWatching("/workspace");
-      expect(deps.createFileSystemWatcher).toHaveBeenCalledWith("/workspace/PLAN.md");
+      expect(deps.createFileSystemWatcher).toHaveBeenCalledWith("/workspace/.claude/plans/*.md");
     });
 
     it("file change triggers onFileChanged after debounce", async () => {
@@ -241,14 +259,14 @@ describe("PlanPreviewPanel", () => {
       panel.startWatching("/workspace");
 
       deps._watcher._fireChange();
-      // Should not have called readFile yet (debounce pending)
-      expect(deps.readFile).not.toHaveBeenCalled();
+      // Should not have called findActivePlanFile yet (debounce pending)
+      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(200);
       // Wait for the async onFileChanged to complete
       await vi.runAllTimersAsync();
 
-      expect(deps.readFile).toHaveBeenCalled();
+      expect(deps.findActivePlanFile).toHaveBeenCalled();
     });
 
     it("file create triggers onFileChanged after debounce", async () => {
@@ -260,7 +278,7 @@ describe("PlanPreviewPanel", () => {
       deps._watcher._fireCreate();
       await vi.advanceTimersByTimeAsync(200);
 
-      expect(deps.readFile).toHaveBeenCalled();
+      expect(deps.findActivePlanFile).toHaveBeenCalled();
     });
 
     it("debounce prevents rapid re-reads", async () => {
@@ -278,8 +296,8 @@ describe("PlanPreviewPanel", () => {
 
       await vi.advanceTimersByTimeAsync(200);
 
-      // Should only call readFile once due to debounce
-      expect(deps.readFile).toHaveBeenCalledTimes(1);
+      // Should only call findActivePlanFile once due to debounce
+      expect(deps.findActivePlanFile).toHaveBeenCalledTimes(1);
     });
 
     it("stopWatching disposes watcher", () => {

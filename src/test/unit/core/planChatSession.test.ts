@@ -33,8 +33,7 @@ describe("PlanChatSession", () => {
         shellPath: "/usr/bin/claude",
         shellArgs: [
           "--append-system-prompt", "Test prompt",
-          "--permission-mode", "default",
-          "--allowedTools", "Edit,Write,Read,Glob,Grep,Bash",
+          "--permission-mode", "plan",
         ],
         location: { viewColumn: 1 },
       });

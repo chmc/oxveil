@@ -18,7 +18,8 @@ export interface PlanPreviewPanelDeps {
     showOptions: number,
     options: { enableScripts: boolean; retainContextWhenHidden: boolean },
   ) => WebviewPanel;
-  readFile: () => Promise<string>;
+  readFile: (filePath: string) => Promise<string>;
+  findActivePlanFile: () => Promise<string | undefined>;
   onAnnotation: (phase: string, text: string) => void;
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
 }
@@ -81,7 +82,16 @@ export class PlanPreviewPanel {
   async onFileChanged(): Promise<void> {
     if (!this._panel) return;
 
-    const content = await this._deps.readFile();
+    const activePath = await this._deps.findActivePlanFile();
+    if (!activePath) {
+      this._lastPhases = [];
+      this._lastValid = false;
+      this._lastRawContent = undefined;
+      this._sendUpdate();
+      return;
+    }
+
+    const content = await this._deps.readFile(activePath);
 
     try {
       const parsed = parsePlanWithDescriptions(content);
@@ -122,7 +132,7 @@ export class PlanPreviewPanel {
     if (!this._deps.createFileSystemWatcher) return;
     this.stopWatching();
 
-    const glob = `${workspaceRoot}/PLAN.md`;
+    const glob = `${workspaceRoot}/.claude/plans/*.md`;
     this._watcher = this._deps.createFileSystemWatcher(glob);
 
     const handler = () => {

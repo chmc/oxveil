@@ -80,13 +80,30 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
   const planPreviewPanel = new PlanPreviewPanel({
     createWebviewPanel: vscode.window.createWebviewPanel,
-    readFile: async () => {
-      if (!deps.workspaceRoot) return "";
-      const planPath = path.join(deps.workspaceRoot, "PLAN.md");
+    readFile: async (filePath: string) => {
       try {
-        return await fs.readFile(planPath, "utf-8");
+        return await fs.readFile(filePath, "utf-8");
       } catch {
         return "";
+      }
+    },
+    findActivePlanFile: async () => {
+      if (!deps.workspaceRoot) return undefined;
+      const plansDir = path.join(deps.workspaceRoot, ".claude", "plans");
+      try {
+        const files = (await fs.readdir(plansDir)).filter(f => f.endsWith(".md"));
+        if (files.length === 0) return undefined;
+        let newest: { path: string; mtime: number } | undefined;
+        for (const file of files) {
+          const fullPath = path.join(plansDir, file);
+          const s = await stat(fullPath);
+          if (!newest || s.mtimeMs > newest.mtime) {
+            newest = { path: fullPath, mtime: s.mtimeMs };
+          }
+        }
+        return newest?.path;
+      } catch {
+        return undefined;
       }
     },
     onAnnotation: (phase, text) => {

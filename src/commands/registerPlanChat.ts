@@ -1,9 +1,7 @@
 import * as vscode from "vscode";
-import * as path from "node:path";
-import * as fs from "node:fs";
 import { PlanChatSession } from "../core/planChatSession";
 import type { PlanPreviewPanel } from "../views/planPreviewPanel";
-import { buildSystemPrompt, handleExistingPlan } from "./planChat";
+import { buildSystemPrompt } from "./planChat";
 
 export interface PlanChatCommandDeps {
   claudePath: string | null | undefined;
@@ -28,24 +26,6 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
       vscode.window.showInformationMessage("Plan Chat session already active");
       existingSession.focusTerminal();
       return;
-    }
-
-    // Check for existing PLAN.md
-    const workspaceRoot = deps.getWorkspaceRoot();
-    if (workspaceRoot) {
-      const planPath = path.join(workspaceRoot, "PLAN.md");
-      if (fs.existsSync(planPath)) {
-        const action = await handleExistingPlan((items) =>
-          vscode.window.showQuickPick(items, {
-            placeHolder: "A PLAN.md already exists",
-          }) as any,
-        );
-        if (action === "cancel") return;
-        if (action === "create") {
-          fs.renameSync(planPath, `${planPath}.bak`);
-        }
-        // "edit" — continue with existing plan
-      }
     }
 
     const session = new PlanChatSession({
