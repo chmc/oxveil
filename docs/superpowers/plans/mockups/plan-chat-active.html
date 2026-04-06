@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan Chat - Active State</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1e1e1e; color: #d4d4d4; font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 13px; width: 1200px; }
+
+  .vscode-frame { display: flex; flex-direction: column; height: 620px; }
+
+  /* VS Code top bar */
+  .title-bar { background: #323233; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #969696; border-bottom: 1px solid #1e1e1e; }
+
+  /* Editor area */
+  .editor-area { display: flex; flex: 1; overflow: hidden; }
+
+  /* Left: Terminal pane */
+  .terminal-pane { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; }
+
+  .terminal-tab-bar { display: flex; background: #252526; border-bottom: 1px solid #1e1e1e; height: 35px; align-items: stretch; }
+  .terminal-tab { padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #fff; background: #1e1e1e; border-right: 1px solid #1e1e1e; }
+  .terminal-tab .icon { color: #569cd6; font-size: 14px; }
+
+  .terminal-content { flex: 1; padding: 12px 16px; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; font-size: 12px; line-height: 1.6; overflow-y: auto; background: #1e1e1e; }
+  .terminal-line { white-space: pre-wrap; }
+  .terminal-prompt { color: #6a9955; }
+  .terminal-user { color: #dcdcaa; }
+  .terminal-claude { color: #d4d4d4; }
+  .terminal-dim { color: #666; }
+  .terminal-tool { color: #569cd6; }
+  .terminal-highlight { color: #ce9178; }
+
+  /* Right: Plan Preview pane */
+  .preview-pane { flex: 1; display: flex; flex-direction: column; }
+
+  .preview-tab-bar { display: flex; background: #252526; border-bottom: 1px solid #1e1e1e; height: 35px; align-items: stretch; }
+  .preview-tab { padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #fff; background: #1e1e1e; border-right: 1px solid #1e1e1e; }
+  .preview-tab .icon { font-size: 14px; }
+
+  .preview-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #333; background: #252526; }
+  .preview-title { font-weight: 600; font-size: 13px; color: #e0e0e0; }
+  .live-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+
+  .preview-content { flex: 1; padding: 16px; overflow-y: auto; }
+
+  /* Phase cards */
+  .phase-card { margin-bottom: 12px; padding: 12px 14px; background: #252526; border-radius: 6px; border-left: 3px solid #555; }
+  .phase-card.done { border-left-color: #4ec9b0; }
+  .phase-card.active { border-left-color: #569cd6; }
+  .phase-card.pending { border-left-color: #555; }
+
+  .phase-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .phase-number { color: #569cd6; font-weight: 600; font-size: 12px; }
+  .phase-title { color: #e0e0e0; font-weight: 500; font-size: 13px; }
+  .annotate-btn { margin-left: auto; background: none; border: 1px solid #555; color: #888; font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
+  .annotate-btn:hover { border-color: #888; color: #ccc; }
+
+  .phase-desc { color: #999; font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
+  .phase-deps { color: #666; font-size: 11px; font-style: italic; }
+
+  /* Annotation */
+  .annotation { margin-top: 8px; padding: 8px 10px; background: #2d1b00; border: 1px solid #bb8009; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
+  .annotation-icon { color: #e3b341; font-size: 12px; }
+  .annotation-input { flex: 1; background: #1e1e1e; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; color: #e0e0e0; font-size: 12px; font-family: inherit; }
+  .annotation-hint { color: #888; font-size: 10px; }
+</style>
+</head>
+<body>
+<div class="vscode-frame">
+  <div class="title-bar">my-project — Oxveil</div>
+
+  <div class="editor-area">
+    <!-- Left: Terminal with Claude -->
+    <div class="terminal-pane">
+      <div class="terminal-tab-bar">
+        <div class="terminal-tab"><span class="icon">⬢</span> Plan Chat (my-project)</div>
+      </div>
+      <div class="terminal-content">
+        <div class="terminal-line"><span class="terminal-dim">╭─────────────────────────────────────────────────╮</span></div>
+        <div class="terminal-line"><span class="terminal-dim">│</span>  <span class="terminal-highlight">Claude Code</span> <span class="terminal-dim">v1.0.34</span>                            <span class="terminal-dim">│</span></div>
+        <div class="terminal-line"><span class="terminal-dim">╰─────────────────────────────────────────────────╯</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-prompt">❯</span> <span class="terminal-user">I need to add a retry system to our API layer. When requests fail with 429 or 5xx, they should retry with exponential backoff.</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-claude">I'll help you plan this out. Let me break it into phases and write the plan.</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-tool">  ✏️  Wrote PLAN.md (4 phases)</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-claude">I've created a 4-phase plan covering the retry utility, HTTP client integration with circuit breaker, error classification, and tests. Take a look at the plan preview on the right — you can click any phase to add notes.</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-prompt">❯</span> <span class="terminal-user">Regarding Phase 2 (HTTP client + circuit breaker): Should we use half-open state for recovery?</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-claude">Good question. Yes, a half-open state makes the circuit breaker more practical — after the cooldown period, it allows one probe request through. If that succeeds, the circuit closes; if it fails, back to open. I'll update Phase 2 to include this.</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-tool">  ✏️  Updated PLAN.md</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="terminal-prompt">❯</span> <span style="color: #555;">_</span></div>
+      </div>
+    </div>
+
+    <!-- Right: Plan Preview -->
+    <div class="preview-pane">
+      <div class="preview-tab-bar">
+        <div class="preview-tab"><span class="icon">📋</span> Plan Preview</div>
+      </div>
+      <div class="preview-header">
+        <span class="preview-title">API Retry System</span>
+        <span class="live-badge">● Live</span>
+        <span class="valid-badge">✓ Valid</span>
+      </div>
+      <div class="preview-content">
+        <!-- Phase 1 -->
+        <div class="phase-card pending">
+          <div class="phase-card-header">
+            <span class="phase-number">Phase 1</span>
+            <span class="phase-title">Retry utility</span>
+            <button class="annotate-btn">📝 Note</button>
+          </div>
+          <div class="phase-desc">Create configurable retry function with exponential backoff. Support max retries, base delay, jitter, and configurable backoff multiplier.</div>
+        </div>
+
+        <!-- Phase 2 with annotation -->
+        <div class="phase-card active">
+          <div class="phase-card-header">
+            <span class="phase-number">Phase 2</span>
+            <span class="phase-title">HTTP client + circuit breaker</span>
+            <button class="annotate-btn">📝 Note</button>
+          </div>
+          <div class="phase-desc">Wrap fetch calls with retry logic. Add circuit breaker with open, half-open, and closed states. Half-open allows one probe request after cooldown.</div>
+          <div class="phase-deps">Depends on: Phase 1</div>
+          <div class="annotation">
+            <span class="annotation-icon">📝</span>
+            <input class="annotation-input" placeholder="Add note for Claude..." value="Consider adding metrics/logging for circuit state changes">
+            <span class="annotation-hint">Enter to send</span>
+          </div>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="phase-card pending">
+          <div class="phase-card-header">
+            <span class="phase-number">Phase 3</span>
+            <span class="phase-title">Error classification</span>
+            <button class="annotate-btn">📝 Note</button>
+          </div>
+          <div class="phase-desc">Classify errors into retryable (429, 5xx, network) vs non-retryable (4xx). Configure per-error type retry behavior and custom classifiers.</div>
+          <div class="phase-deps">Depends on: Phase 1</div>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="phase-card pending">
+          <div class="phase-card-header">
+            <span class="phase-number">Phase 4</span>
+            <span class="phase-title">Tests</span>
+            <button class="annotate-btn">📝 Note</button>
+          </div>
+          <div class="phase-desc">Unit tests for retry logic, circuit breaker states, error classification. Integration test with mock server simulating failure patterns.</div>
+          <div class="phase-deps">Depends on: Phase 2, Phase 3</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan Chat - Session Ended</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1e1e1e; color: #d4d4d4; font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 13px; width: 600px; }
+
+  .vscode-frame { display: flex; flex-direction: column; height: 620px; }
+  .title-bar { background: #323233; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #969696; border-bottom: 1px solid #1e1e1e; }
+
+  /* Preview pane only (terminal closed) */
+  .preview-pane { flex: 1; display: flex; flex-direction: column; }
+  .preview-tab-bar { display: flex; background: #252526; border-bottom: 1px solid #1e1e1e; height: 35px; align-items: stretch; }
+  .preview-tab { padding: 0 12px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #fff; background: #1e1e1e; border-right: 1px solid #1e1e1e; }
+  .preview-tab .icon { font-size: 14px; }
+
+  .preview-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #333; background: #252526; }
+  .preview-title { font-weight: 600; font-size: 13px; color: #e0e0e0; }
+  .ended-badge { background: #3b1d1d; color: #f44747; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+
+  .session-ended-banner { padding: 10px 16px; background: #3b1d1d; border-bottom: 1px solid #5a2d2d; display: flex; align-items: center; gap: 8px; }
+  .session-ended-text { color: #f44747; font-size: 12px; }
+  .session-ended-hint { color: #888; font-size: 11px; margin-left: auto; }
+
+  .preview-content { flex: 1; padding: 16px; overflow-y: auto; opacity: 0.7; }
+
+  .phase-card { margin-bottom: 12px; padding: 12px 14px; background: #252526; border-radius: 6px; border-left: 3px solid #555; }
+  .phase-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .phase-number { color: #569cd6; font-weight: 600; font-size: 12px; }
+  .phase-title { color: #e0e0e0; font-weight: 500; font-size: 13px; }
+  .phase-desc { color: #999; font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
+  .phase-deps { color: #666; font-size: 11px; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="vscode-frame">
+  <div class="title-bar">my-project — Oxveil</div>
+
+  <div class="preview-pane">
+    <div class="preview-tab-bar">
+      <div class="preview-tab"><span class="icon">📋</span> Plan Preview</div>
+    </div>
+    <div class="preview-header">
+      <span class="preview-title">API Retry System</span>
+      <span class="ended-badge">● Session ended</span>
+      <span class="valid-badge">✓ Valid</span>
+    </div>
+    <div class="session-ended-banner">
+      <span class="session-ended-text">⚠ Terminal closed — annotations disabled</span>
+      <span class="session-ended-hint">Run "Oxveil: Plan Chat" to start a new session</span>
+    </div>
+    <div class="preview-content">
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Phase 1</span>
+          <span class="phase-title">Retry utility</span>
+        </div>
+        <div class="phase-desc">Create configurable retry function with exponential backoff. Support max retries, base delay, jitter, and configurable backoff multiplier.</div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Phase 2</span>
+          <span class="phase-title">HTTP client + circuit breaker</span>
+        </div>
+        <div class="phase-desc">Wrap fetch calls with retry logic. Add circuit breaker with open, half-open, and closed states.</div>
+        <div class="phase-deps">Depends on: Phase 1</div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Phase 3</span>
+          <span class="phase-title">Error classification</span>
+        </div>
+        <div class="phase-desc">Classify errors into retryable (429, 5xx, network) vs non-retryable (4xx). Configure per-error type retry behavior.</div>
+        <div class="phase-deps">Depends on: Phase 1</div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Phase 4</span>
+          <span class="phase-title">Tests</span>
+        </div>
+        <div class="phase-desc">Unit tests for retry logic, circuit breaker states, error classification. Integration test with mock server.</div>
+        <div class="phase-deps">Depends on: Phase 2, Phase 3</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
