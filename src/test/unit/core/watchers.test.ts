@@ -28,7 +28,30 @@ describe("WatcherManager", () => {
     vi.useRealTimers();
   });
 
-  it("debounce: rapid events produce single callback", async () => {
+  it("throttle: single event fires once (no trailing edge)", async () => {
+    const onLogChange = vi.fn();
+    const deps = makeDeps({
+      onLogChange,
+      readFile: vi.fn().mockResolvedValue("line 1\n"),
+    });
+    const watcher = new WatcherManager(deps);
+    watcher.start();
+
+    const handler = watcher.getFileChangeHandler();
+    handler("/workspace/.claudeloop/live.log");
+
+    // Flush the leading-edge async readFile
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(onLogChange).toHaveBeenCalledTimes(1);
+
+    // Advance past debounce — no trailing edge should fire
+    await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
+
+    expect(onLogChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("throttle: rapid events produce leading + trailing callbacks", async () => {
     const onProgressChange = vi.fn();
     const deps = makeDeps({
       onProgressChange,
@@ -37,17 +60,75 @@ describe("WatcherManager", () => {
     const watcher = new WatcherManager(deps);
     watcher.start();
 
-    // Simulate rapid file changes
     const handler = watcher.getFileChangeHandler();
-    handler("/workspace/.claudeloop/PROGRESS.md");
-    handler("/workspace/.claudeloop/PROGRESS.md");
-    handler("/workspace/.claudeloop/PROGRESS.md");
 
-    // Advance past debounce
+    // First event fires immediately (leading edge)
+    handler("/workspace/.claudeloop/PROGRESS.md");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onProgressChange).toHaveBeenCalledTimes(1);
+
+    // More events during cooldown — should NOT fire immediately
+    handler("/workspace/.claudeloop/PROGRESS.md");
+    handler("/workspace/.claudeloop/PROGRESS.md");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onProgressChange).toHaveBeenCalledTimes(1);
+
+    // Advance past debounce — trailing edge fires
+    await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
+    expect(onProgressChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("throttle: sustained writes fire callbacks at steady cadence", async () => {
+    const onLogChange = vi.fn();
+    const deps = makeDeps({
+      onLogChange,
+      readFile: vi.fn().mockResolvedValue("content"),
+      debounceMs: 100,
+    });
+    const watcher = new WatcherManager(deps);
+    watcher.start();
+
+    const handler = watcher.getFileChangeHandler();
+
+    // Simulate writes every 30ms for 500ms
+    for (let t = 0; t < 500; t += 30) {
+      handler("/workspace/.claudeloop/live.log");
+      await vi.advanceTimersByTimeAsync(30);
+    }
+
+    // Flush any remaining trailing edge
     await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
 
-    expect(onProgressChange).toHaveBeenCalledTimes(1);
-    expect(onProgressChange).toHaveBeenCalledWith("progress content");
+    // With 100ms throttle and 500ms of sustained writes, expect at least 5 callbacks
+    // (leading edge + trailing edges every ~100ms)
+    expect(onLogChange.mock.calls.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("stop() during active cooldown cancels pending trailing edge", async () => {
+    const onLogChange = vi.fn();
+    const deps = makeDeps({
+      onLogChange,
+      readFile: vi.fn().mockResolvedValue("content"),
+    });
+    const watcher = new WatcherManager(deps);
+    watcher.start();
+
+    const handler = watcher.getFileChangeHandler();
+
+    // Leading edge fires
+    handler("/workspace/.claudeloop/live.log");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onLogChange).toHaveBeenCalledTimes(1);
+
+    // Second event during cooldown
+    handler("/workspace/.claudeloop/live.log");
+
+    // Stop before trailing edge fires
+    watcher.stop();
+
+    // Advance past debounce — trailing edge should NOT fire
+    await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
+    expect(onLogChange).toHaveBeenCalledTimes(1);
   });
 
   it("routes lock file changes to lock handler", async () => {
