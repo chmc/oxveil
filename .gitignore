@@ -3,6 +3,7 @@ verification-sessions/
 
 # claudeloop runtime
 .claudeloop/
+dot.claudeloop.zip
 
 # Node
 node_modules/

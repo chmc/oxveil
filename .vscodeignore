@@ -20,4 +20,5 @@ PLAN.md
 release_notes.md
 *.vsix
 *.code-workspace
+dot.claudeloop.zip
 verification-sessions/**
