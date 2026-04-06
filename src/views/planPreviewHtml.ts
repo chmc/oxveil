@@ -81,6 +81,7 @@ export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   if (options.state === "raw-markdown") {
     return `${header}
 <div class="preview-content">
+  <div class="parse-warning-banner">⚠ Could not parse plan format. Showing raw content.</div>
   <div class="raw-markdown"><pre>${escapeHtml(options.rawMarkdown || "")}</pre></div>
 </div>`;
   }
@@ -158,6 +159,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .empty-subtitle { font-size: 12px; color: #666; line-height: 1.6; max-width: 300px; margin: 0 auto; }
 
     /* Raw markdown fallback */
+    .parse-warning-banner { background: #8b6914; color: #fff; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; }
     .raw-markdown { padding: 8px 0; }
     .raw-markdown pre { white-space: pre-wrap; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 12px; line-height: 1.6; color: var(--vscode-foreground, #d4d4d4); }
   </style>

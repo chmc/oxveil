@@ -1,6 +1,7 @@
 export type ExistingPlanAction = "edit" | "create" | "cancel";
 
-interface QuickPickItem {
+export interface ExistingPlanQuickPickItem {
+  label: string;
   value: ExistingPlanAction;
 }
 
@@ -30,11 +31,11 @@ export function buildSystemPrompt(): string {
 }
 
 export async function handleExistingPlan(
-  showQuickPick: (items: QuickPickItem[]) => Promise<QuickPickItem | undefined>,
+  showQuickPick: (items: ExistingPlanQuickPickItem[]) => Promise<ExistingPlanQuickPickItem | undefined>,
 ): Promise<ExistingPlanAction> {
-  const items: QuickPickItem[] = [
-    { value: "edit" },
-    { value: "create" },
+  const items: ExistingPlanQuickPickItem[] = [
+    { label: "Edit existing plan", value: "edit" },
+    { label: "Create new plan (backup current)", value: "create" },
   ];
   const picked = await showQuickPick(items);
   return picked?.value ?? "cancel";

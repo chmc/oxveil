@@ -76,21 +76,39 @@ export class PlanPreviewPanel {
     }
   }
 
+  private _lastRawContent: string | undefined;
+
   async onFileChanged(): Promise<void> {
     if (!this._panel) return;
 
     const content = await this._deps.readFile();
-    const parsed = parsePlanWithDescriptions(content);
-    const basePlan = parsePlan(content);
-    const validation = validatePlan(basePlan);
 
-    this._lastValid = validation.valid;
-    this._lastPhases = parsed.phases.map((p) => ({
-      number: p.number,
-      title: p.title,
-      description: p.description,
-      dependencies: p.dependencies,
-    }));
+    try {
+      const parsed = parsePlanWithDescriptions(content);
+      const basePlan = parsePlan(content);
+      const validation = validatePlan(basePlan);
+
+      if (parsed.phases.length === 0 && content.trim().length > 0) {
+        // File has content but parser found no phases — show raw fallback
+        this._lastPhases = [];
+        this._lastValid = false;
+        this._lastRawContent = content;
+      } else {
+        this._lastValid = validation.valid;
+        this._lastPhases = parsed.phases.map((p) => ({
+          number: p.number,
+          title: p.title,
+          description: p.description,
+          dependencies: p.dependencies,
+        }));
+        this._lastRawContent = undefined;
+      }
+    } catch {
+      // Parser threw — show raw fallback
+      this._lastPhases = [];
+      this._lastValid = false;
+      this._lastRawContent = content;
+    }
 
     this._sendUpdate();
   }
@@ -145,12 +163,22 @@ export class PlanPreviewPanel {
     if (!this._panel) return;
 
     const hasPhases = this._lastPhases.length > 0;
-    const state: PhaseCardsOptions["state"] = !hasPhases ? "empty" : this._sessionActive ? "active" : "session-ended";
+    let state: PhaseCardsOptions["state"];
+    if (this._lastRawContent !== undefined) {
+      state = "raw-markdown";
+    } else if (!hasPhases) {
+      state = "empty";
+    } else if (this._sessionActive) {
+      state = "active";
+    } else {
+      state = "session-ended";
+    }
     const options: PhaseCardsOptions = {
       state,
       phases: this._lastPhases,
       sessionActive: this._sessionActive,
       isValid: this._lastValid,
+      rawMarkdown: this._lastRawContent,
     };
     const html = renderPhaseCardsHtml(options);
     this._panel.webview.postMessage({ type: "update", html });

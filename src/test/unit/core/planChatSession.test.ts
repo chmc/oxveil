@@ -80,6 +80,24 @@ describe("PlanChatSession", () => {
     });
   });
 
+  describe("focusTerminal", () => {
+    it("calls show on the terminal", () => {
+      const session = new PlanChatSession(deps);
+      session.start("prompt");
+      mockTerminal.show.mockClear();
+
+      session.focusTerminal();
+
+      expect(mockTerminal.show).toHaveBeenCalled();
+    });
+
+    it("does nothing when no terminal exists", () => {
+      const session = new PlanChatSession(deps);
+      // Should not throw
+      session.focusTerminal();
+    });
+  });
+
   describe("matchesTerminal", () => {
     it("returns true for the session's terminal", () => {
       const session = new PlanChatSession(deps);

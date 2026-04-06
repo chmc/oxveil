@@ -19,8 +19,9 @@ import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
-import { buildSystemPrompt } from "./commands/planChat";
+import { buildSystemPrompt, handleExistingPlan } from "./commands/planChat";
 import { PlanChatSession } from "./core/planChatSession";
+import * as fs from "node:fs";
 
 export interface CommandDeps {
   sessionManager: WorkspaceSessionManager;
@@ -39,6 +40,7 @@ export interface CommandDeps {
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
   claudePath?: string | null;
   onPlanChatSessionCreated?: (session: PlanChatSession) => void;
+  getActivePlanChatSession?: () => PlanChatSession | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -310,8 +312,37 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     vscode.commands.registerCommand("oxveil.openPlanChat", async () => {
       if (!claudePath) {
-        vscode.window.showErrorMessage("Oxveil: Claude CLI not found");
+        vscode.window.showErrorMessage(
+          "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
+        );
         return;
+      }
+
+      // Prevent duplicate sessions
+      const existingSession = deps.getActivePlanChatSession?.();
+      if (existingSession?.isActive()) {
+        vscode.window.showInformationMessage("Plan Chat session already active");
+        existingSession.focusTerminal();
+        return;
+      }
+
+      // Check for existing PLAN.md
+      const workspaceRoot = getActive()?.workspaceRoot
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (workspaceRoot) {
+        const planPath = path.join(workspaceRoot, "PLAN.md");
+        if (fs.existsSync(planPath)) {
+          const action = await handleExistingPlan((items) =>
+            vscode.window.showQuickPick(items, {
+              placeHolder: "A PLAN.md already exists",
+            }) as any,
+          );
+          if (action === "cancel") return;
+          if (action === "create") {
+            fs.renameSync(planPath, `${planPath}.bak`);
+          }
+          // "edit" — continue with existing plan
+        }
       }
 
       const session = new PlanChatSession({

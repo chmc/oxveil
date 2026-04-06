@@ -278,6 +278,7 @@ export async function activate(
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
       claudePath: resolvedClaudePath,
+      getActivePlanChatSession: () => activePlanChatSession,
       onPlanChatSessionCreated: (session) => {
         activePlanChatSession = session;
         planPreviewPanel.setSessionActive(true);

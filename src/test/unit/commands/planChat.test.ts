@@ -13,13 +13,13 @@ describe("buildSystemPrompt", () => {
 
 describe("handleExistingPlan", () => {
   it("returns 'edit' when user picks edit", async () => {
-    const showQuickPick = async () => ({ value: "edit" as const });
+    const showQuickPick = async () => ({ label: "Edit existing plan", value: "edit" as const });
     const result = await handleExistingPlan(showQuickPick);
     expect(result).toBe("edit");
   });
 
   it("returns 'create' when user picks create new", async () => {
-    const showQuickPick = async () => ({ value: "create" as const });
+    const showQuickPick = async () => ({ label: "Create new plan (backup current)", value: "create" as const });
     const result = await handleExistingPlan(showQuickPick);
     expect(result).toBe("create");
   });
@@ -28,5 +28,17 @@ describe("handleExistingPlan", () => {
     const showQuickPick = async () => undefined;
     const result = await handleExistingPlan(showQuickPick);
     expect(result).toBe("cancel");
+  });
+
+  it("passes items with labels to quick pick", async () => {
+    let capturedItems: any[] = [];
+    const showQuickPick = async (items: any[]) => {
+      capturedItems = items;
+      return undefined;
+    };
+    await handleExistingPlan(showQuickPick);
+    expect(capturedItems).toHaveLength(2);
+    expect(capturedItems[0]).toEqual({ label: "Edit existing plan", value: "edit" });
+    expect(capturedItems[1]).toEqual({ label: "Create new plan (backup current)", value: "create" });
   });
 });

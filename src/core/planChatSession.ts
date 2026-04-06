@@ -45,6 +45,10 @@ export class PlanChatSession {
     );
   }
 
+  focusTerminal(): void {
+    this._terminal?.show();
+  }
+
   matchesTerminal(terminal: unknown): boolean {
     return this._terminal !== undefined && terminal === this._terminal;
   }

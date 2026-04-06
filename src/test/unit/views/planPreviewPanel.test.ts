@@ -140,6 +140,22 @@ describe("PlanPreviewPanel", () => {
     expect(call.html).not.toContain("Valid");
   });
 
+  it("onFileChanged() with content but no phases shows raw markdown fallback", async () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    deps.readFile = vi.fn(async () => "This is just some text\nwith no phase headers");
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    mockPanel.webview.postMessage.mockClear();
+
+    await panel.onFileChanged();
+
+    const call = mockPanel.webview.postMessage.mock.calls[0][0];
+    expect(call.type).toBe("update");
+    expect(call.html).toContain("Could not parse plan format");
+    expect(call.html).toContain("This is just some text");
+  });
+
   it("onFileChanged() without panel does nothing", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
