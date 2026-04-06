@@ -87,7 +87,11 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     onAnnotation: (_phase, _text) => {
       // Annotation handling will be wired in a future phase
     },
+    createFileSystemWatcher: (glob: string) => vscode.workspace.createFileSystemWatcher(glob),
   });
+  if (deps.workspaceRoot) {
+    planPreviewPanel.startWatching(deps.workspaceRoot);
+  }
   disposables.push({ dispose: () => planPreviewPanel.dispose() });
 
   const planCodeLens = new PlanCodeLensProvider();

@@ -4,6 +4,13 @@ import { validatePlan } from "../parsers/planValidator";
 import { parsePlan } from "../parsers/plan";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
 
+export interface FileSystemWatcher {
+  onDidChange: (cb: () => void) => { dispose: () => void };
+  onDidCreate: (cb: () => void) => { dispose: () => void };
+  onDidDelete: (cb: () => void) => { dispose: () => void };
+  dispose: () => void;
+}
+
 export interface PlanPreviewPanelDeps {
   createWebviewPanel: (
     viewType: string,
@@ -13,6 +20,7 @@ export interface PlanPreviewPanelDeps {
   ) => WebviewPanel;
   readFile: () => Promise<string>;
   onAnnotation: (phase: string, text: string) => void;
+  createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
 }
 
 interface Webview {
@@ -35,6 +43,9 @@ export class PlanPreviewPanel {
   private _sessionActive = true;
   private _lastPhases: PhaseCardData[] = [];
   private _lastValid = false;
+  private _watcher: FileSystemWatcher | undefined;
+  private _watcherSubscriptions: { dispose: () => void }[] = [];
+  private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
@@ -89,7 +100,43 @@ export class PlanPreviewPanel {
     this._sendUpdate();
   }
 
+  startWatching(workspaceRoot: string): void {
+    if (!this._deps.createFileSystemWatcher) return;
+    this.stopWatching();
+
+    const glob = `${workspaceRoot}/PLAN.md`;
+    this._watcher = this._deps.createFileSystemWatcher(glob);
+
+    const handler = () => {
+      if (this._debounceTimer) clearTimeout(this._debounceTimer);
+      this._debounceTimer = setTimeout(() => {
+        this._debounceTimer = undefined;
+        this.onFileChanged();
+      }, 200);
+    };
+
+    this._watcherSubscriptions.push(
+      this._watcher.onDidChange(handler),
+      this._watcher.onDidCreate(handler),
+      this._watcher.onDidDelete(handler),
+    );
+  }
+
+  stopWatching(): void {
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = undefined;
+    }
+    for (const sub of this._watcherSubscriptions) {
+      sub.dispose();
+    }
+    this._watcherSubscriptions = [];
+    this._watcher?.dispose();
+    this._watcher = undefined;
+  }
+
   dispose(): void {
+    this.stopWatching();
     this._panel?.dispose();
     this._panel = undefined;
   }

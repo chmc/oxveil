@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { PlanPreviewPanel, type PlanPreviewPanelDeps } from "../../../views/planPreviewPanel";
+import { PlanPreviewPanel, type PlanPreviewPanelDeps, type FileSystemWatcher } from "../../../views/planPreviewPanel";
 
 function makeMockPanel() {
   let messageHandler: ((msg: any) => void) | undefined;
@@ -41,12 +41,39 @@ Do stuff
 Oops duplicate
 `;
 
-function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel: ReturnType<typeof makeMockPanel> } {
+function makeMockWatcher() {
+  const handlers: Record<string, (() => void)[]> = { change: [], create: [], delete: [] };
+  return {
+    watcher: {
+      onDidChange: vi.fn((cb: () => void) => {
+        handlers.change.push(cb);
+        return { dispose: vi.fn() };
+      }),
+      onDidCreate: vi.fn((cb: () => void) => {
+        handlers.create.push(cb);
+        return { dispose: vi.fn() };
+      }),
+      onDidDelete: vi.fn((cb: () => void) => {
+        handlers.delete.push(cb);
+        return { dispose: vi.fn() };
+      }),
+      dispose: vi.fn(),
+    } satisfies FileSystemWatcher,
+    _fireChange() { handlers.change.forEach(cb => cb()); },
+    _fireCreate() { handlers.create.forEach(cb => cb()); },
+    _fireDelete() { handlers.delete.forEach(cb => cb()); },
+  };
+}
+
+function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel: ReturnType<typeof makeMockPanel>; _watcher: ReturnType<typeof makeMockWatcher> } {
+  const mockWatcher = makeMockWatcher();
   return {
     createWebviewPanel: vi.fn(() => mockPanel) as any,
     readFile: vi.fn(async () => VALID_PLAN),
     onAnnotation: vi.fn(),
+    createFileSystemWatcher: vi.fn(() => mockWatcher.watcher),
     _panel: mockPanel,
+    _watcher: mockWatcher,
   };
 }
 
@@ -178,5 +205,91 @@ describe("PlanPreviewPanel", () => {
     deps._panel._simulateMessage({ type: "annotation" });
 
     expect(deps.onAnnotation).not.toHaveBeenCalled();
+  });
+
+  describe("file watching", () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it("startWatching creates a file system watcher", () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.startWatching("/workspace");
+      expect(deps.createFileSystemWatcher).toHaveBeenCalledWith("/workspace/PLAN.md");
+    });
+
+    it("file change triggers onFileChanged after debounce", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.startWatching("/workspace");
+
+      deps._watcher._fireChange();
+      // Should not have called readFile yet (debounce pending)
+      expect(deps.readFile).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(200);
+      // Wait for the async onFileChanged to complete
+      await vi.runAllTimersAsync();
+
+      expect(deps.readFile).toHaveBeenCalled();
+    });
+
+    it("file create triggers onFileChanged after debounce", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.startWatching("/workspace");
+
+      deps._watcher._fireCreate();
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(deps.readFile).toHaveBeenCalled();
+    });
+
+    it("debounce prevents rapid re-reads", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.startWatching("/workspace");
+
+      // Fire 5 rapid changes
+      deps._watcher._fireChange();
+      deps._watcher._fireChange();
+      deps._watcher._fireChange();
+      deps._watcher._fireChange();
+      deps._watcher._fireChange();
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      // Should only call readFile once due to debounce
+      expect(deps.readFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("stopWatching disposes watcher", () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.startWatching("/workspace");
+      panel.stopWatching();
+      expect(deps._watcher.watcher.dispose).toHaveBeenCalled();
+    });
+
+    it("dispose stops watching", () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.startWatching("/workspace");
+      panel.dispose();
+      expect(deps._watcher.watcher.dispose).toHaveBeenCalled();
+    });
+
+    it("startWatching stops previous watcher", () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.startWatching("/workspace");
+      const firstWatcher = deps._watcher.watcher;
+      panel.startWatching("/other");
+      expect(firstWatcher.dispose).toHaveBeenCalled();
+    });
   });
 });
