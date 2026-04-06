@@ -1,14 +1,14 @@
-# Live Run Panel Implementation Plan
+# Plan Chat Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the VS Code Output Channel with a rich webview panel that shows live run progress — phase dashboard with todo progress, color-coded log stream, and completion summary.
+**Goal:** Add a native plan creation experience that opens a Claude Code terminal for conversational brainstorming alongside a live plan preview webview with annotations.
 
-**Architecture:** A new `LiveRunPanel` webview uses message passing to update two sections: a collapsible dashboard rendered from `ProgressState` and a formatted log stream parsed by `logFormatter`. The panel wires into existing `phases-changed` and `log-appended` events, replacing `OutputChannelManager`.
+**Architecture:** A `PlanChatSession` coordinates a VS Code integrated terminal (running `claude` CLI with a system prompt for plan-format output) and a `PlanPreviewPanel` webview (live-rendering PLAN.md via FileSystemWatcher + plan parser). Annotations in the preview inject text into the terminal via `terminal.sendText()`.
 
-**Tech Stack:** TypeScript, VS Code Webview API, Vitest
+**Tech Stack:** TypeScript, VS Code Terminal API, VS Code Webview API, Vitest
 
-**Spec:** `docs/superpowers/specs/2026-04-04-live-run-panel-design.md`
+**Spec:** `docs/superpowers/specs/2026-04-06-plan-chat-design.md`
 
 **Incremental delivery:** Each task produces a demoable visual increment with `/visual-verification`.
 
@@ -18,34 +18,27 @@
 
 Reference these mockups when implementing the HTML/CSS. Source HTML files are in `docs/superpowers/plans/mockups/`.
 
-**Active run state** — dashboard expanded with phase list, todo progress, and formatted log stream:
+**Active state** — Claude terminal on the left with conversation, plan preview on the right with phase cards and annotation input:
 
-![Active run](mockups/live-run-active.png)
+![Active state](mockups/plan-chat-active.png)
 
-**Completed run state** — completion banner with duration/cost summary and "Open Replay" button:
+**Empty state** — fresh session, terminal just opened, preview shows "No plan yet" placeholder:
 
-![Completed run](mockups/live-run-completed.png)
+![Empty state](mockups/plan-chat-empty.png)
 
-**Collapsed dashboard** — phase list collapses to a single-line summary bar, but **todo section stays visible**:
+**Session ended** — terminal closed, preview shows warning banner with disabled annotations:
 
-![Collapsed dashboard](mockups/live-run-collapsed.png)
+![Session ended](mockups/plan-chat-ended.png)
 
 ---
 
-### Design Decisions (from critic review)
+### Design Decisions
 
-These decisions simplify the spec where the critics identified over-engineering:
-
-- **No per-phase cost.** Dashboard shows only total cost from `[Session:]` log lines. Per-phase cost deferred until claudeloop emits structured cost data.
-- **Cost fallback.** Show "—" when no `[Session:]` lines seen yet.
-- **Simple todo display.** Show progress bar (N/T) and current item text from most recent `[Todos: N/T done]` line. Do NOT reconstruct a full checklist from log lines — the data isn't structured enough. The mockup checklist is aspirational; for v1, just show the progress bar + current item.
-- **No "Show earlier output" disk read.** The link is present but disabled for v1. Buffer cap is the max visible history.
-- **Simple buffer.** `string[]` capped at `liveRunLogLines`. On overflow, `shift()` oldest. On panel open, send full buffer. No `log-trim` protocol needed — the buffer IS the DOM.
-- **Log offset tracking.** The `log-appended` event delivers the full file on each change. `LiveRunPanel` tracks byte offset to extract only new content.
-- **Panel manages its own meta.** `SessionMeta` is internal to the panel — no caller needs to construct it. `reveal()` takes only `ProgressState` and optional `folderUri`. Panel derives `planName` from progress data and accumulates cost from log lines.
-- **Delete OutputChannel in Task 1.** Replace immediately, no dual-wiring.
-- **Collapse state.** Simple instance variable initialized from setting. No `workspaceState` needed — resets on each new run naturally.
-- **Shared `escapeHtml`.** Extract to `src/utils/html.ts` before using in logFormatter.
+- **Reuse existing `Detection` class** for Claude CLI detection — same constructor pattern, different binary path and minimum version.
+- **New single-file watcher** for PLAN.md — follow `WatcherManager` debounce pattern but don't modify the existing class. A simple `vscode.workspace.createFileSystemWatcher` with debounce is sufficient.
+- **Plan parser extension** — `parsePlan()` extracts phases but not descriptions. We extend it to also extract body text (lines between headers). New `validatePlan()` function checks sequentiality and dependency references.
+- **System prompt as inline `--append-system-prompt`** — avoid file management by using the CLI flag directly. Verified: `claude --help` shows `--append-system-prompt <prompt>`.
+- **Terminal spawned as `shellPath`** — `vscode.window.createTerminal({ shellPath: claudePath, shellArgs: [...] })` gives us full control over the process.
 
 ---
 
@@ -53,757 +46,435 @@ These decisions simplify the spec where the critics identified over-engineering:
 
 | Action | File | Responsibility |
 |--------|------|----------------|
-| Create | `src/utils/html.ts` | Shared `escapeHtml` utility |
-| Create | `src/parsers/logFormatter.ts` | Pure function: raw log line → HTML string |
-| Create | `src/test/unit/parsers/logFormatter.test.ts` | Unit tests for all log line patterns |
-| Create | `src/views/liveRunHtml.ts` | HTML shell + dashboard renderer |
-| Create | `src/test/unit/views/liveRunHtml.test.ts` | Unit tests for HTML shell and dashboard |
-| Create | `src/views/liveRunPanel.ts` | Panel class with message passing, buffer, lifecycle |
-| Create | `src/test/unit/views/liveRunPanel.test.ts` | Unit tests for panel behavior |
-| Modify | `src/views/timelineHtml.ts` | Import shared `escapeHtml` instead of local copy |
-| Modify | `src/views/configWizardHtml.ts` | Import shared `escapeHtml` instead of local copy |
-| Modify | `src/sessionWiring.ts` | Replace `outputManager` with `liveRunPanel` |
-| Modify | `src/workspaceSetup.ts` | Update `SessionWiringContext` type |
-| Modify | `src/activateViews.ts` | Instantiate `LiveRunPanel`, add to result |
-| Modify | `src/extension.ts` | Remove OutputChannel, wire LiveRunPanel |
-| Modify | `src/commands.ts` | Register `oxveil.showLiveRun` command |
-| Modify | `package.json` | Add command, settings, command palette entry |
-| Delete | `src/views/outputChannel.ts` | Replaced by LiveRunPanel |
-| Delete | `src/test/unit/views/outputChannel.test.ts` | Tests for removed file |
+| Create | `src/core/claudeDetection.ts` | Detect `claude` CLI binary, reusing `Detection` class |
+| Create | `src/test/unit/core/claudeDetection.test.ts` | Unit tests for Claude detection |
+| Create | `src/parsers/planValidator.ts` | `validatePlan()`: sequential numbering + dependency reference checks |
+| Create | `src/test/unit/parsers/planValidator.test.ts` | Unit tests for plan validation |
+| Create | `src/parsers/planDescription.ts` | `parsePlanWithDescriptions()`: extends `parsePlan` to extract body text |
+| Create | `src/test/unit/parsers/planDescription.test.ts` | Unit tests for description extraction |
+| Create | `src/views/planPreviewHtml.ts` | HTML generation: phase cards, annotations, validation status |
+| Create | `src/test/unit/views/planPreviewHtml.test.ts` | Unit tests for HTML rendering |
+| Create | `src/views/planPreviewPanel.ts` | Webview panel lifecycle, file watching, annotation bridge |
+| Create | `src/test/unit/views/planPreviewPanel.test.ts` | Unit tests for panel behavior |
+| Create | `src/core/planChatSession.ts` | Links terminal + preview + watcher, lifecycle management |
+| Create | `src/test/unit/core/planChatSession.test.ts` | Unit tests for session lifecycle |
+| Create | `src/commands/planChat.ts` | Command handler: existing plan detection, terminal spawn, preview open |
+| Create | `src/test/unit/commands/planChat.test.ts` | Unit tests for command handler |
+| Modify | `src/activateViews.ts` | Instantiate `PlanPreviewPanel`, add to result |
+| Modify | `src/commands.ts` | Register `oxveil.openPlanChat` and `oxveil.showPlanPreview` commands |
+| Modify | `src/extension.ts` | Add Claude detection, wire plan chat session, set context keys |
+| Modify | `package.json` | Add commands, settings, command palette entries |
 
 ---
 
-### Task 1: Panel with Live Dashboard, Replacing OutputChannel
+### Task 1: Description Parser and Validator
 
-**Demo after this task:** Run starts → panel auto-opens showing live phase dashboard. Raw (unformatted) log lines stream below. OutputChannel is gone.
+**Demo after this task:** Tests pass for two new pure-function modules. No UI yet — foundation for the preview.
 
 **Files:**
-- Create: `src/utils/html.ts`
-- Create: `src/views/liveRunHtml.ts`, `src/test/unit/views/liveRunHtml.test.ts`
-- Create: `src/views/liveRunPanel.ts`, `src/test/unit/views/liveRunPanel.test.ts`
-- Modify: `src/views/timelineHtml.ts`, `src/views/configWizardHtml.ts` (use shared escapeHtml)
-- Modify: `src/activateViews.ts`, `src/commands.ts`, `src/sessionWiring.ts`, `src/workspaceSetup.ts`, `src/extension.ts`, `package.json`
-- Delete: `src/views/outputChannel.ts`, `src/test/unit/views/outputChannel.test.ts`
+- Create: `src/parsers/planDescription.ts`
+- Create: `src/test/unit/parsers/planDescription.test.ts`
+- Create: `src/parsers/planValidator.ts`
+- Create: `src/test/unit/parsers/planValidator.test.ts`
 
-- [ ] **Step 1: Extract shared escapeHtml utility**
+Non-UI task: no visual verification needed.
 
-Create `src/utils/html.ts`:
+- [ ] **Step 1: Write failing tests for description parser**
 
-```typescript
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-```
+Create `src/test/unit/parsers/planDescription.test.ts`. Test cases: extracts description between phase headers, excludes `depends-on` line, excludes `[status: ...]` annotation, returns empty description for header-only phase. Follow existing test patterns in `src/test/unit/parsers/`.
 
-Update `src/views/timelineHtml.ts` and `src/views/configWizardHtml.ts`: replace their local `escapeHtml`/`esc` functions with `import { escapeHtml } from "../utils/html"`.
+- [ ] **Step 2: Implement description parser**
 
-- [ ] **Step 2: Write failing tests for liveRunHtml**
+Create `src/parsers/planDescription.ts` — `parsePlanWithDescriptions()` extends `parsePlan()` to extract body text between headers, filtering out status and depends-on lines.
 
-Create `src/test/unit/views/liveRunHtml.test.ts`:
+- [ ] **Step 3: Run description parser tests**
 
-```typescript
-import { describe, it, expect } from "vitest";
-import { renderLiveRunShell, renderDashboardHtml } from "../../../views/liveRunHtml";
-import type { ProgressState } from "../../../types";
+Run: `npx vitest run src/test/unit/parsers/planDescription.test.ts` → PASS
 
-const nonce = "abc123";
-const cspSource = "https://mock.csp";
+- [ ] **Step 4: Write failing tests for plan validator**
 
-describe("renderLiveRunShell", () => {
-  it("returns valid HTML with CSP", () => {
-    const html = renderLiveRunShell(nonce, cspSource);
-    expect(html).toContain("<!DOCTYPE html>");
-    expect(html).toContain("Content-Security-Policy");
-    expect(html).toContain(`nonce="${nonce}"`);
-  });
+Create `src/test/unit/parsers/planValidator.test.ts`. Test cases: valid sequential plan passes, gap in numbering fails, duplicate phase number fails, dependency referencing non-existent phase fails, empty plan passes. Follow existing test patterns.
 
-  it("contains dashboard and log containers", () => {
-    const html = renderLiveRunShell(nonce, cspSource);
-    expect(html).toContain('id="dashboard"');
-    expect(html).toContain('id="log-container"');
-  });
+- [ ] **Step 5: Implement plan validator**
 
-  it("contains message handler script", () => {
-    const html = renderLiveRunShell(nonce, cspSource);
-    expect(html).toContain("addEventListener");
-    expect(html).toContain('"dashboard"');
-    expect(html).toContain('"log-append"');
-  });
+Create `src/parsers/planValidator.ts` — `validatePlan()` checks sequential numbering and dependency references. Returns `{ valid: boolean, errors: string[] }`.
 
-  it("contains CSS for log classes", () => {
-    const html = renderLiveRunShell(nonce, cspSource);
-    for (const cls of [".log-ts", ".log-tool", ".log-todo", ".log-warn", ".log-error", ".log-phase-header"]) {
-      expect(html).toContain(cls);
-    }
-  });
-});
+- [ ] **Step 6: Run validator tests**
 
-describe("renderDashboardHtml", () => {
-  const progress: ProgressState = {
-    phases: [
-      { number: 1, title: "Setup", status: "completed", started: "2025-01-01 10:00:00", completed: "2025-01-01 10:00:39" },
-      { number: 2, title: "Build", status: "in_progress", started: "2025-01-01 10:00:39" },
-      { number: 3, title: "Deploy", status: "pending" },
-    ],
-    totalPhases: 3,
-    currentPhaseIndex: 1,
-  };
+Run: `npx vitest run src/test/unit/parsers/planValidator.test.ts` → PASS
 
-  it("renders completed phase", () => {
-    expect(renderDashboardHtml(progress)).toContain("Setup");
-  });
+- [ ] **Step 7: Run full test suite**
 
-  it("renders active phase highlighted", () => {
-    const html = renderDashboardHtml(progress);
-    expect(html).toContain("phase-active");
-    expect(html).toContain("Build");
-  });
-
-  it("renders pending phases dimmed", () => {
-    const html = renderDashboardHtml(progress);
-    expect(html).toContain("phase-pending");
-  });
-
-  it("shows cost as dash when unknown", () => {
-    expect(renderDashboardHtml(progress)).toContain("—");
-  });
-
-  it("shows cost when provided", () => {
-    expect(renderDashboardHtml(progress, { totalCost: 1.24 })).toContain("$1.24");
-  });
-
-  it("escapes HTML in phase titles", () => {
-    const xss: ProgressState = {
-      phases: [{ number: 1, title: "<script>alert(1)</script>", status: "pending" }],
-      totalPhases: 1,
-    };
-    expect(renderDashboardHtml(xss)).not.toContain("<script>alert");
-  });
-
-  it("renders empty state when no phases", () => {
-    const empty: ProgressState = { phases: [], totalPhases: 0 };
-    const html = renderDashboardHtml(empty);
-    expect(html).toContain("No active run");
-  });
-});
-```
-
-- [ ] **Step 3: Run tests to verify they fail**
-
-Run: `npx vitest run src/test/unit/views/liveRunHtml.test.ts`
-Expected: FAIL — module not found
-
-- [ ] **Step 4: Implement liveRunHtml.ts**
-
-Create `src/views/liveRunHtml.ts`. Two exports:
-
-1. `renderLiveRunShell(nonce, cspSource)` — Full HTML document with:
-   - CSP meta tag (same pattern as `timelineHtml.ts`)
-   - All CSS for dashboard and log styling (reference active run mockup)
-   - Empty `<div id="dashboard">` and `<div id="log-container">` containers
-   - Nonce-protected `<script>`: handles `dashboard`, `log-append`, `run-finished` messages
-   - Auto-scroll: only if user is within 50px of bottom
-   - 1-second interval to update elapsed time from `data-started` attribute
-   - Posts `toggle-dashboard`, `open-replay` back to extension
-
-2. `renderDashboardHtml(progress, options?)` — HTML fragment:
-   - `options?: { totalCost?: number; collapsed?: boolean; todoDone?: number; todoTotal?: number; todoCurrentItem?: string }`
-   - Phase list with status icons (✓/↻/✗/○), number, title, duration for completed
-   - Active phase highlighted, pending dimmed
-   - Cost: show `$X.XX` if `totalCost` provided, "—" otherwise
-   - Empty state: "No active run" when no phases
-   - Collapse toggle (text link), todo progress bar — stubbed for now, implemented in Task 3
-
-- [ ] **Step 5: Run liveRunHtml tests**
-
-Run: `npx vitest run src/test/unit/views/liveRunHtml.test.ts`
-Expected: All PASS
-
-- [ ] **Step 6: Write failing tests for LiveRunPanel**
-
-Create `src/test/unit/views/liveRunPanel.test.ts`:
-
-```typescript
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-vi.mock("vscode", () => ({ ViewColumn: { One: 1 } }));
-
-import { LiveRunPanel, type LiveRunPanelDeps } from "../../../views/liveRunPanel";
-import type { ProgressState } from "../../../types";
-
-function makeMockPanel() {
-  let messageHandler: ((msg: any) => void) | undefined;
-  return {
-    webview: {
-      html: "",
-      cspSource: "https://mock.csp",
-      postMessage: vi.fn(),
-      onDidReceiveMessage: vi.fn((cb) => { messageHandler = cb; }),
-    },
-    reveal: vi.fn(),
-    onDidDispose: vi.fn(),
-    dispose: vi.fn(),
-    _simulateMessage(msg: any) { messageHandler?.(msg); },
-  };
-}
-
-function makeDeps(mockPanel = makeMockPanel()): LiveRunPanelDeps {
-  return {
-    createWebviewPanel: vi.fn(() => mockPanel) as any,
-    executeCommand: vi.fn() as any,
-    getConfig: vi.fn((key: string) => {
-      if (key === "liveRunLogLines") return 1000;
-      if (key === "liveRunDashboardCollapsed") return false;
-      return undefined;
-    }),
-  };
-}
-
-function makeProgress(): ProgressState {
-  return {
-    phases: [
-      { number: 1, title: "Setup", status: "completed", started: "2025-01-01 10:00:00", completed: "2025-01-01 10:02:00" },
-      { number: 2, title: "Build", status: "in_progress", started: "2025-01-01 10:02:00" },
-    ],
-    totalPhases: 2,
-    currentPhaseIndex: 1,
-  };
-}
-
-describe("LiveRunPanel", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
-
-  it("creates panel on reveal", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    expect(deps.createWebviewPanel).toHaveBeenCalledWith(
-      "oxveil.liveRun", "Live Run", 1,
-      { enableScripts: true, retainContextWhenHidden: true },
-    );
-  });
-
-  it("sets HTML shell on first reveal", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    expect(mockPanel.webview.html).toContain("<!DOCTYPE html>");
-  });
-
-  it("sends dashboard on reveal", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "dashboard" }),
-    );
-  });
-
-  it("reuses panel on subsequent reveals", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    panel.reveal(makeProgress());
-    expect(deps.createWebviewPanel).toHaveBeenCalledTimes(1);
-  });
-
-  it("onProgressChanged sends dashboard update", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    mockPanel.webview.postMessage.mockClear();
-    panel.onProgressChanged(makeProgress());
-    expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "dashboard" }),
-    );
-  });
-
-  it("onLogAppended sends log-append", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    mockPanel.webview.postMessage.mockClear();
-    panel.onLogAppended("[14:00:00] hello\n");
-    expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "log-append" }),
-    );
-  });
-
-  it("tracks log offset to avoid duplicates", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    mockPanel.webview.postMessage.mockClear();
-
-    panel.onLogAppended("line1\nline2\n");
-    panel.onLogAppended("line1\nline2\nline3\n"); // full file re-delivered
-    const logCalls = mockPanel.webview.postMessage.mock.calls.filter(
-      (c: any) => c[0].type === "log-append",
-    );
-    // Second call should only contain line3, not line1+line2 again
-    expect(logCalls).toHaveLength(2);
-    expect(logCalls[1][0].html).not.toContain("line1");
-    expect(logCalls[1][0].html).toContain("line3");
-  });
-
-  it("buffers log when panel not open, replays on reveal", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.onLogAppended("buffered line\n");
-    panel.reveal(makeProgress());
-    const logCalls = mockPanel.webview.postMessage.mock.calls.filter(
-      (c: any) => c[0].type === "log-append",
-    );
-    expect(logCalls.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("caps buffer at configured limit", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    deps.getConfig = vi.fn(() => 5); // 5 line limit
-    const panel = new LiveRunPanel(deps);
-    // Feed 10 lines
-    const lines = Array.from({ length: 10 }, (_, i) => `line${i}\n`).join("");
-    panel.onLogAppended(lines);
-    panel.reveal(makeProgress());
-    const logCalls = mockPanel.webview.postMessage.mock.calls.filter(
-      (c: any) => c[0].type === "log-append",
-    );
-    // Buffer should contain at most 5 lines
-    const totalHtml = logCalls.map((c: any) => c[0].html).join("");
-    expect(totalHtml).not.toContain("line0");
-    expect(totalHtml).toContain("line9");
-  });
-
-  it("dispose cleans up", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal(makeProgress());
-    panel.dispose();
-    expect(mockPanel.dispose).toHaveBeenCalled();
-  });
-
-  it("empty state when no progress", () => {
-    const mockPanel = makeMockPanel();
-    const deps = makeDeps(mockPanel);
-    const panel = new LiveRunPanel(deps);
-    panel.reveal({ phases: [], totalPhases: 0 });
-    expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "dashboard" }),
-    );
-  });
-});
-```
-
-- [ ] **Step 7: Implement LiveRunPanel**
-
-Create `src/views/liveRunPanel.ts`:
-
-- `LiveRunPanelDeps`: `createWebviewPanel`, `executeCommand`, `getConfig`
-- No `SessionMeta` in public API. Panel manages meta internally:
-  - `_totalCost: number` — accumulated from `[Session:]` log lines
-  - `_logOffset: number` — tracks bytes processed to deduplicate full-file deliveries
-  - `_logBuffer: string[]` — capped at config `liveRunLogLines`, shift oldest on overflow
-  - `_collapsed: boolean` — initialized from config `liveRunDashboardCollapsed`
-- `reveal(progress, folderUri?)`: lazy-create panel, set `webview.html` to shell, send dashboard + buffered log
-- `onProgressChanged(progress)`: re-render dashboard, send `{ type: "dashboard", html }`
-- `onLogAppended(fullContent)`: compare with `_logOffset`, extract new lines only, format (raw for now — Task 2 adds formatting), append to buffer (cap), send `{ type: "log-append", html }`. Parse `[Session:]` lines to update `_totalCost`.
-- `onRunFinished(status)`: stub — implemented in Task 3
-- `clear()`: reset offset, buffer, cost for new run
-- `visible`, `currentFolderUri`, `panel` getters
-
-Log offset deduplication:
-```typescript
-onLogAppended(fullContent: string): void {
-  const newContent = fullContent.slice(this._logOffset);
-  this._logOffset = fullContent.length;
-  if (!newContent) return;
-  // process new lines only
-}
-```
-
-- [ ] **Step 8: Run panel tests**
-
-Run: `npx vitest run src/test/unit/views/liveRunPanel.test.ts`
-Expected: All PASS
-
-- [ ] **Step 9: Wire into extension, delete OutputChannel**
-
-1. **`package.json`**: Add command `oxveil.showLiveRun` ("Oxveil: Show Live Run"), palette entry `when: "oxveil.detected"`. Add settings: `oxveil.liveRunAutoOpen` (boolean, true), `oxveil.liveRunDashboardCollapsed` (boolean, false), `oxveil.liveRunLogLines` (number, 1000, min 100, max 10000).
-
-2. **`src/activateViews.ts`**: Import `LiveRunPanel`. Add to `WebviewPanelsResult`. Instantiate in `createWebviewPanels()`.
-
-3. **`src/commands.ts`**: Add `liveRunPanel?: LiveRunPanel` to `CommandDeps`. Register `oxveil.showLiveRun`: resolve folder, call `liveRunPanel?.reveal(session.progress ?? { phases: [], totalPhases: 0 }, folderUri)`.
-
-4. **`src/sessionWiring.ts`**: Replace `outputManager: OutputChannelManager` with `liveRunPanel?: LiveRunPanel` in `SessionWiringDeps`. In `phases-changed`: call `deps.liveRunPanel?.onProgressChanged(progress)`. Replace `log-appended` handler: call `deps.liveRunPanel?.onLogAppended(content)`. In `state-changed` → `"running"`: auto-open if `liveRunAutoOpen` setting is true.
-
-5. **`src/extension.ts`**: Remove `OutputChannelManager` import and output channel creation. Extract `liveRunPanel` from panels. Replace `outputManager` with `liveRunPanel` in `wiringCtx`. Update notifications `onShowOutput` to reveal live run panel. Add `liveRunPanel` to `registerCommands` deps and `active-session-changed` handler.
-
-6. **Delete** `src/views/outputChannel.ts` and `src/test/unit/views/outputChannel.test.ts`.
-
-- [ ] **Step 10: Run full test suite + type check**
-
-Run: `npx vitest run && npx tsc --noEmit`
-Expected: All pass, no type errors
-
-- [ ] **Step 11: Build and install**
-
-Run: `npm run build`
-Action: `/install-dev`
-
-- [ ] **Step 12: Visual verification**
-
-Action: `/visual-verification`
-
-Verify against active run mockup (`mockups/live-run-active.png`):
-- "Oxveil: Show Live Run" command appears in command palette
-- Panel opens with dark theme, dashboard shows phase list
-- Status icons: ✓ completed, ↻ running, ○ pending
-- Active phase has highlighted row
-- Start a run → panel auto-opens, dashboard updates live
-- Raw log lines stream below dashboard (unformatted — formatting in Task 2)
-- Close and reopen panel mid-run → buffered content appears
-- OutputChannel "Oxveil" entry is gone from Output panel
-
-- [ ] **Step 13: Commit**
-
-```bash
-git add -A
-git commit -m "feat: add live run panel with dashboard, replace OutputChannel
-
-LiveRunPanel webview replaces OutputChannelManager. Shows live
-phase dashboard with status icons. Raw log stream below.
-Auto-opens on run start. Log offset tracking prevents duplicates."
-```
-
----
-
-### Task 2: Formatted Log Stream
-
-**Demo after this task:** Start a run → log lines are color-coded. Tool calls blue, timestamps dimmed, todos green, warnings yellow, errors red.
-
-**Files:**
-- Create: `src/parsers/logFormatter.ts`, `src/test/unit/parsers/logFormatter.test.ts`
-- Modify: `src/views/liveRunPanel.ts`
-
-- [ ] **Step 1: Write failing tests for log formatter**
-
-Create `src/test/unit/parsers/logFormatter.test.ts`:
-
-```typescript
-import { describe, it, expect } from "vitest";
-import { formatLogLine } from "../../../parsers/logFormatter";
-
-describe("formatLogLine", () => {
-  it("formats timestamp", () => {
-    const html = formatLogLine("[14:31:02] hello");
-    expect(html).toContain('<span class="log-ts">[14:31:02]</span>');
-  });
-
-  it("formats tool call with path", () => {
-    const html = formatLogLine("  [14:31:02] [Tool: Read] src/foo.ts");
-    expect(html).toContain('<span class="log-tool">[Tool: Read]</span>');
-    expect(html).toContain('<span class="log-path">src/foo.ts</span>');
-  });
-
-  it("formats tool call with command", () => {
-    const html = formatLogLine('  [14:31:08] [Tool: Bash] npm test');
-    expect(html).toContain('<span class="log-tool">[Tool: Bash]</span>');
-    expect(html).toContain('<span class="log-cmd">');
-  });
-
-  it("formats phase header", () => {
-    const html = formatLogLine("[14:00:17] ▶ Executing Phase 3/5: Write tests");
-    expect(html).toContain('class="log-phase-header"');
-  });
-
-  it("formats todo update", () => {
-    const html = formatLogLine('[14:01:51] [Todos: 4/7 done] ▸ "Writing test"');
-    expect(html).toContain('class="log-todo"');
-  });
-
-  it("formats TodoWrite", () => {
-    const html = formatLogLine("[14:01:51] [TodoWrite] 9 items");
-    expect(html).toContain('class="log-todo-create"');
-  });
-
-  it("formats warning", () => {
-    expect(formatLogLine("[14:00:03] ⚠ Plan exists")).toContain('class="log-warn"');
-  });
-
-  it("formats success", () => {
-    expect(formatLogLine("[14:42:18] ✓ Saved")).toContain('class="log-success"');
-  });
-
-  it("formats session summary", () => {
-    expect(formatLogLine("[14:09:10] [Session: model=opus cost=$2.40]")).toContain('class="log-session"');
-  });
-
-  it("formats error result", () => {
-    expect(formatLogLine("[14:00:47] [Result [error]: 204 chars] Error: too large")).toContain('class="log-error"');
-  });
-
-  it("formats divider", () => {
-    expect(formatLogLine("[14:00:17] ───────────────────")).toContain('class="log-divider"');
-  });
-
-  it("formats refactor", () => {
-    expect(formatLogLine("[14:33:10] 🔧 Refactoring phase 17...")).toContain('class="log-refactor"');
-  });
-
-  it("escapes HTML", () => {
-    const html = formatLogLine("[14:00:00] <script>alert('xss')</script>");
-    expect(html).not.toContain("<script>");
-  });
-
-  it("handles empty line", () => {
-    expect(formatLogLine("")).toBe('<div class="log-line">&nbsp;</div>');
-  });
-});
-```
-
-- [ ] **Step 2: Run tests to verify failure**
-
-Run: `npx vitest run src/test/unit/parsers/logFormatter.test.ts`
-Expected: FAIL
-
-- [ ] **Step 3: Implement logFormatter**
-
-Create `src/parsers/logFormatter.ts`. Import `escapeHtml` from `../utils/html`. Reference active run mockup (`mockups/live-run-active.png`).
-
-Pure function `formatLogLine(line: string): string`:
-- Extract and dim timestamp `[HH:MM:SS]`
-- Pattern priority: divider → phase header → tool call → todo → TodoWrite → session → error → refactor → warning → success → default
-- Bash tool args get `.log-cmd` class, other tool args get `.log-path`
-- Returns `<div class="log-line">...</div>`
-- Empty line → `<div class="log-line">&nbsp;</div>`
-
-- [ ] **Step 4: Run formatter tests**
-
-Run: `npx vitest run src/test/unit/parsers/logFormatter.test.ts`
-Expected: All PASS
-
-- [ ] **Step 5: Wire formatter into LiveRunPanel**
-
-Modify `src/views/liveRunPanel.ts`:
-- Import `formatLogLine`
-- In `onLogAppended()`, format each new line via `formatLogLine()` before buffering and sending
-
-- [ ] **Step 6: Run all tests**
-
-Run: `npx vitest run`
-Expected: All pass
-
-- [ ] **Step 7: Build and install**
-
-Run: `npm run build`
-Action: `/install-dev`
-
-- [ ] **Step 8: Visual verification**
-
-Action: `/visual-verification`
-
-Verify against active run mockup log section:
-- Timestamps `[HH:MM:SS]` dimmed gray
-- `[Tool: Read]`, `[Tool: Bash]` blue with paths/commands styled differently
-- `[Todos: N/T done]` green
-- Phase headers `▶ Executing Phase N/T:` bold blue with badge
-- Warnings `⚠` yellow, errors red
-- Dividers as horizontal rules
-- `[Session:]` summaries in subdued style
-- `● thinking...` inline on single line
-
-- [ ] **Step 9: Commit**
-
-```bash
-git add -A
-git commit -m "feat: add color-coded log formatter
-
-12 log line patterns with distinct styling: tool calls, todos,
-phase headers, warnings, errors, session summaries, etc."
-```
-
----
-
-### Task 3: Dashboard Collapse, Todo Progress, and Run Completion
-
-**Demo after this task:** Click collapse → phase list hides, todo progress stays visible. Run completes → green banner with "Open Replay" button.
-
-**Files:**
-- Modify: `src/views/liveRunHtml.ts`, `src/test/unit/views/liveRunHtml.test.ts`
-- Modify: `src/views/liveRunPanel.ts`, `src/test/unit/views/liveRunPanel.test.ts`
-- Modify: `src/sessionWiring.ts`
-
-- [ ] **Step 1: Write failing tests for collapse, todos, and completion**
-
-Add to `src/test/unit/views/liveRunHtml.test.ts`:
-
-```typescript
-it("renders collapse toggle", () => {
-  expect(renderDashboardHtml(progress)).toContain("dashboard-toggle");
-});
-
-it("renders todo progress when provided", () => {
-  const html = renderDashboardHtml(progress, { todoDone: 4, todoTotal: 7, todoCurrentItem: "Writing test" });
-  expect(html).toContain("todo-progress");
-  expect(html).toContain("4/7");
-  expect(html).toContain("Writing test");
-});
-
-it("omits todo when not provided", () => {
-  expect(renderDashboardHtml(progress)).not.toContain("todo-progress");
-});
-
-it("renders collapsed summary bar", () => {
-  const html = renderDashboardHtml(progress, { collapsed: true });
-  expect(html).toContain("dashboard-collapsed");
-  expect(html).not.toContain("phase-list");
-});
-
-it("shows todo progress even when collapsed", () => {
-  const html = renderDashboardHtml(progress, { collapsed: true, todoDone: 2, todoTotal: 5 });
-  expect(html).toContain("todo-progress");
-});
-```
-
-Add `renderCompletionBannerHtml` tests:
-
-```typescript
-import { renderCompletionBannerHtml } from "../../../views/liveRunHtml";
-
-describe("renderCompletionBannerHtml", () => {
-  it("renders success banner for done", () => {
-    const html = renderCompletionBannerHtml("done", { totalCost: 5.99, totalPhases: 5 });
-    expect(html).toContain("Run Completed");
-    expect(html).toContain("$5.99");
-    expect(html).toContain("open-replay");
-  });
-
-  it("renders failure banner for failed", () => {
-    const html = renderCompletionBannerHtml("failed", { totalCost: 2.0, totalPhases: 3 });
-    expect(html).toContain("Run Failed");
-  });
-});
-```
-
-Add to panel tests:
-
-```typescript
-it("handles toggle-dashboard message", () => {
-  const mockPanel = makeMockPanel();
-  const deps = makeDeps(mockPanel);
-  const panel = new LiveRunPanel(deps);
-  panel.reveal(makeProgress());
-  mockPanel.webview.postMessage.mockClear();
-  mockPanel._simulateMessage({ type: "toggle-dashboard" });
-  // Should re-send dashboard (with toggled state)
-  expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: "dashboard" }),
-  );
-});
-
-it("handles open-replay message", () => {
-  const mockPanel = makeMockPanel();
-  const deps = makeDeps(mockPanel);
-  const panel = new LiveRunPanel(deps);
-  panel.reveal(makeProgress());
-  mockPanel._simulateMessage({ type: "open-replay" });
-  expect(deps.executeCommand).toHaveBeenCalledWith("oxveil.openReplayViewer");
-});
-
-it("onRunFinished sends run-finished message", () => {
-  const mockPanel = makeMockPanel();
-  const deps = makeDeps(mockPanel);
-  const panel = new LiveRunPanel(deps);
-  panel.reveal(makeProgress());
-  mockPanel.webview.postMessage.mockClear();
-  panel.onRunFinished("done");
-  expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: "run-finished" }),
-  );
-});
-
-it("tracks todo progress from log lines", () => {
-  const mockPanel = makeMockPanel();
-  const deps = makeDeps(mockPanel);
-  const panel = new LiveRunPanel(deps);
-  panel.reveal(makeProgress());
-  mockPanel.webview.postMessage.mockClear();
-  panel.onLogAppended('[14:00:00] [Todos: 3/7 done] ▸ "Writing test"\n');
-  // Should re-send dashboard with todo data
-  const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
-    (c: any) => c[0].type === "dashboard",
-  );
-  expect(dashCalls.length).toBeGreaterThanOrEqual(1);
-});
-
-it("auto-open disabled suppresses reveal", () => {
-  // Tested via sessionWiring integration — ensure setting is respected
-});
-```
-
-- [ ] **Step 2: Run tests to verify failures**
-
-Run: `npx vitest run`
-Expected: New tests FAIL
-
-- [ ] **Step 3: Implement collapse, todos, and completion**
-
-1. **`liveRunHtml.ts`**: Add collapse toggle, collapsed summary bar, todo progress (N/T bar + current item text), `renderCompletionBannerHtml()`. Add CSS for `.dashboard-collapsed`, `.todo-progress`, `.completion-banner`. Reference collapsed mockup and completed mockup.
-
-2. **`liveRunPanel.ts`**:
-   - Parse `[Todos: N/T done] ▸ "description"` from log lines → update `_todoDone`, `_todoTotal`, `_todoCurrentItem` → re-send dashboard with todo data
-   - Handle `toggle-dashboard` message: flip `_collapsed`, re-send dashboard
-   - Handle `open-replay` message: execute `oxveil.openReplayViewer`
-   - Implement `onRunFinished(status)`: render completion banner, send `{ type: "run-finished", html }`
-
-3. **`sessionWiring.ts`**: In `state-changed` → `"done"` and `"failed"`: call `deps.liveRunPanel?.onRunFinished(to)`
-
-- [ ] **Step 4: Run all tests**
-
-Run: `npx vitest run && npx tsc --noEmit`
-Expected: All pass
-
-- [ ] **Step 5: Build and install**
-
-Run: `npm run build`
-Action: `/install-dev`
-
-- [ ] **Step 6: Visual verification**
-
-Action: `/visual-verification`
-
-Verify against all three mockups:
-- **Active** (`mockups/live-run-active.png`): todo progress shows N/T with current item
-- **Collapsed** (`mockups/live-run-collapsed.png`): phase list hides, todo progress stays visible
-- **Completed** (`mockups/live-run-completed.png`): green banner with ✓, duration, cost, "Open Replay"
-- Click "Open Replay" → replay viewer opens
-- Failed run → red banner with ✗
-- Setting `oxveil.liveRunAutoOpen: false` → panel does NOT auto-open
-
-- [ ] **Step 7: Update documentation**
-
-Review `README.md` and `ARCHITECTURE.md` for Output Channel references. Update to describe Live Run Panel.
+Run: `npx vitest run` → All tests pass
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add -A
-git commit -m "feat: dashboard collapse, todo tracking, run completion
+git add src/parsers/planDescription.ts src/parsers/planValidator.ts src/test/unit/parsers/planDescription.test.ts src/test/unit/parsers/planValidator.test.ts
+git commit -m "feat: add plan description parser and validator"
+```
 
-Collapsible dashboard with todo progress bar (always visible).
-Completion banner with Open Replay button. Documentation updated."
+---
+
+### Task 2: Plan Preview HTML Generation
+
+**Demo after this task:** Tests pass for HTML generation covering all four states. No panel yet — pure functions that produce HTML strings.
+
+**Files:**
+- Create: `src/views/planPreviewHtml.ts`
+- Create: `src/test/unit/views/planPreviewHtml.test.ts`
+
+Two functions: `renderPlanPreviewShell(nonce, cspSource)` and `renderPhaseCardsHtml(options)`.
+
+Follow `liveRunHtml.ts` pattern exactly: CSP with nonce, `var(--vscode-*)` theme vars, `acquireVsCodeApi()`, message handler. Phase cards with colored left borders, "📝 Note" annotate buttons, yellow annotation input, "Live" badge, "Valid" badge.
+
+States: active (phase cards), empty ("No plan yet"), session ended ("Session ended" banner), raw markdown fallback.
+
+Visual reference: match ![Active state](mockups/plan-chat-active.png), ![Empty state](mockups/plan-chat-empty.png), ![Session ended](mockups/plan-chat-ended.png)
+
+Non-UI task (pure function): no visual verification needed.
+
+- [ ] **Step 1: Write failing tests for HTML generation**
+
+Create `src/test/unit/views/planPreviewHtml.test.ts`. Test cases: shell contains CSP meta tag with nonce, shell contains `acquireVsCodeApi()`, active state renders phase cards with titles and descriptions, phase cards have colored left borders, annotate buttons present when session active, annotation buttons disabled when session ended, empty state shows "No plan yet" placeholder, session ended state shows warning banner, raw markdown fallback renders content. Reference `src/test/unit/views/liveRunHtml.test.ts` for patterns.
+
+- [ ] **Step 2: Implement HTML generation**
+
+Create `src/views/planPreviewHtml.ts`. Follow `src/views/liveRunHtml.ts` structure. Implement `renderPlanPreviewShell()` and `renderPhaseCardsHtml()`. Use `var(--vscode-*)` CSS variables for theming. Match mockup styling for phase cards, badges, and annotation inputs.
+
+- [ ] **Step 3: Run HTML tests**
+
+Run: `npx vitest run src/test/unit/views/planPreviewHtml.test.ts` → PASS
+
+- [ ] **Step 4: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/views/planPreviewHtml.ts src/test/unit/views/planPreviewHtml.test.ts
+git commit -m "feat: add plan preview HTML generation with phase cards"
+```
+
+---
+
+### Task 3: Plan Preview Panel
+
+**Demo after this task:** Tests pass for panel lifecycle with mocked webview. No extension wiring yet — panel is unit-tested in isolation.
+
+**Files:**
+- Create: `src/views/planPreviewPanel.ts`
+- Create: `src/test/unit/views/planPreviewPanel.test.ts`
+
+Follow `liveRunPanel.ts` pattern: deps injection, `reveal()`, `onFileChanged()`, `setSessionActive()`, `dispose()`.
+
+`PlanPreviewPanelDeps` interface with `createWebviewPanel`, `readFile`, `onAnnotation`. Opens in `ViewColumn.Two` (beside terminal). Reads PLAN.md on `onFileChanged`, parses with `parsePlanWithDescriptions`, validates with `validatePlan`, sends to webview. Handles `"annotation"` messages from webview → forwards to `onAnnotation` callback.
+
+Non-UI task (unit tested with mocks): no visual verification needed.
+
+- [ ] **Step 1: Write failing tests for plan preview panel**
+
+Create `src/test/unit/views/planPreviewPanel.test.ts`. Test cases: `reveal()` creates webview panel in ViewColumn.Two, `onFileChanged()` reads PLAN.md and sends parsed data to webview, `onFileChanged()` with invalid plan sends validation errors, `setSessionActive(false)` sends session ended state, `dispose()` disposes panel, annotation message from webview calls `onAnnotation` callback. Reference `src/test/unit/views/liveRunPanel.test.ts` for mock patterns.
+
+- [ ] **Step 2: Implement plan preview panel**
+
+Create `src/views/planPreviewPanel.ts`. Follow `src/views/liveRunPanel.ts` structure. Implement `PlanPreviewPanel` class with `PlanPreviewPanelDeps` interface. Wire `parsePlanWithDescriptions` and `validatePlan` into `onFileChanged`. Handle webview messages for annotations.
+
+- [ ] **Step 3: Run panel tests**
+
+Run: `npx vitest run src/test/unit/views/planPreviewPanel.test.ts` → PASS
+
+- [ ] **Step 4: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/views/planPreviewPanel.ts src/test/unit/views/planPreviewPanel.test.ts
+git commit -m "feat: add plan preview panel with deps injection"
+```
+
+---
+
+### Task 4: Wire Plan Preview into Extension
+
+**Demo after this task:** `Oxveil: Show Plan Preview` command opens the webview showing phase cards (if PLAN.md exists) or empty state.
+
+**Files:**
+- Modify: `src/activateViews.ts` — instantiate PlanPreviewPanel
+- Modify: `src/commands.ts` — register `oxveil.showPlanPreview` command
+- Modify: `package.json` — add command + command palette entry
+
+- [ ] **Step 1: Wire PlanPreviewPanel into activateViews**
+
+Modify `src/activateViews.ts` — instantiate `PlanPreviewPanel` with real deps, add to returned disposables. Follow existing pattern for `LiveRunPanel`.
+
+- [ ] **Step 2: Register showPlanPreview command**
+
+Modify `src/commands.ts` — register `oxveil.showPlanPreview` command that calls `planPreviewPanel.reveal()`. Follow existing command registration pattern.
+
+- [ ] **Step 3: Update package.json**
+
+Modify `package.json` — add `oxveil.showPlanPreview` to `contributes.commands` with title `"Oxveil: Show Plan Preview"` and command palette entry.
+
+- [ ] **Step 4: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 5: Install extension**
+
+Action: `/install-dev`
+
+- [ ] **Step 6: MANDATORY — Visual verification gate**
+
+Action: `/visual-verification`
+
+**This step is a blocker.** Do NOT proceed to the commit or mark this task done until visual verification passes. Compare against mockups and verify:
+- `Oxveil: Show Plan Preview` appears in command palette
+- Panel opens showing empty state matching ![Empty state](mockups/plan-chat-empty.png) (no "Live" badge yet, no terminal)
+- If PLAN.md exists in workspace, shows phase cards matching ![Active state](mockups/plan-chat-active.png) styling
+- Phase cards have colored left borders, titles, descriptions
+- Empty state shows centered placeholder message
+
+If any check fails: fix, rebuild, re-verify. Do not skip.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/activateViews.ts src/commands.ts package.json
+git commit -m "feat: wire plan preview panel into extension"
+```
+
+---
+
+### Task 5: Live PLAN.md File Watching
+
+**Demo after this task:** Open Plan Preview, then edit PLAN.md in the editor → preview updates live.
+
+**Files:**
+- Modify: `src/views/planPreviewPanel.ts` — add `startWatching(workspaceRoot)` and `stopWatching()`
+- Modify: `src/test/unit/views/planPreviewPanel.test.ts` — add watcher tests
+- Modify: `src/activateViews.ts` or `src/extension.ts` — wire watcher when panel is revealed
+
+- [ ] **Step 1: Add file watcher to PlanPreviewPanel**
+
+Add `startWatching(workspaceRoot)` and `stopWatching()` methods to `PlanPreviewPanel`. Use `vscode.workspace.createFileSystemWatcher` with glob pattern for `PLAN.md`. Debounce with 200ms timeout. On file change, call `onFileChanged()`. Dispose watcher in `stopWatching()` and `dispose()`.
+
+- [ ] **Step 2: Write tests for file watcher behavior**
+
+Add tests to `src/test/unit/views/planPreviewPanel.test.ts`: `startWatching` creates watcher, file change triggers `onFileChanged`, `stopWatching` disposes watcher, debounce prevents rapid re-reads.
+
+- [ ] **Step 3: Wire watcher into extension**
+
+Modify extension code to call `startWatching(workspaceRoot)` when panel is revealed. Ensure watcher is stopped on dispose.
+
+- [ ] **Step 4: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 5: Install extension**
+
+Action: `/install-dev`
+
+- [ ] **Step 6: MANDATORY — Visual verification gate**
+
+Action: `/visual-verification`
+
+**This step is a blocker.** Do NOT proceed to the commit or mark this task done until visual verification passes. Verify:
+- Open Plan Preview panel
+- Edit PLAN.md in the editor (add/modify a phase)
+- Preview updates within ~200ms showing the change
+- Adding a new phase shows a new card appearing
+- Removing a phase removes the card
+
+If any check fails: fix, rebuild, re-verify. Do not skip.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/views/planPreviewPanel.ts src/test/unit/views/planPreviewPanel.test.ts src/activateViews.ts src/extension.ts
+git commit -m "feat: add live PLAN.md file watching to plan preview"
+```
+
+---
+
+### Task 6: Claude Detection + Plan Chat Command
+
+**Demo after this task:** Run `Oxveil: Plan Chat` → Claude terminal opens on left + Plan Preview on right.
+
+**Files:**
+- Create: `src/core/claudeDetection.ts` + `src/test/unit/core/claudeDetection.test.ts`
+- Create: `src/commands/planChat.ts` + `src/test/unit/commands/planChat.test.ts`
+- Modify: `src/extension.ts` — run detection, set `oxveil.claudeDetected` context key
+- Modify: `src/commands.ts` — register `oxveil.openPlanChat`
+- Modify: `package.json` — add command, setting `oxveil.claudePath`, command palette entry with `when: oxveil.claudeDetected`
+
+- [ ] **Step 1: Write failing tests for Claude detection**
+
+Create `src/test/unit/core/claudeDetection.test.ts`. Test cases: detects claude at default path, detects claude at custom path from setting, returns null when binary not found, returns null when binary not executable. Follow existing `Detection` class pattern.
+
+- [ ] **Step 2: Implement Claude detection**
+
+Create `src/core/claudeDetection.ts` — `detectClaude(executor, path)` function. Reuse `Detection` class constructor pattern. Check binary exists and is executable.
+
+- [ ] **Step 3: Write failing tests for plan chat command helpers**
+
+Create `src/test/unit/commands/planChat.test.ts`. Test cases: `buildSystemPrompt()` returns prompt with plan format instructions, `handleExistingPlan()` returns correct action for each quick pick choice (edit/create new/cancel).
+
+- [ ] **Step 4: Implement plan chat command helpers**
+
+Create `src/commands/planChat.ts` — `buildSystemPrompt()` and `handleExistingPlan()` functions. System prompt instructs Claude to write PLAN.md in the expected format.
+
+- [ ] **Step 5: Wire detection and command into extension**
+
+Modify `src/extension.ts` — run `detectClaude()` on activation, set `oxveil.claudeDetected` context key. Modify `src/commands.ts` — register `oxveil.openPlanChat` that spawns terminal with `shellPath: claudePath` and `shellArgs` including `--append-system-prompt` and `--permission-mode`, then reveals plan preview.
+
+- [ ] **Step 6: Update package.json**
+
+Add `oxveil.openPlanChat` command with title `"Oxveil: Plan Chat"`, `when: oxveil.claudeDetected`. Add `oxveil.claudePath` setting with default `"claude"`.
+
+- [ ] **Step 7: Verify CLI flags**
+
+Run: `claude --help | grep -E "(append-system-prompt|permission-mode)"` — confirm both flags exist.
+
+- [ ] **Step 8: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 9: Install extension**
+
+Action: `/install-dev`
+
+- [ ] **Step 10: MANDATORY — Visual verification gate**
+
+Action: `/visual-verification`
+
+**This step is a blocker.** Do NOT proceed to the commit or mark this task done until visual verification passes. Compare against mockups and verify:
+- `Oxveil: Plan Chat` appears in command palette (only if Claude is detected)
+- Running command opens Claude terminal on the left
+- Plan Preview panel opens on the right (ViewColumn.Two)
+- Layout matches ![Active state](mockups/plan-chat-active.png) with terminal left, preview right
+
+If any check fails: fix, rebuild, re-verify. Do not skip.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add src/core/claudeDetection.ts src/test/unit/core/claudeDetection.test.ts src/commands/planChat.ts src/test/unit/commands/planChat.test.ts src/extension.ts src/commands.ts package.json
+git commit -m "feat: add Claude detection and plan chat command"
+```
+
+---
+
+### Task 7: Plan Chat Session with Annotations
+
+**Demo after this task:** Click annotation button on phase card → type note → text injected into Claude terminal. Close terminal → "Session ended" banner.
+
+**Files:**
+- Create: `src/core/planChatSession.ts` + `src/test/unit/core/planChatSession.test.ts`
+- Modify: `src/extension.ts` — wire annotation callback and terminal close listener
+- Modify: `src/commands.ts` — update `oxveil.openPlanChat` to create session
+
+- [ ] **Step 1: Write failing tests for PlanChatSession**
+
+Create `src/test/unit/core/planChatSession.test.ts`. Test cases: `start()` creates terminal and reveals preview, `sendAnnotation()` calls `terminal.sendText()` with formatted annotation, `matchesTerminal()` returns true for the session's terminal, `isActive()` returns true when started and false after dispose, `dispose()` cleans up terminal and panel.
+
+- [ ] **Step 2: Implement PlanChatSession**
+
+Create `src/core/planChatSession.ts` — `PlanChatSession` class with `start()`, `sendAnnotation(phaseNumber, text)`, `matchesTerminal(terminal)`, `isActive()`, `dispose()`. Stores terminal reference. `sendAnnotation` formats text as instruction to Claude and calls `terminal.sendText()`.
+
+- [ ] **Step 3: Wire annotation callback**
+
+Connect `PlanPreviewPanel`'s `onAnnotation` callback to `PlanChatSession.sendAnnotation()`. When webview sends `"annotation"` message, forward phase number and text to the session.
+
+- [ ] **Step 4: Wire terminal close listener**
+
+Register `vscode.window.onDidCloseTerminal` listener in extension. When closed terminal matches session via `matchesTerminal()`, call `planPreviewPanel.setSessionActive(false)` and set `oxveil.planChatActive` context key to false.
+
+- [ ] **Step 5: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 6: Install extension**
+
+Action: `/install-dev`
+
+- [ ] **Step 7: MANDATORY — Visual verification gate**
+
+Action: `/visual-verification`
+
+**This step is a blocker.** Do NOT proceed to the commit or mark this task done until visual verification passes. Verify:
+- Click "📝 Note" button on a phase card → annotation input appears (yellow)
+- Type a note and submit → text appears in Claude terminal
+- Close the Claude terminal → "Session ended" banner appears matching ![Session ended](mockups/plan-chat-ended.png)
+- Annotation buttons are disabled after session ends
+
+If any check fails: fix, rebuild, re-verify. Do not skip.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/core/planChatSession.ts src/test/unit/core/planChatSession.test.ts src/extension.ts src/commands.ts
+git commit -m "feat: add plan chat session with annotation support"
+```
+
+---
+
+### Task 8: Edge Cases and Final Polish
+
+**Demo after this task:** All 10 verification items from the spec pass. Complete end-to-end flow works.
+
+**Files:**
+- Modify: `src/commands/planChat.ts` — existing PLAN.md handling
+- Modify: `src/core/planChatSession.ts` — duplicate session prevention
+- Modify: `src/extension.ts` — error handling for missing Claude
+- Modify: `src/views/planPreviewPanel.ts` — malformed PLAN.md fallback
+
+- [ ] **Step 1: Handle existing PLAN.md**
+
+Modify `src/commands/planChat.ts` — when PLAN.md exists, show quick pick with options: "Edit existing plan", "Create new plan (backup current)", "Cancel". On "Create new", rename current to `PLAN.md.bak` before starting session.
+
+- [ ] **Step 2: Prevent duplicate sessions**
+
+Modify `src/core/planChatSession.ts` and command handler — if a session `isActive()`, focus the existing terminal instead of creating a new one. Show info message: "Plan Chat session already active".
+
+- [ ] **Step 3: Handle Claude not installed**
+
+Modify extension activation — when `detectClaude()` returns null, show error message with link to install Claude CLI. Do not register `oxveil.openPlanChat` command in command palette.
+
+- [ ] **Step 4: Handle malformed PLAN.md**
+
+Modify `src/views/planPreviewPanel.ts` — when `parsePlanWithDescriptions()` throws or returns no phases but file has content, render raw markdown content with a yellow warning banner: "Could not parse plan format. Showing raw content."
+
+- [ ] **Step 5: Run full test suite**
+
+Run: `npx vitest run` → All tests pass
+
+- [ ] **Step 6: Install extension**
+
+Action: `/install-dev`
+
+- [ ] **Step 7: MANDATORY — Visual verification gate (full end-to-end)**
+
+Action: `/visual-verification`
+
+**This step is a blocker.** Do NOT proceed to the commit or mark this task done until visual verification passes. Verify all 3 mockup states:
+- ![Empty state](mockups/plan-chat-empty.png) — fresh session with "No plan yet" placeholder
+- ![Active state](mockups/plan-chat-active.png) — phase cards with annotations, "Live" badge, colored borders
+- ![Session ended](mockups/plan-chat-ended.png) — warning banner, disabled annotations
+
+Additionally verify edge cases:
+- Existing PLAN.md triggers quick pick dialog
+- Running Plan Chat twice focuses existing session
+- Malformed PLAN.md shows raw markdown fallback with warning
+
+If any check fails: fix, rebuild, re-verify. Do not skip.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/commands/planChat.ts src/core/planChatSession.ts src/extension.ts src/views/planPreviewPanel.ts src/test/
+git commit -m "feat: add edge case handling and polish for plan chat"
 ```
