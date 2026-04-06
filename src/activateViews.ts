@@ -10,6 +10,7 @@ import { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import { PlanCodeLensProvider } from "./views/planCodeLens";
 import { LiveRunPanel } from "./views/liveRunPanel";
+import { PlanPreviewPanel } from "./views/planPreviewPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
 import { createTreeAdapter } from "./views/treeAdapter";
@@ -29,6 +30,7 @@ export interface WebviewPanelsResult {
   replayViewer: ReplayViewerPanel;
   archiveTimelinePanel: ArchiveTimelinePanel;
   liveRunPanel: LiveRunPanel;
+  planPreviewPanel: PlanPreviewPanel;
   planCodeLens: PlanCodeLensProvider;
   disposables: vscode.Disposable[];
 }
@@ -75,6 +77,19 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
   });
   disposables.push({ dispose: () => liveRunPanel.dispose() });
 
+  const planPreviewPanel = new PlanPreviewPanel({
+    createWebviewPanel: vscode.window.createWebviewPanel,
+    readFile: async () => {
+      if (!deps.workspaceRoot) return "";
+      const planPath = path.join(deps.workspaceRoot, "PLAN.md");
+      return fs.readFile(planPath, "utf-8");
+    },
+    onAnnotation: (_phase, _text) => {
+      // Annotation handling will be wired in a future phase
+    },
+  });
+  disposables.push({ dispose: () => planPreviewPanel.dispose() });
+
   const planCodeLens = new PlanCodeLensProvider();
   disposables.push(
     vscode.languages.registerCodeLensProvider(
@@ -94,7 +109,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     );
   }
 
-  return { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planCodeLens, disposables };
+  return { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, planCodeLens, disposables };
 }
 
 export interface ArchiveViewDeps {

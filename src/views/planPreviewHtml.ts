@@ -177,6 +177,8 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         }
       });
 
+      vscode.postMessage({ type: "ready" });
+
       function bindAnnotationButtons() {
         var buttons = document.querySelectorAll(".annotate-btn");
         for (var i = 0; i < buttons.length; i++) {

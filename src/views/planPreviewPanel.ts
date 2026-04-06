@@ -54,7 +54,9 @@ export class PlanPreviewPanel {
         this._panel = undefined;
       });
       this._panel.webview.onDidReceiveMessage((msg: any) => {
-        if (msg.type === "annotation" && msg.phase && msg.text) {
+        if (msg.type === "ready") {
+          this._sendUpdate();
+        } else if (msg.type === "annotation" && msg.phase && msg.text) {
           this._deps.onAnnotation(msg.phase, msg.text);
         }
       });
@@ -95,7 +97,8 @@ export class PlanPreviewPanel {
   private _sendUpdate(): void {
     if (!this._panel) return;
 
-    const state: PhaseCardsOptions["state"] = this._sessionActive ? "active" : "session-ended";
+    const hasPhases = this._lastPhases.length > 0;
+    const state: PhaseCardsOptions["state"] = !hasPhases ? "empty" : this._sessionActive ? "active" : "session-ended";
     const options: PhaseCardsOptions = {
       state,
       phases: this._lastPhases,

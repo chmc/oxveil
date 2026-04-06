@@ -13,6 +13,7 @@ import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { ConfigWizardPanel } from "./views/configWizard";
 import type { ReplayViewerPanel } from "./views/replayViewer";
 import type { LiveRunPanel } from "./views/liveRunPanel";
+import type { PlanPreviewPanel } from "./views/planPreviewPanel";
 import { findPhaseCommits, getPhaseUnifiedDiff } from "./core/gitIntegration";
 import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
@@ -31,12 +32,13 @@ export interface CommandDeps {
   replayViewer?: ReplayViewerPanel;
   archiveTimelinePanel?: ArchiveTimelinePanel;
   liveRunPanel?: LiveRunPanel;
+  planPreviewPanel?: PlanPreviewPanel;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolvePhaseItem, resolveArchiveItem } = deps;
 
   function getActive() {
     const active = sessionManager.getActiveSession();
@@ -288,6 +290,10 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       const resolved = await resolveFolder();
       if (!resolved) return;
       liveRunPanel?.reveal(resolved.session.progress ?? { phases: [], totalPhases: 0 }, resolved.folderUri);
+    }),
+    vscode.commands.registerCommand("oxveil.showPlanPreview", async () => {
+      planPreviewPanel?.reveal();
+      await planPreviewPanel?.onFileChanged();
     }),
     registerAiParsePlanCommand(sessionManager),
     registerCreatePlanCommand(() => getActive()?.workspaceRoot),
