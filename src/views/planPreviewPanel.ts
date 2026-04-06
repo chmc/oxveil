@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { parsePlanWithDescriptions } from "../parsers/planDescription";
 import { validatePlan } from "../parsers/planValidator";
 import { parsePlan } from "../parsers/plan";
+import { parseSections } from "../parsers/planSections";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
 
 export interface FileSystemWatcher {
@@ -45,6 +46,9 @@ export class PlanPreviewPanel {
   private _sessionActive = true;
   private _lastPhases: PhaseCardData[] = [];
   private _lastValid = false;
+  private _lastFormat: PhaseCardsOptions["format"] = undefined;
+  private _lastTitle: string | undefined;
+  private _lastKeyword: string | undefined;
   private _watchers: FileSystemWatcher[] = [];
   private _watcherSubscriptions: { dispose: () => void }[] = [];
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -121,18 +125,19 @@ export class PlanPreviewPanel {
 
     const content = await this._deps.readFile(activePath);
 
+    // Extract plan title from first # heading
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    this._lastTitle = titleMatch ? titleMatch[1].trim() : undefined;
+
     try {
+      // 1. Try Phase parser (existing format)
       const parsed = parsePlanWithDescriptions(content);
       const basePlan = parsePlan(content);
       const validation = validatePlan(basePlan);
 
-      if (parsed.phases.length === 0 && content.trim().length > 0) {
-        // File has content but parser found no phases — show raw fallback
-        this._lastPhases = [];
-        this._lastValid = false;
-        this._lastRawContent = content;
-      } else {
+      if (parsed.phases.length > 0) {
         this._lastValid = validation.valid;
+        this._lastFormat = "phase";
         this._lastPhases = parsed.phases.map((p) => ({
           number: p.number,
           title: p.title,
@@ -140,6 +145,30 @@ export class PlanPreviewPanel {
           dependencies: p.dependencies,
         }));
         this._lastRawContent = undefined;
+      } else {
+        // 2. Try Section parser (Step/Task/numbered formats)
+        const sectionResult = parseSections(content);
+        if (sectionResult.phases.length > 0) {
+          this._lastFormat = sectionResult.format === "keyword" ? "keyword" : "numbered";
+          this._lastPhases = sectionResult.phases.map((p) => ({
+            number: p.number,
+            title: p.title,
+            description: p.description,
+            dependencies: p.dependencies,
+          }));
+          this._lastValid = true;
+          this._lastRawContent = undefined;
+          this._lastKeyword = sectionResult.keyword;
+        } else if (content.trim().length > 0) {
+          // 3. Formatted markdown fallback
+          this._lastPhases = [];
+          this._lastValid = false;
+          this._lastRawContent = content;
+        } else {
+          this._lastPhases = [];
+          this._lastValid = false;
+          this._lastRawContent = undefined;
+        }
       }
     } catch {
       // Parser threw — show raw fallback
@@ -219,6 +248,9 @@ export class PlanPreviewPanel {
       sessionActive: this._sessionActive,
       isValid: this._lastValid,
       rawMarkdown: this._lastRawContent,
+      title: this._lastTitle,
+      format: this._lastFormat,
+      keyword: this._lastKeyword,
     };
     const html = renderPhaseCardsHtml(options);
     this._panel.webview.postMessage({ type: "update", html });

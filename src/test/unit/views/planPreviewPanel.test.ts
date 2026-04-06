@@ -171,8 +171,8 @@ describe("PlanPreviewPanel", () => {
 
     const call = mockPanel.webview.postMessage.mock.calls[0][0];
     expect(call.type).toBe("update");
-    expect(call.html).toContain("Could not parse plan format");
     expect(call.html).toContain("This is just some text");
+    expect(call.html).not.toContain("Could not parse plan format");
   });
 
   it("onFileChanged() without panel still runs pinning logic", async () => {

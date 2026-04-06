@@ -14,6 +14,16 @@ export interface PhaseCardsOptions {
   isValid?: boolean;
   title?: string;
   rawMarkdown?: string;
+  format?: "phase" | "keyword" | "numbered";
+  keyword?: string;
+}
+
+function formatLabel(format: PhaseCardsOptions["format"], keyword: string | undefined, num: string): string {
+  switch (format) {
+    case "keyword": return `${keyword || "Section"} ${num}`;
+    case "numbered": return `${num}.`;
+    default: return `Phase ${num}`;
+  }
 }
 
 function renderHeader(options: PhaseCardsOptions): string {
@@ -39,8 +49,9 @@ function renderHeader(options: PhaseCardsOptions): string {
 </div>`;
 }
 
-function renderPhaseCard(phase: PhaseCardData, sessionActive: boolean): string {
+function renderPhaseCard(phase: PhaseCardData, sessionActive: boolean, format?: PhaseCardsOptions["format"], keyword?: string): string {
   const num = escapeHtml(String(phase.number));
+  const label = escapeHtml(formatLabel(format, keyword, String(phase.number)));
   const title = escapeHtml(phase.title);
   const desc = escapeHtml(phase.description);
 
@@ -55,13 +66,65 @@ function renderPhaseCard(phase: PhaseCardData, sessionActive: boolean): string {
 
   return `<div class="phase-card">
   <div class="phase-card-header">
-    <span class="phase-number">Phase ${num}</span>
+    <span class="phase-number">${label}</span>
     <span class="phase-title">${title}</span>
     ${annotateBtn}
   </div>
   <div class="phase-desc">${desc}</div>
   ${depsHtml}
 </div>`;
+}
+
+/** Basic markdown to HTML for free-form plans. */
+function renderMarkdownHtml(raw: string): string {
+  const lines = raw.split("\n");
+  const out: string[] = [];
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Headings
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (headingMatch) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      const level = headingMatch[1].length;
+      out.push(`<h${level} class="md-heading">${escapeHtml(headingMatch[2])}</h${level}>`);
+      continue;
+    }
+
+    // List items
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (!inList) { out.push('<ul class="md-list">'); inList = true; }
+      const content = trimmed.slice(2);
+      // Handle checkbox syntax
+      if (content.startsWith("[ ] ")) {
+        out.push(`<li>&#9744; ${escapeHtml(content.slice(4))}</li>`);
+      } else if (content.startsWith("[x] ") || content.startsWith("[X] ")) {
+        out.push(`<li>&#9745; ${escapeHtml(content.slice(4))}</li>`);
+      } else {
+        out.push(`<li>${escapeHtml(content)}</li>`);
+      }
+      continue;
+    }
+
+    if (inList) { out.push("</ul>"); inList = false; }
+
+    // Blank line
+    if (trimmed === "") {
+      out.push("<br>");
+      continue;
+    }
+
+    // Regular text with inline formatting
+    let text = escapeHtml(trimmed);
+    text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    text = text.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
+    out.push(`<p class="md-text">${text}</p>`);
+  }
+
+  if (inList) { out.push("</ul>"); }
+  return out.join("\n");
 }
 
 export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
@@ -73,22 +136,25 @@ export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   <div class="empty-state">
     <div class="empty-icon">&#128203;</div>
     <div class="empty-title">No plan yet</div>
-    <div class="empty-subtitle">Start chatting with Claude in the terminal on the left. When Claude writes PLAN.md, phases will appear here.</div>
+    <div class="empty-subtitle">Start chatting with Claude in the terminal on the left. When Claude writes a plan, it will appear here.</div>
   </div>
 </div>`;
   }
 
   if (options.state === "raw-markdown") {
+    const annotateBtn = options.sessionActive
+      ? '<button class="annotate-btn raw-annotate-btn" data-phase="plan">&#128221; Add note</button>'
+      : "";
     return `${header}
 <div class="preview-content">
-  <div class="parse-warning-banner">⚠ Could not parse plan format. Showing raw content.</div>
-  <div class="raw-markdown"><pre>${escapeHtml(options.rawMarkdown || "")}</pre></div>
+  ${annotateBtn}
+  <div class="raw-markdown">${renderMarkdownHtml(options.rawMarkdown || "")}</div>
 </div>`;
   }
 
   const sessionActive = !!options.sessionActive;
   const phases = options.phases || [];
-  const cardsHtml = phases.map((p) => renderPhaseCard(p, sessionActive)).join("\n");
+  const cardsHtml = phases.map((p) => renderPhaseCard(p, sessionActive, options.format, options.keyword)).join("\n");
 
   const endedBanner =
     options.state === "session-ended"
@@ -142,6 +208,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .phase-title { color: var(--vscode-foreground, #e0e0e0); font-weight: 500; font-size: 13px; }
     .annotate-btn { margin-left: auto; background: none; border: 1px solid #555; color: #888; font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
     .annotate-btn:hover { border-color: #888; color: #ccc; }
+    .raw-annotate-btn { margin-bottom: 12px; }
 
     .phase-desc { color: #999; font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
     .phase-deps { color: #666; font-size: 11px; font-style: italic; }
@@ -158,10 +225,15 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .empty-title { font-size: 14px; color: #888; margin-bottom: 8px; }
     .empty-subtitle { font-size: 12px; color: #666; line-height: 1.6; max-width: 300px; margin: 0 auto; }
 
-    /* Raw markdown fallback */
-    .parse-warning-banner { background: #8b6914; color: #fff; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; }
+    /* Formatted markdown */
     .raw-markdown { padding: 8px 0; }
-    .raw-markdown pre { white-space: pre-wrap; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 12px; line-height: 1.6; color: var(--vscode-foreground, #d4d4d4); }
+    .md-heading { margin: 12px 0 6px 0; color: var(--vscode-foreground, #e0e0e0); }
+    h2.md-heading { font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+    h3.md-heading { font-size: 13px; }
+    h4.md-heading { font-size: 12px; color: #999; }
+    .md-text { font-size: 12px; line-height: 1.6; color: #999; margin: 2px 0; }
+    .md-list { margin: 4px 0 4px 20px; font-size: 12px; line-height: 1.6; color: #999; }
+    .md-code { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 1px 4px; border-radius: 3px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; }
   </style>
 </head>
 <body>
@@ -186,7 +258,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         for (var i = 0; i < buttons.length; i++) {
           buttons[i].addEventListener("click", function() {
             var phase = this.getAttribute("data-phase");
-            var card = this.closest(".phase-card");
+            var card = this.closest(".phase-card") || this.closest(".preview-content");
             if (card && !card.querySelector(".annotation")) {
               var ann = document.createElement("div");
               ann.className = "annotation";
