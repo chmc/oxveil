@@ -83,7 +83,11 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     readFile: async () => {
       if (!deps.workspaceRoot) return "";
       const planPath = path.join(deps.workspaceRoot, "PLAN.md");
-      return fs.readFile(planPath, "utf-8");
+      try {
+        return await fs.readFile(planPath, "utf-8");
+      } catch {
+        return "";
+      }
     },
     onAnnotation: (phase, text) => {
       deps.onAnnotation?.(phase, text);
