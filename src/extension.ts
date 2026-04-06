@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Detection, type Executor } from "./core/detection";
+import { detectClaude, type ClaudeExecutor } from "./core/claudeDetection";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
@@ -63,6 +64,19 @@ export async function activate(
     "setContext",
     "oxveil.processRunning",
     false,
+  );
+
+  // Claude CLI detection
+  const claudePath = config.get<string>("claudePath", "claude");
+  const claudeExecutor: ClaudeExecutor = async (command, args) => {
+    const r = await execFileAsync(command, args);
+    return { stdout: r.stdout };
+  };
+  const resolvedClaudePath = await detectClaude(claudeExecutor, claudePath);
+  await vscode.commands.executeCommand(
+    "setContext",
+    "oxveil.claudeDetected",
+    resolvedClaudePath !== null,
   );
 
   // Update status bar based on detection
@@ -279,6 +293,7 @@ export async function activate(
       planPreviewPanel,
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
+      claudePath: resolvedClaudePath,
     }),
   );
 

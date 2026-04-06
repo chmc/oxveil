@@ -19,6 +19,7 @@ import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
+import { buildSystemPrompt } from "./commands/planChat";
 
 export interface CommandDeps {
   sessionManager: WorkspaceSessionManager;
@@ -35,10 +36,11 @@ export interface CommandDeps {
   planPreviewPanel?: PlanPreviewPanel;
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
+  claudePath?: string | null;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolvePhaseItem, resolveArchiveItem } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolvePhaseItem, resolveArchiveItem, claudePath } = deps;
 
   function getActive() {
     const active = sessionManager.getActiveSession();
@@ -304,5 +306,27 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         false,
       ),
     ),
+    vscode.commands.registerCommand("oxveil.openPlanChat", async () => {
+      if (!claudePath) {
+        vscode.window.showErrorMessage("Oxveil: Claude CLI not found");
+        return;
+      }
+
+      const systemPrompt = buildSystemPrompt();
+      const terminal = vscode.window.createTerminal({
+        name: "Plan Chat",
+        shellPath: claudePath,
+        shellArgs: [
+          "--append-system-prompt", systemPrompt,
+          "--permission-mode", "default",
+          "--allowedTools", "Edit,Write,Read,Glob,Grep,Bash",
+        ],
+        location: { viewColumn: vscode.ViewColumn.One },
+      });
+      terminal.show();
+
+      planPreviewPanel?.reveal();
+      await planPreviewPanel?.onFileChanged();
+    }),
   ];
 }

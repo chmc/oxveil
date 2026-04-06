@@ -155,6 +155,10 @@
       {
         "command": "oxveil.showPlanPreview",
         "title": "Oxveil: Show Plan Preview"
+      },
+      {
+        "command": "oxveil.openPlanChat",
+        "title": "Oxveil: Plan Chat"
       }
     ],
     "menus": {
@@ -256,6 +260,10 @@
         },
         {
           "command": "oxveil.showPlanPreview"
+        },
+        {
+          "command": "oxveil.openPlanChat",
+          "when": "oxveil.claudeDetected"
         }
       ]
     },
@@ -319,6 +327,11 @@
           "type": "string",
           "default": "claudeloop",
           "description": "Path to claudeloop executable"
+        },
+        "oxveil.claudePath": {
+          "type": "string",
+          "default": "claude",
+          "description": "Path to Claude CLI executable"
         },
         "oxveil.watchDebounceMs": {
           "type": "number",
