@@ -29,6 +29,7 @@ export class WatcherManager {
   private readonly _deps: WatcherDeps;
   private _watcher: FileWatcher | undefined;
   private readonly _timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly _pending = new Set<string>();
 
   constructor(deps: WatcherDeps) {
     this._deps = deps;
@@ -51,6 +52,7 @@ export class WatcherManager {
       clearTimeout(timer);
     }
     this._timers.clear();
+    this._pending.clear();
     this._watcher?.dispose();
     this._watcher = undefined;
   }
@@ -61,18 +63,27 @@ export class WatcherManager {
       const fileType = KNOWN_FILES[basename];
       if (!fileType) return;
 
-      // Per-file debounce
-      const existing = this._timers.get(basename);
-      if (existing) clearTimeout(existing);
+      if (this._timers.has(basename)) {
+        this._pending.add(basename);
+        return;
+      }
 
-      this._timers.set(
-        basename,
-        setTimeout(() => {
-          this._timers.delete(basename);
-          this._handleFile(filePath, fileType);
-        }, this._deps.debounceMs),
-      );
+      this._startCooldown(filePath, basename, fileType);
+      this._handleFile(filePath, fileType);
     };
+  }
+
+  private _startCooldown(filePath: string, basename: string, fileType: FileType): void {
+    this._timers.set(
+      basename,
+      setTimeout(() => {
+        this._timers.delete(basename);
+        if (this._pending.delete(basename)) {
+          this._startCooldown(filePath, basename, fileType);
+          this._handleFile(filePath, fileType);
+        }
+      }, this._deps.debounceMs),
+    );
   }
 
   private async _handleFile(filePath: string, fileType: FileType): Promise<void> {
