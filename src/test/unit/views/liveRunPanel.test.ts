@@ -210,6 +210,25 @@ describe("LiveRunPanel", () => {
     );
   });
 
+  it("resets offset when log file is truncated", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+
+    // First delivery: 3 lines
+    panel.onLogAppended("line1\nline2\nline3\n");
+    // Simulate truncation: new file is shorter than previous offset
+    panel.onLogAppended("new-line1\n");
+    const logCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "log-append",
+    );
+    // Second call should contain the truncated file's content
+    expect(logCalls).toHaveLength(2);
+    expect(logCalls[1][0].lines).toContainEqual('<div class="log-line">new-line1</div>');
+  });
+
   it("tracks todo progress from log lines", () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);

@@ -102,7 +102,7 @@ describe("WatcherManager", () => {
     expect(onLogChange).toHaveBeenCalledWith("log line 1\nlog line 2\n");
   });
 
-  it("64KB cap: reads at most 64KB, schedules setImmediate for remainder", async () => {
+  it("large log content is delivered in a single call", async () => {
     const largeContent = "x".repeat(128 * 1024); // 128KB
     const onLogChange = vi.fn();
     const readFile = vi.fn().mockResolvedValue(largeContent);
@@ -113,14 +113,10 @@ describe("WatcherManager", () => {
     const handler = watcher.getFileChangeHandler();
     handler("/workspace/.claudeloop/live.log");
 
-    // Advance past debounce — setTimeout(0) for remainder also fires
     await vi.advanceTimersByTimeAsync(deps.debounceMs + 1);
 
-    // First chunk is 64KB
-    expect(onLogChange.mock.calls[0][0].length).toBe(64 * 1024);
-    // Second chunk is the remainder (also 64KB)
-    expect(onLogChange).toHaveBeenCalledTimes(2);
-    expect(onLogChange.mock.calls[1][0].length).toBe(64 * 1024);
+    expect(onLogChange).toHaveBeenCalledTimes(1);
+    expect(onLogChange.mock.calls[0][0].length).toBe(128 * 1024);
   });
 
   it("ignores unrecognized files in .claudeloop/", async () => {

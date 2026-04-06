@@ -1,7 +1,5 @@
 import * as path from "node:path";
 
-const LOG_CHUNK_SIZE = 64 * 1024; // 64KB
-
 export interface FileWatcher {
   onDidChange: (handler: (uri: { fsPath: string }) => void) => { dispose: () => void };
   onDidCreate: (handler: (uri: { fsPath: string }) => void) => { dispose: () => void };
@@ -31,7 +29,6 @@ export class WatcherManager {
   private readonly _deps: WatcherDeps;
   private _watcher: FileWatcher | undefined;
   private readonly _timers = new Map<string, ReturnType<typeof setTimeout>>();
-  private _logOffset = 0;
 
   constructor(deps: WatcherDeps) {
     this._deps = deps;
@@ -99,28 +96,9 @@ export class WatcherManager {
         this._deps.onProgressChange(content);
         break;
       case "log":
-        this._deliverLog(content);
+        this._deps.onLogChange(content);
         break;
     }
   }
 
-  private _deliverLog(content: string): void {
-    if (content.length <= LOG_CHUNK_SIZE) {
-      this._deps.onLogChange(content);
-      return;
-    }
-
-    // Deliver in 64KB chunks
-    const first = content.slice(0, LOG_CHUNK_SIZE);
-    this._deps.onLogChange(first);
-
-    const remainder = content.slice(LOG_CHUNK_SIZE);
-    if (remainder.length > 0) {
-      setTimeout(() => this._deliverLog(remainder), 0);
-    }
-  }
-
-  resetLogOffset(): void {
-    this._logOffset = 0;
-  }
 }

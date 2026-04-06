@@ -106,6 +106,9 @@ export class LiveRunPanel {
   }
 
   onLogAppended(fullContent: string): void {
+    if (fullContent.length < this._logOffset) {
+      this._logOffset = 0;
+    }
     const newContent = fullContent.slice(this._logOffset);
     this._logOffset = fullContent.length;
     if (!newContent) return;
