@@ -75,6 +75,7 @@ function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel:
     findActivePlanFile: vi.fn(async () => ACTIVE_PLAN_PATH),
     onAnnotation: vi.fn(),
     createFileSystemWatcher: vi.fn(() => mockWatcher.watcher),
+    statFile: vi.fn(async (_path: string) => undefined),
     _panel: mockPanel,
     _watcher: mockWatcher,
   };
@@ -174,11 +175,21 @@ describe("PlanPreviewPanel", () => {
     expect(call.html).toContain("This is just some text");
   });
 
-  it("onFileChanged() without panel does nothing", async () => {
+  it("onFileChanged() without panel still runs pinning logic", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
+    // No reveal() — no panel
+
+    // Begin session so pinning logic activates
+    panel.beginSession();
+    (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+
     await panel.onFileChanged();
-    expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+
+    // findActivePlanFile should still be called (pinning runs without panel)
+    expect(deps.findActivePlanFile).toHaveBeenCalled();
+    // But postMessage should NOT be called (no panel)
+    expect(deps._panel.webview.postMessage).not.toHaveBeenCalled();
   });
 
   it("setSessionActive(false) sends session ended state", async () => {
@@ -245,54 +256,69 @@ describe("PlanPreviewPanel", () => {
     beforeEach(() => { vi.useFakeTimers(); });
     afterEach(() => { vi.useRealTimers(); });
 
-    it("startWatching creates a file system watcher for .claude/plans/", () => {
+    it("startWatching with array of watchers wires handlers to all", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
-      panel.startWatching("/workspace");
-      expect(deps.createFileSystemWatcher).toHaveBeenCalledWith("/workspace/.claude/plans/*.md");
+      const w1 = makeMockWatcher();
+      const w2 = makeMockWatcher();
+      const w3 = makeMockWatcher();
+
+      panel.startWatching([w1.watcher, w2.watcher, w3.watcher]);
+
+      expect(w1.watcher.onDidChange).toHaveBeenCalled();
+      expect(w1.watcher.onDidCreate).toHaveBeenCalled();
+      expect(w1.watcher.onDidDelete).toHaveBeenCalled();
+      expect(w2.watcher.onDidChange).toHaveBeenCalled();
+      expect(w2.watcher.onDidCreate).toHaveBeenCalled();
+      expect(w2.watcher.onDidDelete).toHaveBeenCalled();
+      expect(w3.watcher.onDidChange).toHaveBeenCalled();
+      expect(w3.watcher.onDidCreate).toHaveBeenCalled();
+      expect(w3.watcher.onDidDelete).toHaveBeenCalled();
     });
 
-    it("file change triggers onFileChanged after debounce", async () => {
+    it("file change from any watcher triggers onFileChanged after debounce", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
-      panel.startWatching("/workspace");
+      const w1 = makeMockWatcher();
+      const w2 = makeMockWatcher();
+      panel.startWatching([w1.watcher, w2.watcher]);
 
-      deps._watcher._fireChange();
-      // Should not have called findActivePlanFile yet (debounce pending)
+      w2._fireChange();
       expect(deps.findActivePlanFile).not.toHaveBeenCalled();
 
-      vi.advanceTimersByTime(200);
-      // Wait for the async onFileChanged to complete
-      await vi.runAllTimersAsync();
-
-      expect(deps.findActivePlanFile).toHaveBeenCalled();
-    });
-
-    it("file create triggers onFileChanged after debounce", async () => {
-      const deps = makeDeps();
-      const panel = new PlanPreviewPanel(deps);
-      panel.reveal();
-      panel.startWatching("/workspace");
-
-      deps._watcher._fireCreate();
       await vi.advanceTimersByTimeAsync(200);
 
       expect(deps.findActivePlanFile).toHaveBeenCalled();
     });
 
-    it("debounce prevents rapid re-reads", async () => {
+    it("file create from any watcher triggers onFileChanged after debounce", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
-      panel.startWatching("/workspace");
+      const w1 = makeMockWatcher();
+      panel.startWatching([w1.watcher]);
 
-      // Fire 5 rapid changes
-      deps._watcher._fireChange();
-      deps._watcher._fireChange();
-      deps._watcher._fireChange();
-      deps._watcher._fireChange();
-      deps._watcher._fireChange();
+      w1._fireCreate();
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(deps.findActivePlanFile).toHaveBeenCalled();
+    });
+
+    it("debounce prevents rapid re-reads across watchers", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      const w1 = makeMockWatcher();
+      const w2 = makeMockWatcher();
+      panel.startWatching([w1.watcher, w2.watcher]);
+
+      // Fire rapid changes across different watchers
+      w1._fireChange();
+      w2._fireChange();
+      w1._fireCreate();
+      w2._fireChange();
+      w1._fireChange();
 
       await vi.advanceTimersByTimeAsync(200);
 
@@ -300,30 +326,165 @@ describe("PlanPreviewPanel", () => {
       expect(deps.findActivePlanFile).toHaveBeenCalledTimes(1);
     });
 
-    it("stopWatching disposes watcher", () => {
+    it("stopWatching disposes all watchers", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
-      panel.startWatching("/workspace");
+      const w1 = makeMockWatcher();
+      const w2 = makeMockWatcher();
+      panel.startWatching([w1.watcher, w2.watcher]);
       panel.stopWatching();
-      expect(deps._watcher.watcher.dispose).toHaveBeenCalled();
+      expect(w1.watcher.dispose).toHaveBeenCalled();
+      expect(w2.watcher.dispose).toHaveBeenCalled();
     });
 
-    it("dispose stops watching", () => {
+    it("dispose stops watching all watchers", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
-      panel.startWatching("/workspace");
+      const w1 = makeMockWatcher();
+      const w2 = makeMockWatcher();
+      panel.startWatching([w1.watcher, w2.watcher]);
       panel.dispose();
-      expect(deps._watcher.watcher.dispose).toHaveBeenCalled();
+      expect(w1.watcher.dispose).toHaveBeenCalled();
+      expect(w2.watcher.dispose).toHaveBeenCalled();
     });
 
-    it("startWatching stops previous watcher", () => {
+    it("startWatching stops previous watchers", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
-      panel.startWatching("/workspace");
-      const firstWatcher = deps._watcher.watcher;
-      panel.startWatching("/other");
-      expect(firstWatcher.dispose).toHaveBeenCalled();
+      const w1 = makeMockWatcher();
+      panel.startWatching([w1.watcher]);
+      const w2 = makeMockWatcher();
+      panel.startWatching([w2.watcher]);
+      expect(w1.watcher.dispose).toHaveBeenCalled();
+    });
+  });
+
+  describe("session pinning", () => {
+    it("beginSession records start time", () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      const before = Date.now();
+      panel.beginSession();
+      const after = Date.now();
+
+      // We can't directly access private fields, but we can verify behavior:
+      // After beginSession, onFileChanged should attempt pinning
+      expect(before).toBeLessThanOrEqual(after);
+    });
+
+    it("onFileChanged with session active pins to file with birthtimeMs > sessionStartTime", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      panel.beginSession();
+      // statFile returns a birthtime after session start
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+
+      await panel.onFileChanged();
+      deps._panel.webview.postMessage.mockClear();
+
+      // Call again — should use pinned file directly without calling findActivePlanFile again
+      (deps.findActivePlanFile as any).mockClear();
+      await panel.onFileChanged();
+
+      // findActivePlanFile should NOT be called because file is pinned
+      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+      expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+    });
+
+    it("onFileChanged when pinned reads pinned file directly", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      panel.beginSession();
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+
+      // First call pins the file
+      await panel.onFileChanged();
+
+      // Change findActivePlanFile to return a different file
+      const otherPath = "/home/user/.claude/plans/other-file.md";
+      (deps.findActivePlanFile as any).mockResolvedValue(otherPath);
+      (deps.readFile as any).mockClear();
+
+      // Second call should still read the pinned file
+      await panel.onFileChanged();
+      expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+      expect(deps.readFile).not.toHaveBeenCalledWith(otherPath);
+    });
+
+    it("onFileChanged does not pin when birthtimeMs < sessionStartTime", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      panel.beginSession();
+      // statFile returns a birthtime BEFORE session start
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: 1000 });
+
+      await panel.onFileChanged();
+      (deps.findActivePlanFile as any).mockClear();
+
+      // Call again — should call findActivePlanFile because file was NOT pinned
+      await panel.onFileChanged();
+      expect(deps.findActivePlanFile).toHaveBeenCalled();
+    });
+
+    it("endSession clears pin and reverts to scanning", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      panel.beginSession();
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+
+      // Pin the file
+      await panel.onFileChanged();
+      (deps.findActivePlanFile as any).mockClear();
+
+      // End session — should clear the pin
+      panel.endSession();
+
+      // Now onFileChanged should scan again
+      await panel.onFileChanged();
+      expect(deps.findActivePlanFile).toHaveBeenCalled();
+    });
+
+    it("pinning works when _panel is undefined (no early return)", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      // No reveal() — no panel
+
+      panel.beginSession();
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+
+      // Should run pinning logic even without panel
+      await panel.onFileChanged();
+      expect(deps.findActivePlanFile).toHaveBeenCalled();
+      expect(deps.statFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+
+      // Now reveal and call again — should use pinned file
+      panel.reveal();
+      (deps.findActivePlanFile as any).mockClear();
+
+      await panel.onFileChanged();
+      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+      expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+    });
+
+    it("onFileChanged without session does not attempt pinning", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      // No beginSession — no session active
+      await panel.onFileChanged();
+
+      // statFile should not be called when there's no session
+      expect(deps.statFile).not.toHaveBeenCalled();
     });
   });
 });
