@@ -19,6 +19,7 @@ import {
   wireAllSessions,
   handleWorkspaceFolderChange,
 } from "./workspaceSetup";
+import type { PlanChatSession } from "./core/planChatSession";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -138,11 +139,21 @@ export async function activate(
     onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
   });
 
+  // Plan chat session tracking
+  let activePlanChatSession: PlanChatSession | undefined;
+
   // Webview panels, CodeLens, and diff provider
   const activeSession = manager.getActiveSession();
   const activeState = activeSession?.sessionState ?? new SessionState();
   const gitExec = activeSession?.gitExec ?? createGitExec(workspaceRoot);
-  const panels = createWebviewPanels({ session: activeState, workspaceRoot, gitExec });
+  const panels = createWebviewPanels({
+    session: activeState,
+    workspaceRoot,
+    gitExec,
+    onAnnotation: (phase, text) => {
+      activePlanChatSession?.sendAnnotation(phase, text);
+    },
+  });
   disposables.push(...panels.disposables);
   const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
 
@@ -238,6 +249,17 @@ export async function activate(
     platform: process.platform,
   });
 
+  // Terminal close listener — detect when plan chat terminal is closed
+  disposables.push(
+    vscode.window.onDidCloseTerminal((terminal) => {
+      if (activePlanChatSession?.matchesTerminal(terminal)) {
+        activePlanChatSession = undefined;
+        planPreviewPanel.setSessionActive(false);
+        vscode.commands.executeCommand("setContext", "oxveil.planChatActive", false);
+      }
+    }),
+  );
+
   // Register commands — handlers resolve active session at runtime
   disposables.push(
     ...registerCommands({
@@ -256,6 +278,11 @@ export async function activate(
       resolvePhaseItem: resolvePhaseItem,
       resolveArchiveItem: resolveArchiveItem,
       claudePath: resolvedClaudePath,
+      onPlanChatSessionCreated: (session) => {
+        activePlanChatSession = session;
+        planPreviewPanel.setSessionActive(true);
+        vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
+      },
     }),
   );
 

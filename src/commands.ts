@@ -20,6 +20,7 @@ import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
 import { buildSystemPrompt } from "./commands/planChat";
+import { PlanChatSession } from "./core/planChatSession";
 
 export interface CommandDeps {
   sessionManager: WorkspaceSessionManager;
@@ -37,6 +38,7 @@ export interface CommandDeps {
   resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
   claudePath?: string | null;
+  onPlanChatSessionCreated?: (session: PlanChatSession) => void;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -312,18 +314,13 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         return;
       }
 
-      const systemPrompt = buildSystemPrompt();
-      const terminal = vscode.window.createTerminal({
-        name: "Plan Chat",
-        shellPath: claudePath,
-        shellArgs: [
-          "--append-system-prompt", systemPrompt,
-          "--permission-mode", "default",
-          "--allowedTools", "Edit,Write,Read,Glob,Grep,Bash",
-        ],
-        location: { viewColumn: vscode.ViewColumn.One },
+      const session = new PlanChatSession({
+        createTerminal: (opts) => vscode.window.createTerminal(opts as any),
+        claudePath,
       });
-      terminal.show();
+      session.start(buildSystemPrompt());
+
+      deps.onPlanChatSessionCreated?.(session);
 
       planPreviewPanel?.reveal();
       await planPreviewPanel?.onFileChanged();

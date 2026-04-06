@@ -21,6 +21,7 @@ export interface WebviewPanelsDeps {
   session: SessionState;
   workspaceRoot: string | undefined;
   gitExec: GitExecDeps | undefined;
+  onAnnotation?: (phase: string, text: string) => void;
 }
 
 export interface WebviewPanelsResult {
@@ -84,8 +85,8 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
       const planPath = path.join(deps.workspaceRoot, "PLAN.md");
       return fs.readFile(planPath, "utf-8");
     },
-    onAnnotation: (_phase, _text) => {
-      // Annotation handling will be wired in a future phase
+    onAnnotation: (phase, text) => {
+      deps.onAnnotation?.(phase, text);
     },
     createFileSystemWatcher: (glob: string) => vscode.workspace.createFileSystemWatcher(glob),
   });
