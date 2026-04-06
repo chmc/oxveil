@@ -19,9 +19,8 @@ import { DIFF_URI_SCHEME, encodeDiffUri } from "./views/diffProvider";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
-import { buildSystemPrompt, handleExistingPlan } from "./commands/planChat";
-import { PlanChatSession } from "./core/planChatSession";
-import * as fs from "node:fs";
+import { registerPlanChatCommand } from "./commands/registerPlanChat";
+import type { PlanChatSession } from "./core/planChatSession";
 
 export interface CommandDeps {
   sessionManager: WorkspaceSessionManager;
@@ -310,51 +309,13 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         false,
       ),
     ),
-    vscode.commands.registerCommand("oxveil.openPlanChat", async () => {
-      if (!claudePath) {
-        vscode.window.showErrorMessage(
-          "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
-        );
-        return;
-      }
-
-      // Prevent duplicate sessions
-      const existingSession = deps.getActivePlanChatSession?.();
-      if (existingSession?.isActive()) {
-        vscode.window.showInformationMessage("Plan Chat session already active");
-        existingSession.focusTerminal();
-        return;
-      }
-
-      // Check for existing PLAN.md
-      const workspaceRoot = getActive()?.workspaceRoot
-        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      if (workspaceRoot) {
-        const planPath = path.join(workspaceRoot, "PLAN.md");
-        if (fs.existsSync(planPath)) {
-          const action = await handleExistingPlan((items) =>
-            vscode.window.showQuickPick(items, {
-              placeHolder: "A PLAN.md already exists",
-            }) as any,
-          );
-          if (action === "cancel") return;
-          if (action === "create") {
-            fs.renameSync(planPath, `${planPath}.bak`);
-          }
-          // "edit" — continue with existing plan
-        }
-      }
-
-      const session = new PlanChatSession({
-        createTerminal: (opts) => vscode.window.createTerminal(opts as any),
-        claudePath,
-      });
-      session.start(buildSystemPrompt());
-
-      deps.onPlanChatSessionCreated?.(session);
-
-      planPreviewPanel?.reveal();
-      await planPreviewPanel?.onFileChanged();
+    registerPlanChatCommand({
+      claudePath,
+      getWorkspaceRoot: () => getActive()?.workspaceRoot
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      getActivePlanChatSession: deps.getActivePlanChatSession,
+      onPlanChatSessionCreated: deps.onPlanChatSessionCreated,
+      planPreviewPanel,
     }),
   ];
 }
