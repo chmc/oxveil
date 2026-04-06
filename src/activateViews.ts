@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
+import * as os from "node:os";
 import * as fs from "node:fs/promises";
 import { stat } from "node:fs/promises";
 import { DependencyGraphPanel } from "./views/dependencyGraph";
@@ -88,32 +89,71 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
       }
     },
     findActivePlanFile: async () => {
-      if (!deps.workspaceRoot) return undefined;
-      const plansDir = path.join(deps.workspaceRoot, ".claude", "plans");
-      try {
-        const files = (await fs.readdir(plansDir)).filter(f => f.endsWith(".md"));
-        if (files.length === 0) return undefined;
-        let newest: { path: string; mtime: number } | undefined;
-        for (const file of files) {
-          const fullPath = path.join(plansDir, file);
-          const s = await stat(fullPath);
-          if (!newest || s.mtimeMs > newest.mtime) {
-            newest = { path: fullPath, mtime: s.mtimeMs };
-          }
-        }
-        return newest?.path;
-      } catch {
-        return undefined;
+      const dirs: string[] = [];
+
+      // Primary: native plan mode (home dir)
+      dirs.push(path.join(os.homedir(), ".claude", "plans"));
+
+      // Workspace-relative directories
+      if (deps.workspaceRoot) {
+        dirs.push(path.join(deps.workspaceRoot, "docs", "superpowers", "specs"));
+        dirs.push(path.join(deps.workspaceRoot, "docs", "superpowers", "plans"));
       }
+
+      let newest: { path: string; mtime: number } | undefined;
+      for (const dir of dirs) {
+        try {
+          const files = (await fs.readdir(dir)).filter(f => f.endsWith(".md"));
+          for (const file of files) {
+            const fullPath = path.join(dir, file);
+            const s = await stat(fullPath);
+            if (!newest || s.mtimeMs > newest.mtime) {
+              newest = { path: fullPath, mtime: s.mtimeMs };
+            }
+          }
+        } catch {
+          // Directory doesn't exist — skip
+        }
+      }
+      return newest?.path;
     },
     onAnnotation: (phase, text) => {
       deps.onAnnotation?.(phase, text);
     },
     createFileSystemWatcher: (glob: string) => vscode.workspace.createFileSystemWatcher(glob),
+    statFile: async (filePath: string) => {
+      try {
+        const s = await stat(filePath);
+        return { birthtimeMs: s.birthtimeMs };
+      } catch {
+        return undefined;
+      }
+    },
   });
+
+  // Create watchers for all plan file locations
+  const watchers: vscode.FileSystemWatcher[] = [];
+
+  // Home dir watcher (always runs)
+  const homePlansDir = path.join(os.homedir(), ".claude", "plans");
+  watchers.push(vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(vscode.Uri.file(homePlansDir), "*.md"),
+  ));
+
+  // Workspace watchers (only with workspace)
   if (deps.workspaceRoot) {
-    planPreviewPanel.startWatching(deps.workspaceRoot);
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (folder) {
+      watchers.push(vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(folder, "docs/superpowers/specs/*.md"),
+      ));
+      watchers.push(vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(folder, "docs/superpowers/plans/*.md"),
+      ));
+    }
   }
+
+  planPreviewPanel.startWatching(watchers as any);
   disposables.push({ dispose: () => planPreviewPanel.dispose() });
 
   const planCodeLens = new PlanCodeLensProvider();

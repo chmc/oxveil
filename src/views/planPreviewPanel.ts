@@ -22,6 +22,7 @@ export interface PlanPreviewPanelDeps {
   findActivePlanFile: () => Promise<string | undefined>;
   onAnnotation: (phase: string, text: string) => void;
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
+  statFile?: (filePath: string) => Promise<{ birthtimeMs: number } | undefined>;
 }
 
 interface Webview {
@@ -44,9 +45,11 @@ export class PlanPreviewPanel {
   private _sessionActive = true;
   private _lastPhases: PhaseCardData[] = [];
   private _lastValid = false;
-  private _watcher: FileSystemWatcher | undefined;
+  private _watchers: FileSystemWatcher[] = [];
   private _watcherSubscriptions: { dispose: () => void }[] = [];
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private _sessionStartTime: number | undefined;
+  private _pinnedFile: string | undefined;
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
@@ -79,10 +82,35 @@ export class PlanPreviewPanel {
 
   private _lastRawContent: string | undefined;
 
-  async onFileChanged(): Promise<void> {
-    if (!this._panel) return;
+  beginSession(): void {
+    this._sessionStartTime = Date.now();
+    this._pinnedFile = undefined;
+  }
 
-    const activePath = await this._deps.findActivePlanFile();
+  endSession(): void {
+    this._sessionStartTime = undefined;
+    this._pinnedFile = undefined;
+  }
+
+  async onFileChanged(): Promise<void> {
+    // Pinning logic runs even without panel
+    let activePath: string | undefined;
+
+    if (this._pinnedFile) {
+      activePath = this._pinnedFile;
+    } else {
+      activePath = await this._deps.findActivePlanFile();
+      // Try to pin if session is active
+      if (activePath && this._sessionStartTime && this._deps.statFile) {
+        const stats = await this._deps.statFile(activePath);
+        if (stats && stats.birthtimeMs > this._sessionStartTime) {
+          this._pinnedFile = activePath;
+        }
+      }
+    }
+
+    if (!this._panel) return; // No panel to update
+
     if (!activePath) {
       this._lastPhases = [];
       this._lastValid = false;
@@ -128,12 +156,10 @@ export class PlanPreviewPanel {
     this._sendUpdate();
   }
 
-  startWatching(workspaceRoot: string): void {
-    if (!this._deps.createFileSystemWatcher) return;
+  startWatching(watchers: FileSystemWatcher[]): void {
     this.stopWatching();
 
-    const glob = `${workspaceRoot}/.claude/plans/*.md`;
-    this._watcher = this._deps.createFileSystemWatcher(glob);
+    this._watchers = watchers;
 
     const handler = () => {
       if (this._debounceTimer) clearTimeout(this._debounceTimer);
@@ -143,11 +169,13 @@ export class PlanPreviewPanel {
       }, 200);
     };
 
-    this._watcherSubscriptions.push(
-      this._watcher.onDidChange(handler),
-      this._watcher.onDidCreate(handler),
-      this._watcher.onDidDelete(handler),
-    );
+    for (const watcher of this._watchers) {
+      this._watcherSubscriptions.push(
+        watcher.onDidChange(handler),
+        watcher.onDidCreate(handler),
+        watcher.onDidDelete(handler),
+      );
+    }
   }
 
   stopWatching(): void {
@@ -159,8 +187,10 @@ export class PlanPreviewPanel {
       sub.dispose();
     }
     this._watcherSubscriptions = [];
-    this._watcher?.dispose();
-    this._watcher = undefined;
+    for (const watcher of this._watchers) {
+      watcher.dispose();
+    }
+    this._watchers = [];
   }
 
   dispose(): void {

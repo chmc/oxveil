@@ -32,6 +32,7 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
       createTerminal: (opts) => vscode.window.createTerminal(opts as any),
       claudePath: deps.claudePath,
     });
+    deps.planPreviewPanel?.beginSession();
     session.start(buildSystemPrompt());
 
     deps.onPlanChatSessionCreated?.(session);

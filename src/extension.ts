@@ -255,6 +255,7 @@ export async function activate(
       if (activePlanChatSession?.matchesTerminal(terminal)) {
         activePlanChatSession = undefined;
         planPreviewPanel.setSessionActive(false);
+        planPreviewPanel.endSession();
         vscode.commands.executeCommand("setContext", "oxveil.planChatActive", false);
       }
     }),
