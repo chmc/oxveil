@@ -1,10 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { Detection, type Executor } from "./core/detection";
-import { detectClaude, type ClaudeExecutor } from "./core/claudeDetection";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
@@ -16,16 +12,13 @@ import { ElapsedTimer } from "./views/elapsedTimer";
 import { createTreeAdapter, createHierarchicalTreeAdapter } from "./views/treeAdapter";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
+import { activateDetection } from "./activateDetection";
 import {
   createGitExec,
   initFolderSessions,
   wireAllSessions,
   handleWorkspaceFolderChange,
 } from "./workspaceSetup";
-
-const execFileAsync = promisify(execFile);
-
-const MINIMUM_VERSION = "0.22.0";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -46,38 +39,7 @@ export async function activate(
   const statusBar = new StatusBarManager(statusBarItem as any);
 
   // Detection
-  const executor: Executor = async (command, args) => {
-    const result = await execFileAsync(command, args);
-    return { stdout: result.stdout };
-  };
-
-  const detection = new Detection(executor, claudeloopPath, MINIMUM_VERSION);
-  const result = await detection.detect();
-
-  // Set context keys
-  await vscode.commands.executeCommand(
-    "setContext",
-    "oxveil.detected",
-    result.status === "detected",
-  );
-  await vscode.commands.executeCommand(
-    "setContext",
-    "oxveil.processRunning",
-    false,
-  );
-
-  // Claude CLI detection
-  const claudePath = config.get<string>("claudePath", "claude");
-  const claudeExecutor: ClaudeExecutor = async (command, args) => {
-    const r = await execFileAsync(command, args);
-    return { stdout: r.stdout };
-  };
-  const resolvedClaudePath = await detectClaude(claudeExecutor, claudePath);
-  await vscode.commands.executeCommand(
-    "setContext",
-    "oxveil.claudeDetected",
-    resolvedClaudePath !== null,
-  );
+  const { detection, result, resolvedClaudePath } = await activateDetection(config);
 
   // Update status bar based on detection
   if (result.status === "detected") {
