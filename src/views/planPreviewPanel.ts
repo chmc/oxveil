@@ -109,8 +109,15 @@ export class PlanPreviewPanel {
         const stats = await this._deps.statFile(activePath);
         if (stats && stats.birthtimeMs > this._sessionStartTime) {
           this._pinnedFile = activePath;
+        } else {
+          activePath = undefined;
         }
+      } else if (activePath) {
+        // statFile dep not available — cannot verify freshness, refuse to render
+        activePath = undefined;
       }
+    } else {
+      return;
     }
 
     if (!this._panel) return; // No panel to update

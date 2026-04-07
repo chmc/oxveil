@@ -75,7 +75,7 @@ function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel:
     findActivePlanFile: vi.fn(async () => ACTIVE_PLAN_PATH),
     onAnnotation: vi.fn(),
     createFileSystemWatcher: vi.fn(() => mockWatcher.watcher),
-    statFile: vi.fn(async (_path: string) => undefined),
+    statFile: vi.fn(async (_path: string) => ({ birthtimeMs: Date.now() + 1000 })),
     _panel: mockPanel,
     _watcher: mockWatcher,
   };
@@ -425,7 +425,7 @@ describe("PlanPreviewPanel", () => {
       expect(deps.readFile).not.toHaveBeenCalledWith(otherPath);
     });
 
-    it("onFileChanged does not pin when birthtimeMs < sessionStartTime", async () => {
+    it("does not pin when birthtimeMs < sessionStartTime", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -435,11 +435,64 @@ describe("PlanPreviewPanel", () => {
       (deps.statFile as any).mockResolvedValue({ birthtimeMs: 1000 });
 
       await panel.onFileChanged();
+
+      // Stale file should NOT be read or rendered
+      expect(deps.readFile).not.toHaveBeenCalled();
+
       (deps.findActivePlanFile as any).mockClear();
 
       // Call again — should call findActivePlanFile because file was NOT pinned
       await panel.onFileChanged();
       expect(deps.findActivePlanFile).toHaveBeenCalled();
+    });
+
+    it("does not render stale file when statFile dep is not provided", async () => {
+      const deps = makeDeps();
+      delete (deps as any).statFile;
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      // Can't verify freshness without statFile — should not read the file
+      expect(deps.readFile).not.toHaveBeenCalled();
+    });
+
+    it("does not render file when statFile returns undefined", async () => {
+      const deps = makeDeps();
+      (deps.statFile as any).mockResolvedValue(undefined);
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      expect(deps.readFile).not.toHaveBeenCalled();
+    });
+
+    it("post-session onFileChanged preserves last rendered content", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+
+      // Load a plan and end session
+      await panel.onFileChanged();
+      panel.setSessionActive(false);
+      panel.endSession();
+      deps._panel.webview.postMessage.mockClear();
+      (deps.findActivePlanFile as any).mockClear();
+      (deps.statFile as any).mockClear();
+
+      // Simulate delayed watcher event after session ended
+      await panel.onFileChanged();
+
+      // Early return — no discovery, no rendering, state preserved
+      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+      expect(deps.statFile).not.toHaveBeenCalled();
+      expect(deps._panel.webview.postMessage).not.toHaveBeenCalled();
     });
 
     it("endSession clears pin and session, subsequent onFileChanged skips discovery", async () => {
