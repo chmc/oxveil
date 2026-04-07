@@ -175,12 +175,15 @@ export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   const header = renderHeader(options);
 
   if (options.state === "empty") {
+    const subtitle = options.sessionActive
+      ? "Waiting for Claude to write a plan..."
+      : "Start chatting with Claude in the terminal on the left. When Claude writes a plan, it will appear here.";
     return `${header}
 <div class="preview-content">
   <div class="empty-state">
     <div class="empty-icon">&#128203;</div>
     <div class="empty-title">No plan yet</div>
-    <div class="empty-subtitle">Start chatting with Claude in the terminal on the left. When Claude writes a plan, it will appear here.</div>
+    <div class="empty-subtitle">${subtitle}</div>
   </div>
 </div>`;
   }

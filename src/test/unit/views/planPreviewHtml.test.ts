@@ -180,6 +180,16 @@ describe("renderPhaseCardsHtml", () => {
       const html = renderPhaseCardsHtml({ state: "empty", sessionActive: true });
       expect(html).not.toContain("phase-card");
     });
+
+    it("shows waiting text when session is active", () => {
+      const html = renderPhaseCardsHtml({ state: "empty", sessionActive: true });
+      expect(html).toContain("Waiting for Claude to write a plan");
+    });
+
+    it("shows start chatting text when session is not active", () => {
+      const html = renderPhaseCardsHtml({ state: "empty", sessionActive: false });
+      expect(html).toContain("Start chatting with Claude");
+    });
   });
 
   describe("markdown rendering in phase descriptions", () => {
