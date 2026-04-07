@@ -46,15 +46,13 @@ describe("SidebarPanel", () => {
     expect(view.webview.options.enableScripts).toBe(true);
   });
 
-  it("sends fullState to webview on updateState", () => {
+  it("re-renders webview HTML on updateState", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
     const state: SidebarState = { view: "empty", archives: [] };
     panel.updateState(state);
-    expect(view.webview.postMessage).toHaveBeenCalledWith({
-      type: "fullState",
-      state,
-    });
+    expect(view.webview.html).toContain("Create a Plan");
+    expect(view.webview.html).not.toContain("Initializing");
   });
 
   it("dispatches webview messages to commands", () => {

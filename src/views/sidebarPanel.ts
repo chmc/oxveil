@@ -58,7 +58,12 @@ export class SidebarPanel {
 
   updateState(state: SidebarState): void {
     if (this._view) {
-      this._postMessage({ type: "fullState", state });
+      const nonce = randomBytes(16).toString("hex");
+      this._view.webview.html = renderSidebar(
+        nonce,
+        this._view.webview.cspSource,
+        state,
+      );
     } else {
       this._pendingState = state;
     }
