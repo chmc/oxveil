@@ -102,10 +102,10 @@ export class PlanPreviewPanel {
 
     if (this._pinnedFile) {
       activePath = this._pinnedFile;
-    } else {
+    } else if (this._sessionStartTime) {
       activePath = await this._deps.findActivePlanFile();
       // Try to pin if session is active
-      if (activePath && this._sessionStartTime && this._deps.statFile) {
+      if (activePath && this._deps.statFile) {
         const stats = await this._deps.statFile(activePath);
         if (stats && stats.birthtimeMs > this._sessionStartTime) {
           this._pinnedFile = activePath;

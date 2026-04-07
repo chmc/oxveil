@@ -134,8 +134,13 @@ export async function activate(
   const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
 
   // Register sidebar webview provider
+  let planUserChoice: import("./views/sidebarState").PlanUserChoice = "none";
   const sidebarPanel = new SidebarPanel({
     executeCommand: vscode.commands.executeCommand,
+    onPlanChoice: (choice) => {
+      planUserChoice = choice;
+      sidebarPanel.updateState(buildFullState());
+    },
   });
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -187,6 +192,7 @@ export async function activate(
       sessionStatus,
       currentPlanDetected,
       progress,
+      planUserChoice,
     );
     return {
       view: viewState,
@@ -215,6 +221,7 @@ export async function activate(
     planDetected: currentPlanDetected,
     planFilename: "PLAN.md",
     getArchives,
+    getPlanUserChoice: () => planUserChoice,
   };
 
   const onArchiveDone = async () => {
@@ -253,12 +260,14 @@ export async function activate(
   planWatcher.onDidCreate(() => {
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
     currentPlanDetected = true;
+    planUserChoice = "none";
     wiringCtx.planDetected = true;
     sidebarPanel.updateState(buildFullState());
   });
   planWatcher.onDidDelete(() => {
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
     currentPlanDetected = false;
+    planUserChoice = "none";
     wiringCtx.planDetected = false;
     sidebarPanel.updateState(buildFullState());
   });

@@ -63,8 +63,17 @@ describe("deriveViewState", () => {
   it("returns failed on idle with orphaned failed progress", () => {
     expect(deriveViewState("detected", "idle", true, hasFailed)).toBe("failed");
   });
-  it("returns ready when idle with plan but no progress", () => {
-    expect(deriveViewState("detected", "idle", true, noProgress)).toBe("ready");
+  it("returns stale when idle with plan but no progress and no user choice", () => {
+    expect(deriveViewState("detected", "idle", true, noProgress)).toBe("stale");
+  });
+  it("returns ready when idle with plan, no progress, and user chose resume", () => {
+    expect(deriveViewState("detected", "idle", true, noProgress, "resume")).toBe("ready");
+  });
+  it("returns empty when idle with plan, no progress, and user chose dismiss", () => {
+    expect(deriveViewState("detected", "idle", true, noProgress, "dismiss")).toBe("empty");
+  });
+  it("returns ready when idle with plan but no progress and explicit none choice", () => {
+    expect(deriveViewState("detected", "idle", true, noProgress, "none")).toBe("stale");
   });
 });
 

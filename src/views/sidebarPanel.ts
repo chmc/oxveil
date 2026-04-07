@@ -6,6 +6,7 @@ import type { SidebarCommand } from "./sidebarMessages";
 
 export interface SidebarPanelDeps {
   executeCommand: (command: string, ...args: any[]) => void;
+  onPlanChoice?: (choice: "resume" | "dismiss") => void;
 }
 
 interface Webview {
@@ -44,6 +45,10 @@ export class SidebarPanel {
     );
 
     webviewView.webview.onDidReceiveMessage((msg: SidebarCommand) => {
+      if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
+        this._deps.onPlanChoice?.(msg.command === "resumePlan" ? "resume" : "dismiss");
+        return;
+      }
       dispatchSidebarMessage(msg, this._deps.executeCommand);
     });
 

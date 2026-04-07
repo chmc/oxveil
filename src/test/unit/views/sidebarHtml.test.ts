@@ -131,6 +131,21 @@ describe("renderSidebar", () => {
     expect(html).toContain("Replay");
   });
 
+  it("renders stale state with Found badge and Resume/Dismiss buttons", () => {
+    const state: SidebarState = {
+      view: "stale",
+      plan: { filename: "PLAN.md", phases: [] },
+      archives: [],
+    };
+    const html = renderSidebar(nonce, csp, state);
+    expect(html).toContain("PLAN.md");
+    expect(html).toContain("Found");
+    expect(html).toContain("Resume");
+    expect(html).toContain("Dismiss");
+    expect(html).toContain("resumePlan");
+    expect(html).toContain("dismissPlan");
+  });
+
   it("renders archives section", () => {
     const state: SidebarState = {
       view: "ready",

@@ -114,6 +114,7 @@ describe("PlanPreviewPanel", () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
+    panel.beginSession();
     deps._panel.webview.postMessage.mockClear();
 
     await panel.onFileChanged();
@@ -134,6 +135,7 @@ describe("PlanPreviewPanel", () => {
     deps.findActivePlanFile = vi.fn(async () => undefined);
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
+    panel.beginSession();
     mockPanel.webview.postMessage.mockClear();
 
     await panel.onFileChanged();
@@ -149,6 +151,7 @@ describe("PlanPreviewPanel", () => {
     deps.readFile = vi.fn(async (_path: string) => INVALID_PLAN);
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
+    panel.beginSession();
     mockPanel.webview.postMessage.mockClear();
 
     await panel.onFileChanged();
@@ -165,6 +168,7 @@ describe("PlanPreviewPanel", () => {
     deps.readFile = vi.fn(async (_path: string) => "This is just some text\nwith no phase headers");
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
+    panel.beginSession();
     mockPanel.webview.postMessage.mockClear();
 
     await panel.onFileChanged();
@@ -196,6 +200,7 @@ describe("PlanPreviewPanel", () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
+    panel.beginSession();
 
     // Load plan first
     await panel.onFileChanged();
@@ -212,6 +217,7 @@ describe("PlanPreviewPanel", () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
+    panel.beginSession();
 
     await panel.onFileChanged();
     panel.setSessionActive(false);
@@ -280,6 +286,7 @@ describe("PlanPreviewPanel", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
+      panel.beginSession();
       const w1 = makeMockWatcher();
       const w2 = makeMockWatcher();
       panel.startWatching([w1.watcher, w2.watcher]);
@@ -296,6 +303,7 @@ describe("PlanPreviewPanel", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
+      panel.beginSession();
       const w1 = makeMockWatcher();
       panel.startWatching([w1.watcher]);
 
@@ -309,6 +317,7 @@ describe("PlanPreviewPanel", () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
+      panel.beginSession();
       const w1 = makeMockWatcher();
       const w2 = makeMockWatcher();
       panel.startWatching([w1.watcher, w2.watcher]);
@@ -433,7 +442,7 @@ describe("PlanPreviewPanel", () => {
       expect(deps.findActivePlanFile).toHaveBeenCalled();
     });
 
-    it("endSession clears pin and reverts to scanning", async () => {
+    it("endSession clears pin and session, subsequent onFileChanged skips discovery", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -445,12 +454,12 @@ describe("PlanPreviewPanel", () => {
       await panel.onFileChanged();
       (deps.findActivePlanFile as any).mockClear();
 
-      // End session — should clear the pin
+      // End session — should clear the pin and session
       panel.endSession();
 
-      // Now onFileChanged should scan again
+      // Now onFileChanged should NOT scan (no active session)
       await panel.onFileChanged();
-      expect(deps.findActivePlanFile).toHaveBeenCalled();
+      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
     });
 
     it("pinning works when _panel is undefined (no early return)", async () => {
@@ -475,7 +484,7 @@ describe("PlanPreviewPanel", () => {
       expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     });
 
-    it("onFileChanged without session does not attempt pinning", async () => {
+    it("onFileChanged without session skips discovery entirely", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -483,7 +492,8 @@ describe("PlanPreviewPanel", () => {
       // No beginSession — no session active
       await panel.onFileChanged();
 
-      // statFile should not be called when there's no session
+      // Neither findActivePlanFile nor statFile should be called
+      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
       expect(deps.statFile).not.toHaveBeenCalled();
     });
   });

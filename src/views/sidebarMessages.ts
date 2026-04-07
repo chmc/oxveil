@@ -27,6 +27,8 @@ export type SidebarCommand =
   | { command: "forceUnlock" }
   | { command: "reset" }
   | { command: "refreshArchives" }
+  | { command: "resumePlan" }
+  | { command: "dismissPlan" }
   // selectFolder deferred to multi-root follow-up
   ;
 

@@ -149,6 +149,24 @@ function renderReady(state: SidebarState): string {
 ${archivesHtml}`;
 }
 
+function renderStale(state: SidebarState): string {
+  const plan = state.plan!;
+  const filename = escapeHtml(plan.filename);
+  const archivesHtml = renderArchives(state.archives);
+  return `<div class="card">
+  <div class="card-header">
+    <span class="plan-filename">${filename}</span>
+    <span class="badge stale">Found</span>
+  </div>
+  <p class="state-desc">A plan file was found. Is this your current work?</p>
+  ${renderActionBar([
+    { label: "Resume", command: "resumePlan", primary: true },
+    { label: "Dismiss", command: "dismissPlan" },
+  ])}
+</div>
+${archivesHtml}`;
+}
+
 function renderRunning(state: SidebarState): string {
   const plan = state.plan!;
   const session = state.session;
@@ -313,6 +331,8 @@ function renderBody(state?: SidebarState): string {
       return renderEmpty(state);
     case "ready":
       return renderReady(state);
+    case "stale":
+      return renderStale(state);
     case "running":
       return renderRunning(state);
     case "stopped":
@@ -384,6 +404,7 @@ export function renderSidebar(nonce: string, cspSource: string, state?: SidebarS
     .badge.stopped { background: var(--vscode-editorWarning-foreground, #cca700); color: #000; }
     .badge.failed { background: var(--vscode-errorForeground, #f44747); color: #fff; }
     .badge.completed { background: var(--vscode-testing-iconPassed, #4ec9b0); color: #fff; }
+    .badge.stale { background: var(--vscode-editorWarning-foreground, #cca700); color: #000; }
 
     /* Progress bar */
     .progress-bar {

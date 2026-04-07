@@ -9,7 +9,7 @@ import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { SidebarPanel } from "./views/sidebarPanel";
 import { deriveViewState, mapPhases } from "./views/sidebarState";
-import type { ArchiveView } from "./views/sidebarState";
+import type { ArchiveView, PlanUserChoice } from "./views/sidebarState";
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -29,6 +29,7 @@ export interface SessionWiringDeps {
   planDetected?: boolean;
   planFilename?: string;
   getArchives?: () => ArchiveView[];
+  getPlanUserChoice?: () => PlanUserChoice;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -51,6 +52,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       sessionStatus as any,
       deps.planDetected ?? false,
       session.progress,
+      deps.getPlanUserChoice?.() ?? "none",
     );
     deps.sidebarPanel.updateState({
       view: viewState,
