@@ -21,6 +21,10 @@ import {
 } from "./workspaceSetup";
 import type { PlanChatSession } from "./core/planChatSession";
 import { SidebarPanel } from "./views/sidebarPanel";
+import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarState";
+import type { ArchiveView, SidebarState } from "./views/sidebarState";
+import type { DetectionStatus } from "./types";
+import { computeDuration } from "./parsers/archive";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -170,6 +174,62 @@ export async function activate(
     ),
   );
 
+  // Sidebar state tracking
+  let currentDetectionStatus: DetectionStatus = result.status;
+  let currentPlanDetected = false;
+
+  // Check initial plan state
+  if (workspaceRoot) {
+    try {
+      await fs.access(path.join(workspaceRoot, "PLAN.md"));
+      currentPlanDetected = true;
+    } catch {
+      // PLAN.md doesn't exist yet
+    }
+  }
+
+  function getArchives(): ArchiveView[] {
+    return archive.archiveTree.getEntries().map((entry) => ({
+      name: entry.name,
+      label: entry.label,
+      date: entry.metadata?.started
+        ? formatRelativeDate(entry.metadata.started)
+        : entry.timestamp,
+      phaseCount: entry.metadata?.phasesTotal ?? 0,
+      duration: entry.metadata
+        ? computeDuration(entry.metadata.started, entry.metadata.finished) || undefined
+        : undefined,
+      status: (entry.metadata
+        ? (entry.metadata.status === "completed" ? "completed" :
+           entry.metadata.status === "failed" ? "failed" : "unknown")
+        : "unknown") as "completed" | "failed" | "unknown",
+    }));
+  }
+
+  function buildFullState(): SidebarState {
+    const active = manager.getActiveSession();
+    const sessionState = active?.sessionState;
+    const sessionStatus = sessionState?.status ?? "idle";
+    const progress = sessionState?.progress;
+    const viewState = deriveViewState(
+      currentDetectionStatus,
+      sessionStatus,
+      currentPlanDetected,
+      progress,
+    );
+    return {
+      view: viewState,
+      plan: progress ? {
+        filename: "PLAN.md",
+        phases: mapPhases(progress.phases),
+      } : undefined,
+      session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
+        elapsed: elapsedTimer.elapsed,
+      } : undefined,
+      archives: getArchives(),
+    };
+  }
+
   // Wire each session's events
   const wiringCtx = {
     statusBar,
@@ -181,8 +241,19 @@ export async function activate(
     dependencyGraph,
     executionTimeline,
     getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
+    sidebarPanel,
+    detectionStatus: currentDetectionStatus,
+    planDetected: currentPlanDetected,
+    planFilename: "PLAN.md",
+    getArchives,
   };
-  wireAllSessions(manager, wiringCtx, refreshArchive);
+
+  const onArchiveDone = async () => {
+    await refreshArchive();
+    sidebarPanel.updateState(buildFullState());
+  };
+
+  wireAllSessions(manager, wiringCtx, onArchiveDone);
 
   // Detection notifications
   if (result.status === "not-found") {
@@ -206,18 +277,21 @@ export async function activate(
   }
 
   // Walkthrough: PLAN.md watcher + activation check
-  if (workspaceRoot) {
-    const planPath = path.join(workspaceRoot, "PLAN.md");
-    try {
-      await fs.access(planPath);
-      await vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
-    } catch {
-      // PLAN.md doesn't exist yet
-    }
+  if (currentPlanDetected) {
+    await vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
   }
   const planWatcher = vscode.workspace.createFileSystemWatcher("**/PLAN.md");
   planWatcher.onDidCreate(() => {
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
+    currentPlanDetected = true;
+    wiringCtx.planDetected = true;
+    sidebarPanel.updateState(buildFullState());
+  });
+  planWatcher.onDidDelete(() => {
+    vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
+    currentPlanDetected = false;
+    wiringCtx.planDetected = false;
+    sidebarPanel.updateState(buildFullState());
   });
   disposables.push(planWatcher);
 
@@ -229,6 +303,8 @@ export async function activate(
         "oxveil.detected",
         r.status === "detected",
       );
+      currentDetectionStatus = r.status;
+      wiringCtx.detectionStatus = r.status;
       phaseTree.updateDetected(r.status === "detected");
       onDidChangeTreeData.fire(undefined);
       if (r.status === "detected") {
@@ -236,6 +312,7 @@ export async function activate(
       } else {
         statusBar.update({ kind: "not-found" });
       }
+      sidebarPanel.updateState(buildFullState());
     });
 
   // Re-detect on setting change
@@ -301,8 +378,10 @@ export async function activate(
     }),
   );
 
-  // Initial archive load
-  refreshArchive();
+  // Initial archive load + sidebar state
+  refreshArchive().then(() => {
+    sidebarPanel.updateState(buildFullState());
+  });
 
   // Active folder tracking
   disposables.push(
@@ -334,7 +413,7 @@ export async function activate(
     resolvedPath: result.path,
     platform: process.platform,
     wiringCtx,
-    onArchiveDone: refreshArchive,
+    onArchiveDone,
   };
   disposables.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {

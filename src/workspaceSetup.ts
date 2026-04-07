@@ -91,7 +91,7 @@ function sessionWiringDeps(
 export function wireAllSessions(
   manager: WorkspaceSessionManager,
   wiringCtx: SessionWiringContext,
-  onArchiveDone: () => void,
+  onArchiveDone: () => void | Promise<void>,
 ): void {
   for (const ws of manager.getAllSessions()) {
     wireSessionEvents(sessionWiringDeps(ws, manager, wiringCtx));

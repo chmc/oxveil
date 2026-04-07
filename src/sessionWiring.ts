@@ -5,9 +5,12 @@ import type { PhaseTreeProvider } from "./views/phaseTree";
 import type { LiveRunPanel } from "./views/liveRunPanel";
 import type { NotificationManager } from "./views/notifications";
 import type { ElapsedTimer } from "./views/elapsedTimer";
-import type { ProgressState } from "./types";
+import type { ProgressState, DetectionStatus } from "./types";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ExecutionTimelinePanel } from "./views/executionTimeline";
+import type { SidebarPanel } from "./views/sidebarPanel";
+import { deriveViewState, mapPhases } from "./views/sidebarState";
+import type { ArchiveView } from "./views/sidebarState";
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -24,6 +27,11 @@ export interface SessionWiringDeps {
   getOtherRootsSummary?: () => string | undefined;
   getConfig?: (key: string) => any;
   isActiveSession: () => boolean;
+  sidebarPanel?: SidebarPanel;
+  detectionStatus?: DetectionStatus;
+  planDetected?: boolean;
+  planFilename?: string;
+  getArchives?: () => ArchiveView[];
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -37,6 +45,32 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   } = deps;
 
   let lastProgress: ProgressState | undefined;
+  let sidebarCost = 0;
+  let sidebarTodoDone = 0;
+  let sidebarTodoTotal = 0;
+
+  function buildAndSendSidebarState(sessionStatus: string): void {
+    if (!deps.sidebarPanel) return;
+    const viewState = deriveViewState(
+      deps.detectionStatus ?? "detected",
+      sessionStatus as any,
+      deps.planDetected ?? false,
+      session.progress,
+    );
+    deps.sidebarPanel.updateState({
+      view: viewState,
+      plan: session.progress ? {
+        filename: deps.planFilename ?? "PLAN.md",
+        phases: mapPhases(session.progress.phases),
+      } : undefined,
+      session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
+        elapsed: deps.elapsedTimer?.elapsed ?? "0m",
+        cost: sidebarCost > 0 ? `$${sidebarCost.toFixed(2)}` : undefined,
+        todos: sidebarTodoTotal > 0 ? { done: sidebarTodoDone, total: sidebarTodoTotal } : undefined,
+      } : undefined,
+      archives: deps.getArchives?.() ?? [],
+    });
+  }
 
   session.on("state-changed", (_from, to) => {
     if (!deps.isActiveSession()) return;
@@ -46,6 +80,13 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       "oxveil.processRunning",
       to === "running",
     );
+
+    // Reset cost/todo tracking on new run
+    if (to === "running") {
+      sidebarCost = 0;
+      sidebarTodoDone = 0;
+      sidebarTodoTotal = 0;
+    }
 
     switch (to) {
       case "running": {
@@ -100,6 +141,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         statusBar.update({ kind: "idle" });
         break;
     }
+
+    buildAndSendSidebarState(to);
   });
 
   session.on("phases-changed", (progress) => {
@@ -127,9 +170,47 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         otherRootsSummary: deps.getOtherRootsSummary?.(),
       });
     }
+
+    if (deps.sidebarPanel && deps.isActiveSession()) {
+      deps.sidebarPanel.sendProgressUpdate({
+        phases: mapPhases(progress.phases),
+        elapsed: deps.elapsedTimer?.elapsed ?? "0m",
+        cost: sidebarCost > 0 ? `$${sidebarCost.toFixed(2)}` : undefined,
+        todos: sidebarTodoTotal > 0 ? { done: sidebarTodoDone, total: sidebarTodoTotal } : undefined,
+        currentPhase: progress.currentPhaseIndex,
+      });
+    }
   });
 
   session.on("log-appended", (content) => {
     deps.liveRunPanel?.onLogAppended(content);
+
+    // Extract cost and todo data for sidebar
+    if (deps.sidebarPanel && deps.isActiveSession()) {
+      const lines = content.split("\n");
+      let updated = false;
+      for (const line of lines) {
+        const costMatch = line.match(/cost=\$([0-9.]+)/);
+        if (costMatch) {
+          sidebarCost += parseFloat(costMatch[1]) || 0;
+          updated = true;
+        }
+        const todoMatch = line.match(/\[Todos:\s*(\d+)\/(\d+)\s+done\]/);
+        if (todoMatch) {
+          sidebarTodoDone = parseInt(todoMatch[1], 10);
+          sidebarTodoTotal = parseInt(todoMatch[2], 10);
+          updated = true;
+        }
+      }
+      if (updated && session.progress) {
+        deps.sidebarPanel.sendProgressUpdate({
+          phases: mapPhases(session.progress.phases),
+          elapsed: deps.elapsedTimer?.elapsed ?? "0m",
+          cost: sidebarCost > 0 ? `$${sidebarCost.toFixed(2)}` : undefined,
+          todos: sidebarTodoTotal > 0 ? { done: sidebarTodoDone, total: sidebarTodoTotal } : undefined,
+          currentPhase: session.progress.currentPhaseIndex,
+        });
+      }
+    }
   });
 }

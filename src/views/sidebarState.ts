@@ -116,3 +116,38 @@ export function formatDuration(ms: number): string {
   const rem = s % 60;
   return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
+
+export async function readErrorSnippet(
+  workspaceRoot: string,
+  phaseNumber: number | string,
+  readFile: (path: string) => Promise<string>,
+): Promise<string | undefined> {
+  try {
+    const logPath = `${workspaceRoot}/.claudeloop/phase-${phaseNumber}.log`;
+    const content = await readFile(logPath);
+    const lines = content.split("\n").filter((l) => l.trim().length > 0);
+    return lines.length > 0 ? lines[lines.length - 1].slice(0, 200) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function formatRelativeDate(iso: string, now?: Date): string {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return iso;
+  const ref = now ?? new Date();
+  const diffMs = ref.getTime() - date.getTime();
+
+  if (diffMs < 60_000) return "Just now";
+  if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+
+  const refDate = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const entryDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.floor((refDate.getTime() - entryDate.getTime()) / 86_400_000);
+
+  if (dayDiff === 0) return "Today";
+  if (dayDiff === 1) return "Yesterday";
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[date.getMonth()]} ${date.getDate()}`;
+}

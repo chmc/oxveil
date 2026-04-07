@@ -19,6 +19,16 @@ describe("ElapsedTimer", () => {
     expect(onTick).toHaveBeenCalledWith("0m");
   });
 
+  it("formats 10 seconds as 0m 10s (under 10 minutes with remainder)", () => {
+    const onTick = vi.fn();
+    const timer = new ElapsedTimer(onTick);
+
+    timer.start();
+    vi.advanceTimersByTime(10_000);
+
+    expect(onTick).toHaveBeenLastCalledWith("0m 10s");
+  });
+
   it("formats 60 seconds as 1m", () => {
     const onTick = vi.fn();
     const timer = new ElapsedTimer(onTick);
@@ -29,7 +39,17 @@ describe("ElapsedTimer", () => {
     expect(onTick).toHaveBeenLastCalledWith("1m");
   });
 
-  it("formats 720 seconds as 12m", () => {
+  it("formats 90 seconds as 1m 30s (under 10 minutes with remainder)", () => {
+    const onTick = vi.fn();
+    const timer = new ElapsedTimer(onTick);
+
+    timer.start();
+    vi.advanceTimersByTime(90_000);
+
+    expect(onTick).toHaveBeenLastCalledWith("1m 30s");
+  });
+
+  it("formats 720 seconds as 12m (>= 10 minutes shows only minutes)", () => {
     const onTick = vi.fn();
     const timer = new ElapsedTimer(onTick);
 
@@ -37,6 +57,16 @@ describe("ElapsedTimer", () => {
     vi.advanceTimersByTime(720_000);
 
     expect(onTick).toHaveBeenLastCalledWith("12m");
+  });
+
+  it("formats 630 seconds as 10m (>= 10 minutes, no seconds)", () => {
+    const onTick = vi.fn();
+    const timer = new ElapsedTimer(onTick);
+
+    timer.start();
+    vi.advanceTimersByTime(630_000);
+
+    expect(onTick).toHaveBeenLastCalledWith("10m");
   });
 
   it("stops ticking after stop()", () => {

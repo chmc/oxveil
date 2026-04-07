@@ -52,6 +52,10 @@ export class ArchiveTreeProvider {
     this._entries = entries;
   }
 
+  getEntries(): ArchiveEntry[] {
+    return this._entries;
+  }
+
   getChildren(): ArchiveTreeItem[] {
     if (this._entries.length === 0) {
       return [

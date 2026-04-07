@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveViewState, mapPhases, formatDuration } from "../../../views/sidebarState";
+import { deriveViewState, mapPhases, formatDuration, formatRelativeDate, readErrorSnippet } from "../../../views/sidebarState";
 import type { ProgressState } from "../../../types";
 
 const noProgress: ProgressState | undefined = undefined;
@@ -84,5 +84,54 @@ describe("mapPhases", () => {
       { number: 1, title: "Setup", status: "completed", duration: "32s", attempts: undefined },
       { number: 2, title: "Build", status: "pending", duration: undefined, attempts: undefined },
     ]);
+  });
+});
+
+describe("formatRelativeDate", () => {
+  const now = new Date("2026-04-07T14:30:00Z");
+
+  it("returns 'Just now' for < 1 minute ago", () => {
+    expect(formatRelativeDate("2026-04-07T14:29:30Z", now)).toBe("Just now");
+  });
+
+  it("returns minutes ago for < 1 hour", () => {
+    expect(formatRelativeDate("2026-04-07T14:05:00Z", now)).toBe("25m ago");
+  });
+
+  it("returns 'Today' for same calendar day beyond 1 hour", () => {
+    expect(formatRelativeDate("2026-04-07T10:00:00Z", now)).toBe("Today");
+  });
+
+  it("returns 'Yesterday' for previous calendar day", () => {
+    expect(formatRelativeDate("2026-04-06T20:00:00Z", now)).toBe("Yesterday");
+  });
+
+  it("returns month and day for older dates", () => {
+    expect(formatRelativeDate("2026-03-28T12:00:00Z", now)).toBe("Mar 28");
+  });
+
+  it("returns the raw string for invalid dates", () => {
+    expect(formatRelativeDate("not-a-date", now)).toBe("not-a-date");
+  });
+});
+
+describe("readErrorSnippet", () => {
+  it("returns last non-empty line from log file", async () => {
+    const readFile = async () => "line1\nline2\nerror: something broke\n\n";
+    const snippet = await readErrorSnippet("/workspace", 2, readFile);
+    expect(snippet).toBe("error: something broke");
+  });
+
+  it("returns undefined when file does not exist", async () => {
+    const readFile = async () => { throw new Error("ENOENT"); };
+    const snippet = await readErrorSnippet("/workspace", 1, readFile);
+    expect(snippet).toBeUndefined();
+  });
+
+  it("truncates to 200 characters", async () => {
+    const longLine = "x".repeat(300);
+    const readFile = async () => longLine;
+    const snippet = await readErrorSnippet("/workspace", 1, readFile);
+    expect(snippet).toHaveLength(200);
   });
 });

@@ -23,7 +23,12 @@ export class ElapsedTimer {
     this._intervalId = setInterval(() => {
       const seconds = Math.floor((Date.now() - this._startTime) / 1000);
       const minutes = Math.floor(seconds / 60);
-      this._elapsed = `${minutes}m`;
+      const rem = seconds % 60;
+      if (rem > 0 && minutes < 10) {
+        this._elapsed = `${minutes}m ${rem}s`;
+      } else {
+        this._elapsed = `${minutes}m`;
+      }
       this._onTick(this._elapsed);
     }, TICK_INTERVAL_MS);
   }
