@@ -14,7 +14,6 @@ import { LiveRunPanel } from "./views/liveRunPanel";
 import { PlanPreviewPanel } from "./views/planPreviewPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
-import { createTreeAdapter } from "./views/treeAdapter";
 import type { SessionState } from "./core/sessionState";
 import type { GitExecDeps } from "./core/gitIntegration";
 
@@ -184,27 +183,11 @@ export interface ArchiveViewDeps {
 
 export interface ArchiveViewResult {
   archiveTree: ArchiveTreeProvider;
-  archiveView: vscode.TreeView<any>;
-  archiveDidChange: vscode.EventEmitter<any>;
-  resolveArchiveItem: (element: any) => any;
   refreshArchive: () => Promise<void>;
 }
 
 export function createArchiveView(deps: ArchiveViewDeps): ArchiveViewResult {
   const archiveTree = new ArchiveTreeProvider();
-  const {
-    dataProvider: archiveDataProvider,
-    emitter: archiveDidChange,
-    resolveItem: resolveArchiveItem,
-  } = createTreeAdapter(archiveTree, (item, treeItem) => {
-    if (item.archiveName) {
-      (treeItem as any).archiveName = item.archiveName;
-    }
-  });
-
-  const archiveView = vscode.window.createTreeView("oxveil.archive", {
-    treeDataProvider: archiveDataProvider,
-  });
 
   const refreshArchive = async () => {
     if (!deps.workspaceRoot) return;
@@ -218,8 +201,7 @@ export function createArchiveView(deps: ArchiveViewDeps): ArchiveViewResult {
       archiveRoot,
     );
     archiveTree.update(entries);
-    archiveDidChange.fire(undefined);
   };
 
-  return { archiveTree, archiveView, archiveDidChange, resolveArchiveItem, refreshArchive };
+  return { archiveTree, refreshArchive };
 }

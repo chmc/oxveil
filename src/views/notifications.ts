@@ -1,5 +1,34 @@
-import type { ProgressState, DetectionStatus } from "../types";
-import { PhaseTreeProvider } from "./phaseTree";
+import type { PhaseStatus, ProgressState, DetectionStatus } from "../types";
+
+export interface PhaseTransition {
+  phase: number | string;
+  title: string;
+  from: PhaseStatus;
+  to: PhaseStatus;
+  attempts?: number;
+}
+
+export function detectTransitions(
+  oldState: ProgressState,
+  newState: ProgressState,
+): PhaseTransition[] {
+  const transitions: PhaseTransition[] = [];
+  for (const newPhase of newState.phases) {
+    const oldPhase = oldState.phases.find(
+      (p) => p.number === newPhase.number,
+    );
+    if (oldPhase && oldPhase.status !== newPhase.status) {
+      transitions.push({
+        phase: newPhase.number,
+        title: newPhase.title,
+        from: oldPhase.status,
+        to: newPhase.status,
+        attempts: newPhase.attempts,
+      });
+    }
+  }
+  return transitions;
+}
 
 export interface NotificationWindow {
   showInformationMessage(
@@ -37,7 +66,7 @@ export class NotificationManager {
     oldProgress: ProgressState,
     newProgress: ProgressState,
   ): void {
-    const transitions = PhaseTreeProvider.detectTransitions(
+    const transitions = detectTransitions(
       oldProgress,
       newProgress,
     );

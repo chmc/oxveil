@@ -4,12 +4,10 @@ import * as path from "node:path";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
-import { PhaseTreeProvider } from "./views/phaseTree";
 import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
 import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
-import { createTreeAdapter, createHierarchicalTreeAdapter } from "./views/treeAdapter";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { activateDetection } from "./activateDetection";
@@ -54,38 +52,11 @@ export async function activate(
     statusBar.update({ kind: "not-found" });
   }
 
-  // Phase tree view
-  const phaseTree = new PhaseTreeProvider(result.status === "detected");
-
-  const {
-    dataProvider: phaseDataProvider,
-    emitter: onDidChangeTreeData,
-    resolveItem: resolvePhaseItem,
-  } = createHierarchicalTreeAdapter(phaseTree, (item, treeItem) => {
-    if (item.phaseNumber !== undefined) {
-      (treeItem as any).phaseNumber = item.phaseNumber;
-    }
-  });
-
-  const treeView = vscode.window.createTreeView("oxveil.phases", {
-    treeDataProvider: phaseDataProvider,
-  });
-  disposables.push(treeView);
-
-  // Archive tree view
   const workspaceFolders = vscode.workspace.workspaceFolders;
   const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
 
-  // Seed initial folder entries so single/multi-root tree works immediately
-  if (workspaceFolders) {
-    for (const folder of workspaceFolders) {
-      phaseTree.update(folder.uri.toString(), folder.name, null);
-    }
-  }
-
   const archive = createArchiveView({ workspaceRoot });
-  disposables.push(archive.archiveView);
-  const { resolveArchiveItem, refreshArchive } = archive;
+  const { refreshArchive } = archive;
 
   // Workspace session manager (per-folder sessions)
   const manager = new WorkspaceSessionManager({
@@ -233,8 +204,6 @@ export async function activate(
   // Wire each session's events
   const wiringCtx = {
     statusBar,
-    phaseTree,
-    onDidChangeTreeData,
     liveRunPanel,
     notifications,
     elapsedTimer,
@@ -305,8 +274,6 @@ export async function activate(
       );
       currentDetectionStatus = r.status;
       wiringCtx.detectionStatus = r.status;
-      phaseTree.updateDetected(r.status === "detected");
-      onDidChangeTreeData.fire(undefined);
       if (r.status === "detected") {
         statusBar.update({ kind: "ready" });
       } else {
@@ -366,8 +333,6 @@ export async function activate(
       archiveTimelinePanel,
       liveRunPanel,
       planPreviewPanel,
-      resolvePhaseItem: resolvePhaseItem,
-      resolveArchiveItem: resolveArchiveItem,
       claudePath: resolvedClaudePath,
       getActivePlanChatSession: () => activePlanChatSession,
       onPlanChatSessionCreated: (session) => {

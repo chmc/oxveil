@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import type { SessionState } from "./core/sessionState";
 import type { StatusBarManager } from "./views/statusBar";
-import type { PhaseTreeProvider } from "./views/phaseTree";
 import type { LiveRunPanel } from "./views/liveRunPanel";
 import type { NotificationManager } from "./views/notifications";
 import type { ElapsedTimer } from "./views/elapsedTimer";
@@ -15,8 +14,6 @@ import type { ArchiveView } from "./views/sidebarState";
 export interface SessionWiringDeps {
   session: SessionState;
   statusBar: StatusBarManager;
-  phaseTree: PhaseTreeProvider;
-  onDidChangeTreeData: vscode.EventEmitter<string | undefined>;
   liveRunPanel?: LiveRunPanel;
   notifications: NotificationManager;
   elapsedTimer: ElapsedTimer;
@@ -38,8 +35,6 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   const {
     session,
     statusBar,
-    phaseTree,
-    onDidChangeTreeData,
     notifications,
     elapsedTimer,
   } = deps;
@@ -147,8 +142,6 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
 
   session.on("phases-changed", (progress) => {
     if (deps.isActiveSession()) {
-      phaseTree.update(deps.folderUri, deps.folderName ?? "", progress);
-      onDidChangeTreeData.fire(undefined);
       deps.dependencyGraph?.update(progress);
       deps.executionTimeline?.update(progress);
       deps.liveRunPanel?.onProgressChanged(progress);

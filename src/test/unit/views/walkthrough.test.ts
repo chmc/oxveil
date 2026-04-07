@@ -132,8 +132,6 @@ describe("walkthrough step completion", () => {
       const wiringDeps: SessionWiringDeps = {
         session,
         statusBar: { update: vi.fn() } as any,
-        phaseTree: { update: vi.fn() } as any,
-        onDidChangeTreeData: { fire: vi.fn() } as any,
         liveRunPanel: { onLogAppended: vi.fn(), onProgressChanged: vi.fn(), onRunFinished: vi.fn(), reveal: vi.fn() } as any,
         notifications: { onPhasesChanged: vi.fn() } as any,
         elapsedTimer: {
@@ -172,8 +170,6 @@ describe("walkthrough step completion", () => {
       const wiringDeps: SessionWiringDeps = {
         session,
         statusBar: { update: vi.fn() } as any,
-        phaseTree: { update: vi.fn() } as any,
-        onDidChangeTreeData: { fire: vi.fn() } as any,
         liveRunPanel: { onLogAppended: vi.fn(), onProgressChanged: vi.fn(), onRunFinished: vi.fn(), reveal: vi.fn() } as any,
         notifications: { onPhasesChanged: vi.fn() } as any,
         elapsedTimer: {

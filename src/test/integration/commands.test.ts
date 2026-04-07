@@ -192,36 +192,31 @@ describe("archive commands integration", () => {
   });
 });
 
-describe("context menu string element resolution", () => {
+describe("sidebar-driven command arguments", () => {
   beforeEach(() => {
     registeredCommands.clear();
     vi.clearAllMocks();
   });
 
-  it("viewLog resolves string element to phaseNumber via resolver", async () => {
+  it("viewLog receives phaseNumber directly from sidebar", async () => {
     const readdir = vi.fn(async () => ["phase-2.log"]);
-    const deps = makeDeps({
-      readdir,
-      resolvePhaseItem: (el: string) =>
-        el === "1" ? { phaseNumber: 2 } : undefined,
-    });
+    const deps = makeDeps({ readdir });
     registerCommands(deps);
 
     const handler = registeredCommands.get("oxveil.viewLog");
-    await handler!("1"); // VS Code passes string element from context menu
+    await handler!({ phaseNumber: 2 });
 
-    // Should resolve "1" → { phaseNumber: 2 } and look up logs for phase 2
     expect(readdir).toHaveBeenCalledWith(
       expect.stringContaining(".claudeloop/logs"),
     );
   });
 
-  it("viewLog shows warning when string element has no resolver", async () => {
-    const deps = makeDeps({ resolvePhaseItem: undefined });
+  it("viewLog shows warning when no phaseNumber provided", async () => {
+    const deps = makeDeps();
     registerCommands(deps);
 
     const handler = registeredCommands.get("oxveil.viewLog");
-    await handler!("0");
+    await handler!();
 
     expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
       "Oxveil: No phase selected",
@@ -264,22 +259,17 @@ describe("context menu string element resolution", () => {
     expect(pm.restore).toHaveBeenCalledWith("my-archive");
   });
 
-  it("viewDiff resolves string element to phaseNumber", async () => {
+  it("viewDiff receives phaseNumber directly from sidebar", async () => {
     const gitExec = {
       exec: vi.fn(async () => ""),
       cwd: "/workspace",
     };
-    const deps = makeDeps({
-      gitExec,
-      resolvePhaseItem: (el: string) =>
-        el === "0" ? { phaseNumber: 1 } : undefined,
-    });
+    const deps = makeDeps({ gitExec });
     registerCommands(deps);
 
     const handler = registeredCommands.get("oxveil.viewDiff");
-    await handler!("0");
+    await handler!({ phaseNumber: 1 });
 
-    // Should resolve "0" → { phaseNumber: 1 } and try to find commits
     expect(gitExec.exec).toHaveBeenCalledWith(
       "git",
       expect.arrayContaining(["--grep=^Phase 1:"]),

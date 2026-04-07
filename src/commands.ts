@@ -6,7 +6,6 @@ import { registerArchiveCommands } from "./commands/archive";
 import type { Installer } from "./core/installer";
 import type { StatusBarManager } from "./views/statusBar";
 import { findPhaseLogs } from "./views/logViewer";
-import type { PhaseTreeItem } from "./views/phaseTree";
 import type { ArchiveTreeItem } from "./views/archiveTree";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ExecutionTimelinePanel } from "./views/executionTimeline";
@@ -35,7 +34,6 @@ export interface CommandDeps {
   archiveTimelinePanel?: ArchiveTimelinePanel;
   liveRunPanel?: LiveRunPanel;
   planPreviewPanel?: PlanPreviewPanel;
-  resolvePhaseItem?: (element: string) => { phaseNumber?: number | string } | undefined;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
   claudePath?: string | null;
   onPlanChatSessionCreated?: (session: PlanChatSession) => void;
@@ -43,7 +41,7 @@ export interface CommandDeps {
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolvePhaseItem, resolveArchiveItem, claudePath } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolveArchiveItem, claudePath } = deps;
 
   function getActive() {
     const active = sessionManager.getActiveSession();
@@ -123,15 +121,14 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand(
       "oxveil.viewLog",
-      async (arg?: string | { phaseNumber?: number | string }) => {
+      async (arg?: { phaseNumber?: number | string }) => {
         const active = getActive();
         if (!active?.workspaceRoot) {
           vscode.window.showWarningMessage("Oxveil: No workspace open");
           return;
         }
 
-        const resolved = typeof arg === "string" ? resolvePhaseItem?.(arg) : arg;
-        const phaseNumber = resolved?.phaseNumber;
+        const phaseNumber = arg?.phaseNumber;
         if (phaseNumber === undefined) {
           vscode.window.showWarningMessage(
             "Oxveil: No phase selected",
@@ -181,10 +178,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand(
       "oxveil.viewDiff",
-      async (arg?: string | { phaseNumber?: number | string }) => {
+      async (arg?: { phaseNumber?: number | string }) => {
         const active = getActive();
-        const resolved = typeof arg === "string" ? resolvePhaseItem?.(arg) : arg;
-        const phaseNumber = resolved?.phaseNumber;
+        const phaseNumber = arg?.phaseNumber;
         if (phaseNumber === undefined || !active?.gitExec) {
           vscode.window.showWarningMessage("Oxveil: No phase selected");
           return;

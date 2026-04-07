@@ -121,11 +121,6 @@ export function handleWorkspaceFolderChange(
   opts: FolderChangeOpts,
 ): void {
   for (const added of e.added) {
-    opts.wiringCtx.phaseTree.update(
-      added.uri.toString(),
-      path.basename(added.uri.fsPath),
-      null,
-    );
     const ws = opts.manager.createSession({
       folderUri: added.uri.toString(),
       workspaceRoot: added.uri.fsPath,
@@ -147,7 +142,6 @@ export function handleWorkspaceFolderChange(
     }
   }
   for (const removed of e.removed) {
-    opts.wiringCtx.phaseTree.removeFolder(removed.uri.toString());
     opts.manager.removeSession(removed.uri.toString());
   }
 }
