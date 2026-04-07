@@ -107,24 +107,23 @@ function renderNotFound(state: SidebarState): string {
 function renderEmpty(state: SidebarState): string {
   const archivesHtml = renderArchives(state.archives);
   return `<div class="centered-layout">
-  <div class="state-icon"><span class="codicon codicon-file-add"></span></div>
+  <div class="state-icon"><span class="codicon codicon-comment-discussion"></span></div>
   <h2 class="state-title">Create a Plan</h2>
-  <p class="state-desc">Define phases for your AI coding workflow.</p>
+  <p class="state-desc">Describe your project and let AI draft the phases.</p>
   ${renderActionBar([
     { label: "Create Plan", command: "createPlan", primary: true },
   ])}
   <div class="how-it-works">
     <h3>How it works</h3>
     <ol>
-      <li>Create a plan with phases for Claude to execute</li>
-      <li>Configure settings and review the plan</li>
-      <li>Run and monitor progress in real time</li>
+      <li>Describe your project to Claude in a chat</li>
+      <li>Claude drafts a plan with phases</li>
+      <li>Review, configure, and run</li>
     </ol>
   </div>
   <div class="quick-actions">
-    <button class="action-btn" data-command="createPlan">Create Plan</button>
+    <button class="action-btn" data-command="writePlan">Write Plan</button>
     <button class="action-btn" data-command="aiParse">AI Parse</button>
-    <button class="action-btn" data-command="planChat">Plan Chat</button>
   </div>
 </div>
 ${archivesHtml}`;
