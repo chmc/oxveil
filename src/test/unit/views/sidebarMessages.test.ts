@@ -30,7 +30,7 @@ describe("dispatchSidebarMessage", () => {
   it("dispatches editPlan by opening the plan file", () => {
     const exec = vi.fn();
     dispatchSidebarMessage({ command: "editPlan" }, exec);
-    expect(exec).toHaveBeenCalledWith("oxveil.createPlan");
+    expect(exec).toHaveBeenCalledWith("oxveil.writePlan");
   });
 
   it("dispatches configure", () => {
@@ -117,7 +117,13 @@ describe("dispatchSidebarMessage", () => {
   it("dispatches openPlan", () => {
     const exec = vi.fn();
     dispatchSidebarMessage({ command: "openPlan" }, exec);
-    expect(exec).toHaveBeenCalledWith("oxveil.createPlan");
+    expect(exec).toHaveBeenCalledWith("oxveil.writePlan");
+  });
+
+  it("dispatches writePlan", () => {
+    const exec = vi.fn();
+    dispatchSidebarMessage({ command: "writePlan" }, exec);
+    expect(exec).toHaveBeenCalledWith("oxveil.writePlan");
   });
 
   it("dispatches openTimeline", () => {

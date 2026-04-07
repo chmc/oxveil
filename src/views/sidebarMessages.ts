@@ -7,6 +7,7 @@ export type SidebarCommand =
   | { command: "createPlan" }
   | { command: "openPlan" }
   | { command: "editPlan" }
+  | { command: "writePlan" }
   | { command: "configure" }
   | { command: "start" }
   | { command: "stop" }
@@ -43,8 +44,9 @@ type ExecuteCommand = (command: string, ...args: any[]) => void;
 const COMMAND_MAP: Record<string, string> = {
   install: "oxveil.install",
   createPlan: "oxveil.createPlan",
-  openPlan: "oxveil.createPlan",
-  editPlan: "oxveil.createPlan",   // createPlan opens existing if present
+  writePlan: "oxveil.writePlan",
+  openPlan: "oxveil.writePlan",
+  editPlan: "oxveil.writePlan",   // writePlan opens existing if present
   configure: "oxveil.openConfigWizard",
   start: "oxveil.start",
   stop: "oxveil.stop",
