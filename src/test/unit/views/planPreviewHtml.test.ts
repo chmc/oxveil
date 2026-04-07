@@ -182,6 +182,79 @@ describe("renderPhaseCardsHtml", () => {
     });
   });
 
+  describe("markdown rendering in phase descriptions", () => {
+    const mdOpts: PhaseCardsOptions = {
+      state: "active",
+      sessionActive: true,
+      isValid: true,
+      title: "Test",
+    };
+
+    it("renders bold text as <strong>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "**Files:** setup", dependencies: [] },
+      ]});
+      expect(html).toContain("<strong>Files:</strong>");
+    });
+
+    it("renders inline code as <code>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "Edit `foo.ts` now", dependencies: [] },
+      ]});
+      expect(html).toContain('<code class="md-code">foo.ts</code>');
+    });
+
+    it("renders bullet lists as <ul>/<li>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "- item one\n- item two", dependencies: [] },
+      ]});
+      expect(html).toContain("<ul");
+      expect(html).toContain("<li>item one</li>");
+      expect(html).toContain("<li>item two</li>");
+    });
+
+    it("renders inline code inside list items", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "- Edit `foo.ts`", dependencies: [] },
+      ]});
+      expect(html).toContain('<code class="md-code">foo.ts</code>');
+      expect(html).toContain("<li>");
+    });
+
+    it("renders fenced code blocks as <pre>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "```\nconst x = 1;\n```", dependencies: [] },
+      ]});
+      expect(html).toContain("<pre");
+      expect(html).toContain("md-codeblock");
+      expect(html).toContain("const x = 1;");
+    });
+
+    it("renders numbered lists as <ol>/<li>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "1. first\n2. second", dependencies: [] },
+      ]});
+      expect(html).toContain("<ol");
+      expect(html).toContain("<li>first</li>");
+      expect(html).toContain("<li>second</li>");
+    });
+
+    it("renders bold inside list items", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "- **bold** text", dependencies: [] },
+      ]});
+      expect(html).toContain("<strong>bold</strong>");
+    });
+
+    it("escapes HTML inside fenced code blocks", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "```\n<script>alert(1)</script>\n```", dependencies: [] },
+      ]});
+      expect(html).not.toContain("<script>alert");
+      expect(html).toContain("&lt;script&gt;");
+    });
+  });
+
   describe("raw markdown fallback", () => {
     it("renders raw markdown content", () => {
       const html = renderPhaseCardsHtml({
