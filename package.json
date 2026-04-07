@@ -138,6 +138,10 @@
         "title": "Oxveil: Create Plan"
       },
       {
+        "command": "oxveil.writePlan",
+        "title": "Oxveil: Write Plan"
+      },
+      {
         "command": "oxveil.showTimeline",
         "title": "Oxveil: Show Timeline"
       },
@@ -261,7 +265,7 @@
           {
             "id": "createPlan",
             "title": "Create your first plan",
-            "description": "A plan file (`PLAN.md`) defines the phases claudeloop will execute.\n\n[Create PLAN.md](command:oxveil.createPlan)",
+            "description": "Describe your project to Claude and let AI draft the phases.\n\n[Create a Plan](command:oxveil.createPlan)",
             "media": {
               "markdown": "./media/walkthrough/createPlan.md"
             },
