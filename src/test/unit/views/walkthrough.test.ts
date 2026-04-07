@@ -107,14 +107,24 @@ describe("walkthrough step completion", () => {
   });
 
   describe("step 3: create plan", () => {
-    it("sets oxveil.walkthrough.hasPlan when createPlan command creates a new file", async () => {
+    it("createPlan delegates to openPlanChat", async () => {
+      registerCommands(makeDeps());
+
+      const handler = registeredCommands.get("oxveil.createPlan");
+      expect(handler).toBeDefined();
+      await handler!();
+
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith("oxveil.openPlanChat");
+    });
+
+    it("sets oxveil.walkthrough.hasPlan when writePlan command creates a new file", async () => {
       vi.mocked(fs.access).mockRejectedValue(new Error("ENOENT"));
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
       vi.mocked(vscode.workspace.openTextDocument).mockResolvedValue({} as any);
 
       registerCommands(makeDeps());
 
-      const handler = registeredCommands.get("oxveil.createPlan");
+      const handler = registeredCommands.get("oxveil.writePlan");
       expect(handler).toBeDefined();
       await handler!();
 
