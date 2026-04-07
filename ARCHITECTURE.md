@@ -60,7 +60,7 @@ Spawn claudeloop as a child process. Monitor via file-based IPC.
 
 ### Monitoring
 
-Watch `.claudeloop/` files for state changes. Render in tree views, status bar, and Live Run Panel.
+Watch `.claudeloop/` files for state changes. Render in sidebar webview, status bar, and Live Run Panel.
 
 ## IPC Contract
 
@@ -88,9 +88,9 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 │   - Installation (install.sh via terminal / WSL)         │
 │   - Configuration (VS Code settings → v0.3 wizard)       │
 ├───────────────┬────────────────┬─────────────────────────┤
-│   Tree Views  │  Webviews       │  Status Bar             │
-│   - Phases    │  - Dep. Graph   │  - Phase X/Y            │
-│   - Archive   │  - Config Wizard│  - Elapsed time         │
+│ Sidebar       │  Webviews       │  Status Bar             │
+│  Webview      │  - Dep. Graph   │  - Phase X/Y            │
+│               │  - Config Wizard│  - Elapsed time         │
 │               │  - Replay Viewer│  - Folder prefix        │
 │               │  - Timeline     │    (multi-root)         │
 ├───────────────┼─────────────────┼─────────────────────────┤
@@ -166,7 +166,7 @@ src/
 │   ├── progress.ts               # PROGRESS.md → ProgressState
 │   └── timeline.ts               # ProgressState → TimelineData (bar positions + durations)
 ├── views/
-│   ├── archiveTree.ts            # Archive browser tree view (replay/restore)
+│   ├── archiveTree.ts            # Archive data layer (ArchiveTreeItem[])
 │   ├── configWizard.ts           # Config wizard webview panel lifecycle
 │   ├── configWizardHtml.ts       # Config wizard HTML generation
 │   ├── dagLayout.ts              # DAG layout algorithm for dependency graphs
@@ -179,12 +179,14 @@ src/
 │   ├── logViewer.ts              # Click-to-open phase log files
 │   ├── notifications.ts          # Smart failure notifications with attempt count
 │   ├── outputChannel.ts          # Output channel wrapper
-│   ├── phaseTree.ts              # Sidebar tree view with dependency display
 │   ├── planCodeLens.ts           # CodeLens actions for plan file phases
 │   ├── replayViewer.ts           # Inline replay viewer webview panel
+│   ├── sidebarHtml.ts            # Sidebar HTML rendering (renderSidebar())
+│   ├── sidebarMessages.ts        # Sidebar message dispatch (user actions → commands)
+│   ├── sidebarPanel.ts           # WebviewViewProvider registered as oxveil.sidebar
+│   ├── sidebarState.ts           # deriveViewState() — maps detection + session + plan to view state
 │   ├── statusBar.ts              # Status bar item
-│   ├── timelineHtml.ts           # Timeline HTML/CSS/JS generation
-│   └── treeAdapter.ts            # Tree view adapter utilities
+│   └── timelineHtml.ts           # Timeline HTML/CSS/JS generation
 └── test/
     ├── unit/
     │   ├── core/
@@ -339,22 +341,23 @@ Pure function, no VS Code dependency.
 
 **Strict parsing:** Reject unknown status values with a parse error rather than normalizing synonyms. We own both repos — if the format changes, update both sides. Strict parsing catches contract drift early.
 
-**Crash-proof:** Tolerates truncated input (half-written files from mid-write watcher events). Wraps in try-catch — never throws to callers. Returns a "no data" state on unparseable input so the tree view can show "Unable to parse progress" instead of appearing empty.
+**Crash-proof:** Tolerates truncated input (half-written files from mid-write watcher events). Wraps in try-catch — never throws to callers. Returns a "no data" state on unparseable input so the sidebar can show "Unable to parse progress" instead of appearing empty.
 
 **Monotonicity validation:** Phase count should not decrease during a run. If it does, treat as partial read and retry after a short delay.
 
-### Phase Tree View
+### Sidebar Webview
 
-`TreeDataProvider<PhaseTreeItem>`. Flat list of phases.
+`SidebarPanel` implements `WebviewViewProvider`, registered as `oxveil.sidebar`.
 
-**Icons:** ThemeIcon per status with ThemeColor for accessibility:
-- complete: `check` (green), running: `sync~spin` (blue), failed: `error` (red), pending: `circle-outline`
+**States:** 7 context-aware states: `not-found`, `empty`, `ready`, `running`, `stopped`, `failed`, `completed`. Each renders distinct HTML with appropriate actions and messaging.
+
+**State derivation:** `deriveViewState()` in `sidebarState.ts` maps detection status + session state + plan state into the current view state. Pure function, fully testable.
+
+**Rendering:** HTML rendered server-side via `renderSidebar()` in `sidebarHtml.ts`. Updates pushed to the webview via `webview.html` assignment (full replacement, no incremental patching).
+
+**User actions:** Dispatched via `dispatchSidebarMessage()` in `sidebarMessages.ts`, which maps webview message types to VS Code commands (start, stop, install, open plan, etc.).
 
 **Notifications:** Compares old vs new ProgressState on each update. Info notification on phase completion, error notification on failure.
-
-**Welcome state:** When claudeloop is detected but no session exists, shows a welcome message: "Run 'Oxveil: Start' to begin."
-
-**Not-found state:** When claudeloop is not detected, shows: "claudeloop not found. Run 'Oxveil: Install claudeloop'."
 
 ### Status Bar
 
@@ -371,7 +374,7 @@ Pure function, no VS Code dependency.
 
 **Elapsed timer:** Updates every 10 seconds.
 
-**Click action:** Focuses the phase tree view.
+**Click action:** Highlights in sidebar.
 
 ### Live Run Panel
 
@@ -398,13 +401,13 @@ Pure function, no VS Code dependency.
 **Input:** List of archive directory entries from `.claudeloop/archive/`.
 **Output:** `ArchiveEntry[]` with timestamp, phase info, and file paths.
 
-Used by the archive tree view to display past session runs. Supports replay (re-open logs) and restore (copy archive back to active session).
+Used by the sidebar webview to display past session runs. Supports replay (re-open logs) and restore (copy archive back to active session).
 
 ### Archive Tree View
 
-`TreeDataProvider<ArchiveTreeItem>`. Displays archived session runs from `.claudeloop/archive/`.
+`archiveTree.ts` is retained as a data layer only (no standalone tree view UI). Produces `ArchiveTreeItem[]` from parsed archive entries. Archives are displayed within the sidebar webview.
 
-**Context menu actions:**
+**Actions (via sidebar):**
 - **Replay:** Opens archived log files in the replay viewer
 - **Restore:** Copies archived session data back to the active `.claudeloop/` directory
 
@@ -429,21 +432,21 @@ Renders nodes as rounded rectangles with phase status colors. Edges drawn as pat
 
 **Live updates:** Subscribes to `phases-changed` events from SessionState. Re-renders the DAG on each update.
 
-**Interaction:** Clicking a phase node in the graph focuses the corresponding entry in the phase tree view.
+**Interaction:** Clicking a phase node in the graph highlights the corresponding entry in the sidebar.
 
 **Lifecycle:** Opened via command or context menu. Disposed when the panel is closed. Handles visibility changes to pause/resume updates.
 
 ### Log Viewer
 
-Opens phase log files directly from the tree view context menu.
+Opens phase log files directly from sidebar actions.
 
-**Flow:** Right-click a phase → "View Log" → opens the corresponding log file from `.claudeloop/` in a VS Code editor tab.
+**Flow:** Click "View Log" in the sidebar → opens the corresponding log file from `.claudeloop/` in a VS Code editor tab.
 
 ### Diff Provider
 
 Virtual document provider (`TextDocumentContentProvider`) that generates git diffs for individual phases.
 
-**Flow:** Right-click a phase → "View Diff" → opens a diff view showing the git changes made during that phase.
+**Flow:** Click "View Diff" in the sidebar → opens a diff view showing the git changes made during that phase.
 
 **Implementation:** Uses `gitIntegration.ts` to run `git diff` between the commits that bracket a phase's execution.
 
@@ -553,7 +556,7 @@ Central hub for multi-root workspace support. Manages per-folder sessions and tr
 
 **Backward compatibility:** In single-root workspaces, the manager creates one session automatically. All existing commands and views work unchanged — they resolve through the manager's active session.
 
-**Folder scoping:** Webview panels, tree views, and status bar display are scoped to the active folder. The status bar shows a folder prefix in multi-root workspaces. Phase tree groups phases by folder with a summary of other-root statuses.
+**Folder scoping:** Webview panels, sidebar, and status bar display are scoped to the active folder. The status bar shows a folder prefix in multi-root workspaces. The sidebar groups phases by folder with a summary of other-root statuses.
 
 ### Folder Picker
 
@@ -603,7 +606,7 @@ Cross-repo E2E tests are the highest-value tests. They validate the IPC contract
 
 | Scenario | Behavior |
 |----------|----------|
-| claudeloop not installed | Detection on activation. Persistent notification with "Install" and "Set Path" actions. Run commands disabled. Status bar: warning. Tree view: install guidance. |
+| claudeloop not installed | Detection on activation. Persistent notification with "Install" and "Set Path" actions. Run commands disabled. Status bar: warning. Sidebar: install guidance. |
 | claudeloop version incompatible | Notification with version mismatch and "Update" action. Same degraded mode as not-found. |
 | No `.claudeloop/` directory | Ready/idle state. Watcher detects creation when claudeloop first runs |
 | claudeloop started from terminal | Lock file watcher detects it. Status bar shows running state |
@@ -651,7 +654,7 @@ Both repos share the same author. This enables tight coordination but requires d
 
 See [chmc/oxveil#1](https://github.com/chmc/oxveil/issues/1) for full milestone details.
 
-- **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), phase tree view, notifications
+- **v0.1 — Entry Point, Run & Monitor:** ✅ claudeloop detection + installation, basic config via VS Code settings, status bar, commands (start/stop/reset/install), sidebar webview, notifications
 - **v0.2 — Rich Monitoring:** ✅ Dependency graph webview (live DAG with click interaction), archive browser (replay/restore), click-to-open phase logs, phase git diffs (View Diff context menu), smart failure notifications with attempt count
 - **v0.3 — Config & Plan Editing:** ✅ Config wizard webview, plan file language support (TextMate grammar + CodeLens), AI Parse Plan command, replay viewer, feature flag removal
 - **v0.4 — Deep Integration:** ✅ Execution timeline webview, multi-root workspace sessions (WorkspaceSessionManager, folder picker, folder-scoped views), welcome walkthrough (4-step onboarding with context key tracking), Live Run Panel (collapsible dashboard, todo progress, completion banner, log formatter)

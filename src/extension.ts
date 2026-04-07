@@ -190,9 +190,9 @@ export async function activate(
     );
     return {
       view: viewState,
-      plan: progress ? {
+      plan: (currentPlanDetected || progress) ? {
         filename: "PLAN.md",
-        phases: mapPhases(progress.phases),
+        phases: progress ? mapPhases(progress.phases) : [],
       } : undefined,
       session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
         elapsed: elapsedTimer.elapsed,
