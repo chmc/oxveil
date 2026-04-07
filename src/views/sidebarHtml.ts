@@ -488,6 +488,7 @@ export function renderSidebar(nonce: string, cspSource: string, state?: SidebarS
     /* Action bar */
     .action-bar {
       display: flex;
+      justify-content: center;
       gap: 8px;
       flex-wrap: wrap;
       margin-top: 8px;
