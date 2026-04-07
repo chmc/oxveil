@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import type { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { registerCreatePlanCommand } from "./commands/createPlan";
+import { registerWritePlanCommand } from "./commands/writePlan";
 import { registerArchiveCommands } from "./commands/archive";
 import type { Installer } from "./core/installer";
 import type { StatusBarManager } from "./views/statusBar";
@@ -297,7 +298,8 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       await planPreviewPanel?.onFileChanged();
     }),
     registerAiParsePlanCommand(sessionManager),
-    registerCreatePlanCommand(() => getActive()?.workspaceRoot),
+    registerCreatePlanCommand(),
+    registerWritePlanCommand(() => getActive()?.workspaceRoot),
     vscode.commands.registerCommand("oxveil.welcome", () =>
       vscode.commands.executeCommand(
         "workbench.action.openWalkthrough",
