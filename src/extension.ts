@@ -20,6 +20,7 @@ import {
   handleWorkspaceFolderChange,
 } from "./workspaceSetup";
 import type { PlanChatSession } from "./core/planChatSession";
+import { SidebarPanel } from "./views/sidebarPanel";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -156,6 +157,18 @@ export async function activate(
   });
   disposables.push(...panels.disposables);
   const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
+
+  // Register sidebar webview provider
+  const sidebarPanel = new SidebarPanel({
+    executeCommand: vscode.commands.executeCommand,
+  });
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      SidebarPanel.viewType,
+      sidebarPanel,
+      { webviewOptions: { retainContextWhenHidden: true } },
+    ),
+  );
 
   // Wire each session's events
   const wiringCtx = {

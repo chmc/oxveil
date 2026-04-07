@@ -54,6 +54,11 @@
     "views": {
       "oxveil": [
         {
+          "type": "webview",
+          "id": "oxveil.sidebar",
+          "name": "Oxveil"
+        },
+        {
           "id": "oxveil.phases",
           "name": "Phases"
         },
