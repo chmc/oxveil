@@ -16,6 +16,7 @@ export interface PhaseCardsOptions {
   rawMarkdown?: string;
   format?: "phase" | "keyword" | "numbered";
   keyword?: string;
+  tabs?: Array<{ category: string; label: string; active: boolean }>;
 }
 
 function formatLabel(format: PhaseCardsOptions["format"], keyword: string | undefined, num: string): string {
@@ -42,11 +43,18 @@ function renderHeader(options: PhaseCardsOptions): string {
       ? '<span class="valid-badge">&#10003; Valid</span>'
       : "";
 
+  const tabStrip = options.tabs && options.tabs.length >= 2
+    ? `<div class="tab-strip">${options.tabs.map((t) =>
+        `<button class="tab-pill${t.active ? " active" : ""}" data-category="${escapeHtml(t.category)}">${escapeHtml(t.label)}</button>`
+      ).join("")}</div>`
+    : "";
+
   return `<div class="preview-header">
   <span class="preview-title">${title}</span>
   ${badge}
   ${validBadge}
-</div>`;
+</div>
+${tabStrip}`;
 }
 
 function renderPhaseCard(phase: PhaseCardData, sessionActive: boolean, format?: PhaseCardsOptions["format"], keyword?: string): string {
@@ -236,6 +244,12 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .ended-badge { background: #3b1d1d; color: #f44747; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
 
+    /* Tab strip */
+    .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
+    .tab-pill { background: none; border: 1px solid #444; color: #888; font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer; font-family: inherit; }
+    .tab-pill:hover { border-color: #666; color: #ccc; }
+    .tab-pill.active { background: #264f78; border-color: #569cd6; color: #e0e0e0; }
+
     /* Session ended banner */
     .session-ended-banner { padding: 10px 16px; background: #3b1d1d; border-bottom: 1px solid #5a2d2d; display: flex; align-items: center; gap: 8px; }
     .session-ended-text { color: #f44747; font-size: 12px; }
@@ -300,10 +314,20 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         if (msg.type === "update") {
           content.innerHTML = msg.html;
           bindAnnotationButtons();
+          bindTabButtons();
         }
       });
 
       vscode.postMessage({ type: "ready" });
+
+      function bindTabButtons() {
+        var tabs = document.querySelectorAll(".tab-pill");
+        for (var i = 0; i < tabs.length; i++) {
+          tabs[i].addEventListener("click", function() {
+            vscode.postMessage({ type: "switchTab", category: this.getAttribute("data-category") });
+          });
+        }
+      }
 
       function bindAnnotationButtons() {
         var buttons = document.querySelectorAll(".annotate-btn");

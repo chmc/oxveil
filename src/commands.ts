@@ -315,5 +315,8 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       onPlanChatSessionCreated: deps.onPlanChatSessionCreated,
       planPreviewPanel,
     }),
+    vscode.commands.registerCommand("oxveil.planPreviewNextTab", () =>
+      planPreviewPanel?.nextTab(),
+    ),
   ];
 }

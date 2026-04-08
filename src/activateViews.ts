@@ -11,7 +11,7 @@ import { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import { PlanCodeLensProvider } from "./views/planCodeLens";
 import { LiveRunPanel } from "./views/liveRunPanel";
-import { PlanPreviewPanel } from "./views/planPreviewPanel";
+import { PlanPreviewPanel, type PlanFileCategory } from "./views/planPreviewPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
 import type { SessionState } from "./core/sessionState";
@@ -87,34 +87,32 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
         return "";
       }
     },
-    findActivePlanFile: async () => {
-      const dirs: string[] = [];
+    findAllPlanFiles: async () => {
+      const sources: Array<{ dir: string; category: PlanFileCategory }> = [
+        { dir: path.join(os.homedir(), ".claude", "plans"), category: "plan" },
+      ];
 
-      // Primary: native plan mode (home dir)
-      dirs.push(path.join(os.homedir(), ".claude", "plans"));
-
-      // Workspace-relative directories
       if (deps.workspaceRoot) {
-        dirs.push(path.join(deps.workspaceRoot, "docs", "superpowers", "specs"));
-        dirs.push(path.join(deps.workspaceRoot, "docs", "superpowers", "plans"));
+        sources.push(
+          { dir: path.join(deps.workspaceRoot, "docs", "superpowers", "specs"), category: "design" },
+          { dir: path.join(deps.workspaceRoot, "docs", "superpowers", "plans"), category: "implementation" },
+        );
       }
 
-      let newest: { path: string; mtime: number } | undefined;
-      for (const dir of dirs) {
+      const results: Array<{ path: string; category: PlanFileCategory; mtimeMs: number }> = [];
+      for (const { dir, category } of sources) {
         try {
           const files = (await fs.readdir(dir)).filter(f => f.endsWith(".md"));
           for (const file of files) {
             const fullPath = path.join(dir, file);
             const s = await stat(fullPath);
-            if (!newest || s.mtimeMs > newest.mtime) {
-              newest = { path: fullPath, mtime: s.mtimeMs };
-            }
+            results.push({ path: fullPath, category, mtimeMs: s.mtimeMs });
           }
         } catch {
           // Directory doesn't exist — skip
         }
       }
-      return newest?.path;
+      return results;
     },
     onAnnotation: (phase, text) => {
       deps.onAnnotation?.(phase, text);

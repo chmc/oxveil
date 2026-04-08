@@ -160,6 +160,10 @@
       {
         "command": "oxveil.openPlanChat",
         "title": "Oxveil: Plan Chat"
+      },
+      {
+        "command": "oxveil.planPreviewNextTab",
+        "title": "Oxveil: Plan Preview — Next Tab"
       }
     ],
     "menus": {
@@ -231,6 +235,10 @@
         {
           "command": "oxveil.openPlanChat",
           "when": "oxveil.claudeDetected"
+        },
+        {
+          "command": "oxveil.planPreviewNextTab",
+          "when": "oxveil.planChatActive"
         }
       ]
     },

@@ -5,6 +5,14 @@ import { parsePlan } from "../parsers/plan";
 import { parseSections } from "../parsers/planSections";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
 
+export type PlanFileCategory = "design" | "implementation" | "plan";
+
+interface TrackedFile {
+  path: string;
+  category: PlanFileCategory;
+  birthtimeMs: number;
+}
+
 export interface FileSystemWatcher {
   onDidChange: (cb: () => void) => { dispose: () => void };
   onDidCreate: (cb: () => void) => { dispose: () => void };
@@ -20,7 +28,7 @@ export interface PlanPreviewPanelDeps {
     options: { enableScripts: boolean; retainContextWhenHidden: boolean },
   ) => WebviewPanel;
   readFile: (filePath: string) => Promise<string>;
-  findActivePlanFile: () => Promise<string | undefined>;
+  findAllPlanFiles: () => Promise<Array<{ path: string; category: PlanFileCategory; mtimeMs: number }>>;
   onAnnotation: (phase: string, text: string) => void;
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
   statFile?: (filePath: string) => Promise<{ birthtimeMs: number } | undefined>;
@@ -53,7 +61,9 @@ export class PlanPreviewPanel {
   private _watcherSubscriptions: { dispose: () => void }[] = [];
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private _sessionStartTime: number | undefined;
-  private _pinnedFile: string | undefined;
+  private _trackedFiles = new Map<PlanFileCategory, TrackedFile>();
+  private _activeCategory: PlanFileCategory | undefined;
+  private _autoSwitch = true;
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
@@ -77,6 +87,8 @@ export class PlanPreviewPanel {
           this._sendUpdate();
         } else if (msg.type === "annotation" && msg.phase && msg.text) {
           this._deps.onAnnotation(msg.phase, msg.text);
+        } else if (msg.type === "switchTab" && msg.category) {
+          this._onTabSwitch(msg.category as PlanFileCategory);
         }
       });
     } else {
@@ -88,41 +100,65 @@ export class PlanPreviewPanel {
 
   beginSession(): void {
     this._sessionStartTime = Date.now();
-    this._pinnedFile = undefined;
+    this._trackedFiles = new Map();
+    this._activeCategory = undefined;
+    this._autoSwitch = true;
   }
 
   endSession(): void {
     this._sessionStartTime = undefined;
-    this._pinnedFile = undefined;
+  }
+
+  async nextTab(): Promise<void> {
+    if (this._trackedFiles.size < 2) return;
+    const keys = Array.from(this._trackedFiles.keys());
+    const currentIndex = this._activeCategory ? keys.indexOf(this._activeCategory) : -1;
+    const nextIndex = (currentIndex + 1) % keys.length;
+    await this._onTabSwitch(keys[nextIndex]);
   }
 
   async onFileChanged(): Promise<void> {
-    // Pinning logic runs even without panel
-    let activePath: string | undefined;
+    if (!this._sessionStartTime && this._trackedFiles.size === 0) return;
 
-    if (this._pinnedFile) {
-      activePath = this._pinnedFile;
-    } else if (this._sessionStartTime) {
-      activePath = await this._deps.findActivePlanFile();
-      // Try to pin if session is active
-      if (activePath && this._deps.statFile) {
-        const stats = await this._deps.statFile(activePath);
-        if (stats && stats.birthtimeMs > this._sessionStartTime) {
-          this._pinnedFile = activePath;
-        } else {
-          activePath = undefined;
-        }
-      } else if (activePath) {
-        // statFile dep not available — cannot verify freshness, refuse to render
-        activePath = undefined;
+    // Scan all plan files and update tracked files
+    const candidates = await this._deps.findAllPlanFiles();
+    let newCategoryAdded: PlanFileCategory | undefined;
+
+    for (const candidate of candidates) {
+      if (!this._sessionStartTime) continue;
+      if (!this._deps.statFile) continue;
+
+      const stats = await this._deps.statFile(candidate.path);
+      if (!stats || stats.birthtimeMs <= this._sessionStartTime) continue;
+
+      const existing = this._trackedFiles.get(candidate.category);
+      if (!existing) {
+        newCategoryAdded = candidate.category;
+        this._trackedFiles.set(candidate.category, {
+          path: candidate.path,
+          category: candidate.category,
+          birthtimeMs: stats.birthtimeMs,
+        });
+      } else if (stats.birthtimeMs > existing.birthtimeMs) {
+        this._trackedFiles.set(candidate.category, {
+          path: candidate.path,
+          category: candidate.category,
+          birthtimeMs: stats.birthtimeMs,
+        });
       }
-    } else {
-      return;
     }
 
-    if (!this._panel) return; // No panel to update
+    // Auto-switch: always switch when a new category appears
+    if (newCategoryAdded) {
+      this._activeCategory = newCategoryAdded;
+    } else if (!this._activeCategory && this._trackedFiles.size > 0) {
+      this._activeCategory = this._trackedFiles.keys().next().value;
+    }
 
-    if (!activePath) {
+    if (!this._panel) return;
+
+    const tracked = this._activeCategory ? this._trackedFiles.get(this._activeCategory) : undefined;
+    if (!tracked) {
       this._lastPhases = [];
       this._lastValid = false;
       this._lastRawContent = undefined;
@@ -130,14 +166,16 @@ export class PlanPreviewPanel {
       return;
     }
 
-    const content = await this._deps.readFile(activePath);
+    await this._parseAndRender(tracked.path);
+  }
 
-    // Extract plan title from first # heading
+  private async _parseAndRender(filePath: string): Promise<void> {
+    const content = await this._deps.readFile(filePath);
+
     const titleMatch = content.match(/^#\s+(.+)$/m);
     this._lastTitle = titleMatch ? titleMatch[1].trim() : undefined;
 
     try {
-      // 1. Try Phase parser (existing format)
       const parsed = parsePlanWithDescriptions(content);
       const basePlan = parsePlan(content);
       const validation = validatePlan(basePlan);
@@ -153,7 +191,6 @@ export class PlanPreviewPanel {
         }));
         this._lastRawContent = undefined;
       } else {
-        // 2. Try Section parser (Step/Task/numbered formats)
         const sectionResult = parseSections(content);
         if (sectionResult.phases.length > 0) {
           this._lastFormat = sectionResult.format === "keyword" ? "keyword" : "numbered";
@@ -167,7 +204,6 @@ export class PlanPreviewPanel {
           this._lastRawContent = undefined;
           this._lastKeyword = sectionResult.keyword;
         } else if (content.trim().length > 0) {
-          // 3. Formatted markdown fallback
           this._lastPhases = [];
           this._lastValid = false;
           this._lastRawContent = content;
@@ -178,7 +214,6 @@ export class PlanPreviewPanel {
         }
       }
     } catch {
-      // Parser threw — show raw fallback
       this._lastPhases = [];
       this._lastValid = false;
       this._lastRawContent = content;
@@ -235,6 +270,28 @@ export class PlanPreviewPanel {
     this._panel = undefined;
   }
 
+  private async _onTabSwitch(category: PlanFileCategory): Promise<void> {
+    const tracked = this._trackedFiles.get(category);
+    if (!tracked) return;
+    this._autoSwitch = false;
+    this._activeCategory = category;
+    await this._parseAndRender(tracked.path);
+  }
+
+  private _buildTabs(): PhaseCardsOptions["tabs"] {
+    if (this._trackedFiles.size < 2) return undefined;
+    const labelMap: Record<PlanFileCategory, string> = {
+      design: "Design",
+      implementation: "Implementation",
+      plan: "Plan",
+    };
+    return Array.from(this._trackedFiles.keys()).map((cat) => ({
+      category: cat,
+      label: labelMap[cat],
+      active: cat === this._activeCategory,
+    }));
+  }
+
   private _sendUpdate(): void {
     if (!this._panel) return;
 
@@ -258,6 +315,7 @@ export class PlanPreviewPanel {
       title: this._lastTitle,
       format: this._lastFormat,
       keyword: this._lastKeyword,
+      tabs: this._buildTabs(),
     };
     const html = renderPhaseCardsHtml(options);
     this._panel.webview.postMessage({ type: "update", html });

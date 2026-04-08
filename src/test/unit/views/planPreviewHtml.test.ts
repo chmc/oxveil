@@ -294,4 +294,70 @@ describe("renderPhaseCardsHtml", () => {
       expect(html).toContain("raw-markdown");
     });
   });
+
+  describe("tab strip", () => {
+    it("renders tab strip with 2+ tabs", () => {
+      const html = renderPhaseCardsHtml({
+        state: "active",
+        phases: [{ number: 1, title: "Setup", description: "Do things" }],
+        sessionActive: true,
+        tabs: [
+          { category: "design", label: "Design", active: false },
+          { category: "implementation", label: "Implementation", active: true },
+        ],
+      });
+      expect(html).toContain("tab-strip");
+      expect(html).toContain('data-category="design"');
+      expect(html).toContain('data-category="implementation"');
+      expect(html).toContain("Design");
+      expect(html).toContain("Implementation");
+    });
+
+    it("marks active tab with active class", () => {
+      const html = renderPhaseCardsHtml({
+        state: "active",
+        phases: [{ number: 1, title: "Setup", description: "Do things" }],
+        sessionActive: true,
+        tabs: [
+          { category: "design", label: "Design", active: true },
+          { category: "implementation", label: "Implementation", active: false },
+        ],
+      });
+      expect(html).toContain('class="tab-pill active" data-category="design"');
+      expect(html).toContain('class="tab-pill" data-category="implementation"');
+    });
+
+    it("does not render tab strip when tabs is undefined", () => {
+      const html = renderPhaseCardsHtml({
+        state: "active",
+        phases: [{ number: 1, title: "Setup", description: "Do things" }],
+        sessionActive: true,
+      });
+      expect(html).not.toContain("tab-strip");
+    });
+
+    it("does not render tab strip with single tab", () => {
+      const html = renderPhaseCardsHtml({
+        state: "active",
+        phases: [{ number: 1, title: "Setup", description: "Do things" }],
+        sessionActive: true,
+        tabs: [{ category: "plan", label: "Plan", active: true }],
+      });
+      expect(html).not.toContain("tab-strip");
+    });
+
+    it("escapes HTML in tab labels and categories", () => {
+      const html = renderPhaseCardsHtml({
+        state: "active",
+        phases: [{ number: 1, title: "Setup", description: "Do things" }],
+        sessionActive: true,
+        tabs: [
+          { category: "design", label: "<script>", active: false },
+          { category: "implementation", label: "Impl", active: true },
+        ],
+      });
+      expect(html).not.toContain("<script>");
+      expect(html).toContain("&lt;script&gt;");
+    });
+  });
 });

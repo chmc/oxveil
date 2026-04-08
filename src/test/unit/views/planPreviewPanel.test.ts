@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { PlanPreviewPanel, type PlanPreviewPanelDeps, type FileSystemWatcher } from "../../../views/planPreviewPanel";
+import { PlanPreviewPanel, type PlanPreviewPanelDeps, type FileSystemWatcher, type PlanFileCategory } from "../../../views/planPreviewPanel";
 
 function makeMockPanel() {
   let messageHandler: ((msg: any) => void) | undefined;
@@ -72,7 +72,7 @@ function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel:
   return {
     createWebviewPanel: vi.fn(() => mockPanel) as any,
     readFile: vi.fn(async (_path: string) => VALID_PLAN),
-    findActivePlanFile: vi.fn(async () => ACTIVE_PLAN_PATH),
+    findAllPlanFiles: vi.fn(async () => [{ path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: Date.now() }]),
     onAnnotation: vi.fn(),
     createFileSystemWatcher: vi.fn(() => mockWatcher.watcher),
     statFile: vi.fn(async (_path: string) => ({ birthtimeMs: Date.now() + 1000 })),
@@ -110,7 +110,7 @@ describe("PlanPreviewPanel", () => {
     expect(deps._panel.reveal).toHaveBeenCalledTimes(1);
   });
 
-  it("onFileChanged() finds active plan file and sends parsed data to webview", async () => {
+  it("onFileChanged() finds plan files and sends parsed data to webview", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
@@ -119,7 +119,7 @@ describe("PlanPreviewPanel", () => {
 
     await panel.onFileChanged();
 
-    expect(deps.findActivePlanFile).toHaveBeenCalled();
+    expect(deps.findAllPlanFiles).toHaveBeenCalled();
     expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     expect(deps._panel.webview.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: "update" }),
@@ -129,10 +129,10 @@ describe("PlanPreviewPanel", () => {
     expect(call.html).toContain("Setup");
   });
 
-  it("onFileChanged() when no active plan file shows empty state", async () => {
+  it("onFileChanged() when no plan files shows empty state", async () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);
-    deps.findActivePlanFile = vi.fn(async () => undefined);
+    deps.findAllPlanFiles = vi.fn(async () => []);
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
     panel.beginSession();
@@ -179,19 +179,18 @@ describe("PlanPreviewPanel", () => {
     expect(call.html).not.toContain("Could not parse plan format");
   });
 
-  it("onFileChanged() without panel still runs pinning logic", async () => {
+  it("onFileChanged() without panel still runs tracking logic", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     // No reveal() — no panel
 
-    // Begin session so pinning logic activates
     panel.beginSession();
     (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
 
     await panel.onFileChanged();
 
-    // findActivePlanFile should still be called (pinning runs without panel)
-    expect(deps.findActivePlanFile).toHaveBeenCalled();
+    // findAllPlanFiles should still be called (tracking runs without panel)
+    expect(deps.findAllPlanFiles).toHaveBeenCalled();
     // But postMessage should NOT be called (no panel)
     expect(deps._panel.webview.postMessage).not.toHaveBeenCalled();
   });
@@ -292,11 +291,11 @@ describe("PlanPreviewPanel", () => {
       panel.startWatching([w1.watcher, w2.watcher]);
 
       w2._fireChange();
-      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+      expect(deps.findAllPlanFiles).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(200);
 
-      expect(deps.findActivePlanFile).toHaveBeenCalled();
+      expect(deps.findAllPlanFiles).toHaveBeenCalled();
     });
 
     it("file create from any watcher triggers onFileChanged after debounce", async () => {
@@ -310,7 +309,7 @@ describe("PlanPreviewPanel", () => {
       w1._fireCreate();
       await vi.advanceTimersByTimeAsync(200);
 
-      expect(deps.findActivePlanFile).toHaveBeenCalled();
+      expect(deps.findAllPlanFiles).toHaveBeenCalled();
     });
 
     it("debounce prevents rapid re-reads across watchers", async () => {
@@ -331,8 +330,8 @@ describe("PlanPreviewPanel", () => {
 
       await vi.advanceTimersByTimeAsync(200);
 
-      // Should only call findActivePlanFile once due to debounce
-      expect(deps.findActivePlanFile).toHaveBeenCalledTimes(1);
+      // Should only call findAllPlanFiles once due to debounce
+      expect(deps.findAllPlanFiles).toHaveBeenCalledTimes(1);
     });
 
     it("stopWatching disposes all watchers", () => {
@@ -378,32 +377,24 @@ describe("PlanPreviewPanel", () => {
       const after = Date.now();
 
       // We can't directly access private fields, but we can verify behavior:
-      // After beginSession, onFileChanged should attempt pinning
+      // After beginSession, onFileChanged should attempt tracking
       expect(before).toBeLessThanOrEqual(after);
     });
 
-    it("onFileChanged with session active pins to file with birthtimeMs > sessionStartTime", async () => {
+    it("onFileChanged with session active tracks file with birthtimeMs > sessionStartTime", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
 
       panel.beginSession();
-      // statFile returns a birthtime after session start
       (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
 
       await panel.onFileChanged();
-      deps._panel.webview.postMessage.mockClear();
 
-      // Call again — should use pinned file directly without calling findActivePlanFile again
-      (deps.findActivePlanFile as any).mockClear();
-      await panel.onFileChanged();
-
-      // findActivePlanFile should NOT be called because file is pinned
-      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
       expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     });
 
-    it("onFileChanged when pinned reads pinned file directly", async () => {
+    it("tracked file persists across onFileChanged calls", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -411,21 +402,15 @@ describe("PlanPreviewPanel", () => {
       panel.beginSession();
       (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
 
-      // First call pins the file
       await panel.onFileChanged();
-
-      // Change findActivePlanFile to return a different file
-      const otherPath = "/home/user/.claude/plans/other-file.md";
-      (deps.findActivePlanFile as any).mockResolvedValue(otherPath);
       (deps.readFile as any).mockClear();
 
-      // Second call should still read the pinned file
+      // Call again — should read the same tracked file
       await panel.onFileChanged();
       expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
-      expect(deps.readFile).not.toHaveBeenCalledWith(otherPath);
     });
 
-    it("does not pin when birthtimeMs < sessionStartTime", async () => {
+    it("does not track when birthtimeMs < sessionStartTime", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -438,15 +423,9 @@ describe("PlanPreviewPanel", () => {
 
       // Stale file should NOT be read or rendered
       expect(deps.readFile).not.toHaveBeenCalled();
-
-      (deps.findActivePlanFile as any).mockClear();
-
-      // Call again — should call findActivePlanFile because file was NOT pinned
-      await panel.onFileChanged();
-      expect(deps.findActivePlanFile).toHaveBeenCalled();
     });
 
-    it("does not render stale file when statFile dep is not provided", async () => {
+    it("does not track file when statFile dep is not provided", async () => {
       const deps = makeDeps();
       delete (deps as any).statFile;
       const panel = new PlanPreviewPanel(deps);
@@ -459,7 +438,7 @@ describe("PlanPreviewPanel", () => {
       expect(deps.readFile).not.toHaveBeenCalled();
     });
 
-    it("does not render file when statFile returns undefined", async () => {
+    it("does not track file when statFile returns undefined", async () => {
       const deps = makeDeps();
       (deps.statFile as any).mockResolvedValue(undefined);
       const panel = new PlanPreviewPanel(deps);
@@ -471,7 +450,7 @@ describe("PlanPreviewPanel", () => {
       expect(deps.readFile).not.toHaveBeenCalled();
     });
 
-    it("post-session onFileChanged preserves last rendered content", async () => {
+    it("post-session onFileChanged re-renders tracked content", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -483,19 +462,17 @@ describe("PlanPreviewPanel", () => {
       panel.setSessionActive(false);
       panel.endSession();
       deps._panel.webview.postMessage.mockClear();
-      (deps.findActivePlanFile as any).mockClear();
-      (deps.statFile as any).mockClear();
 
       // Simulate delayed watcher event after session ended
       await panel.onFileChanged();
 
-      // Early return — no discovery, no rendering, state preserved
-      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
-      expect(deps.statFile).not.toHaveBeenCalled();
-      expect(deps._panel.webview.postMessage).not.toHaveBeenCalled();
+      // Should still render tracked content (no new files discovered)
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.type).toBe("update");
+      expect(call.html).toContain("Phase 1");
     });
 
-    it("endSession clears pin and session, subsequent onFileChanged skips discovery", async () => {
+    it("endSession clears session but preserves tracked files", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -503,19 +480,20 @@ describe("PlanPreviewPanel", () => {
       panel.beginSession();
       (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
 
-      // Pin the file
+      // Track the file
       await panel.onFileChanged();
-      (deps.findActivePlanFile as any).mockClear();
 
-      // End session — should clear the pin and session
+      // End session
       panel.endSession();
+      deps._panel.webview.postMessage.mockClear();
+      (deps.readFile as any).mockClear();
 
-      // Now onFileChanged should NOT scan (no active session)
+      // onFileChanged still renders tracked content
       await panel.onFileChanged();
-      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+      expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     });
 
-    it("pinning works when _panel is undefined (no early return)", async () => {
+    it("tracking works when _panel is undefined (no early return)", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       // No reveal() — no panel
@@ -523,31 +501,291 @@ describe("PlanPreviewPanel", () => {
       panel.beginSession();
       (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
 
-      // Should run pinning logic even without panel
+      // Should run tracking logic even without panel
       await panel.onFileChanged();
-      expect(deps.findActivePlanFile).toHaveBeenCalled();
+      expect(deps.findAllPlanFiles).toHaveBeenCalled();
       expect(deps.statFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
 
-      // Now reveal and call again — should use pinned file
+      // Now reveal and call again — should use tracked file
       panel.reveal();
-      (deps.findActivePlanFile as any).mockClear();
 
       await panel.onFileChanged();
-      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
       expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     });
 
-    it("onFileChanged without session skips discovery entirely", async () => {
+    it("onFileChanged without session and no tracked files skips discovery entirely", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
 
-      // No beginSession — no session active
+      // No beginSession — no session active and no tracked files
       await panel.onFileChanged();
 
-      // Neither findActivePlanFile nor statFile should be called
-      expect(deps.findActivePlanFile).not.toHaveBeenCalled();
+      // Neither findAllPlanFiles nor statFile should be called
+      expect(deps.findAllPlanFiles).not.toHaveBeenCalled();
       expect(deps.statFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("multi-file tab switching", () => {
+    const DESIGN_PATH = "/workspace/docs/superpowers/specs/2026-04-07-feature-design.md";
+    const IMPL_PATH = "/workspace/docs/superpowers/plans/2026-04-07-feature.md";
+    const DESIGN_CONTENT = "# Feature Design\n\n## Problem\n\nSome problem description.";
+    const IMPL_CONTENT = `# Feature Implementation
+
+## Phase 1: Setup
+[status: pending]
+Install things
+
+## Phase 2: Build
+[status: pending]
+Build things
+`;
+
+    it("tracks files from multiple categories", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
+      );
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      // Should render the last new category (implementation)
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.html).toContain("Phase 1");
+      expect(call.html).toContain("Setup");
+    });
+
+    it("renders tab strip when 2+ categories are tracked", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
+      );
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.html).toContain("tab-strip");
+      expect(call.html).toContain("Design");
+      expect(call.html).toContain("Implementation");
+    });
+
+    it("does not render tab strip with single category", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.html).not.toContain("tab-strip");
+    });
+
+    it("auto-switches to new category when it appears", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+
+      // First: only design
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async () => DESIGN_CONTENT);
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      expect(deps.readFile).toHaveBeenCalledWith(DESIGN_PATH);
+
+      // Now implementation appears
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 200 },
+      ]);
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
+      );
+      deps._panel.webview.postMessage.mockClear();
+
+      await panel.onFileChanged();
+
+      // Should auto-switch to implementation
+      expect(deps.readFile).toHaveBeenCalledWith(IMPL_PATH);
+    });
+
+    it("switchTab message switches to requested category", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
+      );
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      deps._panel.webview.postMessage.mockClear();
+      (deps.readFile as any).mockClear();
+
+      // User clicks Design tab
+      deps._panel._simulateMessage({ type: "switchTab", category: "design" });
+
+      // Wait for async _onTabSwitch to complete
+      await vi.waitFor(() => {
+        expect(deps.readFile).toHaveBeenCalledWith(DESIGN_PATH);
+      });
+
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.html).toContain("Feature Design");
+    });
+
+    it("manual tab switch disables auto-switch for existing categories", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
+      );
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      // User manually switches to design
+      deps._panel._simulateMessage({ type: "switchTab", category: "design" });
+      await vi.waitFor(() => {
+        expect(deps.readFile).toHaveBeenCalledWith(DESIGN_PATH);
+      });
+      (deps.readFile as any).mockClear();
+
+      // File changes — should stay on design (no new category)
+      await panel.onFileChanged();
+      expect(deps.readFile).toHaveBeenCalledWith(DESIGN_PATH);
+    });
+
+    it("nextTab() cycles through tracked categories", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
+      );
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      // Active is "implementation" (last new category)
+      (deps.readFile as any).mockClear();
+
+      // nextTab should cycle to design
+      await panel.nextTab();
+      expect(deps.readFile).toHaveBeenCalledWith(DESIGN_PATH);
+
+      (deps.readFile as any).mockClear();
+
+      // nextTab again should cycle back to implementation
+      await panel.nextTab();
+      expect(deps.readFile).toHaveBeenCalledWith(IMPL_PATH);
+    });
+
+    it("nextTab() does nothing with single category", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      deps._panel.webview.postMessage.mockClear();
+
+      await panel.nextTab();
+
+      // No update sent — only one category
+      expect(deps._panel.webview.postMessage).not.toHaveBeenCalled();
+    });
+
+    it("new category still auto-switches even after manual switch", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+
+      // Start with design and plan
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: now },
+      ]);
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      deps.readFile = vi.fn(async (p: string) =>
+        p === DESIGN_PATH ? DESIGN_CONTENT : VALID_PLAN,
+      );
+
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+
+      // User manually switches to design (sets _autoSwitch = false)
+      deps._panel._simulateMessage({ type: "switchTab", category: "design" });
+      await vi.waitFor(() => {
+        expect(deps.readFile).toHaveBeenCalledWith(DESIGN_PATH);
+      });
+
+      // Now implementation appears (NEW category)
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+        { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: now },
+        { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 200 },
+      ]);
+      deps.readFile = vi.fn(async (p: string) => {
+        if (p === DESIGN_PATH) return DESIGN_CONTENT;
+        if (p === IMPL_PATH) return IMPL_CONTENT;
+        return VALID_PLAN;
+      });
+
+      await panel.onFileChanged();
+
+      // Should auto-switch to the new category
+      expect(deps.readFile).toHaveBeenCalledWith(IMPL_PATH);
     });
   });
 });

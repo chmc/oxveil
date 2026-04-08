@@ -165,6 +165,41 @@ tell application "System Events"
 end tell'
 ```
 
+## Webview Interaction via Commands
+
+VS Code webview content (iframes) is unreachable via macOS accessibility or coordinate-based clicking. To verify interactive webview features during visual verification, expose the interaction as a VS Code command and invoke it via command palette.
+
+**Pattern:**
+1. Add a public method to the panel class (e.g., `nextTab()`)
+2. Register as a VS Code command (e.g., `oxveil.planPreviewNextTab`)
+3. During verification, invoke via command palette: `Oxveil: Plan Preview — Next Tab`
+
+**Example: Plan Preview tab switching**
+```bash
+# Focus EDH and invoke the nextTab command
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        set frontmost to true
+        perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+        delay 0.3
+        keystroke "p" using {command down, shift down}
+    end tell
+end tell'
+sleep 1
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        delay 0.3
+        keystroke "Oxveil: Plan Preview"
+        delay 0.8
+        key code 36
+    end tell
+end tell'
+```
+
+**When to apply:** Any webview button, toggle, or interactive element that needs visual verification. The command serves double duty — keyboard-accessible for users AND testable during automation.
+
 ## Mock .claudeloop/ State Scripts
 
 Prefer the claudeloop fake CLI (below) for end-to-end dynamic verification. Use manual mocking only for fast static state checks or states hard to trigger via claudeloop (e.g., stale lock after crash).
