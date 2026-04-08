@@ -12,6 +12,7 @@ export interface PlanChatSessionDeps {
     location: { viewColumn: number };
   }) => Terminal;
   claudePath: string;
+  claudeModel?: string;
 }
 
 export class PlanChatSession {
@@ -24,13 +25,15 @@ export class PlanChatSession {
   }
 
   start(systemPrompt: string): void {
+    const args: string[] = [];
+    if (this._deps.claudeModel) {
+      args.push("--model", this._deps.claudeModel);
+    }
+    args.push("--append-system-prompt", systemPrompt, "--permission-mode", "plan");
     this._terminal = this._deps.createTerminal({
       name: "Plan Chat",
       shellPath: this._deps.claudePath,
-      shellArgs: [
-        "--append-system-prompt", systemPrompt,
-        "--permission-mode", "plan",
-      ],
+      shellArgs: args,
       location: { viewColumn: 1 },
     });
     this._terminal.show();

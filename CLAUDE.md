@@ -23,6 +23,15 @@
 - Do not create long-lived branches.
 - Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
 
+## Cost Control for External Services
+
+- When building features that spawn external paid services (Claude CLI, APIs), always implement dev-mode cost control:
+  - Detect `ExtensionMode.Development` to auto-default to the cheapest option (e.g., `haiku` for Claude).
+  - Provide an `OXVEIL_<SERVICE>_<PARAM>` env var override (takes precedence over dev-mode default).
+  - Precedence: (1) env var, (2) cheapest default in dev mode, (3) no override (user's default in production).
+- Never modify user-level settings files for testing. Use dependency injection and extension mode detection.
+- Prefer fake/mock services (e.g., fake_claude for claudeloop) over real API calls when the interaction is not user-facing.
+
 ## Skill Checklist Discipline
 
 - When a skill has a checklist, read the FULL checklist first, create a task for each item, then execute in order.

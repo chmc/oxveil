@@ -383,6 +383,18 @@ Completed: {YYYY-MM-DD HH:MM:SS}
 Iterations: {N}
 ```
 
+## Cost Control for Real Claude Instances
+
+Plan chat automatically uses haiku when running in EDH (`ExtensionMode.Development` detected). No configuration needed.
+
+To override the model (e.g., testing with a specific model):
+
+```bash
+OXVEIL_CLAUDE_MODEL=sonnet code --extensionDevelopmentPath="$(pwd)"
+```
+
+The env var takes precedence over the dev-mode default. In production (normal VS Code, not EDH), no model override is applied — the user's default model is used.
+
 ## Common Issues Checklist
 
 - Status bar text truncated or wrong icon

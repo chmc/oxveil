@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { PlanChatSession } from "../core/planChatSession";
 import type { PlanPreviewPanel } from "../views/planPreviewPanel";
-import { buildSystemPrompt } from "./planChat";
+import { buildSystemPrompt, resolveClaudeModel } from "./planChat";
 
 export interface PlanChatCommandDeps {
   claudePath: string | null | undefined;
@@ -9,6 +9,7 @@ export interface PlanChatCommandDeps {
   getActivePlanChatSession?: () => PlanChatSession | undefined;
   onPlanChatSessionCreated?: (session: PlanChatSession) => void;
   planPreviewPanel?: PlanPreviewPanel;
+  extensionMode?: number;
 }
 
 export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Disposable {
@@ -28,9 +29,14 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
       return;
     }
 
+    const claudeModel = resolveClaudeModel(
+      process.env.OXVEIL_CLAUDE_MODEL,
+      deps.extensionMode,
+    );
     const session = new PlanChatSession({
       createTerminal: (opts) => vscode.window.createTerminal(opts as any),
       claudePath: deps.claudePath,
+      claudeModel,
     });
     deps.planPreviewPanel?.beginSession();
     session.start(buildSystemPrompt());

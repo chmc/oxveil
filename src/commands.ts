@@ -37,6 +37,7 @@ export interface CommandDeps {
   planPreviewPanel?: PlanPreviewPanel;
   resolveArchiveItem?: (element: string) => { archiveName?: string } | undefined;
   claudePath?: string | null;
+  extensionMode?: number;
   onPlanChatSessionCreated?: (session: PlanChatSession) => void;
   getActivePlanChatSession?: () => PlanChatSession | undefined;
 }
@@ -309,6 +310,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     registerPlanChatCommand({
       claudePath,
+      extensionMode: deps.extensionMode,
       getWorkspaceRoot: () => getActive()?.workspaceRoot
         ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       getActivePlanChatSession: deps.getActivePlanChatSession,

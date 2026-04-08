@@ -39,6 +39,33 @@ describe("PlanChatSession", () => {
       });
     });
 
+    it("includes --model flag when claudeModel is set", () => {
+      const session = new PlanChatSession({ ...deps, claudeModel: "haiku" });
+      session.start("Test prompt");
+
+      expect(deps.createTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shellArgs: expect.arrayContaining(["--model", "haiku"]),
+        }),
+      );
+    });
+
+    it("omits --model flag when claudeModel is undefined", () => {
+      const session = new PlanChatSession(deps);
+      session.start("Test prompt");
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).not.toContain("--model");
+    });
+
+    it("omits --model flag when claudeModel is empty string", () => {
+      const session = new PlanChatSession({ ...deps, claudeModel: "" });
+      session.start("Test prompt");
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).not.toContain("--model");
+    });
+
     it("shows the terminal", () => {
       const session = new PlanChatSession(deps);
       session.start("prompt");

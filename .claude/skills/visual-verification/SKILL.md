@@ -23,7 +23,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 ## Phases
 
 0. **Pre-flight** — Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). Create session folder: `verification-sessions/YYYYMMDD-HHMMSS-{title}/screenshots/`. Initialize SESSION.md.
-1. **Build & Launch** — `npm run compile`. Check `mcp__ide__getDiagnostics`. Launch EDH via `code --extensionDevelopmentPath="$(pwd)"`. Poll for EDH window (1s intervals, 15s timeout). Screenshot on success.
+1. **Build & Launch** — `npm run compile`. Check `mcp__ide__getDiagnostics`. Launch EDH via `code --extensionDevelopmentPath="$(pwd)"`. Plan chat automatically uses haiku in EDH (override with `OXVEIL_CLAUDE_MODEL=<model>` if needed). Poll for EDH window (1s intervals, 15s timeout). Screenshot on success.
 2. **Interact** — Use osascript to interact with EDH window. Always `set frontmost to true` + AXRaise before any `keystroke`. Use menu clicks for destructive actions (close tab/window). Log each action to SESSION.md. Wait for UI to settle.
 3. **Capture** — Screenshot via `screencapture -l <CGWindowID>`. Resize with `sips --resampleWidth 1568`. Save to `screenshots/NN-description.png`.
 4. **Analyze** — `Read` each screenshot. Compare against reference mockups in `docs/mockups/`. Tier 1 checks only (presence, text, gross layout, item count). Log findings to SESSION.md. For text content (output channel), verify programmatically instead.

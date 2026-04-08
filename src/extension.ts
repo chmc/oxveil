@@ -343,6 +343,7 @@ export async function activate(
       liveRunPanel,
       planPreviewPanel,
       claudePath: resolvedClaudePath,
+      extensionMode: context.extensionMode,
       getActivePlanChatSession: () => activePlanChatSession,
       onPlanChatSessionCreated: (session) => {
         activePlanChatSession = session;
