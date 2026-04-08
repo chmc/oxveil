@@ -17,6 +17,7 @@ export interface PhaseCardsOptions {
   format?: "phase" | "keyword" | "numbered";
   keyword?: string;
   tabs?: Array<{ category: string; label: string; active: boolean }>;
+  showFormButton?: boolean;
 }
 
 function formatLabel(format: PhaseCardsOptions["format"], keyword: string | undefined, num: string): string {
@@ -43,6 +44,10 @@ function renderHeader(options: PhaseCardsOptions): string {
       ? '<span class="valid-badge">&#10003; Valid</span>'
       : "";
 
+  const formBtn = options.showFormButton
+    ? '<button class="form-plan-btn">Form Claudeloop Plan</button>'
+    : "";
+
   const tabStrip = options.tabs && options.tabs.length >= 2
     ? `<div class="tab-strip">${options.tabs.map((t) =>
         `<button class="tab-pill${t.active ? " active" : ""}" data-category="${escapeHtml(t.category)}">${escapeHtml(t.label)}</button>`
@@ -53,6 +58,7 @@ function renderHeader(options: PhaseCardsOptions): string {
   <span class="preview-title">${title}</span>
   ${badge}
   ${validBadge}
+  ${formBtn}
 </div>
 ${tabStrip}`;
 }
@@ -243,6 +249,8 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .live-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .ended-badge { background: #3b1d1d; color: #f44747; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+    .form-plan-btn { margin-left: auto; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+    .form-plan-btn:hover { background: #2d5a8a; }
 
     /* Tab strip */
     .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
@@ -315,6 +323,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
           content.innerHTML = msg.html;
           bindAnnotationButtons();
           bindTabButtons();
+          bindFormPlanButton();
         }
       });
 
@@ -325,6 +334,15 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         for (var i = 0; i < tabs.length; i++) {
           tabs[i].addEventListener("click", function() {
             vscode.postMessage({ type: "switchTab", category: this.getAttribute("data-category") });
+          });
+        }
+      }
+
+      function bindFormPlanButton() {
+        var btn = document.querySelector(".form-plan-btn");
+        if (btn) {
+          btn.addEventListener("click", function() {
+            vscode.postMessage({ type: "formPlan" });
           });
         }
       }

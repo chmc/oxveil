@@ -20,6 +20,7 @@ import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
 import { registerPlanChatCommand } from "./commands/registerPlanChat";
+import { registerFormPlanCommand } from "./commands/formPlan";
 import type { PlanChatSession } from "./core/planChatSession";
 
 export interface CommandDeps {
@@ -320,5 +321,15 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand("oxveil.planPreviewNextTab", () =>
       planPreviewPanel?.nextTab(),
     ),
+    registerFormPlanCommand({
+      resolveFolder: async () => {
+        const resolved = await resolveFolder();
+        if (!resolved?.processManager) return undefined;
+        return {
+          workspaceRoot: resolved.workspaceRoot,
+          processManager: resolved.processManager,
+        };
+      },
+    }),
   ];
 }

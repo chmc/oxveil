@@ -2,36 +2,7 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import type { WorkspaceSessionManager } from "../core/workspaceSessionManager";
-
-interface GranularityItem extends vscode.QuickPickItem {
-  value: string;
-}
-
-const GRANULARITY_ITEMS: GranularityItem[] = [
-  {
-    label: "Coarse — 3-5 phases",
-    description:
-      "High-level phases. Good for small tasks or quick iterations.",
-    value: "coarse",
-  },
-  {
-    label: "Medium — 5-10 phases (default)",
-    description:
-      "Balanced breakdown. Each phase is a meaningful unit of work.",
-    value: "medium",
-  },
-  {
-    label: "Fine — 10-20 phases",
-    description:
-      "Granular phases. Best for complex tasks requiring careful monitoring.",
-    value: "fine",
-  },
-  {
-    label: "Custom...",
-    description: "Enter a custom prompt to guide phase generation.",
-    value: "custom",
-  },
-];
+import { pickGranularity } from "./granularityPicker";
 
 export function registerAiParsePlanCommand(
   sessionManager: WorkspaceSessionManager,
@@ -50,19 +21,8 @@ export function registerAiParsePlanCommand(
       return;
     }
 
-    const picked = await vscode.window.showQuickPick(GRANULARITY_ITEMS, {
-      placeHolder: "Select parse granularity...",
-    });
-    if (!picked) return;
-
-    let granularity = picked.value;
-    if (granularity === "custom") {
-      const custom = await vscode.window.showInputBox({
-        prompt: "Enter custom granularity prompt",
-      });
-      if (!custom) return;
-      granularity = custom;
-    }
+    const granularity = await pickGranularity();
+    if (!granularity) return;
 
     try {
       await vscode.window.withProgress(

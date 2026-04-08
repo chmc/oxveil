@@ -164,6 +164,10 @@
       {
         "command": "oxveil.planPreviewNextTab",
         "title": "Oxveil: Plan Preview — Next Tab"
+      },
+      {
+        "command": "oxveil.formPlan",
+        "title": "Oxveil: Form Claudeloop Plan"
       }
     ],
     "menus": {
@@ -239,6 +243,10 @@
         {
           "command": "oxveil.planPreviewNextTab",
           "when": "oxveil.planChatActive"
+        },
+        {
+          "command": "oxveil.formPlan",
+          "when": "workspaceFolderCount != 0"
         }
       ]
     },

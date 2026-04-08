@@ -18,6 +18,7 @@ export type SidebarCommand =
   | { command: "markComplete"; phase: number }
   | { command: "runFromPhase"; phase: number }
   | { command: "aiParse" }
+  | { command: "formPlan" }
   | { command: "planChat" }
   | { command: "openTimeline" }
   | { command: "openGraph" }
@@ -52,6 +53,7 @@ const COMMAND_MAP: Record<string, string> = {
   stop: "oxveil.stop",
   restart: "oxveil.reset",          // Reset clears state; user starts fresh
   aiParse: "oxveil.aiParsePlan",
+  formPlan: "oxveil.formPlan",
   planChat: "oxveil.openPlanChat",
   openTimeline: "oxveil.showTimeline",
   openGraph: "oxveil.showDependencyGraph",

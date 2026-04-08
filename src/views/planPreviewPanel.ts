@@ -32,6 +32,7 @@ export interface PlanPreviewPanelDeps {
   onAnnotation: (phase: string, text: string) => void;
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
   statFile?: (filePath: string) => Promise<{ birthtimeMs: number } | undefined>;
+  onFormPlan?: () => void;
 }
 
 interface Webview {
@@ -89,6 +90,8 @@ export class PlanPreviewPanel {
           this._deps.onAnnotation(msg.phase, msg.text);
         } else if (msg.type === "switchTab" && msg.category) {
           this._onTabSwitch(msg.category as PlanFileCategory);
+        } else if (msg.type === "formPlan") {
+          this._deps.onFormPlan?.();
         }
       });
     } else {
@@ -316,6 +319,7 @@ export class PlanPreviewPanel {
       format: this._lastFormat,
       keyword: this._lastKeyword,
       tabs: this._buildTabs(),
+      showFormButton: this._lastFormat !== "phase" && hasPhases,
     };
     const html = renderPhaseCardsHtml(options);
     this._panel.webview.postMessage({ type: "update", html });

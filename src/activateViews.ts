@@ -126,6 +126,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
         return undefined;
       }
     },
+    onFormPlan: () => vscode.commands.executeCommand("oxveil.formPlan"),
   });
 
   // Create watchers for all plan file locations
@@ -151,6 +152,52 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
   }
 
   planPreviewPanel.startWatching(watchers as any);
+
+  // Auto-detect plan readiness: suggest forming a claudeloop plan
+  // when a plan file is created or stabilizes (no writes for 5s)
+  if (deps.workspaceRoot) {
+    let stabilityTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastSuggestedPath: string | undefined;
+    const wsRoot = deps.workspaceRoot;
+
+    const suggestFormPlan = async (uri: vscode.Uri) => {
+      if (stabilityTimer) clearTimeout(stabilityTimer);
+      stabilityTimer = setTimeout(async () => {
+        // Don't suggest same file twice per session
+        if (uri.fsPath === lastSuggestedPath) return;
+        lastSuggestedPath = uri.fsPath;
+
+        // Don't suggest if PLAN.md already exists
+        try {
+          await fs.access(path.join(wsRoot, "PLAN.md"));
+          return;
+        } catch {
+          // No PLAN.md — proceed with suggestion
+        }
+
+        const action = await vscode.window.showInformationMessage(
+          `Plan ready: ${path.basename(uri.fsPath)}. Form it into a claudeloop plan?`,
+          "Form Plan",
+          "Dismiss",
+        );
+        if (action === "Form Plan") {
+          vscode.commands.executeCommand("oxveil.formPlan");
+        }
+      }, 5000);
+    };
+
+    for (const watcher of watchers) {
+      watcher.onDidCreate((uri) => suggestFormPlan(uri));
+      watcher.onDidChange((uri) => suggestFormPlan(uri));
+    }
+
+    disposables.push({
+      dispose: () => {
+        if (stabilityTimer) clearTimeout(stabilityTimer);
+      },
+    });
+  }
+
   disposables.push({ dispose: () => planPreviewPanel.dispose() });
 
   const planCodeLens = new PlanCodeLensProvider();

@@ -124,6 +124,7 @@ function renderEmpty(state: SidebarState): string {
   <div class="quick-actions">
     <button class="action-btn" data-command="writePlan">Write Plan</button>
     <button class="action-btn" data-command="aiParse">AI Parse</button>
+    <button class="action-btn" data-command="formPlan">Form Plan</button>
   </div>
 </div>
 ${archivesHtml}`;
@@ -142,6 +143,7 @@ function renderReady(state: SidebarState): string {
   ${renderActionBar([
     { label: "Start", command: "start", primary: true },
     { label: "AI Parse", command: "aiParse" },
+    { label: "Form Plan", command: "formPlan" },
     { label: "Chat", command: "planChat" },
   ])}
 </div>
