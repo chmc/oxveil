@@ -51,7 +51,7 @@ describe("SidebarPanel", () => {
     panel.resolveWebviewView(view as any);
     const state: SidebarState = { view: "empty", archives: [] };
     panel.updateState(state);
-    expect(view.webview.html).toContain("Create a Plan");
+    expect(view.webview.html).toContain("From Idea to Reality");
     expect(view.webview.html).not.toContain("Initializing");
   });
 

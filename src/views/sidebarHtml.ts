@@ -108,17 +108,17 @@ function renderEmpty(state: SidebarState): string {
   const archivesHtml = renderArchives(state.archives);
   return `<div class="centered-layout">
   <div class="state-icon"><span class="codicon codicon-comment-discussion"></span></div>
-  <h2 class="state-title">Create a Plan</h2>
-  <p class="state-desc">Describe your project and let AI draft the phases.</p>
+  <h2 class="state-title">From Idea to Reality</h2>
+  <p class="state-desc">Tell AI what you're thinking. It'll help you refine it, plan it, and build it.</p>
   ${renderActionBar([
-    { label: "Create Plan", command: "createPlan", primary: true },
+    { label: "Let's Go", command: "createPlan", primary: true },
   ])}
   <div class="how-it-works">
     <h3>How it works</h3>
     <ol>
-      <li>Describe your project to Claude in a chat</li>
-      <li>Claude drafts a plan with phases</li>
-      <li>Review, configure, and run</li>
+      <li>Tell AI what you're thinking</li>
+      <li>Together, shape it into a plan</li>
+      <li>Review and let AI build it</li>
     </ol>
   </div>
   <div class="quick-actions">

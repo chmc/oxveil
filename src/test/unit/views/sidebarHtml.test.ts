@@ -28,7 +28,7 @@ describe("renderSidebar", () => {
   it("renders empty state", () => {
     const state: SidebarState = { view: "empty", archives: [] };
     const html = renderSidebar(nonce, csp, state);
-    expect(html).toContain("Create a Plan");
+    expect(html).toContain("From Idea to Reality");
     expect(html).toContain("How it works");
   });
 
