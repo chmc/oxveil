@@ -128,6 +128,7 @@ async function formPlanLoop(
   }
 
   // Validate result — claudeloop writes parsed plan to .claudeloop/ai-parsed-plan.md
+  // With --dry-run, ai-parsed-plan.md may not exist; fall back to PLAN.md
   const workspaceRoot = path.dirname(planPath);
   const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
   let resultPath = planPath;
@@ -136,7 +137,7 @@ async function formPlanLoop(
     resultContent = await fs.readFile(parsedPlanPath, "utf-8");
     resultPath = parsedPlanPath;
   } catch {
-    // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist
+    // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode)
     resultContent = await fs.readFile(planPath, "utf-8");
   }
 
@@ -152,6 +153,13 @@ async function formPlanLoop(
       return formPlanLoop(sourceContent, planPath, processManager, onPlanFormed);
     }
   } else {
+    // Ensure ai-parsed-plan.md exists for claudeloop execution
+    // (dry-run validates but doesn't write this file)
+    if (resultPath === planPath) {
+      const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+      await fs.mkdir(claudeloopDir, { recursive: true });
+      await fs.writeFile(parsedPlanPath, resultContent, "utf-8");
+    }
     // Signal success — sidebar transitions to Ready with phases
     onPlanFormed?.();
   }
