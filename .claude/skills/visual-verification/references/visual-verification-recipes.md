@@ -79,7 +79,7 @@ let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) a
 for w in windows {
     let owner = w["kCGWindowOwnerName"] as? String ?? ""
     let name = w["kCGWindowName"] as? String ?? ""
-    if owner.contains("Visual Studio Code") && name.contains("[Extension Development Host]") {
+    if owner.contains("Code") && name.contains("[Extension Development Host]") {
         print(w["kCGWindowNumber"] as? Int ?? 0)
         break
     }
@@ -111,7 +111,7 @@ let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) a
 for w in windows {
     let owner = w["kCGWindowOwnerName"] as? String ?? ""
     let name = w["kCGWindowName"] as? String ?? ""
-    if owner.contains("Visual Studio Code") && name.contains("[Extension Development Host]") {
+    if owner.contains("Code") && name.contains("[Extension Development Host]") {
         print(w["kCGWindowNumber"] as? Int ?? 0)
         break
     }
