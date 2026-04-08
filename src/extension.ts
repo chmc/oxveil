@@ -10,7 +10,7 @@ import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
-import { activateDetection } from "./activateDetection";
+import { activateDetection, MINIMUM_VERSION } from "./activateDetection";
 import {
   createGitExec,
   initFolderSessions,

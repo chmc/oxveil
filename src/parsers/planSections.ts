@@ -83,7 +83,7 @@ export function parseSections(content: string): SectionParseResult {
 
   // Clean up internal _bodyStart field
   for (const phase of phases) {
-    delete (phase as Record<string, unknown>)._bodyStart;
+    delete (phase as unknown as Record<string, unknown>)._bodyStart;
   }
 
   const format: SectionParseResult["format"] = detectedKeyword

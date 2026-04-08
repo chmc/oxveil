@@ -6,7 +6,7 @@ import { detectClaude, type ClaudeExecutor } from "./core/claudeDetection";
 
 const execFileAsync = promisify(execFile);
 
-const MINIMUM_VERSION = "0.22.0";
+export const MINIMUM_VERSION = "0.22.0";
 
 export interface DetectionResult {
   detection: Detection;
