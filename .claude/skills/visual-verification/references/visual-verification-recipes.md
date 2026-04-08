@@ -50,7 +50,26 @@ end tell' 2>/dev/null
 
 ## Swift CGWindowID Script
 
-CGWindowList and osascript System Events both use `"Code"` (derived from `CFBundleName` in VS Code's `Info.plist`). This value is installation-dependent — Insiders uses `"Code - Insiders"`. If window lookup fails, verify the owner name with the Swift snippet below.
+CGWindowList and System Events use **different** names for VS Code:
+- **CGWindowList** `kCGWindowOwnerName`: `"Visual Studio Code"` (derived from the `.app` bundle directory name)
+- **System Events** process name: `"Code"` (derived from `CFBundleName` in `Info.plist`)
+- **Insiders** (assumed, unverified): `"Visual Studio Code - Insiders"` / `"Code - Insiders"` respectively
+
+If window lookup fails, verify the owner name with the diagnostic snippet below.
+
+```bash
+# Diagnostic: list all VS Code windows with their CGWindowList owner names
+swift -e '
+import CoreGraphics
+let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]
+for w in windows {
+    let owner = w["kCGWindowOwnerName"] as? String ?? ""
+    if owner.contains("Visual Studio") || owner.contains("Code") {
+        print("\(owner) | \(w["kCGWindowName"] as? String ?? "(no name)")")
+    }
+}
+'
+```
 
 ```bash
 # Get CGWindowID for the Extension Development Host window
@@ -60,7 +79,7 @@ let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) a
 for w in windows {
     let owner = w["kCGWindowOwnerName"] as? String ?? ""
     let name = w["kCGWindowName"] as? String ?? ""
-    if owner == "Code" && name.contains("[Extension Development Host]") {
+    if owner.contains("Visual Studio Code") && name.contains("[Extension Development Host]") {
         print(w["kCGWindowNumber"] as? Int ?? 0)
         break
     }
@@ -92,7 +111,7 @@ let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) a
 for w in windows {
     let owner = w["kCGWindowOwnerName"] as? String ?? ""
     let name = w["kCGWindowName"] as? String ?? ""
-    if owner == "Code" && name.contains("[Extension Development Host]") {
+    if owner.contains("Visual Studio Code") && name.contains("[Extension Development Host]") {
         print(w["kCGWindowNumber"] as? Int ?? 0)
         break
     }
@@ -345,7 +364,7 @@ fi
 ```markdown
 # Verification: {context-title}
 Started: {YYYY-MM-DD HH:MM:SS}
-Platform: macOS (process/owner name: "Code")
+Platform: macOS (System Events: "Code", CGWindowList: "Visual Studio Code")
 
 ## Log
 {HH:MM:SS} {ACTION} {description} — {result}
