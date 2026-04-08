@@ -184,6 +184,50 @@ tell application "System Events"
 end tell'
 ```
 
+## Maximize Viewport
+
+Run after EDH launch and before first screenshot to maximize the area available for visual analysis. Keep the primary sidebar visible — it contains the Oxveil tree view.
+
+```bash
+# Close bottom panel, secondary sidebar, and unwanted editor tabs.
+# Keep primary sidebar visible (Oxveil tree view lives there).
+# Uses process-scoped menu clicks — cannot misfire to other apps.
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        set frontmost to true
+        perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+        delay 0.3
+
+        -- Close bottom panel (Terminal, Problems, Output, Debug Console)
+        -- "Toggle Panel Visibility" toggles it off if open
+        try
+            click menu item "Panel" of menu "View" of menu bar 1
+            delay 0.3
+        end try
+
+        -- Close secondary sidebar if open
+        try
+            click menu item "Secondary Side Bar" of menu "View" of menu bar 1
+            delay 0.3
+        end try
+
+        -- Close unwanted editor tabs (Welcome, Settings, etc.)
+        -- Repeat a few times to catch multiple open tabs
+        repeat 3 times
+            try
+                click menu item "Close Editor" of menu "File" of menu bar 1
+                delay 0.3
+            end try
+        end repeat
+
+        delay 0.5
+    end tell
+end tell'
+```
+
+> **Note:** The Panel and Secondary Side Bar menu items toggle visibility. If they are already hidden, clicking them will open them. To avoid this, check the menu item state or screenshot first and only close if visible. In practice, EDH usually launches with the panel open, so toggling once is correct.
+
 ## Webview Interaction via Commands
 
 VS Code webview content (iframes) is unreachable via macOS accessibility or coordinate-based clicking. To verify interactive webview features during visual verification, expose the interaction as a VS Code command and invoke it via command palette.
