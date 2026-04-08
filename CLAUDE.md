@@ -45,6 +45,8 @@ When executing a phase under claudeloop, the phase description is your specifica
 
 **Autonomous verification (mandatory):** Never suggest the user test something manually when you can do it yourself. If you can build, launch EDH, screenshot, and compare — do it without asking.
 
+**Zero errors (mandatory):** Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them. Work is not done until both pass clean.
+
 **Plan review (mandatory):** Before requesting plan approval, launch 2-3 critic agents from different angles (feasibility, scope/completeness, alternatives). Never rush to ExitPlanMode without deep critical review.
 
 ## Writing Style
