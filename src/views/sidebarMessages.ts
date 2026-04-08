@@ -29,6 +29,7 @@ export type SidebarCommand =
   | { command: "forceUnlock" }
   | { command: "reset" }
   | { command: "refreshArchives" }
+  | { command: "discardPlan" }
   | { command: "resumePlan" }
   | { command: "dismissPlan" }
   // selectFolder deferred to multi-root follow-up
@@ -54,6 +55,7 @@ const COMMAND_MAP: Record<string, string> = {
   restart: "oxveil.reset",          // Reset clears state; user starts fresh
   aiParse: "oxveil.aiParsePlan",
   formPlan: "oxveil.formPlan",
+  discardPlan: "oxveil.discardPlan",
   planChat: "oxveil.openPlanChat",
   openTimeline: "oxveil.showTimeline",
   openGraph: "oxveil.showDependencyGraph",

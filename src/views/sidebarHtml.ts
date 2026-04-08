@@ -142,10 +142,11 @@ function renderReady(state: SidebarState): string {
   ${renderPhaseList(plan.phases)}
   ${renderActionBar([
     { label: "Start", command: "start", primary: true },
-    { label: "AI Parse", command: "aiParse" },
-    { label: "Form Plan", command: "formPlan" },
-    { label: "Chat", command: "planChat" },
   ])}
+  <div class="link-actions">
+    <a class="link-action" data-command="editPlan">Edit</a>
+    <a class="link-action" data-command="discardPlan">Discard</a>
+  </div>
 </div>
 ${archivesHtml}`;
 }
@@ -537,6 +538,12 @@ export function renderSidebar(nonce: string, cspSource: string, state?: SidebarS
     }
 
     /* Link action */
+    .link-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 8px;
+    }
     .link-action {
       display: inline-block;
       font-size: 12px;
@@ -545,6 +552,7 @@ export function renderSidebar(nonce: string, cspSource: string, state?: SidebarS
       margin-top: 8px;
       text-decoration: none;
     }
+    .link-actions .link-action { margin-top: 0; }
     .link-action:hover { text-decoration: underline; }
 
     /* How it works */

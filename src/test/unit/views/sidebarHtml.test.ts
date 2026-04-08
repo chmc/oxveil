@@ -48,7 +48,10 @@ describe("renderSidebar", () => {
     expect(html).toContain("PLAN.md");
     expect(html).toContain("Ready");
     expect(html).toContain("Start");
-    expect(html).toContain("AI Parse");
+    expect(html).toContain("Edit");
+    expect(html).toContain("Discard");
+    expect(html).not.toContain("AI Parse");
+    expect(html).not.toContain("Form Plan");
     expect(html).toContain("Setup");
     expect(html).toContain("Build");
   });

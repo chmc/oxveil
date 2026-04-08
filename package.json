@@ -168,6 +168,10 @@
       {
         "command": "oxveil.formPlan",
         "title": "Oxveil: Form Claudeloop Plan"
+      },
+      {
+        "command": "oxveil.discardPlan",
+        "title": "Oxveil: Discard Plan"
       }
     ],
     "menus": {
@@ -247,6 +251,10 @@
         {
           "command": "oxveil.formPlan",
           "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "oxveil.discardPlan",
+          "when": "oxveil.walkthrough.hasPlan"
         }
       ]
     },

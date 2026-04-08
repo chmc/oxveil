@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
+import * as fs from "node:fs/promises";
 import type { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { registerCreatePlanCommand } from "./commands/createPlan";
 import { registerWritePlanCommand } from "./commands/writePlan";
@@ -333,6 +334,32 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       },
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),
       onPlanFormed: deps.onPlanFormed,
+    }),
+    vscode.commands.registerCommand("oxveil.discardPlan", async () => {
+      const active = getActive();
+      if (active?.processManager?.isRunning) {
+        vscode.window.showErrorMessage("Oxveil: Stop the current session first");
+        return;
+      }
+      const workspaceRoot = active?.workspaceRoot
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceRoot) return;
+
+      const confirm = await vscode.window.showWarningMessage(
+        "Delete PLAN.md? This cannot be undone.",
+        { modal: true },
+        "Delete",
+      );
+      if (confirm !== "Delete") return;
+
+      const planPath = path.join(workspaceRoot, "PLAN.md");
+      await fs.unlink(planPath);
+      // Clean up stale ai-parsed-plan.md
+      try {
+        await fs.unlink(path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md"));
+      } catch {
+        // May not exist
+      }
     }),
   ];
 }
