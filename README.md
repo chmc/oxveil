@@ -116,7 +116,7 @@ A built-in **welcome walkthrough** guides new users through setup:
 
 1. Detect or install claudeloop
 2. Configure your project
-3. Create or open a plan
+3. Bring your idea or open an existing plan
 4. Start your first run
 
 ### Multi-root Workspaces
