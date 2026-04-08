@@ -4,6 +4,7 @@
 - During mock cleanup, only remove individual mock-created files (those newer than `.MOCK_SESSION` marker). Never `rm -rf .claudeloop`.
 - NEVER use `keystroke` via osascript for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W). `keystroke` always targets the system frontmost app, not the `tell process` target — it can kill the terminal. Use accessibility menu clicks instead (`click menu item` of the target process's menu bar), which are process-scoped.
 - For non-destructive keystrokes (Cmd+Shift+P, typing text, Enter, Escape), always `set frontmost to true` and `AXRaise` the target window first.
+- NEVER edit non-plan files while plan mode is active. Plan mode restricts edits to the plan file only. If you discover a needed change (e.g., CLAUDE.md update), note it in the plan and apply it after exiting plan mode.
 
 ## Project
 
@@ -21,6 +22,13 @@
 - Oxveil is not yet published. Do not gate features behind feature flags — ship directly. Re-evaluate when publishing to VS Code Marketplace.
 - Do not create long-lived branches.
 - Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
+
+## Skill Checklist Discipline
+
+- When a skill has a checklist, read the FULL checklist first, create a task for each item, then execute in order.
+- Do not skip, merge, or shortcut checklist items. "This is simple enough" is not a valid reason — the checklist exists to prevent exactly that reasoning.
+- Each skill defines its own terminal action. Do not substitute a different exit (e.g., calling `ExitPlanMode` from brainstorming). Read the skill's terminal state before starting.
+- If plan mode activates during a skill, the skill's checklist still governs — plan mode is a tool within the skill, not a replacement for it.
 
 ## Following Plan Instructions
 
