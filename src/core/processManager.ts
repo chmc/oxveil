@@ -87,12 +87,16 @@ export class ProcessManager implements IProcessManager {
     return this._exitPromise!;
   }
 
-  async aiParse(granularity: string): Promise<void> {
+  async aiParse(granularity: string, options?: { dryRun?: boolean }): Promise<void> {
     if (await this._deps.lockExists()) {
       throw new Error("lock file exists — claudeloop is already running");
     }
 
-    this._spawnChild(["--ai-parse", "--granularity", granularity]);
+    const args = ["--ai-parse", "--granularity", granularity];
+    if (options?.dryRun) {
+      args.push("--dry-run");
+    }
+    this._spawnChild(args);
     return this._exitPromise!;
   }
 

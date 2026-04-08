@@ -356,10 +356,17 @@ export async function activate(
       },
       onPlanFormed: async () => {
         planUserChoice = "resume";
-        // Parse PLAN.md to cache phases for sidebar display
+        // Parse ai-parsed-plan.md (or PLAN.md fallback) to cache phases for sidebar
         if (workspaceRoot) {
           try {
-            const content = await fs.readFile(path.join(workspaceRoot, "PLAN.md"), "utf-8");
+            const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+            const planMdPath = path.join(workspaceRoot, "PLAN.md");
+            let content: string;
+            try {
+              content = await fs.readFile(parsedPlanPath, "utf-8");
+            } catch {
+              content = await fs.readFile(planMdPath, "utf-8");
+            }
             const { parsePlan } = await import("./parsers/plan");
             const parsed = parsePlan(content);
             cachedPlanPhases = parsed.phases.map((p) => ({
