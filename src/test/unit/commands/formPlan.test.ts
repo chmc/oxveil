@@ -33,6 +33,7 @@ function makeDeps(overrides: Partial<FormPlanCommandDeps> = {}): FormPlanCommand
       processManager: { aiParse: vi.fn().mockResolvedValue(undefined) } as any,
     }),
     getActivePreviewFile: vi.fn().mockReturnValue("/workspace/docs/superpowers/plans/test.md"),
+    onPlanFormed: vi.fn(),
     ...overrides,
   };
 }

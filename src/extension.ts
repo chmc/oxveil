@@ -135,6 +135,7 @@ export async function activate(
 
   // Register sidebar webview provider
   let planUserChoice: import("./views/sidebarState").PlanUserChoice = "none";
+  let cachedPlanPhases: import("./views/sidebarState").PhaseView[] = [];
   const sidebarPanel = new SidebarPanel({
     executeCommand: vscode.commands.executeCommand,
     onPlanChoice: (choice) => {
@@ -198,7 +199,7 @@ export async function activate(
       view: viewState,
       plan: (currentPlanDetected || progress) ? {
         filename: "PLAN.md",
-        phases: progress ? mapPhases(progress.phases) : [],
+        phases: progress?.phases.length ? mapPhases(progress.phases) : cachedPlanPhases,
       } : undefined,
       session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
         elapsed: elapsedTimer.elapsed,
@@ -260,7 +261,9 @@ export async function activate(
   planWatcher.onDidCreate(() => {
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
     currentPlanDetected = true;
-    planUserChoice = "none";
+    if (planUserChoice !== "resume") {
+      planUserChoice = "none";
+    }
     wiringCtx.planDetected = true;
     sidebarPanel.updateState(buildFullState());
   });
@@ -268,6 +271,7 @@ export async function activate(
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
     currentPlanDetected = false;
     planUserChoice = "none";
+    cachedPlanPhases = [];
     wiringCtx.planDetected = false;
     sidebarPanel.updateState(buildFullState());
   });
@@ -349,6 +353,25 @@ export async function activate(
         activePlanChatSession = session;
         planPreviewPanel.setSessionActive(true);
         vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
+      },
+      onPlanFormed: async () => {
+        planUserChoice = "resume";
+        // Parse PLAN.md to cache phases for sidebar display
+        if (workspaceRoot) {
+          try {
+            const content = await fs.readFile(path.join(workspaceRoot, "PLAN.md"), "utf-8");
+            const { parsePlan } = await import("./parsers/plan");
+            const parsed = parsePlan(content);
+            cachedPlanPhases = parsed.phases.map((p) => ({
+              number: p.number,
+              title: p.title,
+              status: "pending" as const,
+            }));
+          } catch {
+            cachedPlanPhases = [];
+          }
+        }
+        sidebarPanel.updateState(buildFullState());
       },
     }),
   );

@@ -11,6 +11,7 @@ export interface FormPlanCommandDeps {
     | undefined
   >;
   getActivePreviewFile: () => string | undefined;
+  onPlanFormed?: () => void;
 }
 
 export function registerFormPlanCommand(
@@ -68,6 +69,7 @@ export function registerFormPlanCommand(
         sourceContent,
         planPath,
         processManager,
+        deps.onPlanFormed,
       );
     },
   );
@@ -77,6 +79,7 @@ async function formPlanLoop(
   sourceContent: string,
   planPath: string,
   processManager: IProcessManager,
+  onPlanFormed?: () => void,
 ): Promise<void> {
   // Write source content to PLAN.md (fresh on each attempt)
   await fs.writeFile(planPath, sourceContent, "utf-8");
@@ -114,7 +117,7 @@ async function formPlanLoop(
       "View Output",
     );
     if (action === "Retry") {
-      return formPlanLoop(sourceContent, planPath, processManager);
+      return formPlanLoop(sourceContent, planPath, processManager, onPlanFormed);
     }
     if (action === "View Output") {
       vscode.commands.executeCommand(
@@ -135,8 +138,11 @@ async function formPlanLoop(
       "Open PLAN.md",
     );
     if (action === "Retry") {
-      return formPlanLoop(sourceContent, planPath, processManager);
+      return formPlanLoop(sourceContent, planPath, processManager, onPlanFormed);
     }
+  } else {
+    // Signal success — sidebar transitions to Ready with phases
+    onPlanFormed?.();
   }
 
   // Open result in editor

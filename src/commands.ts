@@ -41,6 +41,7 @@ export interface CommandDeps {
   extensionMode?: number;
   onPlanChatSessionCreated?: (session: PlanChatSession) => void;
   getActivePlanChatSession?: () => PlanChatSession | undefined;
+  onPlanFormed?: () => void;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -331,6 +332,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         };
       },
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),
+      onPlanFormed: deps.onPlanFormed,
     }),
   ];
 }
