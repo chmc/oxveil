@@ -330,6 +330,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
           processManager: resolved.processManager,
         };
       },
+      getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),
     }),
   ];
 }

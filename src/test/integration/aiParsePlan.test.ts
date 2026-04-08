@@ -111,7 +111,7 @@ describe("aiParsePlan command", () => {
     );
   });
 
-  it("shows quick pick with 4 granularity options", async () => {
+  it("shows quick pick with 3 granularity options", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue(undefined as any);
     const deps = makeDeps();
@@ -122,10 +122,9 @@ describe("aiParsePlan command", () => {
 
     expect(vscode.window.showQuickPick).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ value: "coarse" }),
-        expect.objectContaining({ value: "medium" }),
-        expect.objectContaining({ value: "fine" }),
-        expect.objectContaining({ value: "custom" }),
+        expect.objectContaining({ value: "phases" }),
+        expect.objectContaining({ value: "tasks" }),
+        expect.objectContaining({ value: "steps" }),
       ]),
       expect.objectContaining({ placeHolder: "Select parse granularity..." }),
     );
@@ -134,8 +133,8 @@ describe("aiParsePlan command", () => {
   it("calls aiParse with selected granularity", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
-      label: "Fine — 10-20 phases",
-      value: "fine",
+      label: "Steps",
+      value: "steps",
     } as any);
     const pm = makeProcessManager();
     const deps = makeDeps({ processManager: pm as any });
@@ -144,16 +143,15 @@ describe("aiParsePlan command", () => {
     const handler = registeredCommands.get("oxveil.aiParsePlan");
     await handler!();
 
-    expect(pm.aiParse).toHaveBeenCalledWith("fine");
+    expect(pm.aiParse).toHaveBeenCalledWith("steps");
   });
 
-  it("prompts for custom input when Custom is selected", async () => {
+  it("calls aiParse with steps granularity", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
-      label: "Custom...",
-      value: "custom",
+      label: "Steps",
+      value: "steps",
     } as any);
-    vi.mocked(vscode.window.showInputBox).mockResolvedValue("exactly 7 phases");
     const pm = makeProcessManager();
     const deps = makeDeps({ processManager: pm as any });
     registerCommands(deps);
@@ -161,34 +159,14 @@ describe("aiParsePlan command", () => {
     const handler = registeredCommands.get("oxveil.aiParsePlan");
     await handler!();
 
-    expect(vscode.window.showInputBox).toHaveBeenCalledWith({
-      prompt: "Enter custom granularity prompt",
-    });
-    expect(pm.aiParse).toHaveBeenCalledWith("exactly 7 phases");
-  });
-
-  it("returns early when custom input is cancelled", async () => {
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
-      label: "Custom...",
-      value: "custom",
-    } as any);
-    vi.mocked(vscode.window.showInputBox).mockResolvedValue(undefined);
-    const pm = makeProcessManager();
-    const deps = makeDeps({ processManager: pm as any });
-    registerCommands(deps);
-
-    const handler = registeredCommands.get("oxveil.aiParsePlan");
-    await handler!();
-
-    expect(pm.aiParse).not.toHaveBeenCalled();
+    expect(pm.aiParse).toHaveBeenCalledWith("steps");
   });
 
   it("opens plan in editor on success", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
-      label: "Medium — 5-10 phases (default)",
-      value: "medium",
+      label: "Tasks",
+      value: "tasks",
     } as any);
     const pm = makeProcessManager();
     const deps = makeDeps({ processManager: pm as any });
@@ -204,8 +182,8 @@ describe("aiParsePlan command", () => {
   it("shows error notification on failure", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
-      label: "Coarse — 3-5 phases",
-      value: "coarse",
+      label: "Phases",
+      value: "phases",
     } as any);
     const pm = makeProcessManager({
       aiParse: vi.fn().mockRejectedValue(new Error("parse failed")),

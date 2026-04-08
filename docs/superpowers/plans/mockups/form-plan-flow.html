@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Form Plan — UX Flow Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a1a; color: #ccc; padding: 40px; }
+
+  h1 { color: #e0e0e0; font-size: 20px; margin-bottom: 8px; }
+  .flow-desc { color: #888; font-size: 13px; margin-bottom: 40px; line-height: 1.6; }
+
+  .step { margin-bottom: 60px; }
+  .step-label { color: #569cd6; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .step-title { color: #e0e0e0; font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .step-desc { color: #888; font-size: 12px; margin-bottom: 16px; }
+
+  /* --- VS Code-like mockup frames --- */
+  .mockup { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; overflow: hidden; max-width: 700px; }
+  .mockup-bar { background: #252526; padding: 6px 12px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 6px; }
+  .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mockup-dot.r { background: #ff5f57; }
+  .mockup-dot.y { background: #febc2e; }
+  .mockup-dot.g { background: #28c840; }
+  .mockup-title { color: #888; font-size: 11px; margin-left: 8px; }
+
+  /* --- Plan Preview Panel --- */
+  .preview-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #333; background: #252526; }
+  .preview-title { font-weight: 600; font-size: 13px; color: #e0e0e0; }
+  .live-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+
+  .form-plan-btn { margin-left: auto; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .form-plan-btn:hover { background: #2d5a8a; }
+
+  .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: #252526; }
+  .tab-pill { background: none; border: 1px solid #444; color: #888; font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer; }
+  .tab-pill.active { background: #264f78; border-color: #569cd6; color: #e0e0e0; }
+
+  .preview-content { padding: 16px; }
+
+  .phase-card { margin-bottom: 10px; padding: 10px 12px; background: #252526; border-radius: 6px; border-left: 3px solid #555; }
+  .phase-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .phase-number { color: #569cd6; font-weight: 600; font-size: 12px; }
+  .phase-title { color: #e0e0e0; font-weight: 500; font-size: 13px; }
+  .phase-desc { color: #999; font-size: 11px; line-height: 1.4; }
+
+  /* --- Notification --- */
+  .notification { background: #252526; border: 1px solid #444; border-radius: 6px; padding: 12px 16px; max-width: 500px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+  .notification-icon { font-size: 18px; }
+  .notification-text { flex: 1; font-size: 12px; color: #ccc; line-height: 1.4; }
+  .notification-actions { display: flex; gap: 6px; }
+  .notif-btn { background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .notif-btn.secondary { background: none; border-color: #555; color: #888; }
+
+  /* --- Granularity picker --- */
+  .picker { background: #252526; border: 1px solid #444; border-radius: 6px; max-width: 500px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+  .picker-input { background: #1e1e1e; border: none; border-bottom: 1px solid #444; padding: 10px 14px; color: #ccc; font-size: 13px; width: 100%; font-family: inherit; }
+  .picker-item { padding: 8px 14px; cursor: pointer; display: flex; align-items: baseline; gap: 8px; }
+  .picker-item:hover { background: #264f78; }
+  .picker-item.selected { background: #264f78; }
+  .picker-label { color: #e0e0e0; font-size: 13px; }
+  .picker-desc { color: #888; font-size: 11px; }
+
+  /* --- Sidebar --- */
+  .sidebar { width: 280px; background: #252526; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+  .sidebar-header { padding: 10px 14px; border-bottom: 1px solid #333; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-content { padding: 16px; }
+  .sidebar-title { font-size: 15px; font-weight: 600; color: #e0e0e0; text-align: center; margin-bottom: 4px; }
+  .sidebar-desc { font-size: 12px; color: #888; text-align: center; margin-bottom: 12px; line-height: 1.5; }
+  .sidebar-btn { display: block; width: 100%; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-family: inherit; margin-bottom: 6px; text-align: center; }
+  .sidebar-btn.primary { background: #0e639c; border: none; color: white; }
+  .sidebar-btn.secondary { background: none; border: 1px solid #555; color: #ccc; }
+
+  .quick-actions { display: flex; gap: 6px; margin-top: 12px; justify-content: center; }
+  .action-btn { background: none; border: 1px solid #444; color: #888; font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .action-btn:hover { border-color: #666; color: #ccc; }
+
+  /* --- Arrow/flow indicators --- */
+  .arrow { color: #569cd6; font-size: 24px; text-align: center; margin: 20px 0; }
+  .side-by-side { display: flex; gap: 24px; align-items: flex-start; }
+  .annotation { background: #2d1b00; border: 1px solid #bb8009; border-radius: 4px; padding: 8px 12px; margin-top: 8px; font-size: 11px; color: #e3b341; max-width: 300px; }
+</style>
+</head>
+<body>
+
+<h1>Form Claudeloop Plan — UX Flow</h1>
+<p class="flow-desc">
+  Superpowers writes a plan → Oxveil detects it in plan preview → user clicks "Form Claudeloop Plan" →
+  the currently viewed plan becomes PLAN.md → ai-parse converts it to phases → ready to execute.
+</p>
+
+<!-- ============ STEP 1: Plan appears in preview ============ -->
+<div class="step">
+  <div class="step-label">Step 1</div>
+  <div class="step-title">Superpowers writes a plan — it appears in Plan Preview</div>
+  <div class="step-desc">Plan preview already watches docs/superpowers/plans/ and shows files as tabs. The "Form Claudeloop Plan" button is always present — works for any plan format.</div>
+
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="mockup-dot r"></div><div class="mockup-dot y"></div><div class="mockup-dot g"></div>
+      <span class="mockup-title">Plan Preview</span>
+    </div>
+    <div class="preview-header">
+      <span class="preview-title">Live Run Panel Redesign</span>
+      <span class="live-badge">&#9679; Live</span>
+      <button class="form-plan-btn">Form Claudeloop Plan</button>
+    </div>
+    <div class="tab-strip">
+      <button class="tab-pill">Design</button>
+      <button class="tab-pill active">Implementation</button>
+      <button class="tab-pill">Plan</button>
+    </div>
+    <div class="preview-content">
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Task 1</span>
+          <span class="phase-title">Extract panel state types</span>
+        </div>
+        <div class="phase-desc"><strong>Files:</strong> Create src/views/liveRunState.ts<br>Non-UI task: no visual verification needed.</div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Task 2</span>
+          <span class="phase-title">Build HTML renderer</span>
+        </div>
+        <div class="phase-desc"><strong>Files:</strong> Create src/views/liveRunHtml.ts<br>Follow planPreviewHtml.ts pattern exactly.</div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-card-header">
+          <span class="phase-number">Task 3</span>
+          <span class="phase-title">Wire panel to session state</span>
+        </div>
+        <div class="phase-desc"><strong>Files:</strong> Modify src/views/liveRunPanel.ts<br>Visual verification gate after this task.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">&#9432; The button is always visible — even for Phase-format plans. Useful for re-parsing with different granularity or after edits.</div>
+</div>
+
+<!-- ============ STEP 1b: Auto-notification (alternative entry) ============ -->
+<div class="step">
+  <div class="step-label">Step 1b (alternative)</div>
+  <div class="step-title">Auto-notification when new plan stabilizes</div>
+  <div class="step-desc">If the user isn't watching plan preview, a notification pops up after 5s of file stability. Clicking "Form Plan" does the same thing.</div>
+
+  <div class="notification">
+    <span class="notification-icon">&#128203;</span>
+    <span class="notification-text">Plan ready: <strong>2026-04-04-live-run-panel.md</strong><br>Form it into a claudeloop plan?</span>
+    <div class="notification-actions">
+      <button class="notif-btn">Form Plan</button>
+      <button class="notif-btn secondary">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 2: Granularity picker ============ -->
+<div class="step">
+  <div class="step-label">Step 2</div>
+  <div class="step-title">User clicks button → granularity picker</div>
+  <div class="step-desc">No file picker needed — the source is the currently viewed plan (or the file from the notification). Just pick granularity for ai-parse.</div>
+
+  <div class="picker">
+    <input class="picker-input" value="Select parse granularity..." disabled>
+    <div class="picker-item selected">
+      <span class="picker-label">Phases</span>
+      <span class="picker-desc">High-level phases. Each phase is a major unit of work.</span>
+    </div>
+    <div class="picker-item">
+      <span class="picker-label">Tasks</span>
+      <span class="picker-desc">Medium granularity. Each task is a self-contained deliverable.</span>
+    </div>
+    <div class="picker-item">
+      <span class="picker-label">Steps</span>
+      <span class="picker-desc">Fine granularity. Individual steps for detailed tracking.</span>
+    </div>
+  </div>
+
+  <div class="annotation">&#9432; Behind the scenes: source plan content is written to PLAN.md, then claudeloop --ai-parse converts it to ## Phase N: format.</div>
+</div>
+
+<!-- ============ STEP 3: Progress ============ -->
+<div class="step">
+  <div class="step-label">Step 3</div>
+  <div class="step-title">ai-parse runs</div>
+  <div class="step-desc">Progress notification while claudeloop converts the plan.</div>
+
+  <div class="notification">
+    <span class="notification-icon" style="animation: spin 1s linear infinite;">&#8635;</span>
+    <span class="notification-text">Forming claudeloop plan...</span>
+  </div>
+</div>
+
+<!-- ============ STEP 3b: ai-parse fails ============ -->
+<div class="step">
+  <div class="step-label">Step 3b (error)</div>
+  <div class="step-title">ai-parse fails or produces invalid plan</div>
+  <div class="step-desc">If claudeloop --ai-parse fails (network, rate limit, invalid output), show error with retry option. PLAN.md contains the raw source content — user can retry or edit manually.</div>
+
+  <div class="notification" style="border-color: #5a2d2d;">
+    <span class="notification-icon" style="color: #f44747;">&#9888;</span>
+    <span class="notification-text" style="color: #f44747;">Failed to form plan — ai-parse returned invalid output</span>
+    <div class="notification-actions">
+      <button class="notif-btn" style="background: #5a2d2d; border-color: #f44747;">Retry</button>
+      <button class="notif-btn secondary">View Output</button>
+    </div>
+  </div>
+
+  <div class="annotation" style="margin-top: 16px;">&#9432; "Retry" re-runs the Form Plan flow (granularity picker → ai-parse) on the same source file. "View Output" opens the output channel for debugging. PLAN.md still exists with raw content — user can also edit it manually and run "AI Parse" separately.</div>
+
+  <div style="margin-top: 16px;">
+    <div class="step-desc">If ai-parse produces a plan but validation fails (e.g. no phases detected), show a different message:</div>
+    <div class="notification" style="border-color: #bb8009; margin-top: 8px;">
+      <span class="notification-icon" style="color: #e3b341;">&#9888;</span>
+      <span class="notification-text">Plan formed but no valid phases detected. Try a different granularity?</span>
+      <div class="notification-actions">
+        <button class="notif-btn">Retry</button>
+        <button class="notif-btn secondary">Open PLAN.md</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 4: Result — editor + sidebar ============ -->
+<div class="step">
+  <div class="step-label">Step 4</div>
+  <div class="step-title">PLAN.md opens in editor — sidebar shows Ready</div>
+  <div class="step-desc">PLAN.md (with ## Phase N: headers) opens in the editor. Plan preview still shows the source plan with the button for re-forming. Sidebar detects PLAN.md and shows "Ready" with Start button.</div>
+
+  <!-- Full layout: editor + plan preview side by side, sidebar below -->
+  <div class="side-by-side">
+
+    <!-- Editor with PLAN.md -->
+    <div class="mockup" style="flex: 1;">
+      <div class="mockup-bar">
+        <div class="mockup-dot r"></div><div class="mockup-dot y"></div><div class="mockup-dot g"></div>
+        <span class="mockup-title">PLAN.md — Editor (left panel)</span>
+      </div>
+      <div style="padding: 12px 16px; font-family: 'Menlo', 'Consolas', monospace; font-size: 11px; line-height: 1.6;">
+        <div style="color: #569cd6;">## Phase 1: Extract panel state types</div>
+        <div style="color: #999;">Create src/views/liveRunState.ts with types</div>
+        <div style="color: #999;">for panel rendering.</div>
+        <div style="color: #999;">&nbsp;</div>
+        <div style="color: #569cd6;">## Phase 2: Build HTML renderer</div>
+        <div style="color: #999;">Create src/views/liveRunHtml.ts following</div>
+        <div style="color: #999;">planPreviewHtml.ts pattern.</div>
+        <div style="color: #999;">&nbsp;</div>
+        <div style="color: #569cd6;">## Phase 3: Wire panel to session state</div>
+        <div style="color: #999;">Modify src/views/liveRunPanel.ts to use</div>
+        <div style="color: #999;">new renderer.</div>
+      </div>
+    </div>
+
+    <!-- Plan Preview (right panel) — still showing source -->
+    <div class="mockup" style="flex: 1;">
+      <div class="mockup-bar">
+        <div class="mockup-dot r"></div><div class="mockup-dot y"></div><div class="mockup-dot g"></div>
+        <span class="mockup-title">Plan Preview (right panel)</span>
+      </div>
+      <div class="preview-header">
+        <span class="preview-title">Live Run Panel Redesign</span>
+        <span class="live-badge">&#9679; Live</span>
+        <button class="form-plan-btn">Form Claudeloop Plan</button>
+      </div>
+      <div class="tab-strip">
+        <button class="tab-pill">Design</button>
+        <button class="tab-pill active">Implementation</button>
+      </div>
+      <div class="preview-content">
+        <div class="phase-card">
+          <div class="phase-card-header">
+            <span class="phase-number">Task 1</span>
+            <span class="phase-title">Extract panel state types</span>
+          </div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-card-header">
+            <span class="phase-number">Task 2</span>
+            <span class="phase-title">Build HTML renderer</span>
+          </div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-card-header">
+            <span class="phase-number">Task 3</span>
+            <span class="phase-title">Wire panel to session state</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar below -->
+  <div style="margin-top: 16px;">
+    <div class="sidebar">
+      <div class="sidebar-header">Oxveil (sidebar)</div>
+      <div class="sidebar-content">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span style="color: #e0e0e0; font-size: 13px; font-weight: 500;">PLAN.md</span>
+          <span style="background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px;">Ready</span>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 11px; color: #888; margin-bottom: 2px;">&#9675; Phase 1: Extract panel state types</div>
+          <div style="font-size: 11px; color: #888; margin-bottom: 2px;">&#9675; Phase 2: Build HTML renderer</div>
+          <div style="font-size: 11px; color: #888; margin-bottom: 2px;">&#9675; Phase 3: Wire panel to session state</div>
+        </div>
+        <button class="sidebar-btn primary">Start</button>
+        <div class="quick-actions">
+          <button class="action-btn">AI Parse</button>
+          <button class="action-btn">Form Plan</button>
+          <button class="action-btn">Chat</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation" style="margin-top: 12px;">&#9432; Plan preview still shows the source (Implementation tab). The "Form Claudeloop Plan" button re-forms from that source — useful for re-parsing with different granularity or after source edits. The editor shows the result PLAN.md for review/editing before starting execution.</div>
+</div>
+
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+
+</body>
+</html>

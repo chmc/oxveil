@@ -267,6 +267,11 @@ export class PlanPreviewPanel {
     this._watchers = [];
   }
 
+  getActiveFilePath(): string | undefined {
+    if (!this._activeCategory) return undefined;
+    return this._trackedFiles.get(this._activeCategory)?.path;
+  }
+
   dispose(): void {
     this.stopWatching();
     this._panel?.dispose();
@@ -319,7 +324,7 @@ export class PlanPreviewPanel {
       format: this._lastFormat,
       keyword: this._lastKeyword,
       tabs: this._buildTabs(),
-      showFormButton: this._lastFormat !== "phase" && hasPhases,
+      showFormButton: state !== "empty",
     };
     const html = renderPhaseCardsHtml(options);
     this._panel.webview.postMessage({ type: "update", html });

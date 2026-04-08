@@ -6,27 +6,21 @@ interface GranularityItem extends vscode.QuickPickItem {
 
 const GRANULARITY_ITEMS: GranularityItem[] = [
   {
-    label: "Coarse — 3-5 phases",
-    description:
-      "High-level phases. Good for small tasks or quick iterations.",
-    value: "coarse",
+    label: "Phases",
+    description: "High-level phases. Each phase is a major unit of work.",
+    value: "phases",
   },
   {
-    label: "Medium — 5-10 phases (default)",
+    label: "Tasks",
     description:
-      "Balanced breakdown. Each phase is a meaningful unit of work.",
-    value: "medium",
+      "Medium granularity. Each task is a self-contained deliverable.",
+    value: "tasks",
   },
   {
-    label: "Fine — 10-20 phases",
+    label: "Steps",
     description:
-      "Granular phases. Best for complex tasks requiring careful monitoring.",
-    value: "fine",
-  },
-  {
-    label: "Custom...",
-    description: "Enter a custom prompt to guide phase generation.",
-    value: "custom",
+      "Fine granularity. Individual steps for detailed tracking.",
+    value: "steps",
   },
 ];
 
@@ -39,15 +33,5 @@ export async function pickGranularity(): Promise<string | undefined> {
     placeHolder: "Select parse granularity...",
   });
   if (!picked) return undefined;
-
-  let granularity = picked.value;
-  if (granularity === "custom") {
-    const custom = await vscode.window.showInputBox({
-      prompt: "Enter custom granularity prompt",
-    });
-    if (!custom) return undefined;
-    granularity = custom;
-  }
-
-  return granularity;
+  return picked.value;
 }

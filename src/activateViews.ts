@@ -181,7 +181,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
           "Dismiss",
         );
         if (action === "Form Plan") {
-          vscode.commands.executeCommand("oxveil.formPlan");
+          vscode.commands.executeCommand("oxveil.formPlan", { filePath: uri.fsPath });
         }
       }, 5000);
     };
