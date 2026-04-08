@@ -13,6 +13,7 @@ export interface PlanChatSessionDeps {
   }) => Terminal;
   claudePath: string;
   claudeModel?: string;
+  allowSkipPermissions?: boolean;
 }
 
 export class PlanChatSession {
@@ -30,6 +31,9 @@ export class PlanChatSession {
       args.push("--model", this._deps.claudeModel);
     }
     args.push("--append-system-prompt", systemPrompt, "--permission-mode", "plan");
+    if (this._deps.allowSkipPermissions) {
+      args.push("--allow-dangerously-skip-permissions");
+    }
     this._terminal = this._deps.createTerminal({
       name: "Plan Chat",
       shellPath: this._deps.claudePath,
