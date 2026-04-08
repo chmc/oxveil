@@ -333,6 +333,11 @@
           "default": true,
           "description": "Auto-parse plan into phases (--ai-parse)"
         },
+        "oxveil.planChat.allowSkipPermissions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow switching to dangerously-skip-permissions mode during Plan Chat via Shift+Tab. Session still starts in plan mode. Recommended only for sandboxed environments."
+        },
         "oxveil.liveRunAutoOpen": {
           "type": "boolean",
           "default": true,
