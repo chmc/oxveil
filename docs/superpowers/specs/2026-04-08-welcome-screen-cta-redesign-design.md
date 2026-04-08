@@ -28,10 +28,10 @@ All changes are in `src/views/sidebarHtml.ts`, `renderEmpty()` function (lines 1
 
 ### README Update
 
-Update `README.md` onboarding section (line 119) to match new language. Current step 3 reads "Create or open a plan" — update to reflect the new CTA tone. The sidebar feature description (line 50) mentions "7 states: onboarding, plan ready, live progress..." — this is structural, not copy, so it stays.
+Update `README.md` onboarding section to match new language. The walkthrough step that reads "Create or open a plan" (line 119) should be updated to reflect the new CTA tone. The sidebar feature description mentions "7 states: onboarding, plan ready, live progress..." — this is structural, not copy, so it stays.
 
 Specific README changes:
-- Line 39, walkthrough step 3: "Create or open a plan" → "Bring your idea or open an existing plan"
+- Walkthrough step 3 (line 119): "Create or open a plan" → "Bring your idea or open an existing plan"
 - No other README changes needed — the welcome screen copy is not quoted elsewhere in the README.
 
 ## Scope
