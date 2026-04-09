@@ -244,12 +244,12 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     body { font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); background: var(--vscode-editor-background); color: var(--vscode-foreground, #ccc); padding: 0; }
 
     /* Header */
-    .preview-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
-    .preview-title { font-weight: 600; font-size: 13px; color: var(--vscode-foreground, #e0e0e0); }
+    .preview-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); flex-wrap: wrap; }
+    .preview-title { font-weight: 600; font-size: 13px; color: var(--vscode-foreground, #e0e0e0); min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .live-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .ended-badge { background: #3b1d1d; color: #f44747; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
-    .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
-    .form-plan-btn { margin-left: auto; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+    .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+    .form-plan-btn { margin-left: auto; flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
     .form-plan-btn:hover { background: #2d5a8a; }
 
     /* Tab strip */

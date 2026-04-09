@@ -513,17 +513,50 @@ describe("PlanPreviewPanel", () => {
       expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
     });
 
-    it("onFileChanged without session and no tracked files skips discovery entirely", async () => {
+    it("onFileChanged without session uses sessionless fallback to show newest file", async () => {
+      const deps = makeDeps();
+      const now = Date.now();
+      deps.findAllPlanFiles = vi.fn(async () => [
+        { path: "/old.md", category: "plan" as PlanFileCategory, mtimeMs: now - 10000 },
+        { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: now },
+      ]);
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      // No beginSession — sessionless fallback picks newest by mtimeMs
+      await panel.onFileChanged();
+
+      expect(deps.findAllPlanFiles).toHaveBeenCalled();
+      expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+    });
+
+    it("beginSession resets sessionless tracked files", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
 
-      // No beginSession — no session active and no tracked files
+      // Sessionless load
       await panel.onFileChanged();
+      expect(panel.getActiveFilePath()).toBe(ACTIVE_PLAN_PATH);
 
-      // Neither findAllPlanFiles nor statFile should be called
-      expect(deps.findAllPlanFiles).not.toHaveBeenCalled();
-      expect(deps.statFile).not.toHaveBeenCalled();
+      // Start a real session — clears tracked files
+      panel.beginSession();
+      expect(panel.getActiveFilePath()).toBeUndefined();
+    });
+
+    it("_sessionActive defaults to false", () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+
+      // Trigger ready message to get initial update
+      deps._panel._simulateMessage({ type: "ready" });
+
+      // The empty state subtitle reflects sessionActive=false
+      const call = deps._panel.webview.postMessage.mock.calls[0]?.[0];
+      expect(call?.type).toBe("update");
+      expect(call?.html).toContain("Start chatting with Claude");
+      expect(call?.html).not.toContain("Waiting for Claude to write a plan");
     });
   });
 

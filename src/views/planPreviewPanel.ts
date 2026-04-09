@@ -52,7 +52,7 @@ interface WebviewPanel {
 export class PlanPreviewPanel {
   private _panel: WebviewPanel | undefined;
   private readonly _deps: PlanPreviewPanelDeps;
-  private _sessionActive = true;
+  private _sessionActive = false;
   private _lastPhases: PhaseCardData[] = [];
   private _lastValid = false;
   private _lastFormat: PhaseCardsOptions["format"] = undefined;
@@ -121,33 +121,48 @@ export class PlanPreviewPanel {
   }
 
   async onFileChanged(): Promise<void> {
-    if (!this._sessionStartTime && this._trackedFiles.size === 0) return;
-
     // Scan all plan files and update tracked files
     const candidates = await this._deps.findAllPlanFiles();
     let newCategoryAdded: PlanFileCategory | undefined;
 
-    for (const candidate of candidates) {
-      if (!this._sessionStartTime) continue;
-      if (!this._deps.statFile) continue;
+    if (this._sessionStartTime) {
+      // Session-aware tracking: only track files created after session start
+      for (const candidate of candidates) {
+        if (!this._deps.statFile) continue;
 
-      const stats = await this._deps.statFile(candidate.path);
-      if (!stats || stats.birthtimeMs <= this._sessionStartTime) continue;
+        const stats = await this._deps.statFile(candidate.path);
+        if (!stats || stats.birthtimeMs <= this._sessionStartTime) continue;
 
-      const existing = this._trackedFiles.get(candidate.category);
-      if (!existing) {
-        newCategoryAdded = candidate.category;
-        this._trackedFiles.set(candidate.category, {
-          path: candidate.path,
-          category: candidate.category,
-          birthtimeMs: stats.birthtimeMs,
+        const existing = this._trackedFiles.get(candidate.category);
+        if (!existing) {
+          newCategoryAdded = candidate.category;
+          this._trackedFiles.set(candidate.category, {
+            path: candidate.path,
+            category: candidate.category,
+            birthtimeMs: stats.birthtimeMs,
+          });
+        } else if (stats.birthtimeMs > existing.birthtimeMs) {
+          this._trackedFiles.set(candidate.category, {
+            path: candidate.path,
+            category: candidate.category,
+            birthtimeMs: stats.birthtimeMs,
+          });
+        }
+      }
+    } else if (candidates.length > 0) {
+      // Sessionless fallback: show the most recently modified file
+      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const newest = candidates[0];
+      const existing = this._trackedFiles.get(newest.category);
+      if (!existing || existing.path !== newest.path) {
+        this._trackedFiles.set(newest.category, {
+          path: newest.path,
+          category: newest.category,
+          birthtimeMs: newest.mtimeMs,
         });
-      } else if (stats.birthtimeMs > existing.birthtimeMs) {
-        this._trackedFiles.set(candidate.category, {
-          path: candidate.path,
-          category: candidate.category,
-          birthtimeMs: stats.birthtimeMs,
-        });
+        if (!this._activeCategory) {
+          newCategoryAdded = newest.category;
+        }
       }
     }
 

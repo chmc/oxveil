@@ -582,6 +582,7 @@ export function renderSidebar(nonce: string, cspSource: string, state?: SidebarS
       display: flex;
       gap: 8px;
       justify-content: center;
+      flex-wrap: wrap;
       margin-top: 8px;
     }
 

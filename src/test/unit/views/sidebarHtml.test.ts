@@ -30,6 +30,9 @@ describe("renderSidebar", () => {
     const html = renderSidebar(nonce, csp, state);
     expect(html).toContain("From Idea to Reality");
     expect(html).toContain("How it works");
+    expect(html).toContain("Form Plan");
+    expect(html).toContain("Write Plan");
+    expect(html).toContain("AI Parse");
   });
 
   it("renders ready state with phases and actions", () => {

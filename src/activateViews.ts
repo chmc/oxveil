@@ -153,6 +153,9 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
   planPreviewPanel.startWatching(watchers as any);
 
+  // Load any existing plan files on activation (survives VS Code reload)
+  planPreviewPanel.onFileChanged();
+
   // Auto-detect plan readiness: suggest forming a claudeloop plan
   // when a plan file is created or stabilizes (no writes for 5s)
   if (deps.workspaceRoot) {

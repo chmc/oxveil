@@ -126,6 +126,17 @@ describe("renderPhaseCardsHtml", () => {
       const html = renderPhaseCardsHtml({ ...activeOpts, isValid: false });
       expect(html).not.toContain("valid-badge");
     });
+
+    it("renders Form Plan button when showFormButton is true", () => {
+      const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: true });
+      expect(html).toContain("form-plan-btn");
+      expect(html).toContain("Form Claudeloop Plan");
+    });
+
+    it("hides Form Plan button when showFormButton is false", () => {
+      const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: false });
+      expect(html).not.toContain("form-plan-btn");
+    });
   });
 
   describe("session ended state", () => {
