@@ -84,10 +84,17 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
-      const active = getActive();
-      if (!active?.processManager) return;
+      const resolved = await resolveFolder();
+      if (!resolved) {
+        vscode.window.showWarningMessage("Oxveil: No workspace session found. Open a folder with claudeloop detected.");
+        return;
+      }
+      if (!resolved.processManager) {
+        vscode.window.showErrorMessage("Oxveil: claudeloop not detected. Install it or check the oxveil.claudeloopPath setting.");
+        return;
+      }
       try {
-        await active.processManager.spawn();
+        await resolved.processManager.spawn();
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         vscode.window.showErrorMessage(`Oxveil: Failed to start — ${msg}`);
@@ -95,12 +102,18 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand("oxveil.stop", async () => {
       const active = getActive();
-      if (!active?.processManager) return;
+      if (!active?.processManager) {
+        vscode.window.showWarningMessage("Oxveil: No active session to stop.");
+        return;
+      }
       await active.processManager.stop();
     }),
     vscode.commands.registerCommand("oxveil.reset", async () => {
       const active = getActive();
-      if (!active?.processManager) return;
+      if (!active?.processManager) {
+        vscode.window.showWarningMessage("Oxveil: No active session to reset.");
+        return;
+      }
       try {
         await active.processManager.reset();
       } catch (e: unknown) {
@@ -110,7 +123,10 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     vscode.commands.registerCommand("oxveil.forceUnlock", async () => {
       const active = getActive();
-      if (!active?.processManager) return;
+      if (!active?.processManager) {
+        vscode.window.showWarningMessage("Oxveil: No active session to unlock.");
+        return;
+      }
       await active.processManager.forceUnlock();
       active.session.onLockChanged({ locked: false });
     }),

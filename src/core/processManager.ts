@@ -27,6 +27,7 @@ export class ProcessManager implements IProcessManager {
   private _deps: ProcessManagerDeps;
   private _exitPromise: Promise<void> | null = null;
   private _exitResolve: (() => void) | null = null;
+  private _stopping = false;
 
   constructor(deps: ProcessManagerDeps) {
     this._deps = deps;
@@ -134,12 +135,33 @@ export class ProcessManager implements IProcessManager {
     });
 
     this._process = child;
-    this._exitPromise = new Promise<void>((resolve) => {
+
+    const stderrChunks: Buffer[] = [];
+    child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+    this._exitPromise = new Promise<void>((resolve, reject) => {
       this._exitResolve = resolve;
-      child.on("close", () => {
+
+      child.on("error", (err: Error) => {
         this._process = null;
         this._exitResolve = null;
-        resolve();
+        this._stopping = false;
+        reject(err);
+      });
+
+      child.on("close", (code: number | null) => {
+        const wasStopping = this._stopping;
+        this._process = null;
+        this._exitResolve = null;
+        this._stopping = false;
+        if (code && code !== 0 && !wasStopping) {
+          const stderr = Buffer.concat(stderrChunks).toString().trim();
+          reject(new Error(
+            `claudeloop exited with code ${code}${stderr ? `: ${stderr}` : ""}`,
+          ));
+        } else {
+          resolve();
+        }
       });
     });
   }
@@ -147,6 +169,7 @@ export class ProcessManager implements IProcessManager {
   private async _terminate(timeoutMs: number): Promise<void> {
     if (!this._process) return;
 
+    this._stopping = true;
     const signal =
       this._deps.platform === "win32" ? "SIGTERM" : "SIGINT";
     this._process.kill(signal);

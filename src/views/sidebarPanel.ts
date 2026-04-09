@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { renderSidebar } from "./sidebarHtml";
+import { renderBody } from "./sidebarRenderers";
 import { dispatchSidebarMessage } from "./sidebarMessages";
 import type { SidebarState, ProgressUpdate } from "./sidebarState";
 import type { SidebarCommand } from "./sidebarMessages";
@@ -63,12 +64,7 @@ export class SidebarPanel {
 
   updateState(state: SidebarState): void {
     if (this._view) {
-      const nonce = randomBytes(16).toString("hex");
-      this._view.webview.html = renderSidebar(
-        nonce,
-        this._view.webview.cspSource,
-        state,
-      );
+      this._postMessage({ type: "fullState", html: renderBody(state) });
     } else {
       this._pendingState = state;
     }

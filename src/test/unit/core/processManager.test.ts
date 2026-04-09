@@ -41,15 +41,18 @@ describe("ProcessManager", () => {
   let lockExists: ReturnType<typeof vi.fn>;
   let deleteLock: ReturnType<typeof vi.fn>;
   let getSettings: ReturnType<typeof vi.fn>;
-  let closeCallback: ((code: number) => void) | undefined;
+  let closeCallback: ((code: number | null) => void) | undefined;
+  let errorCallback: ((err: Error) => void) | undefined;
 
   beforeEach(() => {
     spawnCalls = [];
     closeCallback = undefined;
+    errorCallback = undefined;
     mockChild = createMockChild();
-    // Default: capture close handler
-    mockChild.on.mockImplementation((event: string, cb: (code: number) => void) => {
+    // Default: capture close and error handlers
+    mockChild.on.mockImplementation((event: string, cb: (...args: any[]) => void) => {
       if (event === "close") closeCallback = cb;
+      if (event === "error") errorCallback = cb;
       return mockChild;
     });
     spawnFn = vi.fn().mockImplementation((cmd, args, opts) => {
@@ -156,6 +159,45 @@ describe("ProcessManager", () => {
       closeCallback?.(0);
       await flushMicrotasks();
 
+      expect(pm.isRunning).toBe(false);
+    });
+
+    it("rejects when child process emits error event", async () => {
+      const pm = createManager();
+      const spawnPromise = pm.spawn();
+      await flushMicrotasks();
+
+      errorCallback?.(new Error("spawn ENOENT"));
+
+      await expect(spawnPromise).rejects.toThrow("spawn ENOENT");
+      expect(pm.isRunning).toBe(false);
+    });
+
+    it("rejects with exit code and stderr on non-zero exit", async () => {
+      const stderrData = vi.fn();
+      mockChild.stderr.on.mockImplementation((event: string, cb: (...args: any[]) => void) => {
+        if (event === "data") stderrData.mockImplementation(cb);
+      });
+
+      const pm = createManager();
+      const spawnPromise = pm.spawn();
+      await flushMicrotasks();
+
+      stderrData(Buffer.from("something went wrong"));
+      closeCallback?.(1);
+
+      await expect(spawnPromise).rejects.toThrow("claudeloop exited with code 1: something went wrong");
+      expect(pm.isRunning).toBe(false);
+    });
+
+    it("rejects with exit code only when stderr is empty", async () => {
+      const pm = createManager();
+      const spawnPromise = pm.spawn();
+      await flushMicrotasks();
+
+      closeCallback?.(2);
+
+      await expect(spawnPromise).rejects.toThrow("claudeloop exited with code 2");
       expect(pm.isRunning).toBe(false);
     });
   });

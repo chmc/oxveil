@@ -46,13 +46,18 @@ describe("SidebarPanel", () => {
     expect(view.webview.options.enableScripts).toBe(true);
   });
 
-  it("re-renders webview HTML on updateState", () => {
+  it("sends fullState message on updateState instead of replacing HTML", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
+    const initialHtml = view.webview.html;
     const state: SidebarState = { view: "empty", archives: [] };
     panel.updateState(state);
-    expect(view.webview.html).toContain("From Idea to Reality");
-    expect(view.webview.html).not.toContain("Initializing");
+    // HTML should NOT change — updateState uses postMessage now
+    expect(view.webview.html).toBe(initialHtml);
+    // Instead, a fullState message is posted
+    expect(view.webview.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "fullState", html: expect.stringContaining("From Idea to Reality") }),
+    );
   });
 
   it("dispatches webview messages to commands", () => {
