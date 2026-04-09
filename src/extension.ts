@@ -62,8 +62,11 @@ export async function activate(
   const manager = new WorkspaceSessionManager({
     getActiveFolderUri: () => {
       const editor = vscode.window.activeTextEditor;
-      if (!editor) return workspaceFolders?.[0]?.uri.toString();
-      return vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.toString();
+      if (editor) {
+        const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+        if (folder) return folder.uri.toString();
+      }
+      return workspaceFolders?.[0]?.uri.toString();
     },
   });
 
