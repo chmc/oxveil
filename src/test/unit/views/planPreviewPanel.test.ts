@@ -75,7 +75,7 @@ function makeDeps(mockPanel = makeMockPanel()): PlanPreviewPanelDeps & { _panel:
     findAllPlanFiles: vi.fn(async () => [{ path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: Date.now() }]),
     onAnnotation: vi.fn(),
     createFileSystemWatcher: vi.fn(() => mockWatcher.watcher),
-    statFile: vi.fn(async (_path: string) => ({ birthtimeMs: Date.now() + 1000 })),
+    statFile: vi.fn(async (_path: string) => ({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 })),
     _panel: mockPanel,
     _watcher: mockWatcher,
   };
@@ -185,7 +185,7 @@ describe("PlanPreviewPanel", () => {
     // No reveal() — no panel
 
     panel.beginSession();
-    (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+    (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
     await panel.onFileChanged();
 
@@ -387,7 +387,7 @@ describe("PlanPreviewPanel", () => {
       panel.reveal();
 
       panel.beginSession();
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
       await panel.onFileChanged();
 
@@ -400,7 +400,7 @@ describe("PlanPreviewPanel", () => {
       panel.reveal();
 
       panel.beginSession();
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
       await panel.onFileChanged();
       (deps.readFile as any).mockClear();
@@ -417,7 +417,7 @@ describe("PlanPreviewPanel", () => {
 
       panel.beginSession();
       // statFile returns a birthtime BEFORE session start
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: 1000, mtimeMs: 1000 });
 
       await panel.onFileChanged();
 
@@ -455,7 +455,7 @@ describe("PlanPreviewPanel", () => {
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
       panel.beginSession();
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
       // Load a plan and end session
       await panel.onFileChanged();
@@ -478,7 +478,7 @@ describe("PlanPreviewPanel", () => {
       panel.reveal();
 
       panel.beginSession();
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
       // Track the file
       await panel.onFileChanged();
@@ -499,7 +499,7 @@ describe("PlanPreviewPanel", () => {
       // No reveal() — no panel
 
       panel.beginSession();
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
       // Should run tracking logic even without panel
       await panel.onFileChanged();
@@ -582,7 +582,7 @@ Build things
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
         { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async (p: string) =>
         p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
       );
@@ -606,7 +606,7 @@ Build things
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
         { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async (p: string) =>
         p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
       );
@@ -643,7 +643,7 @@ Build things
       deps.findAllPlanFiles = vi.fn(async () => [
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async () => DESIGN_CONTENT);
 
       const panel = new PlanPreviewPanel(deps);
@@ -676,7 +676,7 @@ Build things
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
         { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async (p: string) =>
         p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
       );
@@ -708,7 +708,7 @@ Build things
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
         { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async (p: string) =>
         p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
       );
@@ -738,7 +738,7 @@ Build things
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
         { path: IMPL_PATH, category: "implementation" as PlanFileCategory, mtimeMs: now + 100 },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async (p: string) =>
         p === DESIGN_PATH ? DESIGN_CONTENT : IMPL_CONTENT,
       );
@@ -786,7 +786,7 @@ Build things
         { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
         { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: now },
       ]);
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
       deps.readFile = vi.fn(async (p: string) =>
         p === DESIGN_PATH ? DESIGN_CONTENT : VALID_PLAN,
       );
@@ -910,7 +910,7 @@ Build things
     it("active session persists matched plan path", async () => {
       const deps = makeDeps();
       deps.persistPlanPath = vi.fn();
-      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000 });
+      (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();

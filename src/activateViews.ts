@@ -123,7 +123,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     statFile: async (filePath: string) => {
       try {
         const s = await stat(filePath);
-        return { birthtimeMs: s.birthtimeMs };
+        return { birthtimeMs: s.birthtimeMs, mtimeMs: s.mtimeMs };
       } catch {
         return undefined;
       }

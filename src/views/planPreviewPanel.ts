@@ -36,7 +36,7 @@ export interface PlanPreviewPanelDeps {
   findAllPlanFiles: () => Promise<Array<{ path: string; category: PlanFileCategory; mtimeMs: number }>>;
   onAnnotation: (phase: string, text: string) => void;
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
-  statFile?: (filePath: string) => Promise<{ birthtimeMs: number } | undefined>;
+  statFile?: (filePath: string) => Promise<{ birthtimeMs: number; mtimeMs: number } | undefined>;
   onFormPlan?: () => void;
   persistPlanPath?: (state: PersistedPlanState | undefined) => void;
   loadPersistedPlanPath?: () => PersistedPlanState | undefined;
@@ -138,12 +138,16 @@ export class PlanPreviewPanel {
     let newCategoryAdded: PlanFileCategory | undefined;
 
     if (this._sessionStartTime) {
-      // Session-aware tracking: only track files created after session start
+      // Session-aware tracking: only track files created OR modified after session start.
+      // birthtimeMs catches newly created files; mtimeMs catches files reused across sessions
+      // (e.g., Claude overwrites a plan file that was created in a prior session).
       for (const candidate of candidates) {
         if (!this._deps.statFile) continue;
 
         const stats = await this._deps.statFile(candidate.path);
-        if (!stats || stats.birthtimeMs <= this._sessionStartTime) continue;
+        if (!stats) continue;
+        if (stats.birthtimeMs <= this._sessionStartTime && stats.mtimeMs <= this._sessionStartTime)
+          continue;
 
         const existing = this._trackedFiles.get(candidate.category);
         if (!existing) {
