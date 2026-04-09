@@ -592,6 +592,22 @@ Core logic is testable with Vitest. Thin adapters wrap VS Code APIs behind these
 - **Minimum VS Code:** ^1.100.0
 - **Runtime dependencies:** Zero. Node.js builtins and VS Code API only.
 
+## MCP Bridge
+
+Opt-in HTTP bridge (`oxveil.mcpBridge` setting) for programmatic extension interaction from Claude Code.
+
+**Architecture:** Extension runs an HTTP server on `127.0.0.1:0`. A standalone MCP stdio server (`dist/mcp-server.js`) proxies tool calls to the bridge. Discovery via `<workspaceRoot>/.oxveil-mcp` containing `{ port, token, version, pid }`.
+
+**Tools:** `get_sidebar_state`, `click_sidebar_button`, `execute_command`.
+
+**Key files:**
+- `src/mcp/bridge.ts` — HTTP server (routes: `/health`, `/state`, `/click`, `/command`)
+- `src/mcp/server.ts` — MCP stdio server (bundled to `dist/mcp-server.js`)
+
+**Constraints:** v1 single-root only. Bridge lazy-imported (zero overhead when disabled). Token auth, localhost-only. PID in discovery file for stale detection.
+
+See [ADR 0011](docs/adr/0011-mcp-bridge-server.md) for design rationale.
+
 ## Testing Strategy
 
 | Layer | Tool | Scope |

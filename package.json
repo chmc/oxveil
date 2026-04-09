@@ -24,8 +24,12 @@
     "languages": [
       {
         "id": "claudeloop-plan",
-        "aliases": ["Claudeloop Plan"],
-        "filenames": ["PLAN.md"],
+        "aliases": [
+          "Claudeloop Plan"
+        ],
+        "filenames": [
+          "PLAN.md"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -370,6 +374,11 @@
           "minimum": 100,
           "maximum": 10000,
           "description": "Maximum number of log lines to retain in the Live Run panel"
+        },
+        "oxveil.mcpBridge": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start an MCP bridge server for Claude Code interaction (localhost only)"
         }
       }
     }
@@ -386,9 +395,12 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0",
-    "@vscode/vsce": "^3.0.0",
     "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
   }
 }

@@ -23,13 +23,60 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 
 ## Phases
 
-0. **Pre-flight** — Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). Create session folder: `verification-sessions/YYYYMMDD-HHMMSS-{title}/screenshots/`. Initialize SESSION.md.
-1. **Build & Launch** — `npm run compile`. Check `mcp__ide__getDiagnostics`. Launch EDH via `code --extensionDevelopmentPath="$(pwd)"`. Plan chat automatically uses haiku in EDH (override with `OXVEIL_CLAUDE_MODEL=<model>` if needed). Poll for EDH window (1s intervals, 15s timeout). Maximize viewport: close bottom panel, secondary sidebar, and unwanted editor tabs (Welcome, Settings). Keep primary sidebar visible (Oxveil tree view). Use recipes from references. Screenshot on success.
-2. **Interact** — Exercise the full workflow path affected by the implementation. Walk through every user-facing state transition end-to-end (e.g., idle → command invoked → running → phases updating → done). Static single-state checks are insufficient. Use osascript to interact with EDH window. Always `set frontmost to true` + AXRaise before any `keystroke`. Use menu clicks for destructive actions (close tab/window). Log each action to SESSION.md. Wait for UI to settle.
+0. **Pre-flight** — Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). Verify `oxveil.mcpBridge` is enabled in workspace settings (`.vscode/settings.json`). Create session folder: `verification-sessions/YYYYMMDD-HHMMSS-{title}/screenshots/`. Initialize SESSION.md.
+1. **Build & Launch** — `npm run build`. Check `mcp__ide__getDiagnostics`. Launch EDH via `code --extensionDevelopmentPath="$(pwd)"`. Plan chat automatically uses haiku in EDH (override with `OXVEIL_CLAUDE_MODEL=<model>` if needed). Poll for EDH window (1s intervals, 15s timeout). Wait for `.oxveil-mcp` discovery file to appear (confirms MCP bridge is running). Maximize viewport: close bottom panel, secondary sidebar, and unwanted editor tabs (Welcome, Settings). Keep primary sidebar visible (Oxveil tree view). Use recipes from references. Screenshot on success.
+2. **Interact** — Exercise the full workflow path affected by the implementation. Walk through every user-facing state transition end-to-end. Use the **MCP bridge as the primary interaction method** for sidebar webview buttons (see MCP recipes below). Use osascript only for non-webview interactions (command palette, window management, focus). Cross-check: after each MCP action, verify the state via `get_sidebar_state` AND a screenshot. Log each action to SESSION.md. Wait for UI to settle.
 3. **Capture** — Before each capture, verify viewport is maximized (no bottom panel, no secondary sidebar). Re-run maximize recipe if panels reappeared. Screenshot via `screencapture -l <CGWindowID>`. Resize with `sips --resampleWidth 1568`. Save to `screenshots/NN-description.png`.
-4. **Analyze** — `Read` each screenshot. Compare against reference mockups in `docs/mockups/`. Tier 1 checks only (presence, text, gross layout, item count). Log findings to SESSION.md. For text content (output channel), verify programmatically instead.
+4. **Analyze** — `Read` each screenshot. Compare against reference mockups in `docs/mockups/`. Tier 1 checks only (presence, text, gross layout, item count). Log findings to SESSION.md. For text content (output channel), verify programmatically instead. Use `get_sidebar_state` to confirm state matches visual.
 5. **Decide** — Critical/bug: fix code, go to Phase 1. Nit: log, continue to Phase 2. All states verified: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
-6. **Cleanup** — Close EDH window via process-scoped menu click (never `keystroke` Cmd+W). Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Verify no orphan processes. Write final result and completion time to SESSION.md.
+6. **Cleanup** — Close EDH window via process-scoped menu click (never `keystroke` Cmd+W). Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains. Verify no orphan processes. Write final result and completion time to SESSION.md.
+
+## MCP Bridge Interaction
+
+The MCP bridge is the primary method for interacting with sidebar webview buttons. osascript/cliclick cannot reach webview iframe content.
+
+**Setup:** The bridge starts automatically when `oxveil.mcpBridge` is enabled in workspace settings. After EDH launch, verify `.oxveil-mcp` exists in workspace root.
+
+**Reading state:**
+```bash
+DISCOVERY=$(cat .oxveil-mcp)
+PORT=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['port'])")
+TOKEN=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -m json.tool
+```
+
+**Clicking sidebar buttons:**
+```bash
+# Resume plan (stale → ready)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"resumePlan"}' http://127.0.0.1:$PORT/click
+
+# Start session
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"start"}' http://127.0.0.1:$PORT/click
+
+# Stop session
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"stop"}' http://127.0.0.1:$PORT/click
+
+# Dismiss plan
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"dismissPlan"}' http://127.0.0.1:$PORT/click
+```
+
+**Executing VS Code commands:**
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"oxveil.start"}' http://127.0.0.1:$PORT/command
+```
+
+**Verification pattern:** After every click, poll state to confirm the effect:
+```bash
+curl -s -X POST ... -d '{"command":"resumePlan"}' .../click
+sleep 1
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])"
+# Expected: "ready"
+```
 
 ## Vision Analysis Tiers
 

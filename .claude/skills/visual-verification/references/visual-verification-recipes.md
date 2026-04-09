@@ -46,7 +46,85 @@ tell application "System Events"
         end repeat
     end tell
 end tell' 2>/dev/null
+
+# 6. MCP bridge setting enabled
+grep -q '"oxveil.mcpBridge": true' .vscode/settings.json 2>/dev/null || { echo "FAIL: Enable oxveil.mcpBridge in .vscode/settings.json"; exit 1; }
 ```
+
+## MCP Bridge Recipes
+
+The MCP bridge is the primary method for interacting with sidebar webview buttons during verification. osascript/cliclick synthetic events do not pass through Electron webview iframes.
+
+### Reading discovery file
+
+```bash
+# Parse discovery file into PORT and TOKEN variables
+DISCOVERY=$(cat .oxveil-mcp)
+PORT=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['port'])")
+TOKEN=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
+```
+
+### Polling for bridge readiness after EDH launch
+
+```bash
+# Poll for .oxveil-mcp file (max 15 seconds)
+for i in $(seq 1 15); do
+    [[ -f .oxveil-mcp ]] && break
+    sleep 1
+done
+[[ -f .oxveil-mcp ]] || { echo "FAIL: MCP bridge not started — check oxveil.mcpBridge setting"; exit 1; }
+echo "MCP bridge ready after ${i}s"
+```
+
+### Common sidebar interactions
+
+```bash
+# Get current state
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -m json.tool
+
+# Get just the view name
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])"
+
+# Click a sidebar button (fire-and-forget — poll state to confirm)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"resumePlan"}' http://127.0.0.1:$PORT/click
+
+# Execute a VS Code command
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"oxveil.start"}' http://127.0.0.1:$PORT/command
+```
+
+### Click-and-verify pattern
+
+```bash
+# Standard pattern: click, wait, verify state
+click_and_verify() {
+    local CMD="$1" EXPECTED="$2"
+    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d "{\"command\":\"$CMD\"}" http://127.0.0.1:$PORT/click > /dev/null
+    sleep 1
+    local VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])")
+    if [[ "$VIEW" == "$EXPECTED" ]]; then
+        echo "OK: $CMD → $EXPECTED"
+    else
+        echo "FAIL: $CMD → expected $EXPECTED, got $VIEW"
+    fi
+}
+
+# Usage: click_and_verify "resumePlan" "ready"
+```
+
+### Sidebar command reference
+
+| Command | From state | To state | Notes |
+|---------|-----------|----------|-------|
+| `resumePlan` | stale | ready | Accepts orphaned plan as current work |
+| `dismissPlan` | stale | empty | Ignores orphaned plan |
+| `start` | ready | running | Starts claudeloop session |
+| `stop` | running | stopped | Stops running session |
+| `resume` | stopped | running | Needs `phase` parameter |
+| `restart` | stopped | running | Resets and starts fresh |
+| `discardPlan` | ready | empty | Removes plan |
 
 ## Swift CGWindowID Script
 
@@ -485,6 +563,9 @@ The env var takes precedence over the dev-mode default. In production (normal VS
 - Extension not activating on expected events
 - Click actions not wired (status bar click, tree item click)
 - Welcome/not-found state not showing when expected
+- MCP bridge not starting (check `oxveil.mcpBridge` setting, `.oxveil-mcp` file)
+- Sidebar button click dispatched but state unchanged (check `/state` before and after)
+- Bridge auth rejected (stale discovery file — reload EDH)
 
 ## v0.1 Verification Targets
 

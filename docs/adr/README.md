@@ -12,3 +12,4 @@
 | [0008](0008-archive-timeline-viewer.md) | Archive timeline viewer as dedicated read-only panel | Accepted |
 | [0009](0009-plan-preview-multi-format.md) | Plan Preview multi-format support with session pinning | Accepted |
 | [0010](0010-sidebar-webview-migration.md) | Sidebar tree view to webview migration | Accepted |
+| [0011](0011-mcp-bridge-server.md) | MCP bridge server for extension interaction | Accepted |

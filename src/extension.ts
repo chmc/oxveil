@@ -23,6 +23,7 @@ import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarS
 import type { ArchiveView, SidebarState } from "./views/sidebarState";
 import type { DetectionStatus } from "./types";
 import { computeDuration } from "./parsers/archive";
+import { dispatchSidebarMessage } from "./views/sidebarMessages";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -429,6 +430,27 @@ export async function activate(
       handleWorkspaceFolderChange(e, folderChangeOpts);
     }),
   );
+
+  // MCP bridge (opt-in)
+  const mcpEnabled = config.get<boolean>("mcpBridge", false);
+  if (mcpEnabled && workspaceRoot) {
+    const { startBridge } = await import("./mcp/bridge");
+    const bridge = await startBridge({
+      workspaceRoot,
+      buildFullState,
+      dispatchClick: (msg) => {
+        // Mirror sidebarPanel's message handler: resumePlan/dismissPlan go to onPlanChoice
+        if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
+          planUserChoice = msg.command === "resumePlan" ? "resume" : "dismiss";
+          sidebarPanel.updateState(buildFullState());
+          return;
+        }
+        dispatchSidebarMessage(msg, vscode.commands.executeCommand);
+      },
+      executeCommand: vscode.commands.executeCommand,
+    });
+    disposables.push(bridge);
+  }
 
   context.subscriptions.push(...disposables);
 }
