@@ -33,50 +33,13 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 
 ## MCP Bridge Interaction
 
-The MCP bridge is the primary method for interacting with sidebar webview buttons. osascript/cliclick cannot reach webview iframe content.
+The MCP bridge is the primary method for interacting with sidebar webview buttons. osascript cannot reach webview iframe content.
 
 **Setup:** The bridge starts automatically when `oxveil.mcpBridge` is enabled in workspace settings. After EDH launch, verify `.oxveil-mcp` exists in workspace root.
 
-**Reading state:**
-```bash
-DISCOVERY=$(cat .oxveil-mcp)
-PORT=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['port'])")
-TOKEN=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
-curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -m json.tool
-```
+**Pattern:** Read state via `GET /state`, click buttons via `POST /click`, execute commands via `POST /command`. After every click, poll state to confirm the effect.
 
-**Clicking sidebar buttons:**
-```bash
-# Resume plan (stale → ready)
-curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"command":"resumePlan"}' http://127.0.0.1:$PORT/click
-
-# Start session
-curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"command":"start"}' http://127.0.0.1:$PORT/click
-
-# Stop session
-curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"command":"stop"}' http://127.0.0.1:$PORT/click
-
-# Dismiss plan
-curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"command":"dismissPlan"}' http://127.0.0.1:$PORT/click
-```
-
-**Executing VS Code commands:**
-```bash
-curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"command":"oxveil.start"}' http://127.0.0.1:$PORT/command
-```
-
-**Verification pattern:** After every click, poll state to confirm the effect:
-```bash
-curl -s -X POST ... -d '{"command":"resumePlan"}' .../click
-sleep 1
-curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])"
-# Expected: "ready"
-```
+See `references/visual-verification-recipes.md` for discovery file parsing, full command reference, and click-and-verify scripts.
 
 ## Vision Analysis Tiers
 
