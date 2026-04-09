@@ -144,6 +144,12 @@ export class PlanPreviewPanel {
       // Session-aware tracking: only track files created OR modified after session start.
       // birthtimeMs catches newly created files; mtimeMs catches files reused across sessions
       // (e.g., Claude overwrites a plan file that was created in a prior session).
+      //
+      // Edge case: a plan file created in a previous session and never modified during the
+      // current session will NOT be tracked here (both birthtimeMs and mtimeMs predate
+      // _sessionStartTime). This is intentional — such files are not part of the active
+      // session. The sessionless fallback (_resolveSessionless) handles the reload/reopen
+      // scenario where no session is active.
       for (const candidate of candidates) {
         if (!this._deps.statFile) continue;
 
