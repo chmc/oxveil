@@ -128,6 +128,42 @@ echo "EDH window found after ${i}s (WindowID: $WINDOW_ID)"
 All recipes use `process "Code"` with window name filtering.
 `set frontmost to true` is mandatory before any `keystroke` — without it, the keystroke goes to whichever app has system focus.
 
+### Focusing the Plan Chat terminal
+
+The Plan Chat terminal is an editor-area terminal (not the bottom panel). Standard terminal focus methods (`Ctrl+\``, `Terminal: Focus Terminal in Editor Area`) target the bottom panel terminal, NOT the Plan Chat.
+
+**Correct approach:** Call `Oxveil: Plan Chat` via command palette twice. The second invocation detects the existing session and calls `focusTerminal()` which does `terminal.show()` — focusing the Plan Chat terminal specifically.
+
+```bash
+# Focus Plan Chat terminal (call the command twice)
+# First call: may open Plan Chat if not running, or do nothing
+# Second call: focuses the existing Plan Chat terminal
+for attempt in 1 2; do
+    osascript -e '
+    tell application "System Events"
+        tell process "Code"
+            set frontmost to true
+            perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+            delay 0.3
+            keystroke "p" using {command down, shift down}
+        end tell
+    end tell'
+    sleep 1
+    osascript -e '
+    tell application "System Events"
+        tell process "Code"
+            keystroke "Oxveil: Plan Chat"
+            delay 0.8
+            key code 36
+        end tell
+    end tell'
+    sleep 2
+done
+# Now keystrokes will reach the Plan Chat terminal
+```
+
+**Never use** `click at {x, y}` to focus the Plan Chat terminal — VS Code editor-area terminals don't reliably receive click-based focus via osascript.
+
 ```bash
 # Focus EDH window and open command palette
 # set frontmost to true: makes Code the system frontmost app (required for keystroke)

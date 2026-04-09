@@ -11,9 +11,10 @@ import { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { PhaseDiffProvider, DIFF_URI_SCHEME } from "./views/diffProvider";
 import { PlanCodeLensProvider } from "./views/planCodeLens";
 import { LiveRunPanel } from "./views/liveRunPanel";
-import { PlanPreviewPanel, type PlanFileCategory } from "./views/planPreviewPanel";
+import { PlanPreviewPanel, type PlanFileCategory, type PersistedPlanState } from "./views/planPreviewPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
+import { resolveFromSessionData } from "./core/planResolver";
 import type { SessionState } from "./core/sessionState";
 import type { GitExecDeps } from "./core/gitIntegration";
 
@@ -22,6 +23,7 @@ export interface WebviewPanelsDeps {
   workspaceRoot: string | undefined;
   gitExec: GitExecDeps | undefined;
   onAnnotation?: (phase: string, text: string) => void;
+  context?: { workspaceState: { get: (key: string) => any; update: (key: string, value: any) => void } };
 }
 
 export interface WebviewPanelsResult {
@@ -127,6 +129,38 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
       }
     },
     onFormPlan: () => vscode.commands.executeCommand("oxveil.formPlan"),
+    persistPlanPath: (state: PersistedPlanState | undefined) => {
+      deps.context?.workspaceState.update("oxveil.activePlan", state);
+    },
+    loadPersistedPlanPath: () => {
+      return deps.context?.workspaceState.get("oxveil.activePlan") as PersistedPlanState | undefined;
+    },
+    resolveFromSessionData: deps.workspaceRoot
+      ? () => resolveFromSessionData(deps.workspaceRoot!, {
+          readdir: (dir: string) => fs.readdir(dir),
+          readFile: (p: string) => fs.readFile(p, "utf-8"),
+          stat: async (p: string) => {
+            const s = await stat(p);
+            return { mtimeMs: s.mtimeMs };
+          },
+          fileExists: async (p: string) => {
+            try {
+              await stat(p);
+              return true;
+            } catch {
+              return false;
+            }
+          },
+        })
+      : undefined,
+    fileExists: async (p: string) => {
+      try {
+        await stat(p);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   });
 
   // Create watchers for all plan file locations

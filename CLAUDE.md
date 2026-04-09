@@ -52,6 +52,8 @@ When executing a phase under claudeloop, the phase description is your specifica
 
 **Visual verification (mandatory):** Every UI-facing task in a plan must include a visual verification gate. Invoke `/visual-verification`. Do not report the task as done until visual verification passes. Non-UI tasks (parsers, types, tests) do not require visual verification unless the plan explicitly requests it.
 
+**Screenshot analysis (mandatory):** After every screenshot capture, read the image and describe what you see in concrete terms (text content, element presence, which panel has focus). Do not assume success from a blurry or small screenshot — if you cannot read terminal text, take a higher-resolution capture or maximize the window first. Verify that keystrokes reached the intended target (e.g., Plan Chat terminal vs bottom panel zsh) by checking the screenshot for the typed text.
+
 **Autonomous verification (mandatory):** Never suggest the user test something manually when you can do it yourself. If you can build, launch EDH, screenshot, and compare — do it without asking.
 
 **Zero errors (mandatory):** Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them. Work is not done until both pass clean.

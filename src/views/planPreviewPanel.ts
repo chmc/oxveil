@@ -20,6 +20,11 @@ export interface FileSystemWatcher {
   dispose: () => void;
 }
 
+export interface PersistedPlanState {
+  planPath: string;
+  resolvedAt: number;
+}
+
 export interface PlanPreviewPanelDeps {
   createWebviewPanel: (
     viewType: string,
@@ -33,6 +38,10 @@ export interface PlanPreviewPanelDeps {
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
   statFile?: (filePath: string) => Promise<{ birthtimeMs: number } | undefined>;
   onFormPlan?: () => void;
+  persistPlanPath?: (state: PersistedPlanState | undefined) => void;
+  loadPersistedPlanPath?: () => PersistedPlanState | undefined;
+  resolveFromSessionData?: () => Promise<{ planPath: string } | undefined>;
+  fileExists?: (filePath: string) => Promise<boolean>;
 }
 
 interface Webview {
@@ -65,6 +74,7 @@ export class PlanPreviewPanel {
   private _trackedFiles = new Map<PlanFileCategory, TrackedFile>();
   private _activeCategory: PlanFileCategory | undefined;
   private _autoSwitch = true;
+  private _sessionDataResolved = false;
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
@@ -106,6 +116,8 @@ export class PlanPreviewPanel {
     this._trackedFiles = new Map();
     this._activeCategory = undefined;
     this._autoSwitch = true;
+    this._sessionDataResolved = false;
+    this._deps.persistPlanPath?.(undefined);
   }
 
   endSession(): void {
@@ -149,19 +161,29 @@ export class PlanPreviewPanel {
           });
         }
       }
-    } else if (candidates.length > 0) {
-      // Sessionless fallback: show the most recently modified file
-      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
-      const newest = candidates[0];
-      const existing = this._trackedFiles.get(newest.category);
-      if (!existing || existing.path !== newest.path) {
-        this._trackedFiles.set(newest.category, {
-          path: newest.path,
-          category: newest.category,
-          birthtimeMs: newest.mtimeMs,
-        });
-        if (!this._activeCategory) {
-          newCategoryAdded = newest.category;
+      // Persist matched plan path for reload recovery
+      const activePath = this._activeCategory
+        ? this._trackedFiles.get(this._activeCategory)?.path
+        : this._trackedFiles.size > 0
+          ? this._trackedFiles.values().next().value?.path
+          : undefined;
+      if (activePath) {
+        this._deps.persistPlanPath?.({ planPath: activePath, resolvedAt: Date.now() });
+      }
+    } else {
+      // Sessionless resolution: 4-layer pipeline
+      const resolved = await this._resolveSessionless(candidates);
+      if (resolved) {
+        const existing = this._trackedFiles.get(resolved.category);
+        if (!existing || existing.path !== resolved.path) {
+          this._trackedFiles.set(resolved.category, {
+            path: resolved.path,
+            category: resolved.category,
+            birthtimeMs: resolved.mtimeMs,
+          });
+          if (!this._activeCategory) {
+            newCategoryAdded = resolved.category;
+          }
         }
       }
     }
@@ -185,6 +207,48 @@ export class PlanPreviewPanel {
     }
 
     await this._parseAndRender(tracked.path);
+  }
+
+  private async _resolveSessionless(
+    candidates: Array<{ path: string; category: PlanFileCategory; mtimeMs: number }>,
+  ): Promise<{ path: string; category: PlanFileCategory; mtimeMs: number } | undefined> {
+    // Layer 1: workspaceState cache
+    const cached = this._deps.loadPersistedPlanPath?.();
+    if (cached) {
+      const exists = this._deps.fileExists
+        ? await this._deps.fileExists(cached.planPath)
+        : candidates.some((c) => c.path === cached.planPath);
+      if (exists) {
+        const match = candidates.find((c) => c.path === cached.planPath);
+        if (match) return match;
+        // File exists but not in candidates (e.g., directory not scanned) — use "plan" category
+        return { path: cached.planPath, category: "plan", mtimeMs: cached.resolvedAt };
+      }
+    }
+
+    // Layer 2: Session JSONL lookup (runs once per activation)
+    if (!this._sessionDataResolved && this._deps.resolveFromSessionData) {
+      this._sessionDataResolved = true;
+      try {
+        const result = await this._deps.resolveFromSessionData();
+        if (result) {
+          this._deps.persistPlanPath?.({ planPath: result.planPath, resolvedAt: Date.now() });
+          const match = candidates.find((c) => c.path === result.planPath);
+          if (match) return match;
+          return { path: result.planPath, category: "plan", mtimeMs: Date.now() };
+        }
+      } catch {
+        // Layer 2 failed gracefully — fall through
+      }
+    }
+
+    // Layer 4: mtimeMs fallback
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      return candidates[0];
+    }
+
+    return undefined;
   }
 
   private async _parseAndRender(filePath: string): Promise<void> {

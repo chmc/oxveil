@@ -129,6 +129,7 @@ export async function activate(
     onAnnotation: (phase, text) => {
       activePlanChatSession?.sendAnnotation(phase, text);
     },
+    context,
   });
   disposables.push(...panels.disposables);
   const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
