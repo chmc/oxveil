@@ -1,4 +1,7 @@
 import { escapeHtml } from "../utils/html";
+import { marked } from "marked";
+
+marked.setOptions({ gfm: true, breaks: false });
 
 export interface PhaseCardData {
   number: number | string;
@@ -89,100 +92,25 @@ function renderPhaseCard(phase: PhaseCardData, sessionActive: boolean, format?: 
 </div>`;
 }
 
-/** Apply bold and inline-code formatting to already-escaped HTML. */
-function formatInline(escaped: string): string {
-  let text = escaped;
-  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  text = text.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
-  return text;
+/** Belt-and-suspenders sanitization — CSP is the real security boundary. */
+function stripUnsafeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/\son\w+\s*=/gi, " data-removed=");
 }
 
-/** Basic markdown to HTML for free-form plans. */
+/** Convert markdown to HTML using marked (GFM). */
 function renderMarkdownHtml(raw: string): string {
-  const lines = raw.split("\n");
-  const out: string[] = [];
-  let inList = false;
-  let inOrderedList = false;
-  let inCodeBlock = false;
-  const codeBlockLines: string[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Fenced code blocks
-    if (trimmed.startsWith("```")) {
-      if (!inCodeBlock) {
-        if (inList) { out.push("</ul>"); inList = false; }
-        if (inOrderedList) { out.push("</ol>"); inOrderedList = false; }
-        inCodeBlock = true;
-        codeBlockLines.length = 0;
-      } else {
-        out.push(`<pre class="md-codeblock"><code>${escapeHtml(codeBlockLines.join("\n"))}</code></pre>`);
-        inCodeBlock = false;
-      }
-      continue;
-    }
-
-    if (inCodeBlock) {
-      codeBlockLines.push(line);
-      continue;
-    }
-
-    // Headings
-    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
-    if (headingMatch) {
-      if (inList) { out.push("</ul>"); inList = false; }
-      if (inOrderedList) { out.push("</ol>"); inOrderedList = false; }
-      const level = headingMatch[1].length;
-      out.push(`<h${level} class="md-heading">${escapeHtml(headingMatch[2])}</h${level}>`);
-      continue;
-    }
-
-    // Unordered list items
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      if (inOrderedList) { out.push("</ol>"); inOrderedList = false; }
-      if (!inList) { out.push('<ul class="md-list">'); inList = true; }
-      const content = trimmed.slice(2);
-      // Handle checkbox syntax
-      if (content.startsWith("[ ] ")) {
-        out.push(`<li>&#9744; ${formatInline(escapeHtml(content.slice(4)))}</li>`);
-      } else if (content.startsWith("[x] ") || content.startsWith("[X] ")) {
-        out.push(`<li>&#9745; ${formatInline(escapeHtml(content.slice(4)))}</li>`);
-      } else {
-        out.push(`<li>${formatInline(escapeHtml(content))}</li>`);
-      }
-      continue;
-    }
-
-    // Numbered list items
-    const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/);
-    if (orderedMatch) {
-      if (inList) { out.push("</ul>"); inList = false; }
-      if (!inOrderedList) { out.push('<ol class="md-list">'); inOrderedList = true; }
-      out.push(`<li>${formatInline(escapeHtml(orderedMatch[1]))}</li>`);
-      continue;
-    }
-
-    if (inList) { out.push("</ul>"); inList = false; }
-    if (inOrderedList) { out.push("</ol>"); inOrderedList = false; }
-
-    // Blank line
-    if (trimmed === "") {
-      out.push("<br>");
-      continue;
-    }
-
-    // Regular text with inline formatting
-    out.push(`<p class="md-text">${formatInline(escapeHtml(trimmed))}</p>`);
-  }
-
-  // Close any open blocks
-  if (inCodeBlock) {
-    out.push(`<pre class="md-codeblock"><code>${escapeHtml(codeBlockLines.join("\n"))}</code></pre>`);
-  }
-  if (inList) { out.push("</ul>"); }
-  if (inOrderedList) { out.push("</ol>"); }
-  return out.join("\n");
+  // marked does not render checkboxes by default — pre-process them
+  const preprocessed = raw.replace(
+    /^(\s*[-*])\s+\[ \]\s/gm,
+    "$1 &#9744; ",
+  ).replace(
+    /^(\s*[-*])\s+\[[xX]\]\s/gm,
+    "$1 &#9745; ",
+  );
+  const html = marked.parse(preprocessed, { async: false }) as string;
+  return stripUnsafeHtml(html);
 }
 
 export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
