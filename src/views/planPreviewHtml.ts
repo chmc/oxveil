@@ -1,7 +1,15 @@
 import { escapeHtml } from "../utils/html";
 import { marked } from "marked";
 
-marked.setOptions({ gfm: true, breaks: false });
+marked.use({
+  gfm: true,
+  breaks: false,
+  renderer: {
+    checkbox({ checked }: { checked: boolean }) {
+      return checked ? "&#9745; " : "&#9744; ";
+    },
+  },
+});
 
 export interface PhaseCardData {
   number: number | string;
@@ -96,20 +104,13 @@ function renderPhaseCard(phase: PhaseCardData, sessionActive: boolean, format?: 
 function stripUnsafeHtml(html: string): string {
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/\son\w+\s*=/gi, " data-removed=");
+    .replace(/\son\w+\s*=/gi, " data-removed=")
+    .replace(/\shref\s*=\s*["'][^"']*javascript:[^"']*["']/gi, ' href="about:blank"');
 }
 
 /** Convert markdown to HTML using marked (GFM). */
 function renderMarkdownHtml(raw: string): string {
-  // marked does not render checkboxes by default — pre-process them
-  const preprocessed = raw.replace(
-    /^(\s*[-*])\s+\[ \]\s/gm,
-    "$1 &#9744; ",
-  ).replace(
-    /^(\s*[-*])\s+\[[xX]\]\s/gm,
-    "$1 &#9745; ",
-  );
-  const html = marked.parse(preprocessed, { async: false }) as string;
+  const html = marked.parse(raw, { async: false }) as string;
   return stripUnsafeHtml(html);
 }
 
@@ -239,6 +240,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .phase-desc p, .raw-markdown p { font-size: 12px; line-height: 1.6; color: #999; margin: 2px 0; }
     .phase-desc h1, .phase-desc h2, .phase-desc h3, .phase-desc h4, .phase-desc h5, .phase-desc h6,
     .raw-markdown h1, .raw-markdown h2, .raw-markdown h3, .raw-markdown h4, .raw-markdown h5, .raw-markdown h6 { margin: 12px 0 6px 0; color: var(--vscode-foreground, #e0e0e0); }
+    .phase-desc h2, .raw-markdown h2 { font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 4px; }
   </style>
 </head>
 <body>

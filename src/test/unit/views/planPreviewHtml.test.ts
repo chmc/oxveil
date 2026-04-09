@@ -308,6 +308,14 @@ describe("renderPhaseCardsHtml", () => {
       expect(html).toContain("<del>struck</del>");
     });
 
+    it("strips javascript: protocol from links", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "[click](javascript:alert(1))", dependencies: [] },
+      ]});
+      expect(html).not.toContain('href="javascript:');
+      expect(html).toContain("about:blank");
+    });
+
     it("renders checkboxes as ballot box characters", () => {
       const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
         { number: 1, title: "T", description: "- [ ] unchecked\n- [x] checked", dependencies: [] },
