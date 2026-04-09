@@ -274,6 +274,41 @@ describe("renderPhaseCardsHtml", () => {
       expect(html).not.toContain("<script>alert");
       expect(html).toContain("&lt;script&gt;");
     });
+
+    it("renders markdown tables as <table>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "| A | B |\n|---|---|\n| 1 | 2 |", dependencies: [] },
+      ]});
+      expect(html).toContain("<table");
+      expect(html).toContain("<th");
+      expect(html).toContain("<td");
+    });
+
+    it("renders links as <a>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "See [docs](https://example.com)", dependencies: [] },
+      ]});
+      expect(html).toContain('<a href="https://example.com"');
+      expect(html).toContain("docs</a>");
+    });
+
+    it("renders emphasis as <em> and strikethrough as <del>", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "*italic* and ~~struck~~", dependencies: [] },
+      ]});
+      expect(html).toContain("<em>italic</em>");
+      expect(html).toContain("<del>struck</del>");
+    });
+
+    it("renders checkboxes as ballot box characters", () => {
+      const html = renderPhaseCardsHtml({ ...mdOpts, phases: [
+        { number: 1, title: "T", description: "- [ ] unchecked\n- [x] checked", dependencies: [] },
+      ]});
+      expect(html).toContain("&#9744;");
+      expect(html).toContain("&#9745;");
+      expect(html).toContain("unchecked");
+      expect(html).toContain("checked");
+    });
   });
 
   describe("raw markdown fallback", () => {
@@ -303,6 +338,16 @@ describe("renderPhaseCardsHtml", () => {
         sessionActive: true,
       });
       expect(html).toContain("raw-markdown");
+    });
+
+    it("renders tables in raw markdown", () => {
+      const html = renderPhaseCardsHtml({
+        state: "raw-markdown",
+        rawMarkdown: "| Col1 | Col2 |\n|------|------|\n| a | b |",
+        sessionActive: true,
+      });
+      expect(html).toContain("<table");
+      expect(html).toContain("<th");
     });
   });
 
