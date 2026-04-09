@@ -6,6 +6,9 @@ verification-sessions/
 .claudeloop/
 dot.claudeloop.zip
 
+# MCP bridge discovery (runtime artifact)
+.oxveil-mcp
+
 # Node
 node_modules/
 dist/
