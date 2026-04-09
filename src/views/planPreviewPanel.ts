@@ -184,7 +184,7 @@ export class PlanPreviewPanel {
         this._deps.persistPlanPath?.({ planPath: activePath, resolvedAt: Date.now() });
       }
     } else {
-      // Sessionless resolution: 4-layer pipeline
+      // Sessionless resolution: 3-layer pipeline
       const resolved = await this._resolveSessionless(candidates);
       if (resolved) {
         const existing = this._trackedFiles.get(resolved.category);
@@ -255,7 +255,7 @@ export class PlanPreviewPanel {
       }
     }
 
-    // Layer 4: mtimeMs fallback
+    // Layer 3: mtimeMs fallback
     if (candidates.length > 0) {
       candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
       return candidates[0];
