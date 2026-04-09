@@ -122,6 +122,9 @@ export class PlanPreviewPanel {
 
   endSession(): void {
     this._sessionStartTime = undefined;
+    // Reset so the next onFileChanged() re-resolves via the sessionless branch.
+    // Do NOT clear _trackedFiles — the tracked file set remains valid for sessionless resolution.
+    this._sessionDataResolved = false;
   }
 
   async nextTab(): Promise<void> {
