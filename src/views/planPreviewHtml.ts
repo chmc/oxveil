@@ -222,20 +222,23 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .empty-title { font-size: 14px; color: #888; margin-bottom: 8px; }
     .empty-subtitle { font-size: 12px; color: #666; line-height: 1.6; max-width: 300px; margin: 0 auto; }
 
-    /* Formatted markdown */
+    /* marked output — scoped to content areas */
     .raw-markdown { padding: 8px 0; }
-    .md-heading { margin: 12px 0 6px 0; color: var(--vscode-foreground, #e0e0e0); }
-    h2.md-heading { font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 4px; }
-    h3.md-heading { font-size: 13px; }
-    h4.md-heading { font-size: 12px; color: #999; }
-    .md-text { font-size: 12px; line-height: 1.6; color: #999; margin: 2px 0; }
-    .md-list { margin: 4px 0 4px 20px; font-size: 12px; line-height: 1.6; color: #999; }
-    .md-code { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 1px 4px; border-radius: 3px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; }
-    .md-codeblock { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 8px 12px; border-radius: 4px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; line-height: 1.4; overflow-x: auto; color: #ccc; white-space: pre; margin: 4px 0; }
-
-    /* Markdown inside phase cards */
-    .phase-desc .md-heading { font-size: 12px; margin: 6px 0 2px 0; color: inherit; border-bottom: none; padding-bottom: 0; }
-    .phase-desc .md-list { margin-left: 16px; }
+    .phase-desc table, .raw-markdown table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12px; }
+    .phase-desc th, .raw-markdown th, .phase-desc td, .raw-markdown td { border: 1px solid #444; padding: 4px 8px; text-align: left; }
+    .phase-desc th, .raw-markdown th { background: var(--vscode-sideBar-background, #252526); color: var(--vscode-foreground, #e0e0e0); font-weight: 600; }
+    .phase-desc em, .raw-markdown em { font-style: italic; }
+    .phase-desc del, .raw-markdown del { text-decoration: line-through; opacity: 0.7; }
+    .phase-desc a, .raw-markdown a { color: var(--vscode-textLink-foreground, #569cd6); text-decoration: none; }
+    .phase-desc a:hover, .raw-markdown a:hover { text-decoration: underline; }
+    .phase-desc blockquote, .raw-markdown blockquote { border-left: 3px solid #444; padding-left: 12px; margin: 8px 0; color: #888; }
+    .phase-desc pre, .raw-markdown pre { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 8px 12px; border-radius: 4px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; line-height: 1.4; overflow-x: auto; color: #ccc; white-space: pre; margin: 4px 0; }
+    .phase-desc code, .raw-markdown code { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 1px 4px; border-radius: 3px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; }
+    .phase-desc pre code, .raw-markdown pre code { background: none; padding: 0; }
+    .phase-desc ul, .raw-markdown ul, .phase-desc ol, .raw-markdown ol { margin: 4px 0 4px 20px; font-size: 12px; line-height: 1.6; color: #999; }
+    .phase-desc p, .raw-markdown p { font-size: 12px; line-height: 1.6; color: #999; margin: 2px 0; }
+    .phase-desc h1, .phase-desc h2, .phase-desc h3, .phase-desc h4, .phase-desc h5, .phase-desc h6,
+    .raw-markdown h1, .raw-markdown h2, .raw-markdown h3, .raw-markdown h4, .raw-markdown h5, .raw-markdown h6 { margin: 12px 0 6px 0; color: var(--vscode-foreground, #e0e0e0); }
   </style>
 </head>
 <body>

@@ -44,6 +44,13 @@ describe("renderPlanPreviewShell", () => {
     const html = renderPlanPreviewShell(nonce, cspSource);
     expect(html).toContain(`nonce="${nonce}"`);
   });
+
+  it("contains CSS for markdown table elements", () => {
+    const html = renderPlanPreviewShell(nonce, cspSource);
+    expect(html).toContain(".phase-desc table");
+    expect(html).toContain(".phase-desc th");
+    expect(html).toContain(".raw-markdown table");
+  });
 });
 
 describe("renderPhaseCardsHtml", () => {
