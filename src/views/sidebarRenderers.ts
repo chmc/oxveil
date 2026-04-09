@@ -67,12 +67,17 @@ function renderPhaseList(phases: PhaseView[], viewState?: string): string {
       p.status === "pending" && !isPaused ? "dim" : "",
     ].filter(Boolean).join(" ");
 
+    const meta = (attempts || duration)
+      ? `<div class="phase-meta">${attempts}${duration}</div>`
+      : "";
+
     return `<div class="${rowClass}" data-phase="${num}">
   ${phaseStatusIcon(p.status, isPaused)}
   <span class="phase-num">${num}.</span>
-  <span class="phase-title">${title}</span>
-  ${attempts}
-  ${duration}
+  <div class="phase-body">
+    <span class="phase-title">${title}</span>
+    ${meta}
+  </div>
 </div>`;
   });
 
