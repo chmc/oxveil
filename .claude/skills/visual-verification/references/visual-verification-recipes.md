@@ -471,6 +471,7 @@ fi
 - Outputs NDJSON stream-json to stdout. claudeloop's stream processor converts this to `.claudeloop/` files (live.log, PROGRESS.md, lock).
 - Prefer this over manual mocking for dynamic verification (state transitions, timing, full watcher pipeline).
 - Use manual mocking (above) for fast static state checks or testing states hard to trigger via claudeloop (e.g., stale lock).
+- The `success`, `success_multi`, and `success_realistic` scenarios auto-detect AI-parse and verification prompts, so the `success` scenario works end-to-end with `--ai-parse` (claudeloop's default). No special configuration needed.
 
 ### Setup
 
@@ -485,10 +486,12 @@ fi
 
 | Scenario | Exit | Description | Visual Verification Use |
 |----------|------|-------------|------------------------|
-| `success` | 0 | Single Edit tool use | Basic running → done transition |
-| `success_multi` | 0 | Read, Edit, Bash tool uses | Multiple tool activity in output channel |
+| `success` | 0 | Single Edit tool use, auto-detects AI-parse/verify prompts | Full lifecycle: AI parse → execute → completed → archive |
+| `success_multi` | 0 | Read, Edit, Bash tool uses, auto-detects AI-parse/verify | Multiple tool activity in output channel |
 | `success_verbose` | 0 | 9 turns, TodoWrite, thinking pauses | Full tree view, status bar, output channel test |
-| `success_realistic` | 0 | Proper assistant/user wrapping | NDJSON parser accuracy |
+| `success_realistic` | 0 | Proper assistant/user wrapping, auto-detects AI-parse/verify | NDJSON parser accuracy |
+| `ai_parse` | 0 | Emits `## Phase N:` headers (no tool_use) | Explicit AI-parse output without auto-detection |
+| `ai_verify_pass` | 0 | Emits `PASS` for AI plan verification | Explicit AI-verify output without auto-detection |
 | `failure` | 1 | Simple error | Status bar "failed", failure notification |
 | `error_realistic` | 1 | Tool errors with is_error:true | Error UX in output channel |
 | `slow` | 0 | Sleeps `$FAKE_CLAUDE_SLEEP` (default 30s) | Elapsed timer, spinner presence |

@@ -84,11 +84,12 @@ function renderPhaseList(phases: PhaseView[], viewState?: string): string {
   return `<div id="phase-list" class="phase-list">${rows.join("\n")}</div>`;
 }
 
-function renderActionBar(buttons: Array<{ label: string; command: string; primary?: boolean; phase?: number }>): string {
+function renderActionBar(buttons: Array<{ label: string; command: string; primary?: boolean; phase?: number; archive?: string }>): string {
   const btns = buttons.map((b) => {
     const cls = b.primary ? "action-btn primary" : "action-btn";
     const phaseAttr = b.phase != null ? ` data-phase="${b.phase}"` : "";
-    return `<button class="${cls}" data-command="${escapeHtml(b.command)}"${phaseAttr}>${escapeHtml(b.label)}</button>`;
+    const archiveAttr = b.archive ? ` data-archive="${escapeHtml(b.archive)}"` : "";
+    return `<button class="${cls}" data-command="${escapeHtml(b.command)}"${phaseAttr}${archiveAttr}>${escapeHtml(b.label)}</button>`;
   });
   return `<div class="action-bar">${btns.join("\n")}</div>`;
 }
@@ -293,7 +294,7 @@ function renderCompleted(state: SidebarState): string {
   <div class="whats-next">
     <h3>What's next?</h3>
     ${renderActionBar([
-      { label: "Replay", command: "openReplay", primary: true },
+      ...(state.archives[0] ? [{ label: "Replay", command: "openReplay", primary: true, archive: state.archives[0].name }] : []),
       { label: "Create New Plan", command: "createPlan" },
     ])}
   </div>

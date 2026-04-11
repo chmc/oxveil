@@ -11,6 +11,8 @@ export function sidebarJs(): string {
           var msg = { command: btn.getAttribute("data-command") };
           var phase = btn.getAttribute("data-phase");
           if (phase) msg.phase = parseInt(phase, 10);
+          var archive = btn.getAttribute("data-archive");
+          if (archive) msg.archive = archive;
           vscode.postMessage(msg);
           return;
         }

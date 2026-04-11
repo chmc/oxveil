@@ -135,6 +135,24 @@ describe("renderSidebar", () => {
     expect(html).toContain("Completed");
     expect(html).toContain("All 2 phases completed");
     expect(html).toContain("Replay");
+    expect(html).toContain('data-archive="20260406"');
+  });
+
+  it("hides Replay button in completed state when no archives exist", () => {
+    const state: SidebarState = {
+      view: "completed",
+      plan: {
+        filename: "PLAN.md",
+        phases: [
+          { number: 1, title: "Setup", status: "completed", duration: "32s" },
+        ],
+      },
+      session: { elapsed: "32s" },
+      archives: [],
+    };
+    const html = renderSidebar(nonce, csp, state);
+    expect(html).toContain("Completed");
+    expect(html).not.toContain('>Replay<');
   });
 
   it("renders stale state with Found badge and Resume/Dismiss buttons", () => {
