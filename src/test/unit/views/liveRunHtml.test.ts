@@ -32,6 +32,13 @@ describe("renderLiveRunShell", () => {
       expect(html).toContain(cls);
     }
   });
+
+  it("contains CSS for verify-banner classes", () => {
+    const html = renderLiveRunShell(nonce, cspSource);
+    for (const cls of [".verify-banner", ".verify-banner.failed", ".verify-banner.passed", ".verify-title", ".verify-attempt", ".verify-reason", ".verify-actions", ".banner-btn", ".banner-btn.primary"]) {
+      expect(html).toContain(cls);
+    }
+  });
 });
 
 describe("renderDashboardHtml", () => {

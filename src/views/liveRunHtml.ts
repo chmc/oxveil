@@ -245,6 +245,21 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
     .run-failed .title { color: #f44747; }
     .run-failed button { background: #c62828; }
 
+    /* Verify banners */
+    .verify-banner { border-radius: 4px; padding: 12px 16px; margin-top: 12px; border: 1px solid transparent; }
+    .verify-banner.failed { background: rgba(244, 67, 54, 0.12); border-color: var(--vscode-errorForeground, #f44747); }
+    .verify-banner.passed { background: rgba(78, 201, 176, 0.12); border-color: #4ec9b0; }
+    .verify-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .verify-banner.failed .verify-title { color: var(--vscode-errorForeground, #f44747); }
+    .verify-banner.passed .verify-title { color: #4ec9b0; }
+    .verify-attempt { font-size: 11px; font-weight: 400; color: #888; margin-left: 4px; }
+    .verify-reason { font-family: 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 11.5px; color: var(--vscode-foreground, #ccc); margin: 6px 0 10px; white-space: pre-wrap; }
+    .verify-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .banner-btn { background: var(--vscode-button-secondaryBackground, #3a3d41); color: var(--vscode-button-secondaryForeground, #ccc); border: 1px solid var(--vscode-button-border, #555); padding: 5px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; font-family: inherit; }
+    .banner-btn:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+    .banner-btn.primary { background: var(--vscode-button-background, #0e639c); color: var(--vscode-button-foreground, #fff); border-color: transparent; }
+    .banner-btn.primary:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .spinner { display: inline-block; animation: spin 1s linear infinite; }
   </style>
