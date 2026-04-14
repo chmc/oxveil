@@ -55,10 +55,6 @@ function renderHeader(options: PhaseCardsOptions): string {
       ? '<span class="valid-badge">&#10003; Valid</span>'
       : "";
 
-  const formBtn = options.showFormButton
-    ? '<button class="form-plan-btn">Form Claudeloop Plan</button>'
-    : "";
-
   const tabStrip = options.tabs && options.tabs.length >= 2
     ? `<div class="tab-strip">${options.tabs.map((t) =>
         `<button class="tab-pill${t.active ? " active" : ""}" data-category="${escapeHtml(t.category)}">${escapeHtml(t.label)}</button>`
@@ -69,7 +65,6 @@ function renderHeader(options: PhaseCardsOptions): string {
   <span class="preview-title">${title}</span>
   ${badge}
   ${validBadge}
-  ${formBtn}
 </div>
 ${tabStrip}`;
 }
@@ -116,6 +111,9 @@ function renderMarkdownHtml(raw: string): string {
 
 export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   const header = renderHeader(options);
+  const formBtn = options.showFormButton
+    ? '<button class="form-plan-btn">Form Claudeloop Plan</button>'
+    : "";
 
   if (options.state === "empty") {
     const subtitle = options.sessionActive
@@ -132,14 +130,19 @@ export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   }
 
   if (options.state === "raw-markdown") {
-    const annotateBtn = options.sessionActive
-      ? '<button class="annotate-btn raw-annotate-btn" data-phase="plan">&#128221; Add note</button>'
+    const buttons: string[] = [];
+    if (options.sessionActive) {
+      buttons.push('<button class="annotate-btn raw-annotate-btn" data-phase="plan">&#128221; Add note</button>');
+    }
+    if (formBtn) { buttons.push(formBtn); }
+    const actionBar = buttons.length > 0
+      ? `<div class="action-bar">${buttons.join("\n  ")}</div>`
       : "";
     return `${header}
 <div class="preview-content">
-  ${annotateBtn}
   <div class="raw-markdown">${renderMarkdownHtml(options.rawMarkdown || "")}</div>
-</div>`;
+</div>
+${actionBar}`;
   }
 
   const sessionActive = !!options.sessionActive;
@@ -154,11 +157,16 @@ export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
 </div>`
       : "";
 
+  const actionBar = formBtn
+    ? `<div class="action-bar">${formBtn}</div>`
+    : "";
+
   return `${header}
 ${endedBanner}
 <div class="preview-content">
   ${cardsHtml}
-</div>`;
+</div>
+${actionBar}`;
 }
 
 export function renderPlanPreviewShell(nonce: string, cspSource: string): string {
@@ -290,7 +298,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         for (var i = 0; i < buttons.length; i++) {
           buttons[i].addEventListener("click", function() {
             var phase = this.getAttribute("data-phase");
-            var card = this.closest(".phase-card") || this.closest(".preview-content");
+            var card = this.closest(".phase-card") || this.closest(".preview-content") || document.querySelector(".preview-content");
             if (card && !card.querySelector(".annotation")) {
               var ann = document.createElement("div");
               ann.className = "annotation";
