@@ -242,4 +242,45 @@ describe("LiveRunPanel", () => {
     );
     expect(dashCalls.length).toBeGreaterThanOrEqual(1);
   });
+
+  describe("verify messages", () => {
+    it("posts verify-failed message to webview", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.reveal(makeProgress());
+
+      panel.onVerifyFailed({ reason: "Missing req", attempt: 1, maxAttempts: 3 });
+
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "verify-failed" }),
+      );
+    });
+
+    it("posts verify-passed message to webview", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.reveal(makeProgress());
+
+      panel.onVerifyPassed({ retryCount: 1 });
+
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "verify-passed" }),
+      );
+    });
+
+    it("emits action events from webview messages", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.reveal(makeProgress());
+
+      const actions: string[] = [];
+      panel.onAiParseAction((action) => actions.push(action));
+
+      (mockPanel as any)._simulateMessage({ type: "ai-parse-retry" });
+      expect(actions).toEqual(["ai-parse-retry"]);
+    });
+  });
 });

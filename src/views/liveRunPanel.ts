@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { ProgressState } from "../types";
-import { renderDashboardHtml, renderCompletionBannerHtml, type DashboardOptions } from "./liveRunHtml";
+import { renderDashboardHtml, renderCompletionBannerHtml, renderVerifyFailedBannerHtml, renderVerifyPassedBannerHtml, type DashboardOptions, type VerifyFailedOptions, type VerifyPassedOptions } from "./liveRunHtml";
 import { renderLiveRunShell } from "./liveRunHtml";
 import { formatLogLine } from "../parsers/logFormatter";
 
@@ -43,6 +43,7 @@ export class LiveRunPanel {
   private _todoTotal = 0;
   private _todoCurrentItem: string | undefined;
   private _runStartedAt: number | undefined;
+  private _aiParseActionListeners: Array<(action: string) => void> = [];
 
   constructor(deps: LiveRunPanelDeps) {
     this._deps = deps;
@@ -88,6 +89,10 @@ export class LiveRunPanel {
           }
         } else if (msg.type === "open-replay") {
           this._deps.executeCommand("oxveil.openReplayViewer");
+        } else if (msg.type === "ai-parse-retry" || msg.type === "ai-parse-continue" || msg.type === "ai-parse-abort" || msg.type === "open-result") {
+          for (const listener of this._aiParseActionListeners) {
+            listener(msg.type);
+          }
         }
       });
     } else {
@@ -148,6 +153,26 @@ export class LiveRunPanel {
       const lines = newLines.map((l) => formatLogLine(l));
       this._panel.webview.postMessage({ type: "log-append", lines });
     }
+  }
+
+  onVerifyFailed(options: VerifyFailedOptions): void {
+    if (!this._panel) return;
+    const html = renderVerifyFailedBannerHtml(options);
+    this._panel.webview.postMessage({ type: "verify-failed", html });
+  }
+
+  onVerifyPassed(options: VerifyPassedOptions): void {
+    if (!this._panel) return;
+    const html = renderVerifyPassedBannerHtml(options);
+    this._panel.webview.postMessage({ type: "verify-passed", html });
+  }
+
+  onAiParseAction(listener: (action: string) => void): () => void {
+    this._aiParseActionListeners.push(listener);
+    return () => {
+      const idx = this._aiParseActionListeners.indexOf(listener);
+      if (idx !== -1) this._aiParseActionListeners.splice(idx, 1);
+    };
   }
 
   onRunFinished(status?: string): void {

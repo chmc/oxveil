@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderLiveRunShell, renderDashboardHtml, renderCompletionBannerHtml } from "../../../views/liveRunHtml";
+import { renderLiveRunShell, renderDashboardHtml, renderCompletionBannerHtml, renderVerifyFailedBannerHtml, renderVerifyPassedBannerHtml } from "../../../views/liveRunHtml";
 import type { ProgressState } from "../../../types";
 
 const nonce = "abc123";
@@ -138,5 +138,43 @@ describe("renderCompletionBannerHtml", () => {
   it("formats short duration as seconds only", () => {
     const html = renderCompletionBannerHtml("done", { durationMs: 45000 });
     expect(html).toContain("45s");
+  });
+});
+
+describe("renderVerifyFailedBannerHtml", () => {
+  it("includes failure reason and action buttons", () => {
+    const html = renderVerifyFailedBannerHtml({
+      reason: "Phase 3 missing auth requirement",
+      attempt: 1,
+      maxAttempts: 3,
+    });
+    expect(html).toContain("Phase 3 missing auth requirement");
+    expect(html).toContain("Retry");
+    expect(html).toContain("Continue");
+    expect(html).toContain("Abort");
+    expect(html).toContain("attempt 1 of 3");
+  });
+
+  it("hides retry button at max attempts", () => {
+    const html = renderVerifyFailedBannerHtml({
+      reason: "Still failing",
+      attempt: 3,
+      maxAttempts: 3,
+    });
+    expect(html).not.toContain("Retry");
+    expect(html).toContain("Continue");
+    expect(html).toContain("Abort");
+  });
+});
+
+describe("renderVerifyPassedBannerHtml", () => {
+  it("shows success with retry count", () => {
+    const html = renderVerifyPassedBannerHtml({ retryCount: 1 });
+    expect(html).toContain("after 1 retry");
+  });
+
+  it("shows success without retry count when 0", () => {
+    const html = renderVerifyPassedBannerHtml({ retryCount: 0 });
+    expect(html).not.toContain("retry");
   });
 });

@@ -136,6 +136,44 @@ export function renderCompletionBannerHtml(status: string, options?: CompletionB
 </div>`;
 }
 
+export interface VerifyFailedOptions {
+  reason: string;
+  attempt: number;
+  maxAttempts: number;
+}
+
+export function renderVerifyFailedBannerHtml(options: VerifyFailedOptions): string {
+  const { reason, attempt, maxAttempts } = options;
+  const retryButton = attempt < maxAttempts
+    ? `<button class="banner-btn primary" onclick="sendAction('ai-parse-retry')">Retry with Feedback</button>`
+    : "";
+  return `<div class="verify-banner failed">
+    <div class="verify-title">Verification Failed <span class="verify-attempt">(attempt ${attempt} of ${maxAttempts})</span></div>
+    <div class="verify-reason">${escapeHtml(reason)}</div>
+    <div class="verify-actions">
+      ${retryButton}
+      <button class="banner-btn" onclick="sendAction('ai-parse-continue')">Continue As-Is</button>
+      <button class="banner-btn" onclick="sendAction('ai-parse-abort')">Abort</button>
+    </div>
+  </div>`;
+}
+
+export interface VerifyPassedOptions {
+  retryCount: number;
+}
+
+export function renderVerifyPassedBannerHtml(options: VerifyPassedOptions): string {
+  const retryNote = options.retryCount > 0
+    ? ` <span class="verify-attempt">(after ${options.retryCount} retry${options.retryCount > 1 ? "s" : ""})</span>`
+    : "";
+  return `<div class="verify-banner passed">
+    <div class="verify-title">AI Parse Complete${retryNote}</div>
+    <div class="verify-actions">
+      <button class="banner-btn primary" onclick="sendAction('open-result')">Open Result</button>
+    </div>
+  </div>`;
+}
+
 export function renderLiveRunShell(nonce: string, cspSource: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -259,11 +297,23 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
           for (var j = 0; j < count && logContainer.firstChild; j++) {
             logContainer.removeChild(logContainer.firstChild);
           }
+        } else if (msg.type === "verify-failed" || msg.type === "verify-passed") {
+          var banner = document.getElementById("verify-banner");
+          if (!banner) {
+            banner = document.createElement("div");
+            banner.id = "verify-banner";
+            logContainer.after(banner);
+          }
+          banner.innerHTML = msg.html;
         }
       });
 
       window.postOpenReplay = function() {
         vscode.postMessage({ type: "open-replay" });
+      };
+
+      window.sendAction = function(type) {
+        vscode.postMessage({ type: type });
       };
 
       // Toggle dashboard collapse
