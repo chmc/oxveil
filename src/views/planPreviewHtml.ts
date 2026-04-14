@@ -170,7 +170,9 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); background: var(--vscode-editor-background); color: var(--vscode-foreground, #ccc); padding: 0; }
+    html { height: 100%; }
+    body { font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); background: var(--vscode-editor-background); color: var(--vscode-foreground, #ccc); padding: 0; height: 100%; }
+    #plan-content { display: flex; flex-direction: column; height: 100%; }
 
     /* Header */
     .preview-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); flex-wrap: wrap; }
@@ -178,7 +180,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .live-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .ended-badge { background: #3b1d1d; color: #f44747; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
-    .form-plan-btn { margin-left: auto; flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+    .form-plan-btn { flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
     .form-plan-btn:hover { background: #2d5a8a; }
 
     /* Tab strip */
@@ -192,8 +194,11 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .session-ended-text { color: #f44747; font-size: 12px; }
     .session-ended-hint { color: #888; font-size: 11px; margin-left: auto; }
 
+    /* Action bar */
+    .action-bar { flex-shrink: 0; display: flex; gap: 8px; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--vscode-panel-border, #333); background: var(--vscode-sideBar-background, #252526); }
+
     /* Content area */
-    .preview-content { flex: 1; padding: 16px; overflow-y: auto; }
+    .preview-content { flex: 1; padding: 16px; overflow-y: auto; min-height: 0; }
 
     /* Phase cards */
     .phase-card { margin-bottom: 12px; padding: 12px 14px; background: var(--vscode-sideBar-background, #252526); border-radius: 6px; border-left: 3px solid #555; }
