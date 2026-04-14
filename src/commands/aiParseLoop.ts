@@ -19,6 +19,8 @@ export async function aiParseLoop(deps: AiParseLoopDeps): Promise<AiParseLoopRes
   const { processManager, liveRunPanel, granularity, readVerifyReason, options } = deps;
   let attempt = 0;
 
+  liveRunPanel.revealForAiParse();
+
   // Initial parse
   let result: AiParseResult = await processManager.aiParse(granularity, options);
 

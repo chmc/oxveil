@@ -69,37 +69,14 @@ export class LiveRunPanel {
       this._runStartedAt = Date.now();
     }
 
-    if (!this._panel) {
-      const nonce = randomBytes(16).toString("hex");
-      this._panel = this._deps.createWebviewPanel(
-        "oxveil.liveRun",
-        "Live Run",
-        1, // ViewColumn.One
-        { enableScripts: true, retainContextWhenHidden: true },
-      );
-      this._panel.webview.html = renderLiveRunShell(nonce, this._panel.webview.cspSource);
-      this._panel.onDidDispose(() => {
-        this._panel = undefined;
-      });
-      this._panel.webview.onDidReceiveMessage((msg: any) => {
-        if (msg.type === "toggle-dashboard") {
-          this._collapsed = !this._collapsed;
-          if (this._lastProgress) {
-            this._sendDashboard(this._lastProgress);
-          }
-        } else if (msg.type === "open-replay") {
-          this._deps.executeCommand("oxveil.openReplayViewer");
-        } else if (msg.type === "ai-parse-retry" || msg.type === "ai-parse-continue" || msg.type === "ai-parse-abort" || msg.type === "open-result") {
-          for (const listener of this._aiParseActionListeners) {
-            listener(msg.type);
-          }
-        }
-      });
-    } else {
-      this._panel.reveal();
-    }
-
+    this._ensurePanel();
     this._sendDashboard(progress);
+    this._flushBuffer();
+  }
+
+  revealForAiParse(folderUri?: string): void {
+    this._currentFolderUri = folderUri;
+    this._ensurePanel();
     this._flushBuffer();
   }
 
@@ -196,6 +173,38 @@ export class LiveRunPanel {
   dispose(): void {
     this._panel?.dispose();
     this._panel = undefined;
+  }
+
+  private _ensurePanel(): void {
+    if (!this._panel) {
+      const nonce = randomBytes(16).toString("hex");
+      this._panel = this._deps.createWebviewPanel(
+        "oxveil.liveRun",
+        "Live Run",
+        1, // ViewColumn.One
+        { enableScripts: true, retainContextWhenHidden: true },
+      );
+      this._panel.webview.html = renderLiveRunShell(nonce, this._panel.webview.cspSource);
+      this._panel.onDidDispose(() => {
+        this._panel = undefined;
+      });
+      this._panel.webview.onDidReceiveMessage((msg: any) => {
+        if (msg.type === "toggle-dashboard") {
+          this._collapsed = !this._collapsed;
+          if (this._lastProgress) {
+            this._sendDashboard(this._lastProgress);
+          }
+        } else if (msg.type === "open-replay") {
+          this._deps.executeCommand("oxveil.openReplayViewer");
+        } else if (msg.type === "ai-parse-retry" || msg.type === "ai-parse-continue" || msg.type === "ai-parse-abort" || msg.type === "open-result") {
+          for (const listener of this._aiParseActionListeners) {
+            listener(msg.type);
+          }
+        }
+      });
+    } else {
+      this._panel.reveal();
+    }
   }
 
   private _sendDashboard(progress: ProgressState): void {

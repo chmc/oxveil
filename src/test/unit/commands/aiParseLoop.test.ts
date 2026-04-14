@@ -114,6 +114,21 @@ describe("aiParseLoop", () => {
     expect(result.outcome).toBe("continued");
   });
 
+  it("reveals Live Run Panel at start", async () => {
+    const pm = makeProcessManager([{ exitCode: 0 }]);
+    const panel = makeLiveRunPanel();
+    const readVerifyReason = vi.fn();
+
+    await aiParseLoop({
+      processManager: pm as any,
+      liveRunPanel: panel as any,
+      granularity: "tasks",
+      readVerifyReason,
+    });
+
+    expect(panel.revealForAiParse).toHaveBeenCalled();
+  });
+
   it("removes retry button after max attempts", async () => {
     const pm = makeProcessManager([
       { exitCode: 2 }, { exitCode: 2 }, { exitCode: 2 }, { exitCode: 2 },
