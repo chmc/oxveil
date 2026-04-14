@@ -1,5 +1,6 @@
 import * as http from "node:http";
 import * as fs from "node:fs/promises";
+import { unlinkSync } from "node:fs";
 import * as path from "node:path";
 import { randomBytes } from "node:crypto";
 import type { SidebarState } from "../views/sidebarState";
@@ -116,7 +117,7 @@ export async function startBridge(deps: BridgeDeps): Promise<BridgeHandle> {
     port,
     dispose() {
       server.close();
-      fs.unlink(discoveryPath).catch(() => {});
+      try { unlinkSync(discoveryPath); } catch {}
     },
   };
 }
