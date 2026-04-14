@@ -361,7 +361,7 @@
         "oxveil.liveRunAutoOpen": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically open Live Run panel when a session starts"
+          "description": "Automatically open Live Run panel when a session starts or when AI parse begins"
         },
         "oxveil.liveRunDashboardCollapsed": {
           "type": "boolean",

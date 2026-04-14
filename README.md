@@ -91,7 +91,7 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
 |---------|-------------|
 | **Syntax highlighting** | Dedicated TextMate grammar for claudeloop plan files — phase headers, dependency declarations, and directives are highlighted |
 | **CodeLens actions** | Inline Run / Diff / Log actions at each phase header |
-| **AI Parse Plan** | Turn free-form notes into structured phases with configurable granularity |
+| **AI Parse Plan** | Turn free-form notes into structured phases with configurable granularity; retry-with-feedback loop streams AI output in the Live Run Panel until the plan passes verification |
 | **Create Plan** | Scaffold a new plan file from the Command Palette |
 
 <p align="center">
@@ -147,6 +147,7 @@ claudeloop is a runtime dependency — Oxveil detects it automatically and offer
 | `oxveil.refactor` | boolean | `true` | Run refactoring after each phase (`--refactor`) |
 | `oxveil.dryRun` | boolean | `false` | Preview plan without executing (`--dry-run`) |
 | `oxveil.aiParse` | boolean | `true` | Auto-parse plan into phases (`--ai-parse`) |
+| `oxveil.liveRunAutoOpen` | boolean | `true` | Automatically open the Live Run Panel when a session starts or when AI parse begins |
 
 ## Commands
 

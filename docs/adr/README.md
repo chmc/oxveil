@@ -13,3 +13,4 @@
 | [0009](0009-plan-preview-multi-format.md) | Plan Preview multi-format support with session pinning | Accepted |
 | [0010](0010-sidebar-webview-migration.md) | Sidebar tree view to webview migration | Accepted |
 | [0011](0011-mcp-bridge-server.md) | MCP bridge server for extension interaction | Accepted |
+| [0012](0012-ai-parse-retry-feedback-loop.md) | AI parse retry-with-feedback loop and Live Run Panel integration | Accepted |

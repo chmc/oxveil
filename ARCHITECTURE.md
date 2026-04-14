@@ -144,7 +144,8 @@ src/
 ├── activateViews.ts              # View instantiation and webview panel factory
 ├── commands.ts                   # Command handler registration
 ├── commands/
-│   └── createPlan.ts             # Plan creation command with walkthrough trigger
+│   ├── createPlan.ts             # Plan creation command with walkthrough trigger
+│   └── aiParseLoop.ts            # Shared retry orchestrator for AI parse with feedback
 ├── types.ts                      # Shared type definitions (DetectionStatus, SessionStatus, etc.)
 ├── sessionWiring.ts              # Connects session events to UI updates
 ├── workspaceInit.ts              # File watcher setup for .claudeloop directory
@@ -308,6 +309,8 @@ Manages the claudeloop child process lifecycle.
 
 **Reset:** Spawns `claudeloop --reset`, waits for exit.
 
+**AI parse with feedback:** `aiParseFeedback(feedbackText)` spawns `claudeloop --ai-parse --ai-parse-feedback` after writing feedback to a temp file. Returns `AiParseResult { exitCode: number }` — exit code 0 means the plan passed verification, exit code 2 means verification failed (retry eligible), exit code 1 means an unexpected error.
+
 **Double-spawn prevention:** Read the lock file before spawning. If a process is already running, show an error notification.
 
 **Deactivate:** `deactivate()` sends SIGINT/SIGTERM immediately, SIGKILL after 3 seconds.
@@ -392,7 +395,11 @@ Webview panel (`LiveRunPanel`) that displays real-time session progress. Replace
 
 **Log stream:** Formatted log lines streamed below the dashboard. Auto-scrolls. Lines formatted by `logFormatter` with CSS classes for timestamps, tools, paths, commands, todos, errors.
 
-**Auto-open:** Controlled by `oxveil.liveRunAutoOpen` setting (default: true).
+**Auto-open:** Controlled by `oxveil.liveRunAutoOpen` setting (default: true). Applies to both phase execution sessions and AI parse runs.
+
+**AI parse integration:** The panel opens during AI parse (not just phase execution). Two additional webview message types support the retry-with-feedback loop:
+- `verify-failed` — signals that the AI-generated plan failed verification; the panel renders a feedback form prompting the user to describe what needs fixing
+- `verify-passed` — signals that the plan passed verification; the panel shows a success banner and closes the feedback form
 
 ### Archive Parser
 
@@ -500,7 +507,20 @@ Dedicated language ID (`claudeloop-plan`) with a TextMate grammar for plan files
 
 **Actions:** Provides inline actions at phase headers — run phase, view diff, view log. Grays out actions for pending phases that cannot be executed yet.
 
-**AI Parse Plan:** Command palette action that parses plan content with configurable granularity (quick-pick for detail level).
+**AI Parse Plan:** Command palette action that parses plan content with configurable granularity (quick-pick for detail level). Uses `aiParseLoop.ts` to drive the retry-with-feedback loop.
+
+### AI Parse Loop
+
+`commands/aiParseLoop.ts` — shared retry orchestrator for the AI parse with feedback feature.
+
+**Responsibility:** Drives the full retry cycle: invoke `aiParseFeedback()` on the process manager, interpret the exit code, signal the Live Run Panel via `verify-failed` or `verify-passed` webview messages, collect user feedback, and loop until exit code 0 or the user cancels.
+
+**Exit code contract:**
+- `0` — plan passed verification; loop exits successfully
+- `2` — verification failed; prompt the user for feedback and retry
+- `1` — unexpected error; surface to the output channel and abort
+
+**Decoupling:** The orchestrator is independent of the specific command that invokes it (CodeLens, command palette, or sidebar). Any entry point that needs to run AI parse with UI feedback delegates here.
 
 ### Replay Viewer
 
