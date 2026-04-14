@@ -5,6 +5,11 @@ vi.mock("node:fs", () => ({
   existsSync: vi.fn(() => false),
 }));
 
+// Mock aiParseLoop before importing commands
+vi.mock("../../commands/aiParseLoop", () => ({
+  aiParseLoop: vi.fn().mockResolvedValue({ outcome: "pass" }),
+}));
+
 // Mock vscode before importing commands
 vi.mock("vscode", () => ({
   commands: {
@@ -39,10 +44,26 @@ vi.mock("vscode", () => ({
 
 import * as vscode from "vscode";
 import * as fs from "node:fs";
+import { aiParseLoop } from "../../commands/aiParseLoop";
 import { registerCommands, type CommandDeps } from "../../commands";
 
 // Store registered command handlers for invocation in tests
 const registeredCommands = new Map<string, Function>();
+
+function makeLiveRunPanel() {
+  return {
+    reveal: vi.fn(),
+    revealForAiParse: vi.fn(),
+    onVerifyFailed: vi.fn(),
+    onVerifyPassed: vi.fn(),
+    onAiParseAction: vi.fn(),
+    onLogAppended: vi.fn(),
+    onRunFinished: vi.fn(),
+    onProgressChanged: vi.fn(),
+    visible: false,
+    currentFolderUri: undefined,
+  };
+}
 
 function makeProcessManager(overrides: Record<string, unknown> = {}) {
   return {
@@ -52,7 +73,8 @@ function makeProcessManager(overrides: Record<string, unknown> = {}) {
     restore: vi.fn().mockResolvedValue(undefined),
     forceUnlock: vi.fn().mockResolvedValue(undefined),
     deactivate: vi.fn().mockResolvedValue(undefined),
-    aiParse: vi.fn().mockResolvedValue(undefined),
+    aiParse: vi.fn().mockResolvedValue({ exitCode: 0 }),
+    aiParseFeedback: vi.fn().mockResolvedValue({ exitCode: 0 }),
     isRunning: false,
     ...overrides,
   };
@@ -88,6 +110,7 @@ function makeDeps(overrides: Partial<CommandDeps> & {
     statusBar: { update: vi.fn() } as any,
     readdir: vi.fn(async () => []),
     onArchiveRefresh: vi.fn(),
+    liveRunPanel: makeLiveRunPanel() as any,
     ...rest,
   };
 }
@@ -96,6 +119,7 @@ describe("aiParsePlan command", () => {
   beforeEach(() => {
     registeredCommands.clear();
     vi.clearAllMocks();
+    vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "pass" });
   });
 
   it("shows error when PLAN.md does not exist", async () => {
@@ -130,7 +154,7 @@ describe("aiParsePlan command", () => {
     );
   });
 
-  it("calls aiParse with selected granularity", async () => {
+  it("calls aiParseLoop with selected granularity", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
       label: "Steps",
@@ -143,10 +167,15 @@ describe("aiParsePlan command", () => {
     const handler = registeredCommands.get("oxveil.aiParsePlan");
     await handler!();
 
-    expect(pm.aiParse).toHaveBeenCalledWith("steps");
+    expect(aiParseLoop).toHaveBeenCalledWith(
+      expect.objectContaining({
+        processManager: pm,
+        granularity: "steps",
+      }),
+    );
   });
 
-  it("calls aiParse with steps granularity", async () => {
+  it("calls aiParseLoop with steps granularity", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
       label: "Steps",
@@ -159,7 +188,11 @@ describe("aiParsePlan command", () => {
     const handler = registeredCommands.get("oxveil.aiParsePlan");
     await handler!();
 
-    expect(pm.aiParse).toHaveBeenCalledWith("steps");
+    expect(aiParseLoop).toHaveBeenCalledWith(
+      expect.objectContaining({
+        granularity: "steps",
+      }),
+    );
   });
 
   it("opens plan in editor on success", async () => {
@@ -168,6 +201,7 @@ describe("aiParsePlan command", () => {
       label: "Tasks",
       value: "tasks",
     } as any);
+    vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "pass" });
     const pm = makeProcessManager();
     const deps = makeDeps({ processManager: pm as any });
     registerCommands(deps);
@@ -179,25 +213,20 @@ describe("aiParsePlan command", () => {
     expect(vscode.window.showTextDocument).toHaveBeenCalled();
   });
 
-  it("shows error notification on failure", async () => {
+  it("does not open plan when aborted", async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(vscode.window.showQuickPick).mockResolvedValue({
       label: "Phases",
       value: "phases",
     } as any);
-    const pm = makeProcessManager({
-      aiParse: vi.fn().mockRejectedValue(new Error("parse failed")),
-    });
-    const deps = makeDeps({ processManager: pm as any });
+    vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "aborted" });
+    const deps = makeDeps();
     registerCommands(deps);
 
     const handler = registeredCommands.get("oxveil.aiParsePlan");
     await handler!();
 
-    expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-      "Oxveil: Failed to parse plan — parse failed",
-      "View Output",
-    );
+    expect(vscode.workspace.openTextDocument).not.toHaveBeenCalled();
   });
 
   it("does nothing when quick pick is cancelled", async () => {
@@ -210,6 +239,6 @@ describe("aiParsePlan command", () => {
     const handler = registeredCommands.get("oxveil.aiParsePlan");
     await handler!();
 
-    expect(pm.aiParse).not.toHaveBeenCalled();
+    expect(aiParseLoop).not.toHaveBeenCalled();
   });
 });

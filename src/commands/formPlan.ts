@@ -4,10 +4,12 @@ import * as fs from "node:fs/promises";
 import { pickGranularity } from "./granularityPicker";
 import { parsePlan } from "../parsers/plan";
 import type { IProcessManager } from "../core/interfaces";
+import type { LiveRunPanel } from "../views/liveRunPanel";
+import { aiParseLoop } from "./aiParseLoop";
 
 export interface FormPlanCommandDeps {
   resolveFolder: () => Promise<
-    | { workspaceRoot: string; processManager: IProcessManager }
+    | { workspaceRoot: string; processManager: IProcessManager; liveRunPanel?: LiveRunPanel }
     | undefined
   >;
   getActivePreviewFile: () => string | undefined;
@@ -36,9 +38,10 @@ export function registerFormPlanCommand(
         return;
       }
 
-      const { workspaceRoot, processManager } = resolved;
+      const { workspaceRoot, processManager, liveRunPanel } = resolved;
+      if (!liveRunPanel) return;
 
-      // 3. Read source content (keep for retry)
+      // 3. Read source content
       let sourceContent: string;
       try {
         sourceContent = await fs.readFile(filePath, "utf-8");
@@ -64,109 +67,76 @@ export function registerFormPlanCommand(
         // File doesn't exist — proceed
       }
 
-      // 5. Write source to PLAN.md + run ai-parse loop
-      await formPlanLoop(
-        sourceContent,
-        planPath,
-        processManager,
-        deps.onPlanFormed,
+      // 5. Write source to PLAN.md
+      await fs.writeFile(planPath, sourceContent, "utf-8");
+      await vscode.commands.executeCommand(
+        "setContext",
+        "oxveil.walkthrough.hasPlan",
+        true,
       );
+
+      // 6. Show granularity picker
+      const granularity = await pickGranularity();
+      if (!granularity) {
+        // User cancelled — open the raw plan
+        const doc = await vscode.workspace.openTextDocument(
+          vscode.Uri.file(planPath),
+        );
+        await vscode.window.showTextDocument(doc);
+        return;
+      }
+
+      // 7. Run ai-parse loop
+      const readVerifyReason = async () => {
+        const reasonPath = path.join(workspaceRoot, ".claudeloop", "ai-verify-reason.txt");
+        return fs.readFile(reasonPath, "utf-8");
+      };
+
+      const { outcome } = await aiParseLoop({
+        processManager,
+        liveRunPanel,
+        granularity,
+        readVerifyReason,
+        options: { dryRun: true },
+      });
+
+      if (outcome === "aborted") return;
+
+      // 8. Validate result
+      const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+      let resultPath = planPath;
+      let resultContent: string;
+      try {
+        resultContent = await fs.readFile(parsedPlanPath, "utf-8");
+        resultPath = parsedPlanPath;
+      } catch {
+        // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode)
+        resultContent = await fs.readFile(planPath, "utf-8");
+      }
+
+      const parsed = parsePlan(resultContent);
+
+      if (parsed.phases.length === 0) {
+        await vscode.window.showWarningMessage(
+          "Plan formed but no valid phases detected.",
+          "OK",
+        );
+      } else {
+        // Ensure ai-parsed-plan.md exists for claudeloop execution
+        if (resultPath === planPath) {
+          const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+          await fs.mkdir(claudeloopDir, { recursive: true });
+          await fs.writeFile(parsedPlanPath, resultContent, "utf-8");
+        }
+        // Signal success — sidebar transitions to Ready with phases
+        deps.onPlanFormed?.();
+      }
+
+      // Open result in editor
+      const doc = await vscode.workspace.openTextDocument(
+        vscode.Uri.file(resultPath),
+      );
+      await vscode.window.showTextDocument(doc);
     },
   );
-}
-
-async function formPlanLoop(
-  sourceContent: string,
-  planPath: string,
-  processManager: IProcessManager,
-  onPlanFormed?: () => void,
-): Promise<void> {
-  // Write source content to PLAN.md (fresh on each attempt)
-  await fs.writeFile(planPath, sourceContent, "utf-8");
-  await vscode.commands.executeCommand(
-    "setContext",
-    "oxveil.walkthrough.hasPlan",
-    true,
-  );
-
-  // Show granularity picker
-  const granularity = await pickGranularity();
-  if (!granularity) {
-    // User cancelled — open the raw plan
-    const doc = await vscode.workspace.openTextDocument(
-      vscode.Uri.file(planPath),
-    );
-    await vscode.window.showTextDocument(doc);
-    return;
-  }
-
-  // Run ai-parse
-  try {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Forming claudeloop plan...",
-      },
-      () => processManager.aiParse(granularity, { dryRun: true }),
-    );
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const action = await vscode.window.showErrorMessage(
-      `Oxveil: Failed to form plan — ${msg}`,
-      "Retry",
-      "View Output",
-    );
-    if (action === "Retry") {
-      return formPlanLoop(sourceContent, planPath, processManager, onPlanFormed);
-    }
-    if (action === "View Output") {
-      vscode.commands.executeCommand(
-        "workbench.action.output.toggleOutput",
-      );
-    }
-    return;
-  }
-
-  // Validate result — claudeloop writes parsed plan to .claudeloop/ai-parsed-plan.md
-  // With --dry-run, ai-parsed-plan.md may not exist; fall back to PLAN.md
-  const workspaceRoot = path.dirname(planPath);
-  const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
-  let resultPath = planPath;
-  let resultContent: string;
-  try {
-    resultContent = await fs.readFile(parsedPlanPath, "utf-8");
-    resultPath = parsedPlanPath;
-  } catch {
-    // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode)
-    resultContent = await fs.readFile(planPath, "utf-8");
-  }
-
-  const parsed = parsePlan(resultContent);
-
-  if (parsed.phases.length === 0) {
-    const action = await vscode.window.showWarningMessage(
-      "Plan formed but no valid phases detected. Try a different granularity?",
-      "Retry",
-      "Open PLAN.md",
-    );
-    if (action === "Retry") {
-      return formPlanLoop(sourceContent, planPath, processManager, onPlanFormed);
-    }
-  } else {
-    // Ensure ai-parsed-plan.md exists for claudeloop execution
-    // (dry-run validates but doesn't write this file)
-    if (resultPath === planPath) {
-      const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
-      await fs.mkdir(claudeloopDir, { recursive: true });
-      await fs.writeFile(parsedPlanPath, resultContent, "utf-8");
-    }
-    // Signal success — sidebar transitions to Ready with phases
-    onPlanFormed?.();
-  }
-
-  // Open result in editor
-  const doc = await vscode.workspace.openTextDocument(
-    vscode.Uri.file(resultPath),
-  );
-  await vscode.window.showTextDocument(doc);
 }

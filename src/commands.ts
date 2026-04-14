@@ -317,7 +317,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       planPreviewPanel?.reveal();
       await planPreviewPanel?.onFileChanged();
     }),
-    registerAiParsePlanCommand(sessionManager),
+    registerAiParsePlanCommand(sessionManager, liveRunPanel),
     registerCreatePlanCommand(),
     registerWritePlanCommand(() => getActive()?.workspaceRoot),
     vscode.commands.registerCommand("oxveil.welcome", () =>
@@ -346,6 +346,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         return {
           workspaceRoot: resolved.workspaceRoot,
           processManager: resolved.processManager,
+          liveRunPanel,
         };
       },
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),

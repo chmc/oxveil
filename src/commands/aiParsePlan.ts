@@ -1,17 +1,23 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import * as fsp from "node:fs/promises";
 import type { WorkspaceSessionManager } from "../core/workspaceSessionManager";
+import type { LiveRunPanel } from "../views/liveRunPanel";
 import { pickGranularity } from "./granularityPicker";
+import { aiParseLoop } from "./aiParseLoop";
 
 export function registerAiParsePlanCommand(
   sessionManager: WorkspaceSessionManager,
+  liveRunPanel?: LiveRunPanel,
 ): vscode.Disposable {
   return vscode.commands.registerCommand("oxveil.aiParsePlan", async () => {
     const active = sessionManager.getActiveSession();
     const processManager = active?.processManager;
     const workspaceRoot = active?.workspaceRoot;
     if (!processManager || !workspaceRoot) return;
+
+    if (!liveRunPanel) return;
 
     const planPath = path.join(workspaceRoot, "PLAN.md");
     if (!fs.existsSync(planPath)) {
@@ -24,30 +30,23 @@ export function registerAiParsePlanCommand(
     const granularity = await pickGranularity();
     if (!granularity) return;
 
-    try {
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: "Parsing plan...",
-        },
-        () => processManager.aiParse(granularity),
-      );
+    const readVerifyReason = async () => {
+      const reasonPath = path.join(workspaceRoot, ".claudeloop", "ai-verify-reason.txt");
+      return fsp.readFile(reasonPath, "utf-8");
+    };
 
-      const doc = await vscode.workspace.openTextDocument(
-        vscode.Uri.file(planPath),
-      );
-      await vscode.window.showTextDocument(doc);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const action = await vscode.window.showErrorMessage(
-        `Oxveil: Failed to parse plan — ${msg}`,
-        "View Output",
-      );
-      if (action === "View Output") {
-        vscode.commands.executeCommand(
-          "workbench.action.output.toggleOutput",
-        );
-      }
-    }
+    const { outcome } = await aiParseLoop({
+      processManager,
+      liveRunPanel,
+      granularity,
+      readVerifyReason,
+    });
+
+    if (outcome === "aborted") return;
+
+    const doc = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(planPath),
+    );
+    await vscode.window.showTextDocument(doc);
   });
 }

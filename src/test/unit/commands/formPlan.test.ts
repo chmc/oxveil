@@ -22,15 +22,38 @@ vi.mock("vscode", () => ({
   Uri: { file: (p: string) => ({ fsPath: p, scheme: "file" }) },
 }));
 
+vi.mock("../../../commands/aiParseLoop", () => ({
+  aiParseLoop: vi.fn().mockResolvedValue({ outcome: "pass" }),
+}));
+
 import * as vscode from "vscode";
 import { registerFormPlanCommand } from "../../../commands/formPlan";
 import type { FormPlanCommandDeps } from "../../../commands/formPlan";
+import { aiParseLoop } from "../../../commands/aiParseLoop";
+
+function makeLiveRunPanel() {
+  return {
+    reveal: vi.fn(),
+    revealForAiParse: vi.fn(),
+    onVerifyFailed: vi.fn(),
+    onVerifyPassed: vi.fn(),
+    onAiParseAction: vi.fn(),
+    onLogAppended: vi.fn(),
+    onRunFinished: vi.fn(),
+    onProgressChanged: vi.fn(),
+    visible: false,
+  };
+}
 
 function makeDeps(overrides: Partial<FormPlanCommandDeps> = {}): FormPlanCommandDeps {
   return {
     resolveFolder: vi.fn().mockResolvedValue({
       workspaceRoot: "/workspace",
-      processManager: { aiParse: vi.fn().mockResolvedValue(undefined) } as any,
+      processManager: {
+        aiParse: vi.fn().mockResolvedValue({ exitCode: 0 }),
+        aiParseFeedback: vi.fn().mockResolvedValue({ exitCode: 0 }),
+      } as any,
+      liveRunPanel: makeLiveRunPanel() as any,
     }),
     getActivePreviewFile: vi.fn().mockReturnValue("/workspace/docs/superpowers/plans/test.md"),
     onPlanFormed: vi.fn(),
@@ -41,6 +64,7 @@ function makeDeps(overrides: Partial<FormPlanCommandDeps> = {}): FormPlanCommand
 describe("registerFormPlanCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "pass" });
   });
 
   it("registers oxveil.formPlan command", () => {
@@ -99,5 +123,17 @@ describe("registerFormPlanCommand", () => {
     expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
       expect.stringContaining("No workspace"),
     );
+  });
+
+  it("returns silently when aiParseLoop is aborted", async () => {
+    vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "aborted" });
+    const deps = makeDeps();
+    registerFormPlanCommand(deps);
+
+    const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+    await cb();
+
+    expect(vscode.workspace.openTextDocument).not.toHaveBeenCalled();
+    expect(deps.onPlanFormed).not.toHaveBeenCalled();
   });
 });
