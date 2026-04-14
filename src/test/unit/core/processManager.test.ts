@@ -283,14 +283,14 @@ describe("ProcessManager", () => {
     });
   });
 
-  describe("aiParse", () => {
-    it("spawns with --ai-parse and --granularity flags", async () => {
+  describe("aiParse (legacy)", () => {
+    it("spawns with --ai-parse, --no-retry, and --granularity flags", async () => {
       const pm = createManager();
       pm.aiParse("medium");
       await flushMicrotasks();
 
       expect(spawnCalls).toHaveLength(1);
-      expect(spawnCalls[0].args).toEqual(["--ai-parse", "--granularity", "medium"]);
+      expect(spawnCalls[0].args).toEqual(["--ai-parse", "--no-retry", "--granularity", "medium"]);
 
       closeCallback?.(0);
     });
@@ -302,6 +302,7 @@ describe("ProcessManager", () => {
 
       expect(spawnCalls[0].args).toEqual([
         "--ai-parse",
+        "--no-retry",
         "--granularity",
         "create exactly 7 phases",
       ]);
@@ -314,6 +315,54 @@ describe("ProcessManager", () => {
       const pm = createManager();
 
       await expect(pm.aiParse("coarse")).rejects.toThrow("lock file exists");
+    });
+  });
+
+  describe("aiParse", () => {
+    it("passes --no-retry flag", async () => {
+      const pm = createManager();
+      const promise = pm.aiParse("tasks");
+      await flushMicrotasks();
+
+      expect(spawnCalls[0].args).toContain("--no-retry");
+      closeCallback?.(0);
+      const result = await promise;
+      expect(result).toEqual({ exitCode: 0 });
+    });
+
+    it("resolves with exitCode 2 on verification failure", async () => {
+      const pm = createManager();
+      const promise = pm.aiParse("tasks");
+      await flushMicrotasks();
+
+      closeCallback?.(2);
+      const result = await promise;
+      expect(result).toEqual({ exitCode: 2 });
+    });
+
+    it("rejects on exit code 1 (process error)", async () => {
+      const pm = createManager();
+      const promise = pm.aiParse("tasks");
+      await flushMicrotasks();
+
+      const assertion = expect(promise).rejects.toThrow("claudeloop exited with code 1");
+      closeCallback?.(1);
+      await assertion;
+    });
+  });
+
+  describe("aiParseFeedback", () => {
+    it("spawns with --ai-parse-feedback flag", async () => {
+      const pm = createManager();
+      const promise = pm.aiParseFeedback("tasks");
+      await flushMicrotasks();
+
+      expect(spawnCalls[0].args).toContain("--ai-parse-feedback");
+      expect(spawnCalls[0].args).toContain("--granularity");
+      expect(spawnCalls[0].args).toContain("tasks");
+      closeCallback?.(0);
+      const result = await promise;
+      expect(result).toEqual({ exitCode: 0 });
     });
   });
 

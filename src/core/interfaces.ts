@@ -17,11 +17,16 @@ export interface ISessionState {
   readonly progress: ProgressState | undefined;
 }
 
+export interface AiParseResult {
+  exitCode: number;
+}
+
 export interface IProcessManager {
   spawn(): Promise<void>;
   spawnFromPhase(phase: number | string): Promise<void>;
   markComplete(phase: number | string): Promise<void>;
-  aiParse(granularity: string, options?: { dryRun?: boolean }): Promise<void>;
+  aiParse(granularity: string, options?: { dryRun?: boolean }): Promise<AiParseResult>;
+  aiParseFeedback(granularity: string): Promise<AiParseResult>;
   stop(): Promise<void>;
   reset(): Promise<void>;
   readonly isRunning: boolean;

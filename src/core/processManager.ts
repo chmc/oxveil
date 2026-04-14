@@ -1,5 +1,5 @@
 import type { ChildProcess } from "node:child_process";
-import type { IProcessManager } from "./interfaces";
+import type { IProcessManager, AiParseResult } from "./interfaces";
 
 export interface ProcessManagerSettings {
   verify: boolean;
@@ -88,17 +88,25 @@ export class ProcessManager implements IProcessManager {
     return this._exitPromise!;
   }
 
-  async aiParse(granularity: string, options?: { dryRun?: boolean }): Promise<void> {
+  async aiParse(granularity: string, options?: { dryRun?: boolean }): Promise<AiParseResult> {
     if (await this._deps.lockExists()) {
       throw new Error("lock file exists — claudeloop is already running");
     }
 
-    const args = ["--ai-parse", "--granularity", granularity];
+    const args = ["--ai-parse", "--no-retry", "--granularity", granularity];
     if (options?.dryRun) {
       args.push("--dry-run");
     }
-    this._spawnChild(args);
-    return this._exitPromise!;
+    return this._spawnChildWithExitCode(args, new Set([2]));
+  }
+
+  async aiParseFeedback(granularity: string): Promise<AiParseResult> {
+    if (await this._deps.lockExists()) {
+      throw new Error("lock file exists — claudeloop is already running");
+    }
+
+    const args = ["--ai-parse-feedback", "--granularity", granularity];
+    return this._spawnChildWithExitCode(args, new Set([2]));
   }
 
   async restore(archiveName: string): Promise<void> {
@@ -164,6 +172,48 @@ export class ProcessManager implements IProcessManager {
         }
       });
     });
+  }
+
+  private _spawnChildWithExitCode(args: string[], expectedCodes: Set<number>): Promise<AiParseResult> {
+    const child = this._deps.spawn(this._deps.claudeloopPath, args, {
+      cwd: this._deps.workspaceRoot,
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+
+    this._process = child;
+
+    const stderrChunks: Buffer[] = [];
+    child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+    const promise = new Promise<AiParseResult>((resolve, reject) => {
+      this._exitResolve = () => resolve({ exitCode: 0 });
+
+      child.on("error", (err: Error) => {
+        this._process = null;
+        this._exitResolve = null;
+        this._stopping = false;
+        reject(err);
+      });
+
+      child.on("close", (code: number | null) => {
+        const wasStopping = this._stopping;
+        this._process = null;
+        this._exitResolve = null;
+        this._stopping = false;
+        const exitCode = code ?? 0;
+        if (wasStopping || exitCode === 0 || expectedCodes.has(exitCode)) {
+          resolve({ exitCode });
+        } else {
+          const stderr = Buffer.concat(stderrChunks).toString().trim();
+          reject(new Error(
+            `claudeloop exited with code ${exitCode}${stderr ? `: ${stderr}` : ""}`,
+          ));
+        }
+      });
+    });
+
+    this._exitPromise = promise.then(() => {}, () => {});
+    return promise;
   }
 
   private async _terminate(timeoutMs: number): Promise<void> {
