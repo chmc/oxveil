@@ -298,7 +298,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         for (var i = 0; i < buttons.length; i++) {
           buttons[i].addEventListener("click", function() {
             var phase = this.getAttribute("data-phase");
-            var card = this.closest(".phase-card") || this.closest(".preview-content") || document.querySelector(".preview-content");
+            var card = this.closest(".phase-card") || this.closest(".preview-content") || this.closest(".action-bar");
             if (card && !card.querySelector(".annotation")) {
               var ann = document.createElement("div");
               ann.className = "annotation";
