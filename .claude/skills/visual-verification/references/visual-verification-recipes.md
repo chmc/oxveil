@@ -5,6 +5,26 @@ description: Scripts, templates, and checklists for the visual verification loop
 
 # Visual Verification Recipes
 
+## Contents
+
+- [Safety Rules](#safety-rules)
+- [Pre-flight Checks](#pre-flight-checks)
+- [MCP Bridge Recipes](#mcp-bridge-recipes)
+- [End-to-End Workflow Recipes](#end-to-end-workflow-recipes)
+- [Swift CGWindowID Script](#swift-cgwindowid-script)
+- [Screenshot Pipeline](#screenshot-pipeline)
+- [Polling for EDH Window Readiness](#polling-for-edh-window-readiness)
+- [osascript Interaction Recipes](#osascript-interaction-recipes)
+- [Maximize Viewport](#maximize-viewport)
+- [Webview Interaction via Commands](#webview-interaction-via-commands)
+- [Mock .claudeloop/ State Scripts](#mock-claudeloop-state-scripts)
+- [claudeloop Fake CLI](#claudeloop-fake-cli)
+- [SESSION.md Template](#sessionmd-template)
+- [Cost Control for Real Claude Instances](#cost-control-for-real-claude-instances)
+- [Common Issues Checklist](#common-issues-checklist)
+- [v0.1 Verification Targets](#v01-verification-targets)
+- [Error Handling](#error-handling)
+
 ## Safety Rules
 
 - **`keystroke` is NOT process-scoped.** It always targets the system frontmost app, regardless of `tell process` target. Never use `keystroke` for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W).
@@ -139,6 +159,138 @@ Only available when MCP bridge is enabled. Command name must be alphanumeric (va
 | `resume` | stopped | running | Needs `phase` parameter |
 | `restart` | stopped | running | Resets and starts fresh |
 | `discardPlan` | ready | empty | Removes plan |
+
+## End-to-End Workflow Recipes
+
+Combine existing primitives (MCP bridge, fake CLI, screenshots) into complete lifecycle recipes.
+
+### Key transition mechanisms
+
+- PLAN.md creation triggers file watcher → sidebar transitions to `stale` (plan detected, user hasn't confirmed).
+- Lock file `.claudeloop/lock` creation → sidebar transitions to `running` (claudeloop executing).
+- Lock file removal + all phases completed → sidebar transitions to `completed`.
+- State names and derivation logic: `src/views/sidebarState.ts:deriveViewState()`.
+
+### wait_for_view helper
+
+Poll `GET /state` until the sidebar reaches the expected view. Use for async transitions (file watcher, process completion) where a fixed sleep is insufficient.
+
+```bash
+# Poll sidebar state until expected view or timeout
+# Usage: wait_for_view "ready" 10
+wait_for_view() {
+    local EXPECTED="$1" TIMEOUT="${2:-10}"
+    local END=$((SECONDS + TIMEOUT))
+    local VIEW=""
+    while [[ $SECONDS -lt $END ]]; do
+        VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
+          | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])")
+        if [[ "$VIEW" == "$EXPECTED" ]]; then
+            echo "OK: view=$EXPECTED"
+            return 0
+        fi
+        sleep 0.5
+    done
+    echo "FAIL: expected $EXPECTED, got $VIEW after ${TIMEOUT}s"
+    return 1
+}
+```
+
+### Recipe: Full Lifecycle (empty → stale → ready → running → completed)
+
+**Prerequisites:**
+- EDH launched with fake_claude in PATH (`success` scenario). See [claudeloop Fake CLI > Setup](#claudeloop-fake-cli) above.
+- MCP bridge ready. `$PORT` and `$TOKEN` parsed from `.oxveil-mcp`. See [Reading discovery file](#reading-discovery-file) above.
+- claudeloop detected (sidebar not in `not-found` state).
+
+```bash
+# 0. Clean slate — remove any leftover PLAN.md from previous runs
+rm -f PLAN.md
+wait_for_view "empty" 10
+
+# 1. Verify starting state
+VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
+  | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])")
+[[ "$VIEW" == "empty" ]] || { echo "FAIL: expected empty, got $VIEW"; exit 1; }
+# Screenshot: 01-empty
+
+# 2. Write minimal PLAN.md (## Phase N: headers recognized by parsePlan())
+cat > PLAN.md << 'EOF'
+# Test Plan
+
+## Phase 1: Setup
+Create project scaffolding.
+
+## Phase 2: Implementation
+Build the core feature.
+
+## Phase 3: Verification
+Run tests and verify.
+EOF
+
+# 3. File watcher detects PLAN.md → stale
+wait_for_view "stale" 10
+# Screenshot: 02-stale
+
+# 4. Resume plan → ready
+click_and_verify "resumePlan" "ready"
+# Screenshot: 03-ready
+
+# 5. Start → running (fake_claude spawned via claudeloop)
+click_and_verify "start" "running"
+# Screenshot: 04-running
+
+# 6. Wait for fake_claude success scenario to complete
+wait_for_view "completed" 45
+# Screenshot: 05-completed
+
+# 7. Cleanup (triggers file watcher — expect brief state flicker to empty)
+rm -f PLAN.md
+```
+
+### Form Plan button path (manual only)
+
+The Form Plan button (`oxveil.formPlan`) cannot be fully automated via MCP bridge:
+- Triggers `pickGranularity()` QuickPick — requires osascript to select an option.
+- `liveRunPanel` must exist — it is auto-created during `activateViews`, so always available in EDH. No action needed.
+- `onPlanFormed()` sets `planUserChoice = "resume"`, transitioning directly to `ready` (skips `stale`).
+- Source plan file can have any markdown content — formPlan copies it to PLAN.md, then AI parse extracts phases. Use `## Phase N:` headers for predictable results with fake_claude.
+
+To test manually:
+1. Create a source plan file (not named PLAN.md) in the workspace.
+2. Use `/command` to invoke: `{"command":"oxveil.formPlan","args":[{"filePath":"/absolute/path/to/source.md"}]}`.
+3. QuickPick appears after ~1s. Use osascript to select granularity. Options: `Phases`, `Tasks`, `Steps`.
+
+```bash
+# Wait for QuickPick, type "Phases" and confirm
+sleep 1
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        set frontmost to true
+        perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+        delay 0.5
+        keystroke "Phases"
+        delay 0.3
+        key code 36
+    end tell
+end tell'
+```
+
+4. `wait_for_view "ready" 15` — formPlan writes PLAN.md, runs AI parse (fake_claude handles it), then calls `onPlanFormed()`.
+5. Continue with `start` → `running` as in the Full Lifecycle recipe.
+6. Cleanup: `rm -f source-plan.md PLAN.md`
+
+Use the file-write recipe above as the default. Reserve this path for testing the AI-parse pipeline specifically.
+
+### Extended command reference (via /command endpoint)
+
+VS Code commands invoked via `POST /command` (not sidebar button clicks via `/click`):
+
+| Command | Args | Notes |
+|---------|------|-------|
+| `oxveil.formPlan` | `[{"filePath":"..."}]` | Writes PLAN.md + AI parse. Triggers QuickPick |
+| `oxveil.discardPlan` | none | Removes PLAN.md, resets to empty |
 
 ## Swift CGWindowID Script
 
