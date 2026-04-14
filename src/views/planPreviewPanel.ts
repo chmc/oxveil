@@ -4,14 +4,9 @@ import { validatePlan } from "../parsers/planValidator";
 import { parsePlan } from "../parsers/plan";
 import { parseSections } from "../parsers/planSections";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
+import { PlanFileResolver } from "./planFileResolver";
 
 export type PlanFileCategory = "design" | "implementation" | "plan";
-
-interface TrackedFile {
-  path: string;
-  category: PlanFileCategory;
-  birthtimeMs: number;
-}
 
 export interface FileSystemWatcher {
   onDidChange: (cb: () => void) => { dispose: () => void };
@@ -61,6 +56,7 @@ interface WebviewPanel {
 export class PlanPreviewPanel {
   private _panel: WebviewPanel | undefined;
   private readonly _deps: PlanPreviewPanelDeps;
+  private readonly _resolver: PlanFileResolver;
   private _sessionActive = false;
   private _lastPhases: PhaseCardData[] = [];
   private _lastValid = false;
@@ -70,14 +66,17 @@ export class PlanPreviewPanel {
   private _watchers: FileSystemWatcher[] = [];
   private _watcherSubscriptions: { dispose: () => void }[] = [];
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  private _sessionStartTime: number | undefined;
-  private _trackedFiles = new Map<PlanFileCategory, TrackedFile>();
-  private _activeCategory: PlanFileCategory | undefined;
-  private _autoSwitch = true;
-  private _sessionDataResolved = false;
+  private _lastRawContent: string | undefined;
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
+    this._resolver = new PlanFileResolver({
+      statFile: deps.statFile,
+      persistPlanPath: deps.persistPlanPath,
+      loadPersistedPlanPath: deps.loadPersistedPlanPath,
+      resolveFromSessionData: deps.resolveFromSessionData,
+      fileExists: deps.fileExists,
+    });
   }
 
   reveal(): void {
@@ -109,108 +108,27 @@ export class PlanPreviewPanel {
     }
   }
 
-  private _lastRawContent: string | undefined;
-
   beginSession(): void {
-    this._sessionStartTime = Date.now();
-    this._trackedFiles = new Map();
-    this._activeCategory = undefined;
-    this._autoSwitch = true;
-    this._sessionDataResolved = false;
-    this._deps.persistPlanPath?.(undefined);
+    this._resolver.beginSession();
   }
 
   endSession(): void {
-    this._sessionStartTime = undefined;
-    // Reset so the next onFileChanged() re-resolves via the sessionless branch.
-    // Do NOT clear _trackedFiles — the tracked file set remains valid for sessionless resolution.
-    this._sessionDataResolved = false;
+    this._resolver.endSession();
   }
 
   async nextTab(): Promise<void> {
-    if (this._trackedFiles.size < 2) return;
-    const keys = Array.from(this._trackedFiles.keys());
-    const currentIndex = this._activeCategory ? keys.indexOf(this._activeCategory) : -1;
-    const nextIndex = (currentIndex + 1) % keys.length;
-    await this._onTabSwitch(keys[nextIndex]);
+    const nextCategory = this._resolver.nextTabCategory();
+    if (nextCategory) {
+      await this._onTabSwitch(nextCategory);
+    }
   }
 
   async onFileChanged(): Promise<void> {
-    // Scan all plan files and update tracked files
     const candidates = await this._deps.findAllPlanFiles();
-    let newCategoryAdded: PlanFileCategory | undefined;
-
-    if (this._sessionStartTime) {
-      // Session-aware tracking: only track files created OR modified after session start.
-      // birthtimeMs catches newly created files; mtimeMs catches files reused across sessions
-      // (e.g., Claude overwrites a plan file that was created in a prior session).
-      //
-      // Edge case: a plan file created in a previous session and never modified during the
-      // current session will NOT be tracked here (both birthtimeMs and mtimeMs predate
-      // _sessionStartTime). This is intentional — such files are not part of the active
-      // session. The sessionless fallback (_resolveSessionless) handles the reload/reopen
-      // scenario where no session is active.
-      for (const candidate of candidates) {
-        if (!this._deps.statFile) continue;
-
-        const stats = await this._deps.statFile(candidate.path);
-        if (!stats) continue;
-        if (stats.birthtimeMs <= this._sessionStartTime && stats.mtimeMs <= this._sessionStartTime)
-          continue;
-
-        const existing = this._trackedFiles.get(candidate.category);
-        if (!existing) {
-          newCategoryAdded = candidate.category;
-          this._trackedFiles.set(candidate.category, {
-            path: candidate.path,
-            category: candidate.category,
-            birthtimeMs: stats.birthtimeMs,
-          });
-        } else if (stats.birthtimeMs > existing.birthtimeMs) {
-          this._trackedFiles.set(candidate.category, {
-            path: candidate.path,
-            category: candidate.category,
-            birthtimeMs: stats.birthtimeMs,
-          });
-        }
-      }
-      // Persist matched plan path for reload recovery
-      const activePath = this._activeCategory
-        ? this._trackedFiles.get(this._activeCategory)?.path
-        : this._trackedFiles.size > 0
-          ? this._trackedFiles.values().next().value?.path
-          : undefined;
-      if (activePath) {
-        this._deps.persistPlanPath?.({ planPath: activePath, resolvedAt: Date.now() });
-      }
-    } else {
-      // Sessionless resolution: 3-layer pipeline
-      const resolved = await this._resolveSessionless(candidates);
-      if (resolved) {
-        const existing = this._trackedFiles.get(resolved.category);
-        if (!existing || existing.path !== resolved.path) {
-          this._trackedFiles.set(resolved.category, {
-            path: resolved.path,
-            category: resolved.category,
-            birthtimeMs: resolved.mtimeMs,
-          });
-          if (!this._activeCategory) {
-            newCategoryAdded = resolved.category;
-          }
-        }
-      }
-    }
-
-    // Auto-switch: always switch when a new category appears
-    if (newCategoryAdded) {
-      this._activeCategory = newCategoryAdded;
-    } else if (!this._activeCategory && this._trackedFiles.size > 0) {
-      this._activeCategory = this._trackedFiles.keys().next().value;
-    }
+    const tracked = await this._resolver.resolve(candidates);
 
     if (!this._panel) return;
 
-    const tracked = this._activeCategory ? this._trackedFiles.get(this._activeCategory) : undefined;
     if (!tracked) {
       this._lastPhases = [];
       this._lastValid = false;
@@ -220,48 +138,6 @@ export class PlanPreviewPanel {
     }
 
     await this._parseAndRender(tracked.path);
-  }
-
-  private async _resolveSessionless(
-    candidates: Array<{ path: string; category: PlanFileCategory; mtimeMs: number }>,
-  ): Promise<{ path: string; category: PlanFileCategory; mtimeMs: number } | undefined> {
-    // Layer 1: workspaceState cache
-    const cached = this._deps.loadPersistedPlanPath?.();
-    if (cached) {
-      const exists = this._deps.fileExists
-        ? await this._deps.fileExists(cached.planPath)
-        : candidates.some((c) => c.path === cached.planPath);
-      if (exists) {
-        const match = candidates.find((c) => c.path === cached.planPath);
-        if (match) return match;
-        // File exists but not in candidates (e.g., directory not scanned) — use "plan" category
-        return { path: cached.planPath, category: "plan", mtimeMs: cached.resolvedAt };
-      }
-    }
-
-    // Layer 2: Session JSONL lookup (runs once per activation)
-    if (!this._sessionDataResolved && this._deps.resolveFromSessionData) {
-      this._sessionDataResolved = true;
-      try {
-        const result = await this._deps.resolveFromSessionData();
-        if (result) {
-          this._deps.persistPlanPath?.({ planPath: result.planPath, resolvedAt: Date.now() });
-          const match = candidates.find((c) => c.path === result.planPath);
-          if (match) return match;
-          return { path: result.planPath, category: "plan", mtimeMs: Date.now() };
-        }
-      } catch {
-        // Layer 2 failed gracefully — fall through
-      }
-    }
-
-    // Layer 3: mtimeMs fallback
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
-      return candidates[0];
-    }
-
-    return undefined;
   }
 
   private async _parseAndRender(filePath: string): Promise<void> {
@@ -360,8 +236,7 @@ export class PlanPreviewPanel {
   }
 
   getActiveFilePath(): string | undefined {
-    if (!this._activeCategory) return undefined;
-    return this._trackedFiles.get(this._activeCategory)?.path;
+    return this._resolver.getActiveFilePath();
   }
 
   dispose(): void {
@@ -371,25 +246,9 @@ export class PlanPreviewPanel {
   }
 
   private async _onTabSwitch(category: PlanFileCategory): Promise<void> {
-    const tracked = this._trackedFiles.get(category);
+    const tracked = this._resolver.switchTab(category);
     if (!tracked) return;
-    this._autoSwitch = false;
-    this._activeCategory = category;
     await this._parseAndRender(tracked.path);
-  }
-
-  private _buildTabs(): PhaseCardsOptions["tabs"] {
-    if (this._trackedFiles.size < 2) return undefined;
-    const labelMap: Record<PlanFileCategory, string> = {
-      design: "Design",
-      implementation: "Implementation",
-      plan: "Plan",
-    };
-    return Array.from(this._trackedFiles.keys()).map((cat) => ({
-      category: cat,
-      label: labelMap[cat],
-      active: cat === this._activeCategory,
-    }));
   }
 
   private _sendUpdate(): void {
@@ -415,7 +274,7 @@ export class PlanPreviewPanel {
       title: this._lastTitle,
       format: this._lastFormat,
       keyword: this._lastKeyword,
-      tabs: this._buildTabs(),
+      tabs: this._resolver.buildTabs(),
       showFormButton: state !== "empty",
     };
     const html = renderPhaseCardsHtml(options);

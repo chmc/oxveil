@@ -19,11 +19,8 @@ import {
 } from "./workspaceSetup";
 import type { PlanChatSession } from "./core/planChatSession";
 import { SidebarPanel } from "./views/sidebarPanel";
-import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarState";
-import type { ArchiveView, SidebarState } from "./views/sidebarState";
-import type { DetectionStatus } from "./types";
-import { computeDuration } from "./parsers/archive";
-import { dispatchSidebarMessage } from "./views/sidebarMessages";
+import { activateSidebar } from "./activateSidebar";
+import { activateMcpBridge } from "./activateMcpBridge";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -122,6 +119,17 @@ export async function activate(
   // Plan chat session tracking
   let activePlanChatSession: PlanChatSession | undefined;
 
+  // Check initial plan state
+  let initialPlanDetected = false;
+  if (workspaceRoot) {
+    try {
+      await fs.access(path.join(workspaceRoot, "PLAN.md"));
+      initialPlanDetected = true;
+    } catch {
+      // PLAN.md doesn't exist yet
+    }
+  }
+
   // Webview panels, CodeLens, and diff provider
   const activeSession = manager.getActiveSession();
   const activeState = activeSession?.sessionState ?? new SessionState();
@@ -138,17 +146,17 @@ export async function activate(
   disposables.push(...panels.disposables);
   const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
 
-  // Register sidebar webview provider
-  let planUserChoice: import("./views/sidebarState").PlanUserChoice = "none";
-  let cachedPlanPhases: import("./views/sidebarState").PhaseView[] = [];
-  const sidebarPanel = new SidebarPanel({
-    executeCommand: vscode.commands.executeCommand,
-    onPlanChoice: (choice) => {
-      planUserChoice = choice;
-      sidebarPanel.updateState(buildFullState());
-    },
-    buildState: () => buildFullState(),
+  // Sidebar
+  const sidebar = activateSidebar({
+    manager,
+    workspaceRoot,
+    archiveTree: archive.archiveTree,
+    elapsedTimer,
+    initialDetectionStatus: result.status,
+    initialPlanDetected,
   });
+  const { sidebarPanel, buildFullState, getArchives, state: sidebarState } = sidebar;
+
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       SidebarPanel.viewType,
@@ -157,62 +165,8 @@ export async function activate(
     ),
   );
 
-  // Sidebar state tracking
-  let currentDetectionStatus: DetectionStatus = result.status;
-  let currentPlanDetected = false;
-
-  // Check initial plan state
-  if (workspaceRoot) {
-    try {
-      await fs.access(path.join(workspaceRoot, "PLAN.md"));
-      currentPlanDetected = true;
-    } catch {
-      // PLAN.md doesn't exist yet
-    }
-  }
-
-  function getArchives(): ArchiveView[] {
-    return archive.archiveTree.getEntries().map((entry) => ({
-      name: entry.name,
-      label: entry.label,
-      date: entry.metadata?.started
-        ? formatRelativeDate(entry.metadata.started)
-        : entry.timestamp,
-      phaseCount: entry.metadata?.phasesTotal ?? 0,
-      duration: entry.metadata
-        ? computeDuration(entry.metadata.started, entry.metadata.finished) || undefined
-        : undefined,
-      status: (entry.metadata
-        ? (entry.metadata.status === "completed" ? "completed" :
-           entry.metadata.status === "failed" ? "failed" : "unknown")
-        : "unknown") as "completed" | "failed" | "unknown",
-    }));
-  }
-
-  function buildFullState(): SidebarState {
-    const active = manager.getActiveSession();
-    const sessionState = active?.sessionState;
-    const sessionStatus = sessionState?.status ?? "idle";
-    const progress = sessionState?.progress;
-    const viewState = deriveViewState(
-      currentDetectionStatus,
-      sessionStatus,
-      currentPlanDetected,
-      progress,
-      planUserChoice,
-    );
-    return {
-      view: viewState,
-      plan: (currentPlanDetected || progress) ? {
-        filename: "PLAN.md",
-        phases: progress?.phases.length ? mapPhases(progress.phases) : cachedPlanPhases,
-      } : undefined,
-      session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
-        elapsed: elapsedTimer.elapsed,
-      } : undefined,
-      archives: getArchives(),
-    };
-  }
+  // Plan watcher
+  disposables.push(...sidebar.registerPlanWatcher());
 
   // Wire each session's events
   const wiringCtx = {
@@ -224,11 +178,11 @@ export async function activate(
     executionTimeline,
     getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
     sidebarPanel,
-    detectionStatus: currentDetectionStatus,
-    planDetected: currentPlanDetected,
+    detectionStatus: sidebarState.detectionStatus,
+    planDetected: sidebarState.planDetected,
     planFilename: "PLAN.md",
     getArchives,
-    getPlanUserChoice: () => planUserChoice,
+    getPlanUserChoice: () => sidebarState.planUserChoice,
   };
 
   const onArchiveDone = async () => {
@@ -259,30 +213,6 @@ export async function activate(
     disposables.push(...watcherResult.disposables);
   }
 
-  // Walkthrough: PLAN.md watcher + activation check
-  if (currentPlanDetected) {
-    await vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
-  }
-  const planWatcher = vscode.workspace.createFileSystemWatcher("**/PLAN.md");
-  planWatcher.onDidCreate(() => {
-    vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
-    currentPlanDetected = true;
-    if (planUserChoice !== "resume") {
-      planUserChoice = "none";
-    }
-    wiringCtx.planDetected = true;
-    sidebarPanel.updateState(buildFullState());
-  });
-  planWatcher.onDidDelete(() => {
-    vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
-    currentPlanDetected = false;
-    planUserChoice = "none";
-    cachedPlanPhases = [];
-    wiringCtx.planDetected = false;
-    sidebarPanel.updateState(buildFullState());
-  });
-  disposables.push(planWatcher);
-
   // Shared re-detection handler
   const refreshDetection = () =>
     detection.detect().then((r) => {
@@ -291,7 +221,7 @@ export async function activate(
         "oxveil.detected",
         r.status === "detected",
       );
-      currentDetectionStatus = r.status;
+      sidebarState.detectionStatus = r.status;
       wiringCtx.detectionStatus = r.status;
       if (r.status === "detected") {
         statusBar.update({ kind: "ready" });
@@ -360,32 +290,7 @@ export async function activate(
         planPreviewPanel.setSessionActive(true);
         vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
       },
-      onPlanFormed: async () => {
-        planUserChoice = "resume";
-        // Parse ai-parsed-plan.md (or PLAN.md fallback) to cache phases for sidebar
-        if (workspaceRoot) {
-          try {
-            const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
-            const planMdPath = path.join(workspaceRoot, "PLAN.md");
-            let content: string;
-            try {
-              content = await fs.readFile(parsedPlanPath, "utf-8");
-            } catch {
-              content = await fs.readFile(planMdPath, "utf-8");
-            }
-            const { parsePlan } = await import("./parsers/plan");
-            const parsed = parsePlan(content);
-            cachedPlanPhases = parsed.phases.map((p) => ({
-              number: p.number,
-              title: p.title,
-              status: "pending" as const,
-            }));
-          } catch {
-            cachedPlanPhases = [];
-          }
-        }
-        sidebarPanel.updateState(buildFullState());
-      },
+      onPlanFormed: sidebar.onPlanFormed,
     }),
   );
 
@@ -437,37 +342,11 @@ export async function activate(
     }),
   );
 
-  // MCP bridge (opt-in) — wrapped in try-catch so a bridge failure
-  // does not prevent activate() from completing (which blocks resolveWebviewView)
-  const mcpEnabled = config.get<boolean>("mcpBridge", false);
-  if (mcpEnabled && workspaceRoot) {
-    try {
-      const { startBridge } = await import("./mcp/bridge");
-      const bridge = await startBridge({
-        workspaceRoot,
-        buildFullState,
-        dispatchClick: (msg) => {
-          if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
-            planUserChoice = msg.command === "resumePlan" ? "resume" : "dismiss";
-            sidebarPanel.updateState(buildFullState());
-            return;
-          }
-          dispatchSidebarMessage(msg, vscode.commands.executeCommand);
-        },
-        executeCommand: vscode.commands.executeCommand,
-      });
-      disposables.push(bridge);
-      disposables.push(
-        vscode.commands.registerCommand("oxveil._simulateClick", (args: { command: string }) => {
-          if (args?.command && /^[a-zA-Z]+$/.test(args.command)) {
-            sidebarPanel.simulateClick(args.command);
-          }
-        }),
-      );
-    } catch (err) {
-      console.warn("[Oxveil] MCP bridge failed to start:", err);
-    }
-  }
+  // MCP bridge (opt-in)
+  const mcpDisposables = await activateMcpBridge({
+    config, workspaceRoot, buildFullState, sidebarPanel, sidebarState,
+  });
+  disposables.push(...mcpDisposables);
 
   context.subscriptions.push(...disposables);
 }
