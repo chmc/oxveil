@@ -8,6 +8,7 @@ const TODO_RE = /\[Todos: \d+\/\d+ done\]/;
 const TODO_WRITE_RE = /\[TodoWrite\]/;
 const SESSION_RE = /\[Session:/;
 const ERROR_RE = /\[Result \[error\]/;
+const VERIFY_FAIL_RE = /✗/;
 const REFACTOR_RE = /🔧/;
 const WARN_RE = /⚠/;
 const SUCCESS_RE = /✓/;
@@ -65,6 +66,10 @@ export function formatLogLine(line: string): string {
   }
 
   if (ERROR_RE.test(afterTs)) {
+    return `<div class="log-line"><span class="log-error">${ts}${rest}</span></div>`;
+  }
+
+  if (VERIFY_FAIL_RE.test(afterTs)) {
     return `<div class="log-line"><span class="log-error">${ts}${rest}</span></div>`;
   }
 

@@ -80,4 +80,21 @@ describe("formatLogLine", () => {
   it("handles empty line", () => {
     expect(formatLogLine("")).toBe('<div class="log-line">&nbsp;</div>');
   });
+
+  it("formats verification passed line", () => {
+    const result = formatLogLine("  [14:33:12] ✓ Verification passed");
+    expect(result).toContain('class="log-success"');
+    expect(result).toContain("Verification passed");
+  });
+
+  it("formats verification failed line", () => {
+    const result = formatLogLine("  [14:33:12] ✗ Verification failed");
+    expect(result).toContain('class="log-error"');
+    expect(result).toContain("Verification failed");
+  });
+
+  it("formats retry separator line", () => {
+    const result = formatLogLine("  [14:33:18] ───── Retry with feedback ─────");
+    expect(result).toContain('class="log-divider"');
+  });
 });
