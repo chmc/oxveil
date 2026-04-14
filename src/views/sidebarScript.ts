@@ -2,6 +2,7 @@
 export function sidebarJs(): string {
   return `
     (function() {
+      try {
       var vscode = acquireVsCodeApi();
 
       // Button click handler
@@ -13,7 +14,12 @@ export function sidebarJs(): string {
           if (phase) msg.phase = parseInt(phase, 10);
           var archive = btn.getAttribute("data-archive");
           if (archive) msg.archive = archive;
+          console.log("[Oxveil sidebar] click:", msg.command);
           vscode.postMessage(msg);
+          if (btn.tagName === "BUTTON") {
+            btn.setAttribute("disabled", "true");
+            setTimeout(function() { btn.removeAttribute("disabled"); }, 2000);
+          }
           return;
         }
         var archiveEntry = e.target.closest("[data-archive]");
@@ -33,13 +39,15 @@ export function sidebarJs(): string {
       // Message handler for state updates
       window.addEventListener("message", function(event) {
         var msg = event.data;
+        console.log("[Oxveil sidebar] message received:", msg.type);
         if (msg.type === "fullState") {
-          // Full re-render handled by the extension replacing webview HTML
-          // or we could re-render here if the extension sends state data
           var content = document.getElementById("content");
           if (content && msg.html) {
             content.innerHTML = msg.html;
           }
+        } else if (msg.type === "simulateClick" && msg.command) {
+          var target = document.querySelector('[data-command="' + msg.command + '"]');
+          if (target) target.click();
         } else if (msg.type === "progressUpdate") {
           var update = msg.update;
           if (!update) return;
@@ -70,6 +78,15 @@ export function sidebarJs(): string {
           }
         }
       });
+
+      // Signal to extension that script is loaded and handlers are registered
+      vscode.postMessage({ command: "__ready" });
+
+      } catch(e) {
+        console.error("[Oxveil sidebar] init failed:", e);
+        var el = document.getElementById("content");
+        if (el) el.innerHTML = '<p style="color:var(--vscode-errorForeground,#f44);padding:16px;">Sidebar failed to initialize. Reload the window (Developer: Reload Window).</p>';
+      }
     })();
   `;
 }

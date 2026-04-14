@@ -84,16 +84,16 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
 
   return [
     vscode.commands.registerCommand("oxveil.start", async () => {
-      const resolved = await resolveFolder();
-      if (!resolved) {
-        vscode.window.showWarningMessage("Oxveil: No workspace session found. Open a folder with claudeloop detected.");
-        return;
-      }
-      if (!resolved.processManager) {
-        vscode.window.showErrorMessage("Oxveil: claudeloop not detected. Install it or check the oxveil.claudeloopPath setting.");
-        return;
-      }
       try {
+        const resolved = await resolveFolder();
+        if (!resolved) {
+          vscode.window.showWarningMessage("Oxveil: No workspace session found. Open a folder with claudeloop detected.");
+          return;
+        }
+        if (!resolved.processManager) {
+          vscode.window.showErrorMessage("Oxveil: claudeloop not detected. Install it or check the oxveil.claudeloopPath setting.");
+          return;
+        }
         await resolved.processManager.spawn();
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);

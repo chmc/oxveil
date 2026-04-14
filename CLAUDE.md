@@ -5,6 +5,8 @@
 - NEVER use `keystroke` via osascript for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W). `keystroke` always targets the system frontmost app, not the `tell process` target — it can kill the terminal. Use accessibility menu clicks instead (`click menu item` of the target process's menu bar), which are process-scoped.
 - For non-destructive keystrokes (Cmd+Shift+P, typing text, Enter, Escape), always `set frontmost to true` and `AXRaise` the target window first.
 - NEVER edit non-plan files while plan mode is active. Plan mode restricts edits to the plan file only. Note needed changes in the plan and apply after exiting.
+- NEVER `await` an external process (execFile, spawn, fetch) without a timeout in `activate()`. Use `Promise.race` with 5s timeout. A hanging CLI blocks `resolveWebviewView` and the sidebar stays on the loading spinner forever.
+- Wrap non-critical awaits in `activate()` (bridge startup, optional detection) in try-catch. Activation must always complete.
 
 ## Project
 

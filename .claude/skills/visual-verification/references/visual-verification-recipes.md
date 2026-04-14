@@ -114,6 +114,20 @@ click_and_verify() {
 # Usage: click_and_verify "resumePlan" "ready"
 ```
 
+### Simulate webview click (full DOM path)
+
+`/click` bypasses the webview — it dispatches directly on the extension side. Use `_simulateClick` via `/command` to test the full path: DOM click → sidebarScript.ts handler → `vscode.postMessage` → extension `onDidReceiveMessage` → command execution.
+
+```bash
+# Simulate a real DOM click on a webview button
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"oxveil._simulateClick","args":[{"command":"start"}]}' http://127.0.0.1:$PORT/command
+
+# Use /click for normal automation, _simulateClick when testing the webview click handler
+```
+
+Only available when MCP bridge is enabled. Command name must be alphanumeric (validated server-side).
+
 ### Sidebar command reference
 
 | Command | From state | To state | Notes |

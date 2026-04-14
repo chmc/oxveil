@@ -37,10 +37,18 @@ export type SidebarCommand =
 
 /** Messages sent from the extension to the webview. */
 export type SidebarUpdate =
-  | { type: "fullState"; state: import("./sidebarState").SidebarState }
+  | { type: "fullState"; html: string }
   | { type: "progressUpdate"; update: import("./sidebarState").ProgressUpdate };
 
-type ExecuteCommand = (command: string, ...args: any[]) => void;
+type ExecuteCommand = (command: string, ...args: any[]) => void | Thenable<unknown>;
+
+function safeExec(result: void | Thenable<unknown>): void {
+  if (result && typeof (result as any).then === "function") {
+    (result as Thenable<unknown>).then(undefined, (err) => {
+      console.warn("[Oxveil] Command failed:", err);
+    });
+  }
+}
 
 // Simple commands: sidebar message → VS Code command (no arguments)
 const COMMAND_MAP: Record<string, string> = {
@@ -84,37 +92,37 @@ export function dispatchSidebarMessage(
 ): void {
   // setPath opens VS Code settings directly (no oxveil command exists)
   if (msg.command === "setPath") {
-    executeCommand("workbench.action.openSettings", "oxveil.claudeloopPath");
+    safeExec(executeCommand("workbench.action.openSettings", "oxveil.claudeloopPath"));
     return;
   }
 
   const simple = COMMAND_MAP[msg.command];
   if (simple) {
-    executeCommand(simple);
+    safeExec(executeCommand(simple));
     return;
   }
 
   // Phase commands wrap in { phaseNumber } to match commands.ts signature
   const phaseCmd = PHASE_COMMAND_MAP[msg.command];
   if (phaseCmd && "phase" in msg) {
-    executeCommand(phaseCmd, { phaseNumber: msg.phase });
+    safeExec(executeCommand(phaseCmd, { phaseNumber: msg.phase }));
     return;
   }
 
   const archiveCmd = ARCHIVE_COMMAND_MAP[msg.command];
   if (archiveCmd && "archive" in msg) {
-    executeCommand(archiveCmd, { archiveName: msg.archive });
+    safeExec(executeCommand(archiveCmd, { archiveName: msg.archive }));
     return;
   }
 
   // openLog/openDiff also wrap in { phaseNumber }
   if (msg.command === "openLog") {
-    executeCommand("oxveil.viewLog", "phase" in msg ? { phaseNumber: msg.phase } : undefined);
+    safeExec(executeCommand("oxveil.viewLog", "phase" in msg ? { phaseNumber: msg.phase } : undefined));
     return;
   }
 
   if (msg.command === "openDiff") {
-    executeCommand("oxveil.viewDiff", "phase" in msg ? { phaseNumber: msg.phase } : undefined);
+    safeExec(executeCommand("oxveil.viewDiff", "phase" in msg ? { phaseNumber: msg.phase } : undefined));
     return;
   }
 

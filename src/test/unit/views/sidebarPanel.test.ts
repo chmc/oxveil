@@ -33,11 +33,12 @@ describe("SidebarPanel", () => {
     panel = new SidebarPanel(deps);
   });
 
-  it("sets HTML on resolveWebviewView", () => {
+  it("sets HTML on resolveWebviewView with fallback state", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
     expect(view.webview.html).toContain("<!DOCTYPE html>");
-    expect(view.webview.html).toContain("Initializing");
+    // Fallback state renders "empty" view instead of "Initializing..." spinner
+    expect(view.webview.html).toContain("From Idea to Reality");
   });
 
   it("enables scripts on webview", () => {

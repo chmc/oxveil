@@ -179,4 +179,14 @@ describe("dispatchSidebarMessage", () => {
     dispatchSidebarMessage({ command: "openDiff" }, exec);
     expect(exec).toHaveBeenCalledWith("oxveil.viewDiff", undefined);
   });
+
+  it("catches rejected promise from executeCommand without throwing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const exec = vi.fn(() => Promise.reject(new Error("boom")));
+    dispatchSidebarMessage({ command: "start" }, exec);
+    // Allow microtask to flush the rejection handler
+    await new Promise((r) => setTimeout(r, 0));
+    expect(warn).toHaveBeenCalledWith("[Oxveil] Command failed:", expect.any(Error));
+    warn.mockRestore();
+  });
 });

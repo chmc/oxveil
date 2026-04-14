@@ -147,6 +147,7 @@ export async function activate(
       planUserChoice = choice;
       sidebarPanel.updateState(buildFullState());
     },
+    buildState: () => buildFullState(),
   });
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -388,10 +389,15 @@ export async function activate(
     }),
   );
 
-  // Initial archive load + sidebar state
-  refreshArchive().then(() => {
-    sidebarPanel.updateState(buildFullState());
-  });
+  // Send initial sidebar state immediately (without archives)
+  sidebarPanel.updateState(buildFullState());
+
+  // Then load archives and refresh sidebar with archive data
+  refreshArchive()
+    .catch((err) => console.warn("[Oxveil] Archive load failed:", err))
+    .then(() => {
+      sidebarPanel.updateState(buildFullState());
+    });
 
   // Active folder tracking
   disposables.push(
@@ -431,25 +437,36 @@ export async function activate(
     }),
   );
 
-  // MCP bridge (opt-in)
+  // MCP bridge (opt-in) — wrapped in try-catch so a bridge failure
+  // does not prevent activate() from completing (which blocks resolveWebviewView)
   const mcpEnabled = config.get<boolean>("mcpBridge", false);
   if (mcpEnabled && workspaceRoot) {
-    const { startBridge } = await import("./mcp/bridge");
-    const bridge = await startBridge({
-      workspaceRoot,
-      buildFullState,
-      dispatchClick: (msg) => {
-        // Mirror sidebarPanel's message handler: resumePlan/dismissPlan go to onPlanChoice
-        if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
-          planUserChoice = msg.command === "resumePlan" ? "resume" : "dismiss";
-          sidebarPanel.updateState(buildFullState());
-          return;
-        }
-        dispatchSidebarMessage(msg, vscode.commands.executeCommand);
-      },
-      executeCommand: vscode.commands.executeCommand,
-    });
-    disposables.push(bridge);
+    try {
+      const { startBridge } = await import("./mcp/bridge");
+      const bridge = await startBridge({
+        workspaceRoot,
+        buildFullState,
+        dispatchClick: (msg) => {
+          if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
+            planUserChoice = msg.command === "resumePlan" ? "resume" : "dismiss";
+            sidebarPanel.updateState(buildFullState());
+            return;
+          }
+          dispatchSidebarMessage(msg, vscode.commands.executeCommand);
+        },
+        executeCommand: vscode.commands.executeCommand,
+      });
+      disposables.push(bridge);
+      disposables.push(
+        vscode.commands.registerCommand("oxveil._simulateClick", (args: { command: string }) => {
+          if (args?.command && /^[a-zA-Z]+$/.test(args.command)) {
+            sidebarPanel.simulateClick(args.command);
+          }
+        }),
+      );
+    } catch (err) {
+      console.warn("[Oxveil] MCP bridge failed to start:", err);
+    }
   }
 
   context.subscriptions.push(...disposables);

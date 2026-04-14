@@ -12,7 +12,10 @@ export async function detectClaude(
   path: string,
 ): Promise<string | null> {
   try {
-    await executor(path, ["--version"]);
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), 5000),
+    );
+    await Promise.race([executor(path, ["--version"]), timeout]);
     return path;
   } catch {
     return null;
