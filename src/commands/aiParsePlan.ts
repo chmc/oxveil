@@ -35,12 +35,23 @@ export function registerAiParsePlanCommand(
       return fsp.readFile(reasonPath, "utf-8");
     };
 
-    const { outcome } = await aiParseLoop({
-      processManager,
-      liveRunPanel,
-      granularity,
-      readVerifyReason,
-    });
+    let outcome: string;
+    try {
+      const result = await aiParseLoop({
+        processManager,
+        liveRunPanel,
+        granularity,
+        readVerifyReason,
+      });
+      outcome = result.outcome;
+    } catch (e: unknown) {
+      // Clean up partial ai-parsed-plan.md
+      const parsedPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+      try { await fsp.unlink(parsedPath); } catch { /* may not exist */ }
+      const msg = e instanceof Error ? e.message : String(e);
+      vscode.window.showErrorMessage(`Oxveil: AI parsing failed — ${msg}`);
+      return;
+    }
 
     if (outcome === "aborted") return;
 

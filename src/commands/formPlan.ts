@@ -5,7 +5,7 @@ import { pickGranularity } from "./granularityPicker";
 import { parsePlan } from "../parsers/plan";
 import type { IProcessManager } from "../core/interfaces";
 import type { LiveRunPanel } from "../views/liveRunPanel";
-import { aiParseLoop } from "./aiParseLoop";
+import { aiParseLoop, type AiParseLoopResult } from "./aiParseLoop";
 
 export interface FormPlanCommandDeps {
   resolveFolder: () => Promise<
@@ -87,30 +87,40 @@ export function registerFormPlanCommand(
       }
 
       // 7. Run ai-parse loop
+      const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+
       const readVerifyReason = async () => {
         const reasonPath = path.join(workspaceRoot, ".claudeloop", "ai-verify-reason.txt");
         return fs.readFile(reasonPath, "utf-8");
       };
 
-      const { outcome } = await aiParseLoop({
-        processManager,
-        liveRunPanel,
-        granularity,
-        readVerifyReason,
-        options: { dryRun: true },
-      });
+      let outcome: AiParseLoopResult["outcome"];
+      try {
+        const result = await aiParseLoop({
+          processManager,
+          liveRunPanel,
+          granularity,
+          readVerifyReason,
+          options: { dryRun: true },
+        });
+        outcome = result.outcome;
+      } catch {
+        // Clean up partial ai-parsed-plan.md if claudeloop wrote one before crashing
+        try { await fs.unlink(parsedPlanPath); } catch { /* may not exist */ }
+        // Fall through to validation — claudeloop will re-parse on Start
+        outcome = "pass";
+      }
 
       if (outcome === "aborted") return;
 
       // 8. Validate result
-      const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
       let resultPath = planPath;
       let resultContent: string;
       try {
         resultContent = await fs.readFile(parsedPlanPath, "utf-8");
         resultPath = parsedPlanPath;
       } catch {
-        // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode)
+        // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode or error)
         resultContent = await fs.readFile(planPath, "utf-8");
       }
 
@@ -118,9 +128,11 @@ export function registerFormPlanCommand(
 
       if (parsed.phases.length === 0) {
         await vscode.window.showWarningMessage(
-          "Plan formed but no valid phases detected.",
+          "Plan formed but no valid phases detected. Claudeloop will re-parse on start.",
           "OK",
         );
+        // Still signal plan formed so sidebar transitions to Ready
+        deps.onPlanFormed?.();
       } else {
         // Ensure ai-parsed-plan.md exists for claudeloop execution
         if (resultPath === planPath) {

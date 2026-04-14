@@ -26,10 +26,24 @@ vi.mock("../../../commands/aiParseLoop", () => ({
   aiParseLoop: vi.fn().mockResolvedValue({ outcome: "pass" }),
 }));
 
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn().mockResolvedValue("## Phase 1: Test\nDo the thing."),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  access: vi.fn().mockRejectedValue(new Error("ENOENT")),
+  unlink: vi.fn().mockResolvedValue(undefined),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../../commands/granularityPicker", () => ({
+  pickGranularity: vi.fn().mockResolvedValue("tasks"),
+}));
+
 import * as vscode from "vscode";
+import * as fs from "node:fs/promises";
 import { registerFormPlanCommand } from "../../../commands/formPlan";
 import type { FormPlanCommandDeps } from "../../../commands/formPlan";
 import { aiParseLoop } from "../../../commands/aiParseLoop";
+import { pickGranularity } from "../../../commands/granularityPicker";
 
 function makeLiveRunPanel() {
   return {
@@ -135,5 +149,55 @@ describe("registerFormPlanCommand", () => {
 
     expect(vscode.workspace.openTextDocument).not.toHaveBeenCalled();
     expect(deps.onPlanFormed).not.toHaveBeenCalled();
+  });
+
+  it("handles aiParseLoop rejection without crashing", async () => {
+    vi.mocked(aiParseLoop).mockRejectedValue(new Error("FAKE_CLAUDE_DIR not set"));
+    // ai-parsed-plan.md doesn't exist — readFile falls back to PLAN.md
+    vi.mocked(fs.readFile).mockImplementation(async (p: any) => {
+      if (String(p).includes("ai-parsed-plan.md")) throw new Error("ENOENT");
+      return "# My Plan\nSome content without phase headers.";
+    });
+    const deps = makeDeps();
+    registerFormPlanCommand(deps);
+
+    const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+    await cb();
+
+    // Should attempt to clean up partial ai-parsed-plan.md
+    expect(fs.unlink).toHaveBeenCalledWith(
+      expect.stringContaining("ai-parsed-plan.md"),
+    );
+    // 0 phases — warning shown
+    expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+      expect.stringContaining("no valid phases"),
+      "OK",
+    );
+    // onPlanFormed still called so sidebar transitions
+    expect(deps.onPlanFormed).toHaveBeenCalled();
+    // Result file opened in editor
+    expect(vscode.workspace.openTextDocument).toHaveBeenCalled();
+  });
+
+  it("calls onPlanFormed and writes ai-parsed-plan.md on success with phases", async () => {
+    vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "pass" });
+    // ai-parsed-plan.md doesn't exist — falls back to PLAN.md with phase headers
+    vi.mocked(fs.readFile).mockImplementation(async (p: any) => {
+      if (String(p).includes("ai-parsed-plan.md")) throw new Error("ENOENT");
+      return "## Phase 1: Setup\nDo setup.\n\n## Phase 2: Build\nBuild things.";
+    });
+    const deps = makeDeps();
+    registerFormPlanCommand(deps);
+
+    const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+    await cb();
+
+    // Should write ai-parsed-plan.md as fallback
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("ai-parsed-plan.md"),
+      expect.stringContaining("## Phase 1"),
+      "utf-8",
+    );
+    expect(deps.onPlanFormed).toHaveBeenCalled();
   });
 });
