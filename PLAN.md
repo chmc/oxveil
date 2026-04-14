@@ -1,5 +1,7 @@
-## Phase 1: Setup
-Set up the project structure and dependencies.
+# Test Plan
 
-## Phase 2: Implementation
-Implement the core feature.
+## Phase 1: Setup
+Configure the environment.
+
+## Phase 2: Build
+Build the project.
