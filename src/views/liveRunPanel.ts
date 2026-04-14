@@ -152,6 +152,12 @@ export class LiveRunPanel {
     };
   }
 
+  triggerAiParseAction(action: string): void {
+    for (const listener of this._aiParseActionListeners) {
+      listener(action);
+    }
+  }
+
   onRunFinished(status?: string): void {
     if (!this._panel) return;
     const durationMs = this._runStartedAt ? Date.now() - this._runStartedAt : undefined;

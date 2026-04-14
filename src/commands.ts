@@ -352,6 +352,15 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),
       onPlanFormed: deps.onPlanFormed,
     }),
+    vscode.commands.registerCommand("oxveil._liveRunRetry", () => {
+      liveRunPanel?.triggerAiParseAction("ai-parse-retry");
+    }),
+    vscode.commands.registerCommand("oxveil._liveRunContinue", () => {
+      liveRunPanel?.triggerAiParseAction("ai-parse-continue");
+    }),
+    vscode.commands.registerCommand("oxveil._liveRunAbort", () => {
+      liveRunPanel?.triggerAiParseAction("ai-parse-abort");
+    }),
     vscode.commands.registerCommand("oxveil.discardPlan", async () => {
       const active = getActive();
       if (active?.processManager?.isRunning) {
