@@ -144,6 +144,25 @@ describe("renderPhaseCardsHtml", () => {
       const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: false });
       expect(html).not.toContain("form-plan-btn");
     });
+
+    it("renders Form Plan button inside action-bar, not preview-header", () => {
+      const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: true });
+      expect(html).toContain("action-bar");
+      // action-bar should contain the button
+      const actionBarMatch = html.match(/<div class="action-bar">([\s\S]*?)<\/div>\s*$/);
+      expect(actionBarMatch).not.toBeNull();
+      expect(actionBarMatch![1]).toContain("form-plan-btn");
+      // preview-header should not contain the button
+      const headerMatch = html.match(/<div class="preview-header">([\s\S]*?)<\/div>/);
+      if (headerMatch) {
+        expect(headerMatch[1]).not.toContain("form-plan-btn");
+      }
+    });
+
+    it("does not render action-bar when showFormButton is false", () => {
+      const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: false });
+      expect(html).not.toContain("action-bar");
+    });
   });
 
   describe("session ended state", () => {
@@ -197,6 +216,11 @@ describe("renderPhaseCardsHtml", () => {
     it("does not render phase cards", () => {
       const html = renderPhaseCardsHtml({ state: "empty", sessionActive: true });
       expect(html).not.toContain("phase-card");
+    });
+
+    it("does not render action-bar", () => {
+      const html = renderPhaseCardsHtml({ state: "empty", sessionActive: true });
+      expect(html).not.toContain("action-bar");
     });
 
     it("shows waiting text when session is active", () => {
@@ -345,6 +369,18 @@ describe("renderPhaseCardsHtml", () => {
         sessionActive: true,
       });
       expect(html).not.toContain("<script>alert");
+    });
+
+    it("renders Add note button inside action-bar when session is active", () => {
+      const html = renderPhaseCardsHtml({
+        state: "raw-markdown",
+        rawMarkdown: "content",
+        sessionActive: true,
+      });
+      expect(html).toContain("action-bar");
+      const actionBarMatch = html.match(/<div class="action-bar">([\s\S]*?)<\/div>\s*$/);
+      expect(actionBarMatch).not.toBeNull();
+      expect(actionBarMatch![1]).toContain("Add note");
     });
 
     it("renders in a raw-markdown container", () => {
