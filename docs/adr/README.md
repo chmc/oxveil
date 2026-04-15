@@ -14,3 +14,4 @@
 | [0010](0010-sidebar-webview-migration.md) | Sidebar tree view to webview migration | Accepted |
 | [0011](0011-mcp-bridge-server.md) | MCP bridge server for extension interaction | Accepted |
 | [0012](0012-ai-parse-retry-feedback-loop.md) | AI parse retry-with-feedback loop and Live Run Panel integration | Accepted |
+| [0013](0013-user-journey-documentation.md) | User journey documentation with LLM-consumable workflow spec | Accepted |

@@ -352,7 +352,7 @@ Pure function, no VS Code dependency.
 
 `SidebarPanel` implements `WebviewViewProvider`, registered as `oxveil.sidebar`.
 
-**States:** 7 context-aware states: `not-found`, `empty`, `ready`, `running`, `stopped`, `failed`, `completed`. Each renders distinct HTML with appropriate actions and messaging.
+**States:** 8 context-aware states: `not-found`, `empty`, `ready`, `stale`, `running`, `stopped`, `failed`, `completed`. Each renders distinct HTML with appropriate actions and messaging. See [docs/workflow/states.md](docs/workflow/states.md) for the full state specification, decision tables, and user journey documentation.
 
 **State derivation:** `deriveViewState()` in `sidebarState.ts` maps detection status + session state + plan state into the current view state. Pure function, fully testable.
 

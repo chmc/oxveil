@@ -67,3 +67,5 @@
 When implementation changes affect user-facing behavior, update stale sections in README.md and make sure technical big picture is uptodate in ARCHITECTURE.md.
 
 **ADR workflow (mandatory):** For architectural decisions (new pattern, technology choice, significant design change): assign next number from `docs/adr/`, create `docs/adr/NNNN-slug.md` using the [template](docs/adr/TEMPLATE.md), update `docs/adr/README.md`.
+
+**Workflow state docs (mandatory):** When modifying state machines or UI state derivation (`sidebarState.ts`, `sessionState.ts`, `statusBar.ts`, `planPreviewPanel.ts`, `sidebarMessages.ts`, `sessionWiring.ts`, `activateSidebar.ts`, `types.ts`), update `docs/workflow/states.md`. Run `npm test` to catch state enumeration drift.
