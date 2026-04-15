@@ -4,12 +4,12 @@ import type { StatusBarManager } from "./views/statusBar";
 import type { LiveRunPanel } from "./views/liveRunPanel";
 import type { NotificationManager } from "./views/notifications";
 import type { ElapsedTimer } from "./views/elapsedTimer";
-import type { ProgressState, DetectionStatus } from "./types";
+import type { ProgressState } from "./types";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { SidebarPanel } from "./views/sidebarPanel";
-import { deriveViewState, mapPhases } from "./views/sidebarState";
-import type { ArchiveView, PlanUserChoice } from "./views/sidebarState";
+import { mapPhases } from "./views/sidebarState";
+import type { SidebarState } from "./views/sidebarState";
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -25,11 +25,7 @@ export interface SessionWiringDeps {
   getConfig?: (key: string) => any;
   isActiveSession: () => boolean;
   sidebarPanel?: SidebarPanel;
-  detectionStatus?: DetectionStatus;
-  planDetected?: boolean;
-  planFilename?: string;
-  getArchives?: () => ArchiveView[];
-  getPlanUserChoice?: () => PlanUserChoice;
+  buildSidebarState?: () => SidebarState;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -45,28 +41,15 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   let sidebarTodoDone = 0;
   let sidebarTodoTotal = 0;
 
-  function buildAndSendSidebarState(sessionStatus: string): void {
-    if (!deps.sidebarPanel) return;
-    const viewState = deriveViewState(
-      deps.detectionStatus ?? "detected",
-      sessionStatus as any,
-      deps.planDetected ?? false,
-      session.progress,
-      deps.getPlanUserChoice?.() ?? "none",
-    );
-    deps.sidebarPanel.updateState({
-      view: viewState,
-      plan: session.progress ? {
-        filename: deps.planFilename ?? "PLAN.md",
-        phases: mapPhases(session.progress.phases),
-      } : undefined,
-      session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
-        elapsed: deps.elapsedTimer?.elapsed ?? "0m",
-        cost: sidebarCost > 0 ? `$${sidebarCost.toFixed(2)}` : undefined,
-        todos: sidebarTodoTotal > 0 ? { done: sidebarTodoDone, total: sidebarTodoTotal } : undefined,
-      } : undefined,
-      archives: deps.getArchives?.() ?? [],
-    });
+  function buildAndSendSidebarState(): void {
+    if (!deps.sidebarPanel || !deps.buildSidebarState) return;
+    const state = deps.buildSidebarState();
+    // Merge session-local tracking data (cost/todos tracked in this closure)
+    if (state.session) {
+      if (sidebarCost > 0) state.session.cost = `$${sidebarCost.toFixed(2)}`;
+      if (sidebarTodoTotal > 0) state.session.todos = { done: sidebarTodoDone, total: sidebarTodoTotal };
+    }
+    deps.sidebarPanel.updateState(state);
   }
 
   session.on("state-changed", (_from, to) => {
@@ -139,7 +122,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         break;
     }
 
-    buildAndSendSidebarState(to);
+    buildAndSendSidebarState();
   });
 
   session.on("phases-changed", (progress) => {

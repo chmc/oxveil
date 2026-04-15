@@ -630,6 +630,8 @@ else
 fi
 ```
 
+**In-memory state caveat:** Removing `.claudeloop/PROGRESS.md` and `lock` from the filesystem does not reset `SessionState` in memory. After a failed/completed run, the sidebar derives from orphaned in-memory progress (e.g., stays "failed" even after file cleanup). To get a clean idle state, reload the EDH window or relaunch EDH. Plan accordingly when testing multiple lifecycle round trips in one session.
+
 ## claudeloop Fake CLI
 
 - Path: `<claudeloop-repo>/tests/fake_claude` (local: `/Users/aleksi/source/claudeloop/tests/fake_claude`)

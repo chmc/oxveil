@@ -9,6 +9,38 @@ vi.mock("vscode", () => ({
 import { SessionState } from "../../../core/sessionState";
 import { wireSessionEvents, type SessionWiringDeps } from "../../../sessionWiring";
 
+describe("wireSessionEvents — uses buildSidebarState for sidebar updates", () => {
+  it("calls buildSidebarState on session state change and merges cost/todos", () => {
+    const session = new SessionState();
+    const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
+    const buildSidebarState = vi.fn(() => ({
+      view: "running" as const,
+      plan: { filename: "PLAN.md", phases: [] },
+      session: { elapsed: "1m" },
+      archives: [],
+    }));
+    const deps: SessionWiringDeps = {
+      session,
+      statusBar: { update: vi.fn(), dispose: vi.fn() },
+      notifications: { onPhasesChanged: vi.fn() },
+      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+      sidebarPanel,
+      isActiveSession: () => true,
+      folderUri: "/test",
+      buildSidebarState,
+    };
+    wireSessionEvents(deps);
+
+    // Trigger running state
+    session.onLockChanged({ locked: true, pid: 1 });
+
+    expect(buildSidebarState).toHaveBeenCalled();
+    expect(sidebarPanel.updateState).toHaveBeenCalledWith(
+      expect.objectContaining({ view: "running", plan: { filename: "PLAN.md", phases: [] } }),
+    );
+  });
+});
+
 describe("wireSessionEvents — log-appended handler", () => {
   let session: SessionState;
   let deps: SessionWiringDeps;

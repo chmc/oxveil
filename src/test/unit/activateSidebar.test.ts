@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Capture file watcher callbacks so tests can simulate file events
+let watcherCallbacks: { onCreate?: () => void; onDelete?: () => void } = {};
+
 vi.mock("vscode", () => ({
   workspace: {
     createFileSystemWatcher: vi.fn(() => ({
-      onDidCreate: vi.fn(),
-      onDidDelete: vi.fn(),
+      onDidCreate: vi.fn((cb: () => void) => { watcherCallbacks.onCreate = cb; }),
+      onDidDelete: vi.fn((cb: () => void) => { watcherCallbacks.onDelete = cb; }),
       dispose: vi.fn(),
     })),
   },
@@ -43,6 +46,7 @@ describe("activateSidebar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    watcherCallbacks = {};
     deps = makeDeps();
     result = activateSidebar(deps);
   });
@@ -134,6 +138,42 @@ describe("activateSidebar", () => {
       await res.onPlanFormed();
       expect(res.state.cachedPlanPhases).toEqual([]);
       expect(res.state.planUserChoice).toBe("resume");
+    });
+  });
+
+  describe("registerPlanWatcher", () => {
+    it("onDidCreate sets planDetected=true and view becomes 'stale'", () => {
+      result.registerPlanWatcher();
+      expect(result.buildFullState().view).toBe("empty");
+
+      watcherCallbacks.onCreate!();
+
+      expect(result.state.planDetected).toBe(true);
+      expect(result.buildFullState().view).toBe("stale");
+    });
+
+    it("onDidDelete sets planDetected=false and view becomes 'empty'", () => {
+      result.state.planDetected = true;
+      result.registerPlanWatcher();
+      expect(result.buildFullState().view).toBe("stale");
+
+      watcherCallbacks.onDelete!();
+
+      expect(result.state.planDetected).toBe(false);
+      expect(result.buildFullState().view).toBe("empty");
+    });
+
+    it("PLAN.md created after activation updates sidebar without manual resumePlan", () => {
+      result.registerPlanWatcher();
+
+      // Simulate PLAN.md creation — no manual resumePlan or planUserChoice change
+      watcherCallbacks.onCreate!();
+
+      // Should transition to stale automatically (planUserChoice stays "none")
+      expect(result.state.planUserChoice).toBe("none");
+      expect(result.buildFullState().view).toBe("stale");
+      expect(result.buildFullState().plan).toBeDefined();
+      expect(result.buildFullState().plan!.filename).toBe("PLAN.md");
     });
   });
 

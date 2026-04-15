@@ -51,11 +51,16 @@
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
 - Never suggest the user test something manually when you can do it yourself.
 - Before requesting plan approval, launch 2-3 critic agents from different angles (feasibility, scope/completeness, alternatives). Never rush to ExitPlanMode without critical review.
+- When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
 
 ## Writing Style
 
 - AI-facing files (CLAUDE.md, skills): imperative voice, flat bullet lists, one rule per line, no prose. Front-load constraints. Add YAML frontmatter to skill files.
 - Remove redundancy. One rule per line.
+
+## TDD Addendum
+
+- For bug fixes: if your first test passes immediately, you are likely testing the wrong code path. Trace the actual broken path before writing the test. The test must exercise the code that contains the bug, not a parallel path that happens to work.
 
 ## Continuous Improvement
 

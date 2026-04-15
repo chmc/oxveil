@@ -252,14 +252,20 @@ When multiple plan files exist (design, implementation, plan), the resolver trac
 
 This module connects SessionState events to all UI projections. It is the central dispatch point.
 
+### Sidebar State Delegation
+
+Session wiring does **not** build sidebar state internally. It receives a `buildSidebarState: () => SidebarState` callback (the canonical `buildFullState()` from `activateSidebar.ts`) and calls it on every state change. This ensures the sidebar always reflects live mutable state (detection status, plan detection, user choice) rather than stale snapshots captured at wiring time. The wiring only merges session-local tracking data (cost, todos) into the `session` field of the returned state.
+
+**Contract:** `buildSidebarState()` reads `SessionState.status` via the manager, so it must be called after `_transition()` sets `_status` (which it is — `_transition` sets status before emitting `state-changed`).
+
 ### Event → Update Matrix
 
 | SessionState Event | Handler Action | Targets Updated |
 |-------------------|----------------|-----------------|
-| `state-changed` → `running` | Start elapsed timer, reset cost/todo tracking | StatusBar (`running`), LiveRunPanel (auto-reveal), Sidebar (full state), context key `oxveil.processRunning=true` |
-| `state-changed` → `done` | Stop elapsed timer | StatusBar (`done`), LiveRunPanel (`onRunFinished("done")`), Sidebar (full state), context key `oxveil.walkthrough.hasRun=true`, archive refresh |
-| `state-changed` → `failed` | Stop elapsed timer, find failed phase | StatusBar (`failed`), LiveRunPanel (`onRunFinished("failed")`), Sidebar (full state), archive refresh |
-| `state-changed` → `idle` | Stop elapsed timer | StatusBar (`idle`), Sidebar (full state), context key `oxveil.processRunning=false` |
+| `state-changed` → `running` | Start elapsed timer, reset cost/todo tracking | StatusBar (`running`), LiveRunPanel (auto-reveal), Sidebar (via `buildSidebarState()` + cost/todo merge), context key `oxveil.processRunning=true` |
+| `state-changed` → `done` | Stop elapsed timer | StatusBar (`done`), LiveRunPanel (`onRunFinished("done")`), Sidebar (via `buildSidebarState()`), context key `oxveil.walkthrough.hasRun=true`, archive refresh |
+| `state-changed` → `failed` | Stop elapsed timer, find failed phase | StatusBar (`failed`), LiveRunPanel (`onRunFinished("failed")`), Sidebar (via `buildSidebarState()`), archive refresh |
+| `state-changed` → `idle` | Stop elapsed timer | StatusBar (`idle`), Sidebar (via `buildSidebarState()`), context key `oxveil.processRunning=false` |
 | `phases-changed` | Update panels, notify on completions/failures | DependencyGraph, ExecutionTimeline, LiveRunPanel, StatusBar (current phase update), Sidebar (progress update) |
 | `log-appended` | Extract cost/todo data from log lines | LiveRunPanel, Sidebar (progress update with cost/todos) |
 

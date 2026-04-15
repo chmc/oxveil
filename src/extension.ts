@@ -178,11 +178,7 @@ export async function activate(
     executionTimeline,
     getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
     sidebarPanel,
-    detectionStatus: sidebarState.detectionStatus,
-    planDetected: sidebarState.planDetected,
-    planFilename: "PLAN.md",
-    getArchives,
-    getPlanUserChoice: () => sidebarState.planUserChoice,
+    buildSidebarState: buildFullState,
   };
 
   const onArchiveDone = async () => {
@@ -222,7 +218,6 @@ export async function activate(
         r.status === "detected",
       );
       sidebarState.detectionStatus = r.status;
-      wiringCtx.detectionStatus = r.status;
       if (r.status === "detected") {
         statusBar.update({ kind: "ready" });
       } else {
