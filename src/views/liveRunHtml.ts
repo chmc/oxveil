@@ -292,6 +292,10 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
         var msg = event.data;
         if (msg.type === "dashboard") {
           dashboard.innerHTML = msg.html;
+          var vb = document.getElementById("verify-banner");
+          if (vb) vb.remove();
+          var rf = document.querySelector(".run-finished-banner");
+          if (rf) rf.remove();
         } else if (msg.type === "log-append") {
           var lines = msg.lines || [];
           for (var i = 0; i < lines.length; i++) {
@@ -313,6 +317,8 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
             logContainer.removeChild(logContainer.firstChild);
           }
         } else if (msg.type === "verify-failed" || msg.type === "verify-passed") {
+          var oldRf = document.querySelector(".run-finished-banner");
+          if (oldRf) oldRf.remove();
           var banner = document.getElementById("verify-banner");
           if (!banner) {
             banner = document.createElement("div");

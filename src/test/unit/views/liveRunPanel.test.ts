@@ -282,5 +282,48 @@ describe("LiveRunPanel", () => {
       (mockPanel as any)._simulateMessage({ type: "ai-parse-retry" });
       expect(actions).toEqual(["ai-parse-retry"]);
     });
+
+    it("reveal() after onVerifyPassed sends dashboard (clears banner in webview)", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      panel.onVerifyPassed({ retryCount: 0 });
+      mockPanel.webview.postMessage.mockClear();
+
+      panel.reveal(makeProgress());
+
+      const types = mockPanel.webview.postMessage.mock.calls.map((c: any) => c[0].type);
+      expect(types).toContain("dashboard");
+    });
+
+    it("reveal() after onRunFinished sends dashboard (clears banner in webview)", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.reveal(makeProgress());
+      panel.onRunFinished("done");
+      mockPanel.webview.postMessage.mockClear();
+
+      panel.reveal(makeProgress());
+
+      const types = mockPanel.webview.postMessage.mock.calls.map((c: any) => c[0].type);
+      expect(types).toContain("dashboard");
+    });
+
+    it("onVerifyPassed after prior run sends verify-passed (clears run-finished in webview)", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.reveal(makeProgress());
+      panel.onRunFinished("done");
+      mockPanel.webview.postMessage.mockClear();
+
+      panel.revealForAiParse();
+      panel.onVerifyPassed({ retryCount: 0 });
+
+      const types = mockPanel.webview.postMessage.mock.calls.map((c: any) => c[0].type);
+      expect(types).toContain("verify-passed");
+    });
   });
 });
