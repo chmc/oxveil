@@ -28,6 +28,8 @@ export interface SidebarActivationResult {
   registerPlanWatcher: () => vscode.Disposable[];
   /** Called when a plan is formed — caches phases and updates sidebar */
   onPlanFormed: () => Promise<void>;
+  /** Called when a new plan chat starts — clears stale sidebar state */
+  onPlanReset: () => void;
 }
 
 export interface SidebarMutableState {
@@ -109,7 +111,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     planWatcher.onDidCreate(() => {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
       state.planDetected = true;
-      if (state.planUserChoice !== "resume") {
+      if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss") {
         state.planUserChoice = "none";
       }
       sidebarPanel.updateState(buildFullState());
@@ -152,5 +154,11 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     sidebarPanel.updateState(buildFullState());
   }
 
-  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed };
+  function onPlanReset(): void {
+    state.cachedPlanPhases = [];
+    state.planUserChoice = "dismiss";
+    sidebarPanel.updateState(buildFullState());
+  }
+
+  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset };
 }

@@ -286,6 +286,13 @@ export async function activate(
       extensionMode: context.extensionMode,
       getActivePlanChatSession: () => activePlanChatSession,
       onPlanChatSessionCreated: (session) => {
+        // Clear stale sidebar state first (before reset() fires synchronous events)
+        sidebar.onPlanReset();
+        const activeSession = manager.getActiveSession();
+        if (activeSession) {
+          activeSession.sessionState.reset();
+        }
+
         activePlanChatSession = session;
         planPreviewPanel.setSessionActive(true);
         vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
