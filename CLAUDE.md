@@ -64,6 +64,9 @@
 ## TDD Addendum
 
 - For bug fixes: if your first test passes immediately, you are likely testing the wrong code path. Trace the actual broken path before writing the test. The test must exercise the code that contains the bug, not a parallel path that happens to work.
+- For multi-component bugs: trace the data flow backward from symptom to source before choosing where to fix.
+- Document which component owns the broken transformation before writing the fix.
+- When an issue attributes a bug to a specific function, verify the attribution. If the function's inputs are already wrong, the fix belongs upstream.
 
 ## Continuous Improvement
 
