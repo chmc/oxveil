@@ -247,12 +247,12 @@ Each story traces the code path from trigger to final state across all four stat
 6. `deriveViewState()` with `sessionStatus="done"` and not all completed → returns `stopped`
 7. Sidebar view = `stopped`: progress bar, phase list (first pending phase highlighted as "paused"), "Resume" (from next pending phase) and "Restart" buttons
 
-**To-be:** Same as as-is.
+**To-be:** Status bar derives its state from `deriveViewState()`, matching sidebar. When partial progress (not all completed), status bar shows `stopped`. LiveRunPanel shows "Run Stopped" banner (no error styling).
 
 **States touched:**
 - Session: `running` → `done`
 - Sidebar: `running` → `stopped`
-- StatusBar: `running` → `done`
+- StatusBar: `running` → `stopped`
 
 **Context keys:** `oxveil.processRunning=false`
 

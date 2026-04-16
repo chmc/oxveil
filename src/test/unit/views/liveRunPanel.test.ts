@@ -210,6 +210,22 @@ describe("LiveRunPanel", () => {
     );
   });
 
+  it("onRunFinished('stopped') sends stopped banner (not failed)", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+    panel.onRunFinished("stopped");
+    const call = mockPanel.webview.postMessage.mock.calls.find(
+      (c: any) => c[0].type === "run-finished",
+    );
+    expect(call).toBeDefined();
+    expect(call![0].html).toContain("Run Stopped");
+    expect(call![0].html).not.toContain("Run Failed");
+    expect(call![0].html).not.toContain("run-failed");
+  });
+
   it("resets offset when log file is truncated", () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);

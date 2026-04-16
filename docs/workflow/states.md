@@ -278,7 +278,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | SessionState Event | Handler Action | Targets Updated |
 |-------------------|----------------|-----------------|
 | `state-changed` → `running` | Start elapsed timer, reset cost/todo tracking | StatusBar (`running`), LiveRunPanel (auto-reveal), Sidebar (via `buildSidebarState()` + cost/todo merge), context key `oxveil.processRunning=true` |
-| `state-changed` → `done` | Stop elapsed timer | StatusBar (`done`), LiveRunPanel (`onRunFinished("done")`), Sidebar (via `buildSidebarState()`), context key `oxveil.walkthrough.hasRun=true`, archive refresh |
+| `state-changed` → `done` | Stop elapsed timer, derive view from sidebar | StatusBar (`done` or `stopped` via `deriveViewState`), LiveRunPanel (`onRunFinished("done"` or `"stopped")`), Sidebar (via `buildSidebarState()`), context key `oxveil.walkthrough.hasRun=true`, archive refresh |
 | `state-changed` → `failed` | Stop elapsed timer, find failed phase | StatusBar (`failed`), LiveRunPanel (`onRunFinished("failed")`), Sidebar (via `buildSidebarState()`), archive refresh |
 | `state-changed` → `idle` | Stop elapsed timer | StatusBar (`idle`), Sidebar (via `buildSidebarState()`), context key `oxveil.processRunning=false` |
 | `phases-changed` | Update panels, notify on completions/failures | DependencyGraph, ExecutionTimeline, LiveRunPanel, StatusBar (current phase update), Sidebar (progress update) |

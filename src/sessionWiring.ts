@@ -92,17 +92,27 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         }
         break;
       }
-      case "done":
+      case "done": {
         elapsedTimer.stop();
-        statusBar.update({
-          kind: "done",
-          elapsed: elapsedTimer.elapsed,
-          folderName: deps.folderName,
-          otherRootsSummary: deps.getOtherRootsSummary?.(),
-        });
-        deps.liveRunPanel?.onRunFinished("done");
+        const view = deps.buildSidebarState?.().view;
+        if (view === "stopped") {
+          statusBar.update({
+            kind: "stopped",
+            folderName: deps.folderName,
+            otherRootsSummary: deps.getOtherRootsSummary?.(),
+          });
+        } else {
+          statusBar.update({
+            kind: "done",
+            elapsed: elapsedTimer.elapsed,
+            folderName: deps.folderName,
+            otherRootsSummary: deps.getOtherRootsSummary?.(),
+          });
+        }
+        deps.liveRunPanel?.onRunFinished(view === "stopped" ? "stopped" : "done");
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         break;
+      }
       case "failed": {
         elapsedTimer.stop();
         const fp = session.progress?.phases.find(

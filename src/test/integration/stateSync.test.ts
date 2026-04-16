@@ -144,4 +144,68 @@ describe("Status bar / sidebar state sync", () => {
       expect(lastUpdate.kind, tc.label).toBe(tc.expectedStatusBarKind);
     }
   });
+
+  it("partial-progress done → status bar shows stopped (not done)", () => {
+    const session = new SessionState();
+    const progress = makeProgress([
+      { number: 1, title: "Setup", status: "completed" },
+      { number: 2, title: "Build", status: "pending" },
+    ]);
+
+    const { statusBarUpdates } = wireDeps(session, () =>
+      deriveViewState("detected", session.status, false, session.progress),
+    );
+
+    // Lock acquired → progress with partial completion → lock released
+    session.onLockChanged({ locked: true, pid: 1 });
+    session.onProgressChanged(progress);
+    session.onLockChanged({ locked: false });
+
+    // Session transitions to "done" (fallback), sidebar derives "stopped"
+    expect(session.status).toBe("done");
+
+    const lastUpdate = statusBarUpdates[statusBarUpdates.length - 1];
+    expect(lastUpdate.kind).toBe("stopped");
+  });
+
+  it("all-completed done → status bar shows done with elapsed", () => {
+    const session = new SessionState();
+    const progress = makeProgress([
+      { number: 1, title: "Setup", status: "completed" },
+      { number: 2, title: "Build", status: "completed" },
+    ]);
+
+    const { statusBarUpdates } = wireDeps(session, () =>
+      deriveViewState("detected", session.status, false, session.progress),
+    );
+
+    session.onLockChanged({ locked: true, pid: 1 });
+    session.onProgressChanged(progress);
+    session.onLockChanged({ locked: false });
+
+    expect(session.status).toBe("done");
+
+    const lastUpdate = statusBarUpdates[statusBarUpdates.length - 1];
+    expect(lastUpdate.kind).toBe("done");
+    if (lastUpdate.kind === "done") {
+      expect(lastUpdate.elapsed).toBe("0m"); // from mock elapsedTimer
+    }
+  });
+
+  it("undefined progress done → status bar shows stopped", () => {
+    const session = new SessionState();
+
+    const { statusBarUpdates } = wireDeps(session, () =>
+      deriveViewState("detected", session.status, false, session.progress),
+    );
+
+    // Lock acquired → lock released with no progress
+    session.onLockChanged({ locked: true, pid: 1 });
+    session.onLockChanged({ locked: false });
+
+    expect(session.status).toBe("done");
+
+    const lastUpdate = statusBarUpdates[statusBarUpdates.length - 1];
+    expect(lastUpdate.kind).toBe("stopped");
+  });
 });

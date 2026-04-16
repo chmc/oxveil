@@ -115,9 +115,9 @@ export interface CompletionBannerOptions {
 }
 
 export function renderCompletionBannerHtml(status: string, options?: CompletionBannerOptions): string {
-  const icon = status === "done" ? "&#10003; " : "&#10007; ";
-  const title = status === "done" ? `${icon}Run Completed` : `${icon}Run Failed`;
-  const bannerClass = status === "done" ? "run-finished-banner" : "run-finished-banner run-failed";
+  const icon = status === "done" ? "&#10003; " : status === "stopped" ? "&#9646;&#9646; " : "&#10007; ";
+  const title = status === "done" ? `${icon}Run Completed` : status === "stopped" ? `${icon}Run Stopped` : `${icon}Run Failed`;
+  const bannerClass = status === "done" ? "run-finished-banner" : status === "stopped" ? "run-finished-banner" : "run-finished-banner run-failed";
   const costText = options?.totalCost != null ? `$${options.totalCost.toFixed(2)}` : "";
   const phasesText = options?.totalPhases != null ? `${options.totalPhases} phases` : "";
   let durationText = "";
