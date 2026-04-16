@@ -38,7 +38,7 @@ export class SessionState extends EventEmitter {
   onLockChanged(lock: LockState): void {
     this.emit("lock-changed", lock);
 
-    if (lock.locked && this._status === "idle") {
+    if (lock.locked && (this._status === "idle" || this._status === "failed")) {
       this._transition("running");
     } else if (!lock.locked && this._status === "running") {
       // Lock released while running — determine final state from progress

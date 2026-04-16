@@ -98,6 +98,21 @@ describe("SessionState", () => {
       expect(handler).toHaveBeenCalledWith("done", "idle");
     });
 
+    it("failed → running when lock reacquired", () => {
+      session.onLockChanged({ locked: true, pid: 123 });
+      session.onProgressChanged(failedProgress());
+      session.onLockChanged({ locked: false });
+      expect(session.status).toBe("failed");
+
+      const handler = vi.fn();
+      session.on("state-changed", handler);
+
+      session.onLockChanged({ locked: true, pid: 456 });
+
+      expect(session.status).toBe("running");
+      expect(handler).toHaveBeenCalledWith("failed", "running");
+    });
+
     it("failed → idle on reset", () => {
       session.onLockChanged({ locked: true, pid: 123 });
       session.onProgressChanged(failedProgress());

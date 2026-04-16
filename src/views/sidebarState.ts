@@ -96,6 +96,7 @@ export function deriveViewState(
     progress?.phases.some((p) => p.status === "pending")
   )
     return "stopped";
+  if (progress?.phases.length && progress.phases.every((p) => p.status === "completed")) return "completed";
   if (!planDetected && !progress) return "empty";
 
   // All-pending progress = fresh parsed plan → ready (not stale)

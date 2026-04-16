@@ -42,6 +42,7 @@ stateDiagram-v2
     running --> done : lock released + all phases completed
     running --> failed : lock released + any phase failed
     running --> done : lock released + no clear terminal (default)
+    failed --> running : lock reacquired (onLockChanged)
     done --> idle : reset()
     failed --> idle : reset()
 ```
@@ -51,7 +52,7 @@ stateDiagram-v2
 | State | Description | Entry Condition |
 |-------|-------------|-----------------|
 | `idle` | No active session. Initial state and reset target. | Extension start, or `reset()` from `done`/`failed` |
-| `running` | Lock acquired, claudeloop process active. | `onLockChanged({ locked: true })` while idle |
+| `running` | Lock acquired, claudeloop process active. | `onLockChanged({ locked: true })` while idle or failed |
 | `done` | Lock released, session finished successfully or with partial progress. | `onLockChanged({ locked: false })` while running, all phases completed or no failed phases |
 | `failed` | Lock released, at least one phase failed. | `onLockChanged({ locked: false })` while running, `progress.phases.some(p.status === "failed")` |
 
@@ -60,6 +61,7 @@ stateDiagram-v2
 | From | To | Trigger | Guard | Source Function |
 |------|----|---------|-------|-----------------|
 | `idle` | `running` | Lock file appears | `lock.locked === true && status === "idle"` | `SessionState.onLockChanged()` |
+| `failed` | `running` | Lock file appears | `lock.locked === true && status === "failed"` | `SessionState.onLockChanged()` |
 | `running` | `done` | Lock file removed | `!lock.locked && allCompleted` | `SessionState.onLockChanged()` |
 | `running` | `failed` | Lock file removed | `!lock.locked && hasFailed` | `SessionState.onLockChanged()` |
 | `running` | `done` | Lock file removed | `!lock.locked && !allCompleted && !hasFailed` (default) | `SessionState.onLockChanged()` |
@@ -128,14 +130,15 @@ The `deriveViewState()` function evaluates conditions top-to-bottom. First match
 | 6 | `"detected"` | `"idle"` | any | has failed phase | any | `failed` |
 | 7 | `"detected"` | `"idle"` | any | has `in_progress` phase | any | `stopped` |
 | 8 | `"detected"` | `"idle"` | any | has completed + pending | any | `stopped` |
-| 9 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
-| 10 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
-| 11 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
-| 12 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
-| 13 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
-| 14 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
+| 9 | `"detected"` | `"idle"` | any | all completed | any | `completed` |
+| 10 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
+| 11 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
+| 12 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
+| 13 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
+| 14 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
+| 15 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
 
-<!-- GAP: Row 13 returns "ready" when planDetected=false and progress=undefined but row 8 already catches this case. Row 13 is the final fallback for planDetected=false with non-undefined empty progress — verify this edge case is reachable. -->
+<!-- NOTE: Row 15 is the final fallback for planDetected=false — reachable when progress exists but is empty (0 phases). -->
 
 ### Decision Flowchart
 
@@ -155,7 +158,9 @@ flowchart TD
     D4b -- Yes --> Stopped3[stopped]
     D4b -- No --> D5{completed + pending mix?}
     D5 -- Yes --> Stopped2[stopped]
-    D5 -- No --> D6{planDetected=false AND no progress?}
+    D5 -- No --> D5b{all phases completed?}
+    D5b -- Yes --> Completed2[completed]
+    D5b -- No --> D6{planDetected=false AND no progress?}
     D6 -- Yes --> Empty1[empty]
     D6 -- No --> D7{all phases pending?}
     D7 -- Yes --> Ready1[ready]

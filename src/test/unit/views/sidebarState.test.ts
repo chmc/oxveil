@@ -86,6 +86,15 @@ describe("deriveViewState", () => {
   it("returns stopped on idle with orphaned in_progress phase", () => {
     expect(deriveViewState("detected", "idle", false, hasInProgress)).toBe("stopped");
   });
+  it("returns completed on idle with all phases completed (orphan recovery)", () => {
+    expect(deriveViewState("detected", "idle", true, allDone)).toBe("completed");
+  });
+  it("returns completed when resume chosen but all phases already completed", () => {
+    expect(deriveViewState("detected", "idle", true, allDone, "resume")).toBe("completed");
+  });
+  it("returns running when lock reacquired despite failed progress", () => {
+    expect(deriveViewState("detected", "running", true, hasFailed)).toBe("running");
+  });
   it("returns stopped on idle with completed + in_progress phases", () => {
     const completedAndInProgress: ProgressState = {
       phases: [
