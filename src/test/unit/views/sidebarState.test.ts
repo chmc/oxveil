@@ -31,6 +31,14 @@ const hasFailed: ProgressState = {
   ],
   totalPhases: 2,
 };
+const hasInProgress: ProgressState = {
+  phases: [
+    { number: 1, title: "A", status: "in_progress" },
+    { number: 2, title: "B", status: "pending" },
+    { number: 3, title: "C", status: "pending" },
+  ],
+  totalPhases: 3,
+};
 
 describe("deriveViewState", () => {
   it("returns not-found when not detected", () => {
@@ -74,6 +82,20 @@ describe("deriveViewState", () => {
   });
   it("returns ready when idle with plan but no progress and explicit none choice", () => {
     expect(deriveViewState("detected", "idle", true, noProgress, "none")).toBe("stale");
+  });
+  it("returns stopped on idle with orphaned in_progress phase", () => {
+    expect(deriveViewState("detected", "idle", false, hasInProgress)).toBe("stopped");
+  });
+  it("returns stopped on idle with completed + in_progress phases", () => {
+    const completedAndInProgress: ProgressState = {
+      phases: [
+        { number: 1, title: "A", status: "completed" },
+        { number: 2, title: "B", status: "in_progress" },
+        { number: 3, title: "C", status: "pending" },
+      ],
+      totalPhases: 3,
+    };
+    expect(deriveViewState("detected", "idle", true, completedAndInProgress)).toBe("stopped");
   });
 });
 

@@ -90,6 +90,7 @@ export function deriveViewState(
   }
   // idle — check for orphaned progress (extension restart after crash)
   if (progress?.phases.some((p) => p.status === "failed")) return "failed";
+  if (progress?.phases.some((p) => p.status === "in_progress")) return "stopped";
   if (
     progress?.phases.some((p) => p.status === "completed") &&
     progress?.phases.some((p) => p.status === "pending")

@@ -126,13 +126,14 @@ The `deriveViewState()` function evaluates conditions top-to-bottom. First match
 | 4 | `"detected"` | `"done"` | any | all completed | any | `completed` |
 | 5 | `"detected"` | `"done"` | any | not all completed | any | `stopped` |
 | 6 | `"detected"` | `"idle"` | any | has failed phase | any | `failed` |
-| 7 | `"detected"` | `"idle"` | any | has completed + pending | any | `stopped` |
-| 8 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
-| 9 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
-| 10 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
-| 11 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
-| 12 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
-| 13 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
+| 7 | `"detected"` | `"idle"` | any | has `in_progress` phase | any | `stopped` |
+| 8 | `"detected"` | `"idle"` | any | has completed + pending | any | `stopped` |
+| 9 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
+| 10 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
+| 11 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
+| 12 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
+| 13 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
+| 14 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
 
 <!-- GAP: Row 13 returns "ready" when planDetected=false and progress=undefined but row 8 already catches this case. Row 13 is the final fallback for planDetected=false with non-undefined empty progress — verify this edge case is reachable. -->
 
@@ -150,7 +151,9 @@ flowchart TD
     D3 -- No --> Stopped1[stopped]
     D2 -- idle --> D4{any phase failed?}
     D4 -- Yes --> Failed2[failed]
-    D4 -- No --> D5{completed + pending mix?}
+    D4 -- No --> D4b{any phase in_progress?}
+    D4b -- Yes --> Stopped3[stopped]
+    D4b -- No --> D5{completed + pending mix?}
     D5 -- Yes --> Stopped2[stopped]
     D5 -- No --> D6{planDetected=false AND no progress?}
     D6 -- Yes --> Empty1[empty]
