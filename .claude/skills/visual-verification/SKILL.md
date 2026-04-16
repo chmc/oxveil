@@ -13,6 +13,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 - All code paths must reach Phase 6 (Cleanup). No exceptions.
 - Do not mock `.claudeloop/` if a real session is running (check lock file first).
 - Always exercise the full user-facing workflow path affected by the implementation. Static screenshots of a single state are insufficient — navigate through the complete interaction sequence.
+- Vary plan content every run. Never reuse the same fixed plan template. Use different phase counts (2–4), titles, and descriptions each time. This catches parsing bugs, text truncation, and rendering errors that static templates hide. Use the `generate_plan` helper from the recipes.
 
 ## When to Invoke
 

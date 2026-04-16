@@ -203,7 +203,48 @@ wait_for_view() {
 - MCP bridge ready. `$PORT` and `$TOKEN` parsed from `.oxveil-mcp`. See [Reading discovery file](#reading-discovery-file) above.
 - claudeloop detected (sidebar not in `not-found` state).
 
+**IMPORTANT — Vary plan content every run.** Do NOT reuse the same 2-phase plan template. Each verification session must use a different number of phases (3–6), different titles, and different descriptions. This catches parsing bugs, text truncation, and static-text rendering errors that a fixed template would miss. Use the `generate_plan` helper below.
+
 ```bash
+# Generate a randomized PLAN.md with 3-6 phases.
+# Titles and descriptions vary per run to catch parsing/rendering bugs.
+generate_plan() {
+    local TITLES=(
+        "Bootstrap" "Scaffold" "Configure" "Initialize" "Provision"
+        "Build core" "Implement API" "Wire database" "Add auth" "Create UI"
+        "Write tests" "Run linter" "Integration check" "E2E validation" "Load test"
+        "Deploy staging" "Smoke test" "Documentation" "Security audit" "Cleanup"
+    )
+    local DESCS=(
+        "Set up project structure and install dependencies."
+        "Implement the primary business logic."
+        "Connect to external services and verify contracts."
+        "Add unit and integration test coverage."
+        "Run static analysis and fix violations."
+        "Build frontend components and wire to backend."
+        "Configure CI pipeline and verify green builds."
+        "Review security posture and patch vulnerabilities."
+        "Write user-facing documentation and changelog."
+        "Validate end-to-end behavior in staging environment."
+    )
+    local COUNT=$(( (RANDOM % 3) + 2 ))  # 2-4 phases
+    echo "# Verification Plan"
+    echo ""
+    local USED=()
+    for i in $(seq 1 $COUNT); do
+        # Pick a title not yet used this run
+        local IDX=$(( RANDOM % ${#TITLES[@]} ))
+        while [[ " ${USED[*]} " == *" $IDX "* ]]; do
+            IDX=$(( RANDOM % ${#TITLES[@]} ))
+        done
+        USED+=($IDX)
+        local DESC_IDX=$(( RANDOM % ${#DESCS[@]} ))
+        echo "## Phase $i: ${TITLES[$IDX]}"
+        echo "${DESCS[$DESC_IDX]}"
+        echo ""
+    done
+}
+
 # 0. Clean slate — remove any leftover PLAN.md from previous runs
 rm -f PLAN.md
 wait_for_view "empty" 10
@@ -214,19 +255,10 @@ VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
 [[ "$VIEW" == "empty" ]] || { echo "FAIL: expected empty, got $VIEW"; exit 1; }
 # Screenshot: 01-empty
 
-# 2. Write minimal PLAN.md (## Phase N: headers recognized by parsePlan())
-cat > PLAN.md << 'EOF'
-# Test Plan
-
-## Phase 1: Setup
-Create project scaffolding.
-
-## Phase 2: Implementation
-Build the core feature.
-
-## Phase 3: Verification
-Run tests and verify.
-EOF
+# 2. Write randomized PLAN.md (## Phase N: headers recognized by parsePlan())
+generate_plan > PLAN.md
+echo "Generated plan:"
+grep "^## Phase" PLAN.md
 
 # 3. File watcher detects PLAN.md → stale
 wait_for_view "stale" 10
@@ -236,15 +268,25 @@ wait_for_view "stale" 10
 click_and_verify "resumePlan" "ready"
 # Screenshot: 03-ready
 
-# 5. Start → running (fake_claude spawned via claudeloop)
+# 5. Verify phase count and titles match what was written
+EXPECTED_PHASES=$(grep -c "^## Phase" PLAN.md)
+ACTUAL_PHASES=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
+  | python3 -c "import sys, json; s=json.load(sys.stdin); print(len(s.get('plan',{}).get('phases',[])))")
+if [[ "$EXPECTED_PHASES" == "$ACTUAL_PHASES" ]]; then
+    echo "OK: phase count matches ($ACTUAL_PHASES)"
+else
+    echo "FAIL: expected $EXPECTED_PHASES phases, sidebar shows $ACTUAL_PHASES"
+fi
+
+# 6. Start → running (fake_claude spawned via claudeloop)
 click_and_verify "start" "running"
 # Screenshot: 04-running
 
-# 6. Wait for fake_claude success scenario to complete
+# 7. Wait for fake_claude success scenario to complete
 wait_for_view "completed" 45
 # Screenshot: 05-completed
 
-# 7. Cleanup (triggers file watcher — expect brief state flicker to empty)
+# 8. Cleanup (triggers file watcher — expect brief state flicker to empty)
 rm -f PLAN.md
 ```
 
