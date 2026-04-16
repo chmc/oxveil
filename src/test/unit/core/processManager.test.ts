@@ -366,6 +366,26 @@ describe("ProcessManager", () => {
     });
   });
 
+  describe("markComplete", () => {
+    it("spawns with --mark-complete and phase arg", async () => {
+      const pm = createManager();
+      pm.markComplete(3);
+      await flushMicrotasks();
+
+      expect(spawnCalls).toHaveLength(1);
+      expect(spawnCalls[0].args).toEqual(["--mark-complete", "3"]);
+
+      closeCallback?.(0);
+    });
+
+    it("rejects when lock file exists (double-spawn prevention)", async () => {
+      lockExists.mockResolvedValue(true);
+      const pm = createManager();
+
+      await expect(pm.markComplete(3)).rejects.toThrow("lock file exists");
+    });
+  });
+
   describe("reset", () => {
     it("spawns with --reset flag", async () => {
       const pm = createManager();

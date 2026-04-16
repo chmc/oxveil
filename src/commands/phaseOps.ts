@@ -137,6 +137,7 @@ export function registerPhaseCommands(deps: PhaseOpsDeps): vscode.Disposable[] {
       async (arg?: { phaseNumber?: number | string }) => {
         const active = getActive();
         if (!active?.processManager) return;
+        if (active.processManager.isRunning) return;
         const phaseNumber = arg?.phaseNumber;
         if (phaseNumber === undefined) {
           vscode.window.showWarningMessage("Oxveil: No phase specified");

@@ -83,6 +83,9 @@ export class ProcessManager implements IProcessManager {
   }
 
   async markComplete(phase: number | string): Promise<void> {
+    if (await this._deps.lockExists()) {
+      throw new Error("lock file exists — claudeloop is already running");
+    }
     const args = ["--mark-complete", String(phase)];
     this._spawnChild(args);
     return this._exitPromise!;
