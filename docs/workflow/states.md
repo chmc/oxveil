@@ -195,21 +195,24 @@ Each view maps to a renderer function in `sidebarRenderers.ts` and a set of user
 
 The status bar is a renderer — it displays whatever `StatusBarState` it receives. It does not hold state or compute transitions. Callers in `sessionWiring.ts` and `extension.ts` determine which state to send.
 
+When transitioning to `idle` or on startup, the status bar state is derived from the sidebar view via `deriveStatusBarFromView()` in `src/views/deriveStatusBar.ts`. This ensures the status bar reflects orphan progress states (stopped/failed) that `deriveViewState()` detects.
+
 ### State Mapping
 
 | Kind | Text | Icon | Background | Tooltip | Caller |
 |------|------|------|------------|---------|--------|
-| `not-found` | "Oxveil: claudeloop not found" | `$(warning)` | warningBackground | "claudeloop not found — click to install" | `extension.ts` activation (detection failed) |
+| `not-found` | "Oxveil: claudeloop not found" | `$(warning)` | warningBackground | "claudeloop not found — click to install" | `extension.ts` activation (detection failed), `deriveStatusBarFromView` |
 | `installing` | "Oxveil: installing claudeloop..." | `$(sync~spin)` | none | "Installing claudeloop..." | Installer callback |
-| `ready` | "Oxveil: ready" | `$(symbol-event)` | none | "claudeloop detected — ready to run" | `extension.ts` activation (detection succeeded) |
-| `idle` | "Oxveil: idle" | `$(symbol-event)` | none | "No active session" | `wireSessionEvents()` on state→idle |
+| `ready` | "Oxveil: ready" | `$(symbol-event)` | none | "claudeloop detected — ready to run" | `extension.ts` post-init via `deriveStatusBarFromView` |
+| `idle` | "Oxveil: idle" | `$(symbol-event)` | none | "No active session" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (when sidebar view is empty/stale) |
+| `stopped` | "Oxveil: stopped" | `$(debug-pause)` | none | "Execution stopped — click to resume" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (orphan partial progress) |
 | `running` | "Oxveil: Phase N/M \| elapsed" | `$(sync~spin)` | none | "Running — Phase N of M (elapsed)" | `wireSessionEvents()` on state→running + phases-changed + elapsedTimer tick |
-| `failed` | "Oxveil: Phase N failed" | `$(error)` | errorBackground | "Phase N failed — click for details" | `wireSessionEvents()` on state→failed |
-| `done` | "Oxveil: done \| elapsed" | `$(check)` | none | "All phases completed (elapsed)" | `wireSessionEvents()` on state→done |
+| `failed` | "Oxveil: Phase N failed" | `$(error)` | errorBackground | "Phase N failed — click for details" | `wireSessionEvents()` on state→failed, or via `deriveStatusBarFromView` (orphan failed progress) |
+| `done` | "Oxveil: done \| elapsed" | `$(check)` | none | "All phases completed (elapsed)" | `wireSessionEvents()` on state→done, or via `deriveStatusBarFromView` (orphan all-completed, elapsed="—") |
 
 ### Multi-Root Display
 
-In multi-folder workspaces, `running`, `failed`, and `done` states prepend the folder name and append a summary of other roots (e.g., `"folder — Phase 1/3 (2m 30s) (+1 running, +1 failed)"`).
+In multi-folder workspaces, `running`, `failed`, `done`, and `stopped` states prepend the folder name and append a summary of other roots (e.g., `"folder — Phase 1/3 (2m 30s) (+1 running, +1 failed)"`).
 
 ---
 

@@ -187,6 +187,35 @@ describe("StatusBarManager", () => {
     expect(item.text).toBe("$(sync~spin) Oxveil: Phase 3/7 | 12m");
   });
 
+  it("renders stopped state", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({ kind: "stopped" });
+
+    expect(item.text).toBe("$(debug-pause) Oxveil: stopped");
+    expect(item.tooltip).toBe("Execution stopped — click to resume");
+    expect(item.backgroundColor).toBeUndefined();
+  });
+
+  it("renders stopped state with folder prefix", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({ kind: "stopped", folderName: "my-api" });
+
+    expect(item.text).toBe("$(debug-pause) Oxveil: my-api — stopped");
+  });
+
+  it("renders stopped state with other-roots summary", () => {
+    const item = makeStatusBarItem();
+    const manager = new StatusBarManager(item);
+
+    manager.update({ kind: "stopped", folderName: "my-api", otherRootsSummary: "+1 idle" });
+
+    expect(item.text).toBe("$(debug-pause) Oxveil: my-api — stopped (+1 idle)");
+  });
+
   it("disposes status bar item", () => {
     const item = makeStatusBarItem();
     let disposed = false;

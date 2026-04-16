@@ -26,6 +26,7 @@ import type { PlanChatSession } from "./core/planChatSession";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { activateSidebar } from "./activateSidebar";
 import { activateMcpBridge } from "./activateMcpBridge";
+import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -231,6 +232,13 @@ export async function activate(
       manager,
     });
     disposables.push(...watcherResult.disposables);
+
+    // Correct status bar for orphan progress states loaded during init
+    const postInitState = buildFullState();
+    statusBar.update(deriveStatusBarFromView(
+      postInitState.view,
+      manager.getActiveSession()?.sessionState.progress,
+    ));
   }
 
   // Shared re-detection handler
@@ -242,12 +250,12 @@ export async function activate(
         r.status === "detected",
       );
       sidebarState.detectionStatus = r.status;
-      if (r.status === "detected") {
-        statusBar.update({ kind: "ready" });
-      } else {
-        statusBar.update({ kind: "not-found" });
-      }
-      sidebarPanel.updateState(buildFullState());
+      const fullState = buildFullState();
+      sidebarPanel.updateState(fullState);
+      statusBar.update(deriveStatusBarFromView(
+        fullState.view,
+        manager.getActiveSession()?.sessionState.progress,
+      ));
     });
 
   // Re-detect on setting change

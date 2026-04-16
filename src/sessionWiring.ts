@@ -10,6 +10,7 @@ import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { SidebarPanel } from "./views/sidebarPanel";
 import { mapPhases } from "./views/sidebarState";
 import type { SidebarState } from "./views/sidebarState";
+import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -118,7 +119,17 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       }
       case "idle":
         elapsedTimer.stop();
-        statusBar.update({ kind: "idle" });
+        if (deps.buildSidebarState) {
+          const sidebarState = deps.buildSidebarState();
+          statusBar.update(deriveStatusBarFromView(
+            sidebarState.view,
+            session.progress,
+            deps.folderName,
+            deps.getOtherRootsSummary?.(),
+          ));
+        } else {
+          statusBar.update({ kind: "idle" });
+        }
         break;
     }
 

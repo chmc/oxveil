@@ -8,6 +8,7 @@ export type StatusBarState =
   | { kind: "ready" }
   | { kind: "idle" }
   | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string }
+  | { kind: "stopped"; folderName?: string; otherRootsSummary?: string }
   | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string }
   | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string };
 

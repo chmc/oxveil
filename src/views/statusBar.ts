@@ -45,6 +45,15 @@ export class StatusBarManager {
         this._item.backgroundColor = undefined;
         break;
 
+      case "stopped": {
+        const prefix = state.folderName ? `${state.folderName} — ` : "";
+        const suffix = state.otherRootsSummary ? ` (${state.otherRootsSummary})` : "";
+        this._item.text = `$(debug-pause) Oxveil: ${prefix}stopped${suffix}`;
+        this._item.tooltip = "Execution stopped — click to resume";
+        this._item.backgroundColor = undefined;
+        break;
+      }
+
       case "running": {
         const prefix = state.folderName ? `${state.folderName} — ` : "";
         const suffix = state.otherRootsSummary ? ` (${state.otherRootsSummary})` : "";
