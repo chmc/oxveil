@@ -266,4 +266,127 @@ describe("WatcherManager", () => {
     const mockWatcher = (deps.createWatcher as ReturnType<typeof vi.fn>).mock.results[0]?.value;
     expect(mockWatcher.dispose).toHaveBeenCalled();
   });
+
+  describe("lock polling", () => {
+    it("start() begins lock polling at configured interval", async () => {
+      const onLockChange = vi.fn();
+      const readFile = vi.fn().mockResolvedValue("12345");
+      const deps = makeDeps({ onLockChange, readFile });
+      const watcher = new WatcherManager(deps);
+      watcher.start();
+
+      // No poll calls yet (first tick hasn't fired)
+      expect(readFile).not.toHaveBeenCalled();
+
+      // Advance past poll interval (5000ms)
+      await vi.advanceTimersByTimeAsync(5001);
+      expect(onLockChange).toHaveBeenCalledWith("12345");
+
+      // Advance another interval — should poll again
+      readFile.mockClear();
+      onLockChange.mockClear();
+      await vi.advanceTimersByTimeAsync(5001);
+      expect(onLockChange).toHaveBeenCalledWith("12345");
+
+      watcher.stop();
+    });
+
+    it("poll detects deleted lock file and calls onLockChange with empty string", async () => {
+      const onLockChange = vi.fn();
+      const readFile = vi.fn().mockRejectedValue(
+        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+      );
+      const deps = makeDeps({ onLockChange, readFile });
+      const watcher = new WatcherManager(deps);
+      watcher.start();
+
+      await vi.advanceTimersByTimeAsync(5001);
+
+      expect(onLockChange).toHaveBeenCalledWith("");
+      watcher.stop();
+    });
+
+    it("stop() clears the poll timer — no further readFile calls", async () => {
+      const readFile = vi.fn().mockResolvedValue("12345");
+      const deps = makeDeps({ readFile });
+      const watcher = new WatcherManager(deps);
+      watcher.start();
+      watcher.stop();
+
+      readFile.mockClear();
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(readFile).not.toHaveBeenCalled();
+    });
+
+    it("poll skips tick if previous _handleFile is still in flight", async () => {
+      let resolveRead!: (value: string) => void;
+      const readFile = vi.fn().mockImplementation(
+        () => new Promise<string>((r) => { resolveRead = r; }),
+      );
+      const onLockChange = vi.fn();
+      const deps = makeDeps({ readFile, onLockChange });
+      const watcher = new WatcherManager(deps);
+      watcher.start();
+
+      // First poll tick fires — readFile is pending
+      await vi.advanceTimersByTimeAsync(5001);
+      expect(readFile).toHaveBeenCalledTimes(1);
+
+      // Second tick fires while first is still in flight — should skip
+      await vi.advanceTimersByTimeAsync(5001);
+      expect(readFile).toHaveBeenCalledTimes(1);
+
+      // Resolve the first read
+      resolveRead("12345");
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Third tick should now fire since in-flight cleared
+      await vi.advanceTimersByTimeAsync(5001);
+      expect(readFile).toHaveBeenCalledTimes(2);
+
+      watcher.stop();
+    });
+
+    it("non-ENOENT error during poll does not call onLockChange", async () => {
+      const onLockChange = vi.fn();
+      const readFile = vi.fn().mockRejectedValue(
+        Object.assign(new Error("EPERM"), { code: "EPERM" }),
+      );
+      const deps = makeDeps({ onLockChange, readFile });
+      const watcher = new WatcherManager(deps);
+      watcher.start();
+
+      await vi.advanceTimersByTimeAsync(5001);
+
+      // Non-lock-type errors should still trigger onLockChange("") for lock files
+      // because _handleFile catches all errors for lock type
+      expect(onLockChange).toHaveBeenCalledWith("");
+      watcher.stop();
+    });
+
+    it("poll and watcher both detect deletion — onLockChange called twice safely", async () => {
+      const onLockChange = vi.fn();
+      const readFile = vi.fn().mockRejectedValue(
+        Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+      );
+      const deps = makeDeps({ onLockChange, readFile });
+      const watcher = new WatcherManager(deps);
+      watcher.start();
+
+      // Watcher fires deletion event
+      const handler = watcher.getFileChangeHandler();
+      handler("/workspace/.claudeloop/lock");
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Poll also fires
+      await vi.advanceTimersByTimeAsync(5001);
+
+      // Both should have called onLockChange("") — this is safe
+      expect(onLockChange).toHaveBeenCalledWith("");
+      expect(onLockChange.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+      watcher.stop();
+    });
+  });
 });

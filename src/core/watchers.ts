@@ -25,17 +25,24 @@ const KNOWN_FILES: Record<string, FileType> = {
   "live.log": "log",
 };
 
+/** Fallback poll interval for lock file — compensates for unreliable FileSystemWatcher.onDidDelete on macOS. */
+const LOCK_POLL_INTERVAL_MS = 5000;
+
 export class WatcherManager {
   private readonly _deps: WatcherDeps;
   private _watcher: FileWatcher | undefined;
   private readonly _timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly _pending = new Set<string>();
+  private _pollTimer: ReturnType<typeof setInterval> | undefined;
+  private _pollInFlight = false;
+  private _stopped = false;
 
   constructor(deps: WatcherDeps) {
     this._deps = deps;
   }
 
   start(): void {
+    this._stopped = false;
     const glob = path.join(this._deps.workspaceRoot, ".claudeloop", "**");
     this._watcher = this._deps.createWatcher(glob);
 
@@ -45,9 +52,24 @@ export class WatcherManager {
     this._watcher.onDidChange(handle);
     this._watcher.onDidCreate(handle);
     this._watcher.onDidDelete(handle);
+
+    // Poll lock file as fallback — VS Code's onDidDelete is unreliable on macOS
+    const lockFilePath = path.join(this._deps.workspaceRoot, ".claudeloop", "lock");
+    this._pollTimer = setInterval(() => {
+      if (this._pollInFlight) return;
+      this._pollInFlight = true;
+      this._handleFile(lockFilePath, "lock").finally(() => {
+        this._pollInFlight = false;
+      });
+    }, LOCK_POLL_INTERVAL_MS);
   }
 
   stop(): void {
+    this._stopped = true;
+    if (this._pollTimer !== undefined) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = undefined;
+    }
     for (const timer of this._timers.values()) {
       clearTimeout(timer);
     }
@@ -87,6 +109,7 @@ export class WatcherManager {
   }
 
   private async _handleFile(filePath: string, fileType: FileType): Promise<void> {
+    if (this._stopped) return;
     let content: string;
     try {
       content = await this._deps.readFile(filePath);

@@ -325,9 +325,9 @@ Read-only observation of the lock file. claudeloop owns its lock lifecycle — c
 
 ### Watcher
 
-Single `FileSystemWatcher` on `**/.claudeloop/**` with event filtering by filename.
+Single `FileSystemWatcher` on `**/.claudeloop/**` with event filtering by filename. Lock file is also polled every 5 seconds as a fallback for unreliable `onDidDelete` events on macOS.
 
-**Debouncing:** Per-file `setTimeout`/`clearTimeout` at configurable interval (`oxveil.watchDebounceMs`).
+**Debouncing:** Per-file `setTimeout`/`clearTimeout` at configurable interval (`oxveil.watchDebounceMs`). Lock file polling bypasses debounce to guarantee delivery.
 
 **File reads:** `fs.promises.readFile` for all reads. Async, non-blocking.
 
@@ -650,7 +650,7 @@ Cross-repo E2E tests are the highest-value tests. They validate the IPC contract
 | Multiple VS Code windows | Lock check prevents double-spawn. Both windows can monitor independently |
 | Windows without WSL | Installation blocked. Notification guides user to install WSL. |
 | Windows platform | claudeloop runs via WSL. SIGTERM for graceful stop. |
-| FileSystemWatcher misses event | Known VS Code issue on some platforms. Add polling fallback if users report it |
+| FileSystemWatcher misses event | **Mitigated.** Lock file polled every 5s as fallback. `SessionState.onLockChanged()` is idempotent. |
 
 ## Cross-Repo Coordination
 
@@ -671,7 +671,7 @@ Both repos share the same author. This enables tight coordination but requires d
 | Double-spawn from multiple windows | High | Lock file check before spawn |
 | install.sh failure (network, permissions) | Medium | Clear error messages in terminal, re-detection after install attempt |
 | WSL not available on Windows | Medium | Guide user to install WSL, block claudeloop install until WSL ready |
-| FileSystemWatcher misses events | Medium | Add polling fallback if users report issues — not pre-built |
+| FileSystemWatcher misses events | Medium | **Mitigated.** Lock file polled every 5s as fallback (see `WatcherManager`). Other files self-correct on next write. |
 | Half-written PROGRESS.md parsed mid-write | Medium | Debounce + crash-proof parser + monotonicity validation |
 | Unbounded live.log growth | Medium | 64KB cap per read, setImmediate for remainder |
 
