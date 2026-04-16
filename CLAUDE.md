@@ -46,7 +46,9 @@
 
 ## Quality Gates
 
-- Run `/visual-verification` for every UI-facing plan task. Do not report done until it passes. Non-UI tasks do not require visual verification unless the plan explicitly requests it.
+- When writing plans: every task that touches rendering, webview, or user-visible state must include a `/visual-verification` step with task-specific acceptance criteria. Omitting it is a plan defect.
+- When executing: do not mark a UI-facing task done until its `/visual-verification` step passes. If the plan omits verification for a task that touches rendering, webview, or user-visible state, add it before marking done.
+- For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
 - Never suggest the user test something manually when you can do it yourself.
