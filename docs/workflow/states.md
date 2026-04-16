@@ -364,8 +364,6 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | `annotation` | `{ phase: number, text: string }` | Forwarded to `PlanChatSession.sendAnnotation()` |
 | `formPlan` | — | `deps.onFormPlan?.()` |
 
-<!-- GAP: The `formPlan` message handler in planPreviewPanel.ts invokes `deps.onFormPlan?.()` but this callback is not wired to any handler — it's a placeholder. The Form Plan button in plan preview does not trigger the `oxveil.formPlan` command. -->
-
 ---
 
 ## G. User Stories
