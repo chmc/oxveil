@@ -27,8 +27,15 @@ export class Detection implements IDetection {
   }
 
   async detect(): Promise<IDetectionResult> {
+    let timerId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const { stdout } = await this._executor(this._path, ["--version"]);
+      const timeout = new Promise<never>((_, reject) => {
+        timerId = setTimeout(() => reject(new Error("timeout")), 5000);
+      });
+      const { stdout } = await Promise.race([
+        this._executor(this._path, ["--version"]),
+        timeout,
+      ]);
       const version = stdout.trim();
 
       if (!isVersionCompatible(version, this._minimumVersion)) {
@@ -51,6 +58,8 @@ export class Detection implements IDetection {
         status: "not-found",
         minimumVersion: this._minimumVersion,
       };
+    } finally {
+      clearTimeout(timerId);
     }
 
     return this._current;

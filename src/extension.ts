@@ -10,7 +10,12 @@ import { NotificationManager } from "./views/notifications";
 import { ElapsedTimer } from "./views/elapsedTimer";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
-import { activateDetection, MINIMUM_VERSION } from "./activateDetection";
+import {
+  activateDetection,
+  MINIMUM_VERSION,
+  type DetectionResult,
+} from "./activateDetection";
+import { Detection } from "./core/detection";
 import {
   createGitExec,
   initFolderSessions,
@@ -41,7 +46,26 @@ export async function activate(
   const statusBar = new StatusBarManager(statusBarItem as any);
 
   // Detection
-  const { detection, result, resolvedClaudePath } = await activateDetection(config);
+  let detectionResult: DetectionResult;
+  try {
+    detectionResult = await activateDetection(config);
+  } catch (err) {
+    console.warn("[Oxveil] Detection failed:", err);
+    const noopExecutor = async () => {
+      throw new Error("fallback");
+    };
+    const fallbackDetection = new Detection(
+      noopExecutor,
+      claudeloopPath,
+      MINIMUM_VERSION,
+    );
+    detectionResult = {
+      detection: fallbackDetection,
+      result: { status: "not-found", minimumVersion: MINIMUM_VERSION },
+      resolvedClaudePath: null,
+    };
+  }
+  const { detection, result, resolvedClaudePath } = detectionResult;
 
   // Update status bar based on detection
   if (result.status === "detected") {

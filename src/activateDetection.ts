@@ -20,7 +20,9 @@ export async function activateDetection(
   const claudeloopPath = config.get<string>("claudeloopPath", "claudeloop");
 
   const executor: Executor = async (command, args) => {
-    const result = await execFileAsync(command, args);
+    const result = await execFileAsync(command, args, {
+      signal: AbortSignal.timeout(5000),
+    });
     return { stdout: result.stdout };
   };
 

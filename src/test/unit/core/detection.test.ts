@@ -123,4 +123,27 @@ describe("Detection", () => {
 
     expect(result.minimumVersion).toBe(MIN_VERSION);
   });
+
+  describe("timeout", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("returns not-found when executor never resolves", async () => {
+      const hangingExecutor: Executor = async () => new Promise(() => {});
+      const detection = new Detection(hangingExecutor, "claudeloop", MIN_VERSION);
+
+      const [result] = await Promise.all([
+        detection.detect(),
+        vi.advanceTimersByTimeAsync(5000),
+      ]);
+
+      expect(result.status).toBe("not-found");
+      expect(result.minimumVersion).toBe(MIN_VERSION);
+    });
+  });
 });
