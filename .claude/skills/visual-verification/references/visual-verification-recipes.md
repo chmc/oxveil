@@ -106,6 +106,9 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])"
 
 # Click a sidebar button (fire-and-forget — poll state to confirm)
+# Body must match the SidebarCommand type exactly — fields are top-level, not nested in "args".
+# WRONG: {"command":"skip","args":{"phase":2}}  — silently ignored
+# RIGHT: {"command":"skip","phase":2}
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"resumePlan"}' http://127.0.0.1:$PORT/click
 

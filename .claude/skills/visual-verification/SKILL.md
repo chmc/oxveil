@@ -14,6 +14,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 - Do not mock `.claudeloop/` if a real session is running (check lock file first).
 - Always exercise the full user-facing workflow path affected by the implementation. Static screenshots of a single state are insufficient — navigate through the complete interaction sequence.
 - Vary plan content every run. Never reuse the same fixed plan template. Use different phase counts (2–4), titles, and descriptions each time. This catches parsing bugs, text truncation, and rendering errors that static templates hide. Use the `generate_plan` helper from the recipes.
+- If uncommitted source changes exist when launching EDH, stash or use a worktree. The fake_claude `success` scenario triggers claudeloop's auto-commit, which will capture any dirty working tree changes with a generic commit message and junk files (`test.sh`). This forces a manual soft-reset and re-commit.
 
 ## When to Invoke
 
