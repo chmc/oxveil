@@ -13,7 +13,7 @@ export interface FormPlanCommandDeps {
     | undefined
   >;
   getActivePreviewFile: () => string | undefined;
-  onPlanFormed?: () => void;
+  onPlanFormed?: () => void | Promise<void>;
 }
 
 export function registerFormPlanCommand(

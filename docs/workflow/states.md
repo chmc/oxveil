@@ -102,6 +102,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 | `planDetected` | `boolean` | PLAN.md file watcher in `activateSidebar.registerPlanWatcher()` |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
 | `planUserChoice` | `PlanUserChoice` (`"none" \| "resume" \| "dismiss"`) | User interaction in stale view; `activateSidebar.onPlanFormed()` / `onPlanReset()` |
+| `cachedPlanPhases` | `PhaseView[]` | Plan phases for sidebar display before session runs. Populated by `loadPlanPhases()` from four sites: (1) `onPlanFormed()` after `formPlan` completes, (2) `onDidCreate` file watcher, (3) initial activation when `initialPlanDetected`, (4) `onPlanChoice("resume")` fallback when phases are empty |
 
 ### Output States
 
