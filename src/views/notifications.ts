@@ -57,9 +57,14 @@ export interface NotificationDeps {
 
 export class NotificationManager {
   private readonly _deps: NotificationDeps;
+  private _notifiedFailures = new Set<number | string>();
 
   constructor(deps: NotificationDeps) {
     this._deps = deps;
+  }
+
+  reset(): void {
+    this._notifiedFailures.clear();
   }
 
   onPhasesChanged(
@@ -73,10 +78,15 @@ export class NotificationManager {
 
     for (const t of transitions) {
       if (t.to === "completed") {
+        this._notifiedFailures.delete(t.phase);
         this._deps.window.showInformationMessage(
           `Phase ${t.phase} completed — ${t.title}`,
         );
       } else if (t.to === "failed") {
+        if (this._notifiedFailures.has(t.phase)) {
+          continue;
+        }
+        this._notifiedFailures.add(t.phase);
         const attemptSuffix =
           t.attempts !== undefined && t.attempts > 1
             ? ` (attempt ${t.attempts})`

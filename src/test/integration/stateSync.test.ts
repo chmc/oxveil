@@ -8,6 +8,7 @@ vi.mock("vscode", () => ({
 
 import { SessionState } from "../../core/sessionState";
 import { wireSessionEvents, type SessionWiringDeps } from "../../sessionWiring";
+import { NotificationManager } from "../../views/notifications";
 import { deriveViewState } from "../../views/sidebarState";
 import type { ProgressState, StatusBarState } from "../../types";
 import type { SidebarView } from "../../views/sidebarState";
@@ -32,7 +33,7 @@ function wireDeps(
       update: (state: StatusBarState) => statusBarUpdates.push(state),
       dispose: vi.fn(),
     },
-    notifications: { onPhasesChanged: vi.fn() },
+    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
     elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
     isActiveSession: () => true,
     folderUri: "/test",
@@ -207,5 +208,102 @@ describe("Status bar / sidebar state sync", () => {
 
     const lastUpdate = statusBarUpdates[statusBarUpdates.length - 1];
     expect(lastUpdate.kind).toBe("stopped");
+  });
+});
+
+function makeWindow() {
+  return {
+    showInformationMessage: vi.fn().mockResolvedValue(undefined),
+    showWarningMessage: vi.fn().mockResolvedValue(undefined),
+    showErrorMessage: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function wireWithRealNotifications(
+  session: SessionState,
+  getSidebarView: () => SidebarView,
+) {
+  const statusBarUpdates: StatusBarState[] = [];
+  const mockWindow = makeWindow();
+  const notifications = new NotificationManager({ window: mockWindow });
+  const deps: SessionWiringDeps = {
+    session,
+    statusBar: {
+      update: (state: StatusBarState) => statusBarUpdates.push(state),
+      dispose: vi.fn(),
+    },
+    notifications,
+    elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+    isActiveSession: () => true,
+    folderUri: "/test",
+    buildSidebarState: () => ({
+      view: getSidebarView(),
+      archives: [],
+    }),
+    sidebarPanel: { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any,
+  };
+  wireSessionEvents(deps);
+  return { statusBarUpdates, mockWindow, notifications };
+}
+
+describe("Notification deduplication during retries", () => {
+  it("phase fails 5 times during retry loop — notification count <= 2", () => {
+    const session = new SessionState();
+    const { mockWindow } = wireWithRealNotifications(session, () =>
+      deriveViewState("detected", session.status, false, session.progress),
+    );
+
+    // Session starts
+    session.onLockChanged({ locked: true, pid: 1 });
+
+    // Initial progress: phase 1 in_progress
+    session.onProgressChanged(
+      makeProgress([{ number: 1, title: "Setup", status: "in_progress" }]),
+    );
+
+    // 5 retry failures
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      session.onProgressChanged(
+        makeProgress([{ number: 1, title: "Setup", status: "failed" }]),
+      );
+      if (attempt < 5) {
+        session.onProgressChanged(
+          makeProgress([{ number: 1, title: "Setup", status: "in_progress" }]),
+        );
+      }
+    }
+
+    expect(mockWindow.showErrorMessage.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
+  it("new session run clears failure tracking", () => {
+    const session = new SessionState();
+    const { mockWindow } = wireWithRealNotifications(session, () =>
+      deriveViewState("detected", session.status, false, session.progress),
+    );
+
+    // First session: phase 1 fails
+    session.onLockChanged({ locked: true, pid: 1 });
+    session.onProgressChanged(
+      makeProgress([{ number: 1, title: "Setup", status: "in_progress" }]),
+    );
+    session.onProgressChanged(
+      makeProgress([{ number: 1, title: "Setup", status: "failed" }]),
+    );
+
+    // Session ends
+    session.onLockChanged({ locked: false });
+
+    // New session starts (triggers reset)
+    session.reset();
+    session.onLockChanged({ locked: true, pid: 2 });
+    session.onProgressChanged(
+      makeProgress([{ number: 1, title: "Setup", status: "in_progress" }]),
+    );
+    session.onProgressChanged(
+      makeProgress([{ number: 1, title: "Setup", status: "failed" }]),
+    );
+
+    expect(mockWindow.showErrorMessage).toHaveBeenCalledTimes(2);
   });
 });
