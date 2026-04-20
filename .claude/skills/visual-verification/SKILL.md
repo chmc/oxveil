@@ -8,6 +8,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 ## Constraints
 
 - macOS only. Requires osascript (Accessibility permission) and screencapture (Screen Recording permission).
+- NEVER use `screencapture -w` (interactive window selection — blocks in automation). Use `screencapture -l <CGWindowID>` or `screencapture -R x,y,w,h -x`.
 - Do not invoke during TDD cycles. This is a standalone verification activity.
 - Do not commit fixes automatically. Log changes in SESSION.md. Developer reviews `git diff` after session.
 - All code paths must reach Phase 6 (Cleanup). No exceptions.
@@ -47,6 +48,7 @@ See `references/visual-verification-recipes.md` for discovery file parsing, full
 
 - **Tier 1 (reliable — use screenshots):** Element presence/absence, text content, gross layout, item count, notification visibility.
 - **Tier 2 (unreliable — verify via code review):** ThemeColor correctness, spinner animation, pixel alignment, contrast ratios.
+- **Not screenshot-verifiable:** Notification deduplication (count, suppression during retries) and timing. Verify via unit tests asserting `showErrorMessage`/`showInformationMessage` call counts. Notification message format, severity, and button labels remain Tier 1 — verify visually.
 
 ## References
 

@@ -382,6 +382,9 @@ for w in windows {
 ## Screenshot Pipeline
 
 ```bash
+# NEVER use screencapture -w — it requires an interactive click and hangs in automation.
+# Always use -l (window ID) or -R (region).
+
 # Capture + resize in one pipeline
 screencapture -l "$WINDOW_ID" "$SESSION_DIR/screenshots/$SCREENSHOT_NAME.png"
 sips --resampleWidth 1568 "$SESSION_DIR/screenshots/$SCREENSHOT_NAME.png" --out "$SESSION_DIR/screenshots/$SCREENSHOT_NAME.png" > /dev/null 2>&1
