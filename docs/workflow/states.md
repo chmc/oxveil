@@ -270,7 +270,7 @@ This module connects SessionState events to all UI projections. It is the centra
 
 ### Sidebar State Delegation
 
-Session wiring does **not** build sidebar state internally. It receives a `buildSidebarState: () => SidebarState` callback (the canonical `buildFullState()` from `activateSidebar.ts`) and calls it on every state change. This ensures the sidebar always reflects live mutable state (detection status, plan detection, user choice) rather than stale snapshots captured at wiring time. The wiring only merges session-local tracking data (cost, todos) into the `session` field of the returned state.
+Session wiring does **not** build sidebar state internally. It receives a `buildSidebarState: () => SidebarState` callback (the canonical `buildFullState()` from `activateSidebar.ts`) and calls it on every state change. This ensures the sidebar always reflects live mutable state (detection status, plan detection, user choice) rather than stale snapshots captured at wiring time. Cost and todo data are written to `SidebarMutableState.cost`/`.todoDone`/`.todoTotal` by the wiring's `log-appended` handler, so `buildFullState()` includes them natively in every call.
 
 **Contract:** `buildSidebarState()` reads `SessionState.status` via the manager, so it must be called after `_transition()` sets `_status` (which it is — `_transition` sets status before emitting `state-changed`).
 
@@ -278,12 +278,12 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 
 | SessionState Event | Handler Action | Targets Updated |
 |-------------------|----------------|-----------------|
-| `state-changed` → `running` | Start elapsed timer, reset cost/todo/notification-dedup tracking, clear `lastProgress` | StatusBar (`running`), LiveRunPanel (auto-reveal), NotificationManager (`reset()`), Sidebar (via `buildSidebarState()` + cost/todo merge), context key `oxveil.processRunning=true` |
+| `state-changed` → `running` | Start elapsed timer, reset `SidebarMutableState` cost/todo fields, reset notification-dedup tracking, clear `lastProgress` | StatusBar (`running`), LiveRunPanel (auto-reveal), NotificationManager (`reset()`), Sidebar (via `buildSidebarState()`), context key `oxveil.processRunning=true` |
 | `state-changed` → `done` | Stop elapsed timer, derive view from sidebar | StatusBar (`done` or `stopped` via `deriveViewState`), LiveRunPanel (`onRunFinished("done"` or `"stopped")`), Sidebar (via `buildSidebarState()`), context key `oxveil.walkthrough.hasRun=true`, archive refresh |
 | `state-changed` → `failed` | Stop elapsed timer, find failed phase | StatusBar (`failed`), LiveRunPanel (`onRunFinished("failed")`), Sidebar (via `buildSidebarState()`), archive refresh |
 | `state-changed` → `idle` | Stop elapsed timer | StatusBar (`idle`), Sidebar (via `buildSidebarState()`), context key `oxveil.processRunning=false` |
 | `phases-changed` | Update panels, notify on completions/failures (failures deduplicated per phase — only first failure per run notified) | DependencyGraph, ExecutionTimeline, LiveRunPanel, StatusBar (current phase update), Sidebar (progress update) |
-| `log-appended` | Extract cost/todo data from log lines | LiveRunPanel, Sidebar (progress update with cost/todos) |
+| `log-appended` | Extract cost/todo data from log lines, write to `SidebarMutableState.cost`/`.todoDone`/`.todoTotal` | LiveRunPanel, SidebarMutableState, Sidebar (progress update with cost/todos) |
 
 ### Context Keys
 

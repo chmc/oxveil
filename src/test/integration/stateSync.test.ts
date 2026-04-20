@@ -22,6 +22,18 @@ function makeProgress(
   };
 }
 
+function makeMutableState() {
+  return {
+    detectionStatus: "detected" as const,
+    planDetected: false,
+    planUserChoice: "none" as const,
+    cachedPlanPhases: [] as any[],
+    cost: 0,
+    todoDone: 0,
+    todoTotal: 0,
+  };
+}
+
 function wireDeps(
   session: SessionState,
   getSidebarView: () => SidebarView,
@@ -42,6 +54,7 @@ function wireDeps(
       archives: [],
     }),
     sidebarPanel: { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any,
+    sidebarMutableState: makeMutableState(),
   };
   wireSessionEvents(deps);
   return { statusBarUpdates };
@@ -241,6 +254,7 @@ function wireWithRealNotifications(
       archives: [],
     }),
     sidebarPanel: { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any,
+    sidebarMutableState: makeMutableState(),
   };
   wireSessionEvents(deps);
   return { statusBarUpdates, mockWindow, notifications };

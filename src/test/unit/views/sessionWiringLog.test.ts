@@ -8,6 +8,19 @@ vi.mock("vscode", () => ({
 
 import { SessionState } from "../../../core/sessionState";
 import { wireSessionEvents, type SessionWiringDeps } from "../../../sessionWiring";
+import type { SidebarMutableState } from "../../../activateSidebar";
+
+function makeMutableState(): SidebarMutableState {
+  return {
+    detectionStatus: "detected",
+    planDetected: false,
+    planUserChoice: "none",
+    cachedPlanPhases: [],
+    cost: 0,
+    todoDone: 0,
+    todoTotal: 0,
+  };
+}
 
 describe("wireSessionEvents — uses buildSidebarState for sidebar updates", () => {
   it("calls buildSidebarState on session state change and merges cost/todos", () => {
@@ -28,6 +41,7 @@ describe("wireSessionEvents — uses buildSidebarState for sidebar updates", () 
       isActiveSession: () => true,
       folderUri: "/test",
       buildSidebarState,
+      sidebarMutableState: makeMutableState(),
     };
     wireSessionEvents(deps);
 
@@ -44,10 +58,12 @@ describe("wireSessionEvents — uses buildSidebarState for sidebar updates", () 
 describe("wireSessionEvents — log-appended handler", () => {
   let session: SessionState;
   let deps: SessionWiringDeps;
+  let mutableState: SidebarMutableState;
 
   beforeEach(() => {
     vi.clearAllMocks();
     session = new SessionState();
+    mutableState = makeMutableState();
     deps = {
       session,
       statusBar: { update: vi.fn(), dispose: vi.fn() },
@@ -56,10 +72,7 @@ describe("wireSessionEvents — log-appended handler", () => {
       sidebarPanel: { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any,
       isActiveSession: () => true,
       folderUri: "/test",
-      detectionStatus: "detected" as const,
-      planDetected: false,
-      getArchives: () => [],
-      getPlanUserChoice: () => "none" as const,
+      sidebarMutableState: mutableState,
     };
     wireSessionEvents(deps);
 
@@ -134,5 +147,30 @@ describe("wireSessionEvents — log-appended handler", () => {
     expect(deps.sidebarPanel!.sendProgressUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ cost: "$0.05" }),
     );
+  });
+
+  it("writes cost to sidebarMutableState", () => {
+    session.onLogAppended("cost=$0.05\n");
+    expect(mutableState.cost).toBeCloseTo(0.05);
+  });
+
+  it("writes todo to sidebarMutableState", () => {
+    session.onLogAppended("[Todos: 3/5 done]\n");
+    expect(mutableState.todoDone).toBe(3);
+    expect(mutableState.todoTotal).toBe(5);
+  });
+
+  it("resets sidebarMutableState cost on new run", () => {
+    session.onLogAppended("cost=$0.05\n");
+    expect(mutableState.cost).toBeCloseTo(0.05);
+
+    // New run
+    session.onLockChanged({ locked: false, pid: 0 });
+    session.reset();
+    session.onLockChanged({ locked: true, pid: 2 });
+
+    expect(mutableState.cost).toBe(0);
+    expect(mutableState.todoDone).toBe(0);
+    expect(mutableState.todoTotal).toBe(0);
   });
 });
