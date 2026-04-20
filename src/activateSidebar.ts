@@ -133,6 +133,10 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       state.cachedPlanPhases = [];
       sidebarPanel.updateState(buildFullState());
     });
+    planWatcher.onDidChange(async () => {
+      await loadPlanPhases();
+      sidebarPanel.updateState(buildFullState());
+    });
     disposables.push(planWatcher);
 
     return disposables;

@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Capture file watcher callbacks so tests can simulate file events
-let watcherCallbacks: { onCreate?: () => void | Promise<void>; onDelete?: () => void } = {};
+let watcherCallbacks: {
+  onCreate?: () => void | Promise<void>;
+  onDelete?: () => void;
+  onChange?: () => void | Promise<void>;
+} = {};
 
 vi.mock("vscode", () => ({
   workspace: {
     createFileSystemWatcher: vi.fn(() => ({
       onDidCreate: vi.fn((cb: () => void | Promise<void>) => { watcherCallbacks.onCreate = cb; }),
       onDidDelete: vi.fn((cb: () => void) => { watcherCallbacks.onDelete = cb; }),
+      onDidChange: vi.fn((cb: () => void | Promise<void>) => { watcherCallbacks.onChange = cb; }),
       dispose: vi.fn(),
     })),
   },
@@ -231,6 +236,37 @@ describe("activateSidebar", () => {
         { number: 1, title: "Setup", status: "pending" },
         { number: 2, title: "Build", status: "pending" },
         { number: 3, title: "Deploy", status: "pending" },
+      ]);
+    });
+
+    it("onDidChange re-parses PLAN.md and updates cachedPlanPhases", async () => {
+      // Pre-populate with initial phases
+      result.state.cachedPlanPhases = [
+        { number: 1, title: "Old", status: "pending" },
+      ];
+      result.state.planDetected = true;
+
+      // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
+      vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+      vi.mocked(readFile).mockResolvedValueOnce(
+        "# Plan\n## Phase 1: New\n## Phase 2: Added\n" as any,
+      );
+      vi.resetModules();
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({
+          phases: [
+            { number: 1, title: "New" },
+            { number: 2, title: "Added" },
+          ],
+        })),
+      }));
+
+      result.registerPlanWatcher();
+      await watcherCallbacks.onChange!();
+
+      expect(result.state.cachedPlanPhases).toEqual([
+        { number: 1, title: "New", status: "pending" },
+        { number: 2, title: "Added", status: "pending" },
       ]);
     });
   });
