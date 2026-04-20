@@ -8,6 +8,7 @@
 - NEVER `await` an external process (execFile, spawn, fetch) without a timeout in `activate()`. Use `Promise.race` with 5s timeout. A hanging CLI blocks `resolveWebviewView` and the sidebar stays on the loading spinner forever.
 - Wrap non-critical awaits in `activate()` (bridge startup, optional detection) in try-catch. Activation must always complete.
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. "The fix is simple" and "the plan is obvious" are not exemptions — simple plans still get reviewed. This is a hard gate, not a suggestion.
+- After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 
 ## Project
 
@@ -53,7 +54,7 @@
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
 - Never suggest the user test something manually when you can do it yourself.
-- Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps, (3) alternatives / UX impact. Run in parallel.
+- Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps (when interfaces change, grep `src/test/` for all mock sites of the changed class), (3) alternatives / UX impact. Run in parallel.
 - One critic agent must always verify the plan includes `/visual-verification` for every phase that changes user-visible behavior (sidebar, status bar, webview, notifications). "This is backend logic" is not a valid exemption if the change affects what the user sees. "This is state derivation, not rendering" is not a valid exemption. Visual verification is dynamic testing — it verifies app behavior the way a real user would. Any change that alters what the user experiences requires it. Trace the call chain to the UI before deciding.
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
 
@@ -68,6 +69,8 @@
 - For multi-component bugs: trace the data flow backward from symptom to source before choosing where to fix.
 - Document which component owns the broken transformation before writing the fix.
 - When an issue attributes a bug to a specific function, verify the attribution. If the function's inputs are already wrong, the fix belongs upstream.
+- When adding public methods to widely-mocked classes, grep for the class/interface name across `src/test/**/*.test.ts` before writing the implementation. Update all mock sites in the same phase.
+- When adding `reset()` or cleanup logic to a stateful manager, audit the wiring closure (`sessionWiring.ts`) for local variables (`lastProgress`, `sidebarCost`, etc.) that also need resetting. Closure-scoped state is invisible to the manager.
 
 ## Continuous Improvement
 
