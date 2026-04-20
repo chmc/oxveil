@@ -45,9 +45,6 @@ export function sidebarJs(): string {
           if (content && msg.html) {
             content.innerHTML = msg.html;
           }
-        } else if (msg.type === "simulateClick" && msg.command) {
-          var target = document.querySelector('[data-command="' + msg.command + '"]');
-          if (target) target.click();
         } else if (msg.type === "progressUpdate") {
           var update = msg.update;
           if (!update) return;

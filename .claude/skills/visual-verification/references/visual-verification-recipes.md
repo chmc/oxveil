@@ -137,19 +137,21 @@ click_and_verify() {
 # Usage: click_and_verify "resumePlan" "ready"
 ```
 
-### Simulate webview click (full DOM path)
+### Simulate sidebar command
 
-`/click` bypasses the webview — it dispatches directly on the extension side. Use `_simulateClick` via `/command` to test the full path: DOM click → sidebarScript.ts handler → `vscode.postMessage` → extension `onDidReceiveMessage` → command execution.
+Both `/click` and `_simulateClick` dispatch directly through `dispatchSidebarMessage` on the extension side — neither goes through the webview DOM. Use either for QA automation.
 
 ```bash
-# Simulate a real DOM click on a webview button
+# Via /click endpoint (POST body is a SidebarCommand)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"restart"}' http://127.0.0.1:$PORT/click
+
+# Via _simulateClick VS Code command (simple command name only, no phase/archive)
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"oxveil._simulateClick","args":[{"command":"start"}]}' http://127.0.0.1:$PORT/command
-
-# Use /click for normal automation, _simulateClick when testing the webview click handler
 ```
 
-Only available when MCP bridge is enabled. Command name must be alphanumeric (validated server-side).
+`/click` accepts the full `SidebarCommand` shape (including `phase`, `archive`). `_simulateClick` accepts only `{ command: string }` — use `/click` for phase-specific commands like `retry` or `skip`. Both available when MCP bridge is enabled.
 
 ### Sidebar command reference
 

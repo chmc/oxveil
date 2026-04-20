@@ -103,8 +103,11 @@ export class SidebarPanel {
   }
 
   simulateClick(command: string): void {
-    if (!this._webviewReady) return;
-    this._postMessage({ type: "simulateClick", command });
+    if (command === "resumePlan" || command === "dismissPlan") {
+      this._deps.onPlanChoice?.(command === "resumePlan" ? "resume" : "dismiss");
+      return;
+    }
+    dispatchSidebarMessage({ command } as SidebarCommand, this._deps.executeCommand);
   }
 
   sendProgressUpdate(update: ProgressUpdate): void {

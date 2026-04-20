@@ -97,6 +97,30 @@ describe("SidebarPanel", () => {
     expect(onPlanChoice).toHaveBeenCalledWith("dismiss");
   });
 
+  it("simulateClick dispatches restart as oxveil.reset", () => {
+    const view = makeMockWebviewView();
+    panel.resolveWebviewView(view as any);
+    panel.simulateClick("restart");
+    expect(deps.executeCommand).toHaveBeenCalledWith("oxveil.reset");
+  });
+
+  it("simulateClick works without webview resolved", () => {
+    panel.simulateClick("restart");
+    expect(deps.executeCommand).toHaveBeenCalledWith("oxveil.reset");
+  });
+
+  it("simulateClick dispatches resumePlan via onPlanChoice", () => {
+    const onPlanChoice = vi.fn();
+    const p = new SidebarPanel({ executeCommand: vi.fn(), onPlanChoice });
+    p.simulateClick("resumePlan");
+    expect(onPlanChoice).toHaveBeenCalledWith("resume");
+  });
+
+  it("simulateClick with phase command but no phase is a no-op", () => {
+    panel.simulateClick("retry");
+    expect(deps.executeCommand).not.toHaveBeenCalled();
+  });
+
   it("sends progressUpdate to webview", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
