@@ -96,7 +96,13 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     executeCommand: vscode.commands.executeCommand,
     onPlanChoice: (choice) => {
       state.planUserChoice = choice;
-      sidebarPanel.updateState(buildFullState());
+      if (choice === "resume" && state.cachedPlanPhases.length === 0) {
+        loadPlanPhases().then(() => {
+          sidebarPanel.updateState(buildFullState());
+        });
+      } else {
+        sidebarPanel.updateState(buildFullState());
+      }
     },
     buildState: () => buildFullState(),
   });

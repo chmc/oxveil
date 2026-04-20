@@ -7,6 +7,18 @@ let watcherCallbacks: {
   onChange?: () => void | Promise<void>;
 } = {};
 
+// Capture the onPlanChoice callback passed to SidebarPanel
+let capturedOnPlanChoice: ((choice: "resume" | "dismiss") => void) | undefined;
+
+vi.mock("../../views/sidebarPanel", () => ({
+  SidebarPanel: vi.fn().mockImplementation((deps: any) => {
+    capturedOnPlanChoice = deps.onPlanChoice;
+    return {
+      updateState: vi.fn(),
+    };
+  }),
+}));
+
 vi.mock("vscode", () => ({
   workspace: {
     createFileSystemWatcher: vi.fn(() => ({
@@ -52,6 +64,7 @@ describe("activateSidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     watcherCallbacks = {};
+    capturedOnPlanChoice = undefined;
     deps = makeDeps();
     result = activateSidebar(deps);
   });
@@ -125,6 +138,33 @@ describe("activateSidebar", () => {
 
       result.state.planUserChoice = "dismiss";
       expect(result.buildFullState().view).toBe("empty");
+    });
+
+    it("resume triggers loadPlanPhases when cachedPlanPhases is empty", async () => {
+      // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
+      vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+      vi.mocked(readFile).mockResolvedValueOnce(
+        "# Plan\n## Phase 1: Parsed\n" as any,
+      );
+      vi.resetModules();
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({
+          phases: [{ number: 1, title: "Parsed" }],
+        })),
+      }));
+
+      // Simulate: planDetected but phases not yet loaded
+      result.state.planDetected = true;
+      expect(result.state.cachedPlanPhases).toEqual([]);
+
+      // Trigger resume via captured callback
+      capturedOnPlanChoice!("resume");
+
+      await vi.waitFor(() => {
+        expect(result.state.cachedPlanPhases).toEqual([
+          { number: 1, title: "Parsed", status: "pending" },
+        ]);
+      });
     });
   });
 
