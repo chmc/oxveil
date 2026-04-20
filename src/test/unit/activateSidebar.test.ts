@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Capture file watcher callbacks so tests can simulate file events
-let watcherCallbacks: { onCreate?: () => void; onDelete?: () => void } = {};
+let watcherCallbacks: { onCreate?: () => void | Promise<void>; onDelete?: () => void } = {};
 
 vi.mock("vscode", () => ({
   workspace: {
     createFileSystemWatcher: vi.fn(() => ({
-      onDidCreate: vi.fn((cb: () => void) => { watcherCallbacks.onCreate = cb; }),
+      onDidCreate: vi.fn((cb: () => void | Promise<void>) => { watcherCallbacks.onCreate = cb; }),
       onDidDelete: vi.fn((cb: () => void) => { watcherCallbacks.onDelete = cb; }),
       dispose: vi.fn(),
     })),
@@ -70,6 +70,36 @@ describe("activateSidebar", () => {
       });
       const state = result.buildFullState();
       expect(state.view).toBe("running");
+    });
+
+    it("ready state includes parsed plan phases", async () => {
+      // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
+      vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+      vi.mocked(readFile).mockResolvedValueOnce(
+        "# Plan\n## Phase 1: Alpha\n## Phase 2: Beta\n" as any,
+      );
+      vi.resetModules();
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({
+          phases: [
+            { number: 1, title: "Alpha" },
+            { number: 2, title: "Beta" },
+          ],
+        })),
+      }));
+
+      const res = activateSidebar(makeDeps({ initialPlanDetected: true }));
+      await vi.waitFor(() => {
+        expect(res.state.cachedPlanPhases.length).toBe(2);
+      });
+
+      res.state.planUserChoice = "resume";
+      const state = res.buildFullState();
+      expect(state.view).toBe("ready");
+      expect(state.plan!.phases).toEqual([
+        { number: 1, title: "Alpha", status: "pending" },
+        { number: 2, title: "Beta", status: "pending" },
+      ]);
     });
   });
 
@@ -174,6 +204,63 @@ describe("activateSidebar", () => {
       expect(result.buildFullState().view).toBe("stale");
       expect(result.buildFullState().plan).toBeDefined();
       expect(result.buildFullState().plan!.filename).toBe("PLAN.md");
+    });
+
+    it("onDidCreate populates cachedPlanPhases from PLAN.md", async () => {
+      // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
+      vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+      vi.mocked(readFile).mockResolvedValueOnce(
+        "# Plan\n## Phase 1: Setup\nDo stuff\n## Phase 2: Build\nMore stuff\n## Phase 3: Deploy\nShip it" as any,
+      );
+      vi.resetModules();
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({
+          phases: [
+            { number: 1, title: "Setup" },
+            { number: 2, title: "Build" },
+            { number: 3, title: "Deploy" },
+          ],
+        })),
+      }));
+
+      result.registerPlanWatcher();
+      const promise = watcherCallbacks.onCreate!();
+      await promise;
+
+      expect(result.state.cachedPlanPhases).toEqual([
+        { number: 1, title: "Setup", status: "pending" },
+        { number: 2, title: "Build", status: "pending" },
+        { number: 3, title: "Deploy", status: "pending" },
+      ]);
+    });
+  });
+
+  describe("initial plan phase loading", () => {
+    it("populates cachedPlanPhases when initialPlanDetected is true", async () => {
+      // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
+      vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+      vi.mocked(readFile).mockResolvedValueOnce(
+        "# Plan\n## Phase 1: Init\nStuff\n## Phase 2: Run\nGo" as any,
+      );
+      vi.resetModules();
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({
+          phases: [
+            { number: 1, title: "Init" },
+            { number: 2, title: "Run" },
+          ],
+        })),
+      }));
+
+      const res = activateSidebar(makeDeps({ initialPlanDetected: true }));
+
+      // Wait for the background parse to complete
+      await vi.waitFor(() => {
+        expect(res.state.cachedPlanPhases).toEqual([
+          { number: 1, title: "Init", status: "pending" },
+          { number: 2, title: "Run", status: "pending" },
+        ]);
+      });
     });
   });
 
