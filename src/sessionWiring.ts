@@ -62,11 +62,13 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       to === "running",
     );
 
-    // Reset cost/todo tracking on new run
+    // Reset cost/todo/notification tracking on new run
     if (to === "running") {
       sidebarCost = 0;
       sidebarTodoDone = 0;
       sidebarTodoTotal = 0;
+      notifications.reset();
+      lastProgress = undefined;
     }
 
     switch (to) {

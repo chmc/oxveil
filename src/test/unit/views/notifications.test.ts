@@ -239,6 +239,124 @@ describe("NotificationManager", () => {
     });
   });
 
+  describe("failure deduplication", () => {
+    it("suppresses duplicate failure notifications for same phase during retries", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      // Attempt 1: in_progress -> failed
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 1 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 1 }], totalPhases: 5 }),
+      );
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(1);
+
+      // Retry starts: failed -> in_progress
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 1 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 2 }], totalPhases: 5 }),
+      );
+
+      // Attempt 2: in_progress -> failed (should be suppressed)
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 2 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 2 }], totalPhases: 5 }),
+      );
+
+      // Retry starts again: failed -> in_progress
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 2 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 3 }], totalPhases: 5 }),
+      );
+
+      // Attempt 3: in_progress -> failed (should be suppressed)
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 3 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 3 }], totalPhases: 5 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires separate notifications for different phases failing", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed" }], totalPhases: 5 }),
+      );
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 4, title: "Build", status: "in_progress" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 4, title: "Build", status: "failed" }], totalPhases: 5 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it("allows re-notification after phase completes then fails again", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      // First failure
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed" }], totalPhases: 5 }),
+      );
+
+      // Phase completes (recovers)
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "completed" }], totalPhases: 5 }),
+      );
+
+      // Fails again — should notify since phase recovered
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed" }], totalPhases: 5 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it("reset() clears tracked failures allowing fresh notifications", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed" }], totalPhases: 5 }),
+      );
+
+      mgr.reset();
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress" }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed" }], totalPhases: 5 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it("first failure still includes actions and attempt suffix", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 1 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 1 }], totalPhases: 5 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledWith(
+        "Phase 3 failed — Setup",
+        "View Log",
+        "Show Output",
+        "Dismiss",
+      );
+    });
+  });
+
   describe("double-spawn notification", () => {
     it("shows error notification with Stop and Force Unlock actions", () => {
       const win = makeWindow();
