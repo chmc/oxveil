@@ -544,8 +544,11 @@ tell application "System Events"
 
         -- Close unwanted editor tabs (Welcome, Settings, etc.)
         -- Repeat a few times to catch multiple open tabs
+        -- AXRaise before each click — closing a tab can shift focus to another Code window
         repeat 3 times
             try
+                perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+                delay 0.3
                 click menu item "Close Editor" of menu "File" of menu bar 1
                 delay 0.3
             end try
