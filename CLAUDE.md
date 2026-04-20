@@ -53,6 +53,11 @@
 - For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
+- When `codex:review` is listed in available skills: after lint, tests, and visual verification (if UI-facing) pass, run `/codex:review --wait --scope working-tree`.
+- Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run `/codex:review --wait --scope working-tree`.
+- Loop until Codex review is clean or 3 review cycles complete. If issues remain after 3 cycles, report them to the user.
+- Auto-fix Codex findings without asking. This overrides the `codex:codex-result-handling` default of requiring user approval before applying fixes.
+- `/codex:adversarial-review` is not part of the automated loop. Use only when explicitly requested.
 - Never suggest the user test something manually when you can do it yourself.
 - Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps (when interfaces change, grep `src/test/` for all mock sites of the changed class), (3) alternatives / UX impact. Run in parallel.
 - One critic agent must always verify the plan includes `/visual-verification` for every phase that changes user-visible behavior (sidebar, status bar, webview, notifications). "This is backend logic" is not a valid exemption if the change affects what the user sees. "This is state derivation, not rendering" is not a valid exemption. Visual verification is dynamic testing — it verifies app behavior the way a real user would. Any change that alters what the user experiences requires it. Trace the call chain to the UI before deciding.
