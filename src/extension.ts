@@ -204,6 +204,7 @@ export async function activate(
     getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
     sidebarPanel,
     buildSidebarState: buildFullState,
+    sidebarMutableState: sidebarState,
   };
 
   const onArchiveDone = async () => {

@@ -10,6 +10,7 @@ import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { SidebarPanel } from "./views/sidebarPanel";
 import { mapPhases } from "./views/sidebarState";
 import type { SidebarState } from "./views/sidebarState";
+import type { SidebarMutableState } from "./activateSidebar";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 
 export interface SessionWiringDeps {
@@ -27,6 +28,7 @@ export interface SessionWiringDeps {
   isActiveSession: () => boolean;
   sidebarPanel?: SidebarPanel;
   buildSidebarState?: () => SidebarState;
+  sidebarMutableState?: SidebarMutableState;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -38,19 +40,11 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   } = deps;
 
   let lastProgress: ProgressState | undefined;
-  let sidebarCost = 0;
-  let sidebarTodoDone = 0;
-  let sidebarTodoTotal = 0;
+  const ms = deps.sidebarMutableState;
 
   function buildAndSendSidebarState(): void {
     if (!deps.sidebarPanel || !deps.buildSidebarState) return;
-    const state = deps.buildSidebarState();
-    // Merge session-local tracking data (cost/todos tracked in this closure)
-    if (state.session) {
-      if (sidebarCost > 0) state.session.cost = `$${sidebarCost.toFixed(2)}`;
-      if (sidebarTodoTotal > 0) state.session.todos = { done: sidebarTodoDone, total: sidebarTodoTotal };
-    }
-    deps.sidebarPanel.updateState(state);
+    deps.sidebarPanel.updateState(deps.buildSidebarState());
   }
 
   session.on("state-changed", (_from, to) => {
@@ -64,9 +58,11 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
 
     // Reset cost/todo/notification tracking on new run
     if (to === "running") {
-      sidebarCost = 0;
-      sidebarTodoDone = 0;
-      sidebarTodoTotal = 0;
+      if (ms) {
+        ms.cost = 0;
+        ms.todoDone = 0;
+        ms.todoTotal = 0;
+      }
       notifications.reset();
       lastProgress = undefined;
     }
@@ -176,8 +172,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       deps.sidebarPanel.sendProgressUpdate({
         phases: mapPhases(progress.phases),
         elapsed: deps.elapsedTimer?.elapsed ?? "0m",
-        cost: sidebarCost > 0 ? `$${sidebarCost.toFixed(2)}` : undefined,
-        todos: sidebarTodoTotal > 0 ? { done: sidebarTodoDone, total: sidebarTodoTotal } : undefined,
+        cost: (ms?.cost ?? 0) > 0 ? `$${ms!.cost.toFixed(2)}` : undefined,
+        todos: (ms?.todoTotal ?? 0) > 0 ? { done: ms!.todoDone, total: ms!.todoTotal } : undefined,
         currentPhase: progress.currentPhaseIndex,
       });
     }
@@ -187,19 +183,19 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     deps.liveRunPanel?.onLogAppended(content);
 
     // Extract cost and todo data for sidebar
-    if (deps.sidebarPanel && deps.isActiveSession()) {
+    if (ms && deps.sidebarPanel && deps.isActiveSession()) {
       const lines = content.split("\n");
       let updated = false;
       for (const line of lines) {
         const costMatch = line.match(/cost=\$([0-9.]+)/);
         if (costMatch) {
-          sidebarCost += parseFloat(costMatch[1]) || 0;
+          ms.cost += parseFloat(costMatch[1]) || 0;
           updated = true;
         }
         const todoMatch = line.match(/\[Todos:\s*(\d+)\/(\d+)\s+done\]/);
         if (todoMatch) {
-          sidebarTodoDone = parseInt(todoMatch[1], 10);
-          sidebarTodoTotal = parseInt(todoMatch[2], 10);
+          ms.todoDone = parseInt(todoMatch[1], 10);
+          ms.todoTotal = parseInt(todoMatch[2], 10);
           updated = true;
         }
       }
@@ -207,8 +203,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         deps.sidebarPanel.sendProgressUpdate({
           phases: mapPhases(session.progress.phases),
           elapsed: deps.elapsedTimer?.elapsed ?? "0m",
-          cost: sidebarCost > 0 ? `$${sidebarCost.toFixed(2)}` : undefined,
-          todos: sidebarTodoTotal > 0 ? { done: sidebarTodoDone, total: sidebarTodoTotal } : undefined,
+          cost: ms.cost > 0 ? `$${ms.cost.toFixed(2)}` : undefined,
+          todos: ms.todoTotal > 0 ? { done: ms.todoDone, total: ms.todoTotal } : undefined,
           currentPhase: session.progress.currentPhaseIndex,
         });
       }

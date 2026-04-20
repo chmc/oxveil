@@ -37,6 +37,10 @@ export interface SidebarMutableState {
   planDetected: boolean;
   planUserChoice: PlanUserChoice;
   cachedPlanPhases: PhaseView[];
+  /** Accumulated cost from log-appended events (written by sessionWiring) */
+  cost: number;
+  todoDone: number;
+  todoTotal: number;
 }
 
 export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationResult {
@@ -47,6 +51,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     planDetected: deps.initialPlanDetected,
     planUserChoice: "none",
     cachedPlanPhases: [],
+    cost: 0,
+    todoDone: 0,
+    todoTotal: 0,
   };
 
   function getArchives(): ArchiveView[] {
@@ -87,6 +94,8 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       } : undefined,
       session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
         elapsed: elapsedTimer.elapsed,
+        cost: state.cost > 0 ? `$${state.cost.toFixed(2)}` : undefined,
+        todos: state.todoTotal > 0 ? { done: state.todoDone, total: state.todoTotal } : undefined,
       } : undefined,
       archives: getArchives(),
     };
