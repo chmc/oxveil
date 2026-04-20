@@ -70,7 +70,8 @@
 - Document which component owns the broken transformation before writing the fix.
 - When an issue attributes a bug to a specific function, verify the attribution. If the function's inputs are already wrong, the fix belongs upstream.
 - When adding public methods to widely-mocked classes, grep for the class/interface name across `src/test/**/*.test.ts` before writing the implementation. Update all mock sites in the same phase.
-- When adding `reset()` or cleanup logic to a stateful manager, audit the wiring closure (`sessionWiring.ts`) for local variables (`lastProgress`, `sidebarCost`, etc.) that also need resetting. Closure-scoped state is invisible to the manager.
+- When adding `reset()` or cleanup logic to a stateful manager, audit the wiring closure (`sessionWiring.ts`) for local variables (`lastProgress`, etc.) and `SidebarMutableState` fields (`cost`, `todoDone`, `todoTotal`) that also need resetting.
+- Do not add new closure-scoped tracking state to `wireSessionEvents` for data that `buildFullState()` needs. Use `SidebarMutableState` fields instead — closure state is invisible to `buildFullState()` and all its callers (MCP bridge, webview init, archive refresh).
 
 ## Continuous Improvement
 
