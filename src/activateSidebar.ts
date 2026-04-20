@@ -101,6 +101,13 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     buildState: () => buildFullState(),
   });
 
+  // Eagerly parse plan phases if PLAN.md was detected at startup
+  if (deps.initialPlanDetected) {
+    loadPlanPhases().then(() => {
+      sidebarPanel.updateState(buildFullState());
+    });
+  }
+
   function registerPlanWatcher(): vscode.Disposable[] {
     const disposables: vscode.Disposable[] = [];
 
@@ -108,12 +115,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
     }
     const planWatcher = vscode.workspace.createFileSystemWatcher("**/PLAN.md");
-    planWatcher.onDidCreate(() => {
+    planWatcher.onDidCreate(async () => {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
       state.planDetected = true;
       if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss") {
         state.planUserChoice = "none";
       }
+      sidebarPanel.updateState(buildFullState());
+      // Parse phases in background — sidebar updates again when ready
+      await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
     });
     planWatcher.onDidDelete(() => {
@@ -128,29 +138,35 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     return disposables;
   }
 
+  async function loadPlanPhases(): Promise<void> {
+    if (!deps.workspaceRoot) {
+      state.cachedPlanPhases = [];
+      return;
+    }
+    try {
+      const parsedPlanPath = path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+      const planMdPath = path.join(deps.workspaceRoot, "PLAN.md");
+      let content: string;
+      try {
+        content = await fs.readFile(parsedPlanPath, "utf-8");
+      } catch {
+        content = await fs.readFile(planMdPath, "utf-8");
+      }
+      const { parsePlan } = await import("./parsers/plan");
+      const parsed = parsePlan(content);
+      state.cachedPlanPhases = parsed.phases.map((p) => ({
+        number: p.number,
+        title: p.title,
+        status: "pending" as const,
+      }));
+    } catch {
+      state.cachedPlanPhases = [];
+    }
+  }
+
   async function onPlanFormed(): Promise<void> {
     state.planUserChoice = "resume";
-    if (deps.workspaceRoot) {
-      try {
-        const parsedPlanPath = path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
-        const planMdPath = path.join(deps.workspaceRoot, "PLAN.md");
-        let content: string;
-        try {
-          content = await fs.readFile(parsedPlanPath, "utf-8");
-        } catch {
-          content = await fs.readFile(planMdPath, "utf-8");
-        }
-        const { parsePlan } = await import("./parsers/plan");
-        const parsed = parsePlan(content);
-        state.cachedPlanPhases = parsed.phases.map((p) => ({
-          number: p.number,
-          title: p.title,
-          status: "pending" as const,
-        }));
-      } catch {
-        state.cachedPlanPhases = [];
-      }
-    }
+    await loadPlanPhases();
     sidebarPanel.updateState(buildFullState());
   }
 
