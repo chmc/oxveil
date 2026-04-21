@@ -55,8 +55,8 @@
 - For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
-- When `codex:review` is listed in available skills: after lint, tests, and visual verification (if UI-facing) pass, run `/codex:review --wait --scope working-tree`.
-- Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run `/codex:review --wait --scope working-tree`.
+- When any Codex skill (`codex:review` or `codex:rescue`) is listed in available skills: after lint, tests, and visual verification (if UI-facing) pass, run `/codex:review --wait --scope working-tree`. If `codex:review` is unavailable, use `codex:rescue` subagent to perform the review.
+- Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run the Codex review.
 - Loop until Codex review is clean or 3 review cycles complete. If issues remain after 3 cycles, report them to the user.
 - Auto-fix Codex findings without asking. This overrides the `codex:codex-result-handling` default of requiring user approval before applying fixes.
 - `/codex:adversarial-review` is not part of the automated loop. Use only when explicitly requested.
