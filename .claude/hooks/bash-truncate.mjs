@@ -10,7 +10,7 @@ const ALLOWLIST = [
   /^(echo|printf|pwd|which|type|date|whoami)\b/,
   /^(mkdir|cp|mv|rm|chmod|touch|ln)\b/,
   /^ls\b(?!.*\s-\S*R)/,           // ls without -R
-  /^git\b/,
+  /^git\s+(status|add|commit|push|pull|fetch|checkout|switch|branch|stash|tag|remote|init|clone|merge|rebase|cherry-pick|config|rev-parse|symbolic-ref)\b/,
   /^node\s+-[ep]\b/,
   /^(npx|npm)\s+--version\b/,
   /^npm\s+version\b/,
@@ -19,7 +19,7 @@ const ALLOWLIST = [
 
 // Pipe targets that already bound output
 const BOUNDED_PIPES = [
-  /\|\s*(head|tail|wc|grep|jq|awk|sed|sort\s*\|\s*head|xargs)\b/,
+  /\|\s*(head|tail|wc)\b/,
 ];
 
 // --- Core logic ---
