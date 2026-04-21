@@ -85,21 +85,40 @@ function sessionWiringDeps(
   };
 }
 
+export interface ArchiveCallbacks {
+  /** Refresh archive metadata only (no sidebar update). */
+  refreshArchive: () => void | Promise<void>;
+  /** Refresh archives AND update sidebar with full state. */
+  onArchiveDone: () => void | Promise<void>;
+}
+
+function attachArchiveListener(
+  ws: WorkspaceSession,
+  manager: WorkspaceSessionManager,
+  callbacks: ArchiveCallbacks,
+): void {
+  ws.sessionState.on("state-changed", (_from, to) => {
+    if (to === "done" || to === "failed") {
+      if (manager.getActiveSession() === ws) {
+        callbacks.onArchiveDone();
+      } else {
+        callbacks.refreshArchive();
+      }
+    }
+  });
+}
+
 /**
  * Wires session events for all existing sessions and attaches archive-refresh on done/failed.
  */
 export function wireAllSessions(
   manager: WorkspaceSessionManager,
   wiringCtx: SessionWiringContext,
-  onArchiveDone: () => void | Promise<void>,
+  archiveCallbacks: ArchiveCallbacks,
 ): void {
   for (const ws of manager.getAllSessions()) {
     wireSessionEvents(sessionWiringDeps(ws, manager, wiringCtx));
-    ws.sessionState.on("state-changed", (_from, to) => {
-      if (to === "done" || to === "failed") {
-        onArchiveDone();
-      }
-    });
+    attachArchiveListener(ws, manager, archiveCallbacks);
   }
 }
 
@@ -110,7 +129,7 @@ export interface FolderChangeOpts {
   resolvedPath: string | undefined;
   platform: NodeJS.Platform;
   wiringCtx: SessionWiringContext;
-  onArchiveDone: () => void;
+  archiveCallbacks: ArchiveCallbacks;
 }
 
 /**
@@ -134,11 +153,7 @@ export function handleWorkspaceFolderChange(
       });
       ws.gitExec = createGitExec(added.uri.fsPath);
       wireSessionEvents(sessionWiringDeps(ws, opts.manager, opts.wiringCtx));
-      ws.sessionState.on("state-changed", (_from, to) => {
-        if (to === "done" || to === "failed") {
-          opts.onArchiveDone();
-        }
-      });
+      attachArchiveListener(ws, opts.manager, opts.archiveCallbacks);
     }
   }
   for (const removed of e.removed) {

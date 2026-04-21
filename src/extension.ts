@@ -212,7 +212,7 @@ export async function activate(
     sidebarPanel.updateState(buildFullState());
   };
 
-  wireAllSessions(manager, wiringCtx, onArchiveDone);
+  wireAllSessions(manager, wiringCtx, { refreshArchive, onArchiveDone });
 
   // Detection notifications
   if (result.status === "not-found") {
@@ -369,7 +369,7 @@ export async function activate(
     resolvedPath: result.path,
     platform: process.platform,
     wiringCtx,
-    onArchiveDone,
+    archiveCallbacks: { refreshArchive, onArchiveDone },
   };
   disposables.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
