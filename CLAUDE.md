@@ -96,6 +96,16 @@
 - Raise friction points and missing guardrails at natural pause points. Suggest concrete changes targeting CLAUDE.md, skills/hooks, or MCP tools/plugins.
 - Behavioral corrections go in CLAUDE.md (cross-cutting) or the relevant skill file (workflow-scoped). Never use the memory system for this project.
 
+## Bash Truncation Hook (.claude/hooks/bash-truncate.mjs)
+
+- NEVER work around the hook by modifying commands to avoid pattern matching. Fix the hook instead.
+- NEVER wrap commands in `sh -c` or `bash -c` to bypass the hook.
+- NEVER remove or disable the hook entry in `.claude/settings.json`.
+- On false positive (useful output truncated): add command pattern to ALLOWLIST in bash-truncate.mjs.
+- On false negative (verbose output passed through): add pattern to BOUNDED_PIPES.
+- After editing, verify: `node .claude/hooks/bash-truncate.mjs <<< '{"tool_input":{"command":"TEST_CMD"}}'`
+- To disable for a session without editing the hook: `export OXVEIL_BASH_HOOK=0`
+
 ## Documentation
 
 When implementation changes affect user-facing behavior, update stale sections in README.md and make sure technical big picture is uptodate in ARCHITECTURE.md.
