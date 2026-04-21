@@ -9,6 +9,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 
 - macOS only. Requires osascript (Accessibility permission) and screencapture (Screen Recording permission).
 - NEVER use `screencapture -w` (interactive window selection — blocks in automation). Use `screencapture -l <CGWindowID>` or `screencapture -R x,y,w,h -x`.
+- If `screencapture` fails (permission denied, invalid window ID, empty file), this is a blocking failure. Do not continue with programmatic-only checks. Stop and tell the user: "Screenshot capture failed: [error]. Visual verification is degraded — approve continuing without screenshots or fix the permission." Never silently fall back to non-visual checks.
 - Do not invoke during TDD cycles. This is a standalone verification activity.
 - Do not commit fixes automatically. Log changes in SESSION.md. Developer reviews `git diff` after session.
 - All code paths must reach Phase 6 (Cleanup). No exceptions.
