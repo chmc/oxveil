@@ -1,3 +1,4 @@
 {
-  "oxveil.mcpBridge": true
+  "oxveil.mcpBridge": true,
+  "window.closeWhenEmpty": false
 }
