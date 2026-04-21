@@ -521,45 +521,34 @@ Run after EDH launch and before first screenshot to maximize the area available 
 ```bash
 # Close bottom panel, secondary sidebar, and unwanted editor tabs.
 # Keep primary sidebar visible (Oxveil tree view lives there).
-# Uses process-scoped menu clicks — cannot misfire to other apps.
+# Uses MCP bridge /command — explicit close commands, idempotent (no-op if already closed).
+# Requires: PORT and TOKEN from .oxveil-mcp discovery file (see MCP Bridge Recipes).
+
+# Focus EDH window (still needed for subsequent screenshots)
 osascript -e '
 tell application "System Events"
     tell process "Code"
         set frontmost to true
         perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
-        delay 0.3
-
-        -- Close bottom panel (Terminal, Problems, Output, Debug Console)
-        -- "Toggle Panel Visibility" toggles it off if open
-        try
-            click menu item "Panel" of menu "View" of menu bar 1
-            delay 0.3
-        end try
-
-        -- Close secondary sidebar if open
-        try
-            click menu item "Secondary Side Bar" of menu "View" of menu bar 1
-            delay 0.3
-        end try
-
-        -- Close unwanted editor tabs (Welcome, Settings, etc.)
-        -- Repeat a few times to catch multiple open tabs
-        -- AXRaise before each click — closing a tab can shift focus to another Code window
-        repeat 3 times
-            try
-                perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
-                delay 0.3
-                click menu item "Close Editor" of menu "File" of menu bar 1
-                delay 0.3
-            end try
-        end repeat
-
-        delay 0.5
     end tell
 end tell'
-```
 
-> **Note:** The Panel and Secondary Side Bar menu items toggle visibility. If they are already hidden, clicking them will open them. To avoid this, check the menu item state or screenshot first and only close if visible. In practice, EDH usually launches with the panel open, so toggling once is correct.
+sleep 0.3
+
+# Close bottom panel (Terminal, Problems, Output, Debug Console)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.closePanel"}' http://127.0.0.1:$PORT/command
+
+# Close secondary sidebar
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.closeAuxiliaryBar"}' http://127.0.0.1:$PORT/command
+
+# Close all editor tabs (Welcome, Settings, etc.) in one shot
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.closeAllEditors"}' http://127.0.0.1:$PORT/command
+
+sleep 0.5
+```
 
 ## Webview Interaction via Commands
 

@@ -40,7 +40,7 @@ description: End-to-end QA pass exercising all Oxveil features in a real VS Code
 - Poll for EDH window (15s timeout).
 - Poll for `.oxveil-mcp` discovery file (15s timeout).
 - Parse PORT and TOKEN from discovery file.
-- Maximize viewport (use MCP bridge `/command` with `workbench.action.closePanel` and `workbench.action.closeSidebar` — do NOT use osascript menu toggles).
+- Maximize viewport (use MCP bridge `/command` with `workbench.action.closePanel` and `workbench.action.closeAuxiliaryBar` — do NOT use osascript menu toggles).
 
 ### 2. State Matrix
 
