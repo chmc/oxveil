@@ -16,6 +16,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 - Always exercise the full user-facing workflow path affected by the implementation. Static screenshots of a single state are insufficient — navigate through the complete interaction sequence.
 - Vary plan content every run. Never reuse the same fixed plan template. Use different phase counts (2–4), titles, and descriptions each time. This catches parsing bugs, text truncation, and rendering errors that static templates hide. Use the `generate_plan` helper from the recipes.
 - If uncommitted source changes exist when launching EDH, stash or use a worktree. The fake_claude `success` scenario triggers claudeloop's auto-commit, which will capture any dirty working tree changes with a generic commit message and junk files (`test.sh`). This forces a manual soft-reset and re-commit.
+- NEVER delete `verification-sessions/` or any session subfolder. They are gitignored but kept on disk for developer auditing.
 
 ## When to Invoke
 
@@ -32,7 +33,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 3. **Capture** — Before each capture, verify viewport is maximized (no bottom panel, no secondary sidebar). Re-run maximize recipe if panels reappeared. Screenshot via `screencapture -l <CGWindowID>`. Resize with `sips --resampleWidth 1568`. Save to `screenshots/NN-description.png`.
 4. **Analyze** — `Read` each screenshot. Compare against reference mockups in `docs/mockups/`. Tier 1 checks only (presence, text, gross layout, item count). Log findings to SESSION.md. For text content (output channel), verify programmatically instead. Use `get_sidebar_state` to confirm state matches visual.
 5. **Decide** — Critical/bug: fix code, go to Phase 1. Nit: log, continue to Phase 2. All states verified: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
-6. **Cleanup** — Close EDH window via process-scoped menu click (never `keystroke` Cmd+W). Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains. Verify no orphan processes. Write final result and completion time to SESSION.md.
+6. **Cleanup** — Close EDH window via process-scoped menu click (never `keystroke` Cmd+W). Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains. Verify no orphan processes. Write final result and completion time to SESSION.md. NEVER delete the `verification-sessions/` folder or any session subfolder — they are gitignored but kept on disk for developer auditing.
 
 ## MCP Bridge Interaction
 
