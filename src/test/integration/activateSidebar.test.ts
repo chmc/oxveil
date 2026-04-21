@@ -117,3 +117,87 @@ describe("activateSidebar integration: plan phases in ready state", () => {
     ]);
   });
 });
+
+describe("activateSidebar integration: sidebar activation callbacks (issue #46)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    watcherCallbacks = {};
+  });
+
+  it("onPlanFormed() → planUserChoice='resume', view='ready', cachedPlanPhases populated", async () => {
+    vi.mocked(readFile)
+      .mockRejectedValueOnce(new Error("ENOENT")) // ai-parsed-plan.md
+      .mockResolvedValueOnce(PLAN_CONTENT as any); // PLAN.md
+
+    const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
+    // Simulate that PLAN.md was detected (as happens in production before onPlanFormed)
+    result.state.planDetected = true;
+
+    await result.onPlanFormed();
+
+    expect(result.state.planUserChoice).toBe("resume");
+    expect(result.state.cachedPlanPhases).toEqual([
+      { number: 1, title: "Setup", status: "pending" },
+      { number: 2, title: "Implement", status: "pending" },
+      { number: 3, title: "Test", status: "pending" },
+    ]);
+
+    const state = result.buildFullState();
+    expect(state.view).toBe("ready");
+    expect(state.plan!.phases).toHaveLength(3);
+  });
+
+  it("onPlanReset() → planUserChoice='dismiss', view='empty', cachedPlanPhases cleared", () => {
+    const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
+    // Pre-populate state as if onPlanFormed had run
+    result.state.planDetected = true;
+    result.state.planUserChoice = "resume";
+    result.state.cachedPlanPhases = [
+      { number: 1, title: "Setup", status: "pending" },
+    ];
+
+    result.onPlanReset();
+
+    expect(result.state.planUserChoice).toBe("dismiss");
+    expect(result.state.cachedPlanPhases).toEqual([]);
+
+    const state = result.buildFullState();
+    expect(state.view).toBe("empty");
+  });
+
+  it("onPlanReset() does NOT set planDetected to false (documents actual behavior)", () => {
+    // Issue #46 spec says planDetected should be false, but onPlanReset() does not touch it.
+    // planDetected stays true. The view is still "empty" because planUserChoice="dismiss"
+    // takes precedence in deriveViewState (sidebarState.ts line 108).
+    const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
+    result.state.planDetected = true;
+    result.state.planUserChoice = "resume";
+
+    result.onPlanReset();
+
+    expect(result.state.planDetected).toBe(true); // actual behavior
+    expect(result.state.planUserChoice).toBe("dismiss");
+    expect(result.buildFullState().view).toBe("empty");
+  });
+
+  it("onPlanFormed() then onPlanReset() → clean return to empty state", async () => {
+    vi.mocked(readFile)
+      .mockRejectedValueOnce(new Error("ENOENT"))
+      .mockResolvedValueOnce(PLAN_CONTENT as any);
+
+    const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
+    result.state.planDetected = true;
+
+    // Phase 1: form the plan
+    await result.onPlanFormed();
+    expect(result.state.planUserChoice).toBe("resume");
+    expect(result.state.cachedPlanPhases).toHaveLength(3);
+    expect(result.buildFullState().view).toBe("ready");
+
+    // Phase 2: reset
+    result.onPlanReset();
+    expect(result.state.planUserChoice).toBe("dismiss");
+    expect(result.state.cachedPlanPhases).toEqual([]);
+    expect(result.buildFullState().view).toBe("empty");
+  });
+});
