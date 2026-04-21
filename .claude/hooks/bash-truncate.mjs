@@ -50,7 +50,7 @@ function shouldSkipWrap(cmd) {
   // Already has 2>&1 piped elsewhere — avoid double-redirect
   if (/2>&1\s*\|/.test(cmd)) return true;
   // Help flags — short output
-  if (/\s--help\b|\s-h\b/.test(cmd)) return true;
+  if (/\s--help\b/.test(cmd)) return true;
   return false;
 }
 
