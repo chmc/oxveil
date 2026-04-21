@@ -19,6 +19,7 @@
 
 - Use conventional commits.
 - Never add yourself as co-author.
+- When fixing a GitHub issue, always include `Closes #N` or `Fixes #N` in the commit message. Do not push automatically — tell the user the issue will close on `git push`.
 
 ## Development Process
 
