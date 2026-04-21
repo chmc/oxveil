@@ -9,7 +9,7 @@
 - Wrap non-critical awaits in `activate()` (bridge startup, optional detection) in try-catch. Activation must always complete.
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
-- Review subagent prompts (critic agents, Codex review) must request terse output. End prompts with "terse. bullets only. no preamble. if clean: LGTM." Plan/Explore agents are exempt — their output is the deliverable, not a gate check.
+- All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
 
 ## Project
 
@@ -72,6 +72,14 @@
 
 - AI-facing files (CLAUDE.md, skills): imperative voice, flat bullet lists, one rule per line, no prose. Front-load constraints. Add YAML frontmatter to skill files.
 - Remove redundancy. One rule per line.
+
+## Output Discipline
+
+- No trailing summaries. Do not restate what was just done.
+- No preamble ("I'll now...", "Let me..."). Start with the action or answer.
+- No filler ("Great question", "Certainly", "I'd be happy to").
+- Prefer bullet lists over prose for status updates and findings.
+- Completion reports: state result and next step only.
 
 ## TDD Addendum
 

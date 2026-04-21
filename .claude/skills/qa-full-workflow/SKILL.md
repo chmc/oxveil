@@ -7,12 +7,11 @@ description: End-to-end QA pass exercising all Oxveil features in a real VS Code
 
 ## Constraints
 
-- macOS only. Inherits visual-verification constraints (osascript, screencapture).
-- Do not run during active development — uses a temporary branch.
-- Do not mock `.claudeloop/` if a real session is running (check lock file first).
-- All code paths must reach Phase 7 (Cleanup). No exceptions.
-- This skill tests **functional correctness** (state transitions, data flow). For visual polish, use `visual-verification`.
-- Reuse all shared recipes from `visual-verification/references/visual-verification-recipes.md`. Do not duplicate them here.
+- macOS only. Inherits visual-verification constraints.
+- Uses a temporary branch — do not run during active development.
+- Do not mock `.claudeloop/` if a real session is running (check lock file).
+- All code paths must reach Phase 7 (Cleanup).
+- Recipes: `visual-verification/references/visual-verification-recipes.md`.
 
 ## When to Invoke
 
@@ -30,26 +29,16 @@ description: End-to-end QA pass exercising all Oxveil features in a real VS Code
 
 ### 1. Setup
 
-- Create branch: `git checkout -b qa/full-workflow-YYYYMMDD`.
-- `npm run build`. Abort on failure.
-- `npm run lint`. Abort on failure.
-- `npm test`. Abort on failure.
-- Set up fake CLI (see visual-verification recipes: claudeloop Fake CLI > Setup).
+- `git checkout -b qa/full-workflow-YYYYMMDD`.
+- `npm run build && npm run lint && npm test`. Abort on failure.
+- Set up fake CLI (see recipes: claudeloop Fake CLI > Setup).
 - Clean workspace: `rm -f PLAN.md`, verify no lock file, no `.claudeloop/.MOCK_SESSION`.
-- Launch EDH: `code --extensionDevelopmentPath="$(pwd)"`.
-- Poll for EDH window (15s timeout).
-- Poll for `.oxveil-mcp` discovery file (15s timeout).
-- Parse PORT and TOKEN from discovery file.
-- Maximize viewport (use MCP bridge `/command` with `workbench.action.closePanel` and `workbench.action.closeAuxiliaryBar` — do NOT use osascript menu toggles).
+- Launch EDH, poll for window + `.oxveil-mcp` (15s each). Parse PORT/TOKEN.
+- Maximize viewport via MCP bridge `/command` (not osascript).
 
 ### 2. State Matrix
 
-Test each sidebar view state. For each row:
-1. Set up the state (method column).
-2. `GET /state` via MCP bridge.
-3. Assert expected fields.
-4. Screenshot.
-5. Log PASS/FAIL to report.
+For each row: set up state → `GET /state` → assert → screenshot → log PASS/FAIL.
 
 | State | Setup | Assert `view` | Assert `plan` | Assert `session` |
 |-------|-------|---------------|---------------|-----------------|
@@ -96,16 +85,15 @@ Open each panel via `/command` and verify content. Screenshot each.
 
 | Panel | Command | Verify |
 |-------|---------|--------|
-| Live Run | `oxveil.showLiveRun` | Panel opens. During running: log content non-empty. |
-| Dependency Graph | `oxveil.showDependencyGraph` | Panel opens. Node count matches phase count. |
-| Execution Timeline | `oxveil.showTimeline` | Panel opens. Content rendered. |
-| Config Wizard | `/click configure` | Panel opens. Form fields present. Preview non-empty. |
-| Replay Viewer | `oxveil.openReplayViewer` | Panel opens. Content rendered (if `.claudeloop/replay.html` exists). |
-| Plan Preview | `/click createPlan` | Panel opens. Shows "No plan yet" or phase cards. |
-| Walkthrough | `oxveil.welcome` | Panel opens. 4 steps visible. |
+| Live Run | `oxveil.showLiveRun` | Opens. Log non-empty during running. |
+| Dependency Graph | `oxveil.showDependencyGraph` | Opens. Node count = phase count. |
+| Execution Timeline | `oxveil.showTimeline` | Opens. Content rendered. |
+| Config Wizard | `/click configure` | Opens. Form fields + preview. |
+| Replay Viewer | `oxveil.openReplayViewer` | Opens. Content (if replay.html exists). |
+| Plan Preview | `/click createPlan` | Opens. Phase cards or empty state. |
+| Walkthrough | `oxveil.welcome` | Opens. 4 steps visible. |
 
-- Test panels during running state (for Live Run, Graph, Timeline) and idle state (for others).
-- Close each panel after verification.
+- Test during running state (Live Run, Graph, Timeline) and idle (others). Close after each.
 
 ### 5. Commands & CodeLens
 
@@ -175,9 +163,7 @@ Open each panel via `/command` and verify content. Screenshot each.
 
 ## Failure Handling
 
-- State matrix: log FAIL, continue to next state (states are independent).
-- Transitions: log FAIL, skip dependent transitions (mark as SKIP).
-- Panels: log FAIL, continue.
-- Real integration: skip on timeout (120s), log SKIP.
-- 3 consecutive failures in same phase → stop that phase, continue to next.
-- Always reach Phase 7 (Cleanup).
+- State matrix / Panels: log FAIL, continue (independent).
+- Transitions: log FAIL, skip dependents (mark SKIP).
+- Real integration: skip on 120s timeout, log SKIP.
+- 3 consecutive failures in same phase → stop phase, continue to next. Always reach Phase 7.

@@ -8,15 +8,15 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 ## Constraints
 
 - macOS only. Requires osascript (Accessibility permission) and screencapture (Screen Recording permission).
-- NEVER use `screencapture -w` (interactive window selection — blocks in automation). Use `screencapture -l <CGWindowID>` or `screencapture -R x,y,w,h -x`.
-- If `screencapture` fails (permission denied, invalid window ID, empty file), this is a blocking failure. Do not continue with programmatic-only checks. Stop and tell the user: "Screenshot capture failed: [error]. Visual verification is degraded — approve continuing without screenshots or fix the permission." Never silently fall back to non-visual checks.
+- NEVER use `screencapture -w` (blocks in automation). Use `-l <CGWindowID>` or `-R x,y,w,h -x`.
+- Screenshot failure is blocking. Stop and tell the user: "Screenshot capture failed: [error]." Never silently fall back to non-visual checks.
 - Do not invoke during TDD cycles. This is a standalone verification activity.
 - Do not commit fixes automatically. Log changes in SESSION.md. Developer reviews `git diff` after session.
 - All code paths must reach Phase 6 (Cleanup). No exceptions.
 - Do not mock `.claudeloop/` if a real session is running (check lock file first).
-- Always exercise the full user-facing workflow path affected by the implementation. Static screenshots of a single state are insufficient — navigate through the complete interaction sequence.
-- Vary plan content every run. Never reuse the same fixed plan template. Use different phase counts (2–4), titles, and descriptions each time. This catches parsing bugs, text truncation, and rendering errors that static templates hide. Use the `generate_plan` helper from the recipes.
-- If uncommitted source changes exist when launching EDH, stash or use a worktree. The fake_claude `success` scenario triggers claudeloop's auto-commit, which will capture any dirty working tree changes with a generic commit message and junk files (`test.sh`). This forces a manual soft-reset and re-commit.
+- Exercise the full workflow path, not static screenshots of a single state.
+- Vary plan content every run — different phase counts, titles, descriptions. Use `generate_plan` from recipes.
+- Stash or use worktree if uncommitted changes exist — fake_claude `success` triggers auto-commit that captures dirty state.
 - NEVER delete `verification-sessions/` or any session subfolder. They are gitignored but kept on disk for developer auditing.
 
 ## When to Invoke
@@ -50,7 +50,7 @@ See `references/visual-verification-recipes.md` for discovery file parsing, full
 
 - **Tier 1 (reliable — use screenshots):** Element presence/absence, text content, gross layout, item count, notification visibility.
 - **Tier 2 (unreliable — verify via code review):** ThemeColor correctness, spinner animation, pixel alignment, contrast ratios.
-- **Not screenshot-verifiable:** Notification deduplication (count, suppression during retries) and timing. Verify via unit tests asserting `showErrorMessage`/`showInformationMessage` call counts. Notification message format, severity, and button labels remain Tier 1 — verify visually.
+- **Not screenshot-verifiable:** Notification deduplication/timing — verify via unit tests. Message format, severity, button labels remain Tier 1.
 
 ## References
 

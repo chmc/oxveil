@@ -27,33 +27,27 @@ description: Scripts, templates, and checklists for the visual verification loop
 
 ## Safety Rules
 
-- **`keystroke` is NOT process-scoped.** It always targets the system frontmost app, regardless of `tell process` target. Never use `keystroke` for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W).
-- **Use accessibility menu clicks for destructive operations.** `click menu item X of menu Y of menu bar 1` is process-scoped — it cannot misfire to another app.
-- **`AXRaise` before menu clicks** to ensure the correct Code window receives the action. AXRaise sets which window is front *within* the process.
-- **`set frontmost to true` before non-destructive keystrokes.** Required because `keystroke` goes to system frontmost.
+- **`keystroke` is NOT process-scoped.** Targets system frontmost app regardless of `tell process` target. Never use for destructive ops (Cmd+W, Cmd+Q, Cmd+Shift+W).
+- **Destructive ops: use accessibility menu clicks.** `click menu item X of menu Y of menu bar 1` is process-scoped.
+- **`AXRaise` before menu clicks** — ensures correct Code window receives the action.
+- **`set frontmost to true` before non-destructive keystrokes** — required because `keystroke` goes to system frontmost.
 
 ## Pre-flight Checks
 
-Run all of these before starting a session. Abort on any failure.
+Run all before starting a session. Abort on any failure.
 
 ```bash
-# 1. Platform check
 [[ "$(uname)" == "Darwin" ]] || { echo "FAIL: macOS required"; exit 1; }
 
-# 2. code CLI in PATH
 which code > /dev/null 2>&1 || { echo "FAIL: 'code' CLI not in PATH. Install via Command Palette: Shell Command: Install 'code' command in PATH"; exit 1; }
 
-# 3. Accessibility permission (osascript + System Events)
 osascript -e 'tell application "System Events" to get name of first process' > /dev/null 2>&1 || { echo "FAIL: Grant Accessibility permission to $TERM_PROGRAM in System Settings > Privacy & Security > Accessibility"; exit 1; }
 
-# 4. Screen Recording permission
 screencapture -x /tmp/oxveil-preflight.png 2>&1
 [[ -s /tmp/oxveil-preflight.png ]] || { echo "FAIL: Grant Screen Recording permission to $TERM_PROGRAM in System Settings > Privacy & Security > Screen Recording"; exit 1; }
 rm -f /tmp/oxveil-preflight.png
 
-# 5. Close stale EDH windows
-# Use process-scoped menu click — cannot misfire to Terminal.
-# AXRaise makes the EDH the front window within Code so the menu action targets it.
+# Close stale EDH windows (process-scoped menu click, not keystroke)
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -67,18 +61,16 @@ tell application "System Events"
     end tell
 end tell' 2>/dev/null
 
-# 6. MCP bridge setting enabled
 grep -q '"oxveil.mcpBridge": true' .vscode/settings.json 2>/dev/null || { echo "FAIL: Enable oxveil.mcpBridge in .vscode/settings.json"; exit 1; }
 ```
 
 ## MCP Bridge Recipes
 
-The MCP bridge is the primary method for interacting with sidebar webview buttons during verification. osascript/cliclick synthetic events do not pass through Electron webview iframes.
+Primary method for sidebar webview buttons. osascript/cliclick synthetic events do not pass through Electron webview iframes.
 
 ### Reading discovery file
 
 ```bash
-# Parse discovery file into PORT and TOKEN variables
 DISCOVERY=$(cat .oxveil-mcp)
 PORT=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['port'])")
 TOKEN=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
@@ -87,7 +79,6 @@ TOKEN=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.st
 ### Polling for bridge readiness after EDH launch
 
 ```bash
-# Poll for .oxveil-mcp file (max 15 seconds)
 for i in $(seq 1 15); do
     [[ -f .oxveil-mcp ]] && break
     sleep 1
@@ -99,20 +90,14 @@ echo "MCP bridge ready after ${i}s"
 ### Common sidebar interactions
 
 ```bash
-# Get current state
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -m json.tool
 
-# Get just the view name
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])"
 
-# Click a sidebar button (fire-and-forget — poll state to confirm)
-# Body must match the SidebarCommand type exactly — fields are top-level, not nested in "args".
-# WRONG: {"command":"skip","args":{"phase":2}}  — silently ignored
-# RIGHT: {"command":"skip","phase":2}
+# Click: fields are top-level SidebarCommand, NOT nested in "args" ({"command":"skip","phase":2})
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"resumePlan"}' http://127.0.0.1:$PORT/click
 
-# Execute a VS Code command
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"oxveil.start"}' http://127.0.0.1:$PORT/command
 ```
@@ -139,19 +124,19 @@ click_and_verify() {
 
 ### Simulate sidebar command
 
-Both `/click` and `_simulateClick` dispatch directly through `dispatchSidebarMessage` on the extension side — neither goes through the webview DOM. Use either for QA automation.
+Both `/click` and `_simulateClick` dispatch through `dispatchSidebarMessage` (not webview DOM).
 
 ```bash
-# Via /click endpoint (POST body is a SidebarCommand)
+# /click — full SidebarCommand shape (phase, archive supported)
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"restart"}' http://127.0.0.1:$PORT/click
 
-# Via _simulateClick VS Code command (simple command name only, no phase/archive)
+# _simulateClick — simple {command: string} only
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"oxveil._simulateClick","args":[{"command":"start"}]}' http://127.0.0.1:$PORT/command
 ```
 
-`/click` accepts the full `SidebarCommand` shape (including `phase`, `archive`). `_simulateClick` accepts only `{ command: string }` — use `/click` for phase-specific commands like `retry` or `skip`. Both available when MCP bridge is enabled.
+Use `/click` for phase-specific commands (`retry`, `skip`). Both available when MCP bridge is enabled.
 
 ### Sidebar command reference
 
@@ -167,18 +152,13 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
 
 ## End-to-End Workflow Recipes
 
-Combine existing primitives (MCP bridge, fake CLI, screenshots) into complete lifecycle recipes.
-
 ### Key transition mechanisms
 
-- PLAN.md creation triggers file watcher → sidebar transitions to `stale` (plan detected, user hasn't confirmed).
-- Lock file `.claudeloop/lock` creation → sidebar transitions to `running` (claudeloop executing).
-- Lock file removal + all phases completed → sidebar transitions to `completed`.
-- State names and derivation logic: `src/views/sidebarState.ts:deriveViewState()`.
+State derivation: `src/views/sidebarState.ts:deriveViewState()`. See `docs/workflow/states.md` for full state machine.
 
 ### wait_for_view helper
 
-Poll `GET /state` until the sidebar reaches the expected view. Use for async transitions (file watcher, process completion) where a fixed sleep is insufficient.
+Poll `GET /state` until expected view. Use for async transitions instead of fixed sleeps.
 
 ```bash
 # Poll sidebar state until expected view or timeout
@@ -203,16 +183,11 @@ wait_for_view() {
 
 ### Recipe: Full Lifecycle (empty → stale → ready → running → completed)
 
-**Prerequisites:**
-- EDH launched with fake_claude in PATH (`success` scenario). See [claudeloop Fake CLI > Setup](#claudeloop-fake-cli) above.
-- MCP bridge ready. `$PORT` and `$TOKEN` parsed from `.oxveil-mcp`. See [Reading discovery file](#reading-discovery-file) above.
-- claudeloop detected (sidebar not in `not-found` state).
+**Prerequisites:** EDH launched with fake_claude `success` scenario in PATH. MCP bridge ready (`$PORT`, `$TOKEN` parsed). claudeloop detected.
 
-**IMPORTANT — Vary plan content every run.** Do NOT reuse the same 2-phase plan template. Each verification session must use a different number of phases (3–6), different titles, and different descriptions. This catches parsing bugs, text truncation, and static-text rendering errors that a fixed template would miss. Use the `generate_plan` helper below.
+**Vary plan content every run** — different phase counts, titles, descriptions. Use `generate_plan` below.
 
 ```bash
-# Generate a randomized PLAN.md with 3-6 phases.
-# Titles and descriptions vary per run to catch parsing/rendering bugs.
 generate_plan() {
     local TITLES=(
         "Bootstrap" "Scaffold" "Configure" "Initialize" "Provision"
@@ -250,30 +225,24 @@ generate_plan() {
     done
 }
 
-# 0. Clean slate — remove any leftover PLAN.md from previous runs
 rm -f PLAN.md
 wait_for_view "empty" 10
 
-# 1. Verify starting state
 VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
   | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])")
 [[ "$VIEW" == "empty" ]] || { echo "FAIL: expected empty, got $VIEW"; exit 1; }
 # Screenshot: 01-empty
 
-# 2. Write randomized PLAN.md (## Phase N: headers recognized by parsePlan())
 generate_plan > PLAN.md
 echo "Generated plan:"
 grep "^## Phase" PLAN.md
 
-# 3. File watcher detects PLAN.md → stale
 wait_for_view "stale" 10
 # Screenshot: 02-stale
 
-# 4. Resume plan → ready
 click_and_verify "resumePlan" "ready"
 # Screenshot: 03-ready
 
-# 5. Verify phase count and titles match what was written
 EXPECTED_PHASES=$(grep -c "^## Phase" PLAN.md)
 ACTUAL_PHASES=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
   | python3 -c "import sys, json; s=json.load(sys.stdin); print(len(s.get('plan',{}).get('phases',[])))")
@@ -283,33 +252,23 @@ else
     echo "FAIL: expected $EXPECTED_PHASES phases, sidebar shows $ACTUAL_PHASES"
 fi
 
-# 6. Start → running (fake_claude spawned via claudeloop)
 click_and_verify "start" "running"
 # Screenshot: 04-running
 
-# 7. Wait for fake_claude success scenario to complete
 wait_for_view "completed" 45
 # Screenshot: 05-completed
 
-# 8. Cleanup (triggers file watcher — expect brief state flicker to empty)
 rm -f PLAN.md
 ```
 
 ### Form Plan button path (manual only)
 
-The Form Plan button (`oxveil.formPlan`) cannot be fully automated via MCP bridge:
-- Triggers `pickGranularity()` QuickPick — requires osascript to select an option.
-- `liveRunPanel` must exist — it is auto-created during `activateViews`, so always available in EDH. No action needed.
-- `onPlanFormed()` sets `planUserChoice = "resume"`, transitioning directly to `ready` (skips `stale`).
-- Source plan file can have any markdown content — formPlan copies it to PLAN.md, then AI parse extracts phases. Use `## Phase N:` headers for predictable results with fake_claude.
+Not fully automatable — `pickGranularity()` QuickPick requires osascript. `onPlanFormed()` transitions directly to `ready` (skips `stale`). Use `## Phase N:` headers for predictable fake_claude results.
 
-To test manually:
-1. Create a source plan file (not named PLAN.md) in the workspace.
-2. Use `/command` to invoke: `{"command":"oxveil.formPlan","args":[{"filePath":"/absolute/path/to/source.md"}]}`.
-3. QuickPick appears after ~1s. Use osascript to select granularity. Options: `Phases`, `Tasks`, `Steps`.
+1. Create source plan file (not PLAN.md). Invoke `/command`: `{"command":"oxveil.formPlan","args":[{"filePath":"/absolute/path/to/source.md"}]}`.
+2. Select granularity via osascript (`Phases`, `Tasks`, `Steps`):
 
 ```bash
-# Wait for QuickPick, type "Phases" and confirm
 sleep 1
 osascript -e '
 tell application "System Events"
@@ -324,15 +283,11 @@ tell application "System Events"
 end tell'
 ```
 
-4. `wait_for_view "ready" 15` — formPlan writes PLAN.md, runs AI parse (fake_claude handles it), then calls `onPlanFormed()`.
-5. Continue with `start` → `running` as in the Full Lifecycle recipe.
-6. Cleanup: `rm -f source-plan.md PLAN.md`
+3. `wait_for_view "ready" 15`. Continue with `start` → `running`. Cleanup: `rm -f source-plan.md PLAN.md`.
 
-Use the file-write recipe above as the default. Reserve this path for testing the AI-parse pipeline specifically.
+Reserve this path for AI-parse pipeline testing. Use file-write recipe as default.
 
 ### Extended command reference (via /command endpoint)
-
-VS Code commands invoked via `POST /command` (not sidebar button clicks via `/click`):
 
 | Command | Args | Notes |
 |---------|------|-------|
@@ -341,15 +296,16 @@ VS Code commands invoked via `POST /command` (not sidebar button clicks via `/cl
 
 ## Swift CGWindowID Script
 
-CGWindowList and System Events use **different** names for VS Code:
-- **CGWindowList** `kCGWindowOwnerName`: `"Visual Studio Code"` (derived from the `.app` bundle directory name)
-- **System Events** process name: `"Code"` (derived from `CFBundleName` in `Info.plist`)
-- **Insiders** (assumed, unverified): `"Visual Studio Code - Insiders"` / `"Code - Insiders"` respectively
+VS Code name mapping (CGWindowList vs System Events):
 
-If window lookup fails, verify the owner name with the diagnostic snippet below.
+| API | Name | Insiders |
+|-----|------|----------|
+| CGWindowList (`kCGWindowOwnerName`) | `"Visual Studio Code"` | `"Visual Studio Code - Insiders"` |
+| System Events (process name) | `"Code"` | `"Code - Insiders"` |
+
+If window lookup fails, verify with diagnostic snippet:
 
 ```bash
-# Diagnostic: list all VS Code windows with their CGWindowList owner names
 swift -e '
 import CoreGraphics
 let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]
@@ -363,7 +319,6 @@ for w in windows {
 ```
 
 ```bash
-# Get CGWindowID for the Extension Development Host window
 WINDOW_ID=$(swift -e '
 import CoreGraphics
 let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]
@@ -384,20 +339,16 @@ for w in windows {
 ## Screenshot Pipeline
 
 ```bash
-# NEVER use screencapture -w — it requires an interactive click and hangs in automation.
-# Always use -l (window ID) or -R (region).
-
-# Capture + resize in one pipeline
+# Never use screencapture -w (interactive, hangs in automation). Use -l or -R.
 screencapture -l "$WINDOW_ID" "$SESSION_DIR/screenshots/$SCREENSHOT_NAME.png"
 sips --resampleWidth 1568 "$SESSION_DIR/screenshots/$SCREENSHOT_NAME.png" --out "$SESSION_DIR/screenshots/$SCREENSHOT_NAME.png" > /dev/null 2>&1
 ```
 
 ## Polling for EDH Window Readiness
 
-Replace fixed waits with polling. Use after launching EDH.
+Poll after launching EDH instead of fixed waits.
 
 ```bash
-# Poll for EDH window appearance (max 15 seconds)
 for i in $(seq 1 15); do
     WINDOW_ID=$(swift -e '
 import CoreGraphics
@@ -419,19 +370,13 @@ echo "EDH window found after ${i}s (WindowID: $WINDOW_ID)"
 
 ## osascript Interaction Recipes
 
-All recipes use `process "Code"` with window name filtering.
-`set frontmost to true` is mandatory before any `keystroke` — without it, the keystroke goes to whichever app has system focus.
+All recipes use `process "Code"` with window name filtering. `set frontmost to true` mandatory before any `keystroke`.
 
 ### Focusing the Plan Chat terminal
 
-The Plan Chat terminal is an editor-area terminal (not the bottom panel). Standard terminal focus methods (`Ctrl+\``, `Terminal: Focus Terminal in Editor Area`) target the bottom panel terminal, NOT the Plan Chat.
-
-**Correct approach:** Call `Oxveil: Plan Chat` via command palette twice. The second invocation detects the existing session and calls `focusTerminal()` which does `terminal.show()` — focusing the Plan Chat terminal specifically.
+Plan Chat is an editor-area terminal — standard terminal focus methods target the bottom panel instead. Call `Oxveil: Plan Chat` via command palette twice (second call triggers `focusTerminal()`).
 
 ```bash
-# Focus Plan Chat terminal (call the command twice)
-# First call: may open Plan Chat if not running, or do nothing
-# Second call: focuses the existing Plan Chat terminal
 for attempt in 1 2; do
     osascript -e '
     tell application "System Events"
@@ -453,15 +398,12 @@ for attempt in 1 2; do
     end tell'
     sleep 2
 done
-# Now keystrokes will reach the Plan Chat terminal
 ```
 
-**Never use** `click at {x, y}` to focus the Plan Chat terminal — VS Code editor-area terminals don't reliably receive click-based focus via osascript.
+Never use `click at {x, y}` for Plan Chat focus — editor-area terminals don't reliably receive click-based focus.
 
 ```bash
-# Focus EDH window and open command palette
-# set frontmost to true: makes Code the system frontmost app (required for keystroke)
-# AXRaise: makes the EDH the front window within Code
+# Focus EDH + open command palette
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -472,7 +414,7 @@ tell application "System Events"
     end tell
 end tell'
 
-# Type and execute an Oxveil command
+# Type and execute a command
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -483,9 +425,7 @@ tell application "System Events"
     end tell
 end tell'
 
-# Close EDH window (for cleanup)
-# Use process-scoped menu click — cannot misfire to Terminal.
-# AXRaise makes the EDH the front window within Code so the menu action targets it.
+# Close EDH window (process-scoped menu click)
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -501,9 +441,7 @@ tell application "System Events"
     end tell
 end tell'
 
-# Close active editor tab in EDH (e.g., Settings, Welcome)
-# Uses process-scoped menu click — cannot misfire to Terminal.
-# AXRaise ensures EDH is Code's front window so menu targets the right tab.
+# Close active editor tab (process-scoped menu click)
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -516,15 +454,10 @@ end tell'
 
 ## Maximize Viewport
 
-Run after EDH launch and before first screenshot to maximize the area available for visual analysis. Keep the primary sidebar visible — it contains the Oxveil tree view.
+Run after EDH launch, before first screenshot. Keep primary sidebar visible (Oxveil tree view).
 
 ```bash
-# Close bottom panel, secondary sidebar, and unwanted editor tabs.
-# Keep primary sidebar visible (Oxveil tree view lives there).
-# Uses MCP bridge /command — explicit close commands, idempotent (no-op if already closed).
-# Requires: PORT and TOKEN from .oxveil-mcp discovery file (see MCP Bridge Recipes).
-
-# Focus EDH window (still needed for subsequent screenshots)
+# Focus EDH window
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -552,16 +485,11 @@ sleep 0.5
 
 ## Webview Interaction via Commands
 
-VS Code webview content (iframes) is unreachable via macOS accessibility or coordinate-based clicking. To verify interactive webview features during visual verification, expose the interaction as a VS Code command and invoke it via command palette.
+Webview iframes are unreachable via accessibility/clicking. Expose interactions as VS Code commands, invoke via command palette.
 
-**Pattern:**
-1. Add a public method to the panel class (e.g., `nextTab()`)
-2. Register as a VS Code command (e.g., `oxveil.planPreviewNextTab`)
-3. During verification, invoke via command palette: `Oxveil: Plan Preview — Next Tab`
+**Pattern:** Add public method → register command → invoke via palette during verification.
 
-**Example: Plan Preview tab switching**
 ```bash
-# Focus EDH and invoke the nextTab command
 osascript -e '
 tell application "System Events"
     tell process "Code"
@@ -583,22 +511,16 @@ tell application "System Events"
 end tell'
 ```
 
-**When to apply:** Any webview button, toggle, or interactive element that needs visual verification. The command serves double duty — keyboard-accessible for users AND testable during automation.
+Applies to any webview button/toggle needing verification. Commands serve double duty — keyboard-accessible for users AND testable in automation.
 
 ## Mock .claudeloop/ State Scripts
 
-Prefer the claudeloop fake CLI (below) for end-to-end dynamic verification. Use manual mocking only for fast static state checks or states hard to trigger via claudeloop (e.g., stale lock after crash).
-
-> **SAFETY:** NEVER delete the `.claudeloop/` directory itself. Only remove individual mock-created files via the `.MOCK_SESSION` marker. See CLAUDE.md hard rules.
-
-Testing-only exception to the read-only IPC contract.
+Prefer fake CLI for dynamic verification. Use manual mocking only for fast static checks or hard-to-trigger states (stale lock after crash). **NEVER delete `.claudeloop/` directory — only remove files via `.MOCK_SESSION` marker.**
 
 ```bash
-# Check no real session is running
 [[ -f .claudeloop/lock ]] && { echo "ABORT: Real claudeloop session running. Do not mock."; exit 1; }
 
-# --- "idle" state: no active session files ---
-# Remove mock-created files only. NEVER delete the directory itself.
+# --- "idle" state ---
 if [[ -f .claudeloop/.MOCK_SESSION ]]; then
   find .claudeloop -newer .claudeloop/.MOCK_SESSION -not -path .claudeloop -delete 2>/dev/null
   rm -f .claudeloop/.MOCK_SESSION
@@ -662,8 +584,7 @@ Started: 2026-03-25 14:05:30
 Completed: 2026-03-25 14:08:00
 PROGRESS_EOF
 
-# --- Cleanup mock (always run in Phase 6) ---
-# Remove mock-created files only. NEVER delete the .claudeloop/ directory.
+# --- Cleanup mock (Phase 6) ---
 if [[ -f .claudeloop/.MOCK_SESSION ]]; then
   find .claudeloop -newer .claudeloop/.MOCK_SESSION -not -path .claudeloop -delete 2>/dev/null
   rm -f .claudeloop/.MOCK_SESSION
@@ -672,16 +593,13 @@ else
 fi
 ```
 
-**In-memory state caveat:** Removing `.claudeloop/PROGRESS.md` and `lock` from the filesystem does not reset `SessionState` in memory. After a failed/completed run, the sidebar derives from orphaned in-memory progress (e.g., stays "failed" even after file cleanup). To get a clean idle state, reload the EDH window or relaunch EDH. Plan accordingly when testing multiple lifecycle round trips in one session.
+**In-memory caveat:** Removing files doesn't reset `SessionState` in memory. Reload or relaunch EDH for clean idle state between lifecycle round trips.
 
 ## claudeloop Fake CLI
 
-- Path: `<claudeloop-repo>/tests/fake_claude` (local: `/Users/aleksi/source/claudeloop/tests/fake_claude`)
-- Replaces the `claude` binary, NOT `claudeloop`. Oxveil still spawns claudeloop normally.
-- Outputs NDJSON stream-json to stdout. claudeloop's stream processor converts this to `.claudeloop/` files (live.log, PROGRESS.md, lock).
-- Prefer this over manual mocking for dynamic verification (state transitions, timing, full watcher pipeline).
-- Use manual mocking (above) for fast static state checks or testing states hard to trigger via claudeloop (e.g., stale lock).
-- The `success`, `success_multi`, and `success_realistic` scenarios auto-detect AI-parse and verification prompts, so the `success` scenario works end-to-end with `--ai-parse` (claudeloop's default). No special configuration needed.
+- Path: `/Users/aleksi/source/claudeloop/tests/fake_claude`
+- Replaces `claude` binary (not `claudeloop`). Outputs NDJSON; claudeloop converts to `.claudeloop/` files.
+- Prefer over manual mocking for dynamic verification. `success*` scenarios auto-detect AI-parse/verification prompts.
 
 ### Setup
 
@@ -756,15 +674,7 @@ Iterations: {N}
 
 ## Cost Control for Real Claude Instances
 
-Plan chat automatically uses haiku when running in EDH (`ExtensionMode.Development` detected). No configuration needed.
-
-To override the model (e.g., testing with a specific model):
-
-```bash
-OXVEIL_CLAUDE_MODEL=sonnet code --extensionDevelopmentPath="$(pwd)"
-```
-
-The env var takes precedence over the dev-mode default. In production (normal VS Code, not EDH), no model override is applied — the user's default model is used.
+Plan chat auto-defaults to haiku in EDH. Override: `OXVEIL_CLAUDE_MODEL=sonnet code --extensionDevelopmentPath="$(pwd)"`. Env var takes precedence. No override in production.
 
 ## Common Issues Checklist
 
@@ -781,6 +691,7 @@ The env var takes precedence over the dev-mode default. In production (normal VS
 - Bridge auth rejected (stale discovery file — reload EDH)
 
 ## v0.1 Verification Targets
+<!-- TODO: verify if still current -->
 
 | Surface | States to Verify | Reference Mockup |
 |---------|-----------------|------------------|
@@ -794,6 +705,6 @@ The env var takes precedence over the dev-mode default. In production (normal VS
 
 - **Build failure:** Log error. Do NOT launch EDH. Skip to Phase 6.
 - **Launch failure:** Retry once with 15s wait. If still fails, skip to Phase 6.
-- **Screenshot failure:** Retry once. If still fails, log "unavailable" and continue.
-- **osascript failure:** Use menu clicks for destructive operations (close window/tab). Use `set frontmost to true` + AXRaise before non-destructive keystrokes. Retry once. Never use `keystroke` for Cmd+W/Cmd+Q — it targets the system frontmost app, not the `tell process` target.
+- **Screenshot failure:** Blocking. Retry once. If still fails, stop and tell user.
+- **osascript failure:** Menu clicks for destructive ops, `set frontmost` + AXRaise for keystrokes. Retry once.
 - **Vision inconclusive:** Log "analysis inconclusive" and continue.
