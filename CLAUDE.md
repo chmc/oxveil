@@ -20,7 +20,7 @@
 - Use conventional commits.
 - Never add yourself as co-author.
 - When fixing a GitHub issue, always include `Closes #N` or `Fixes #N` in the commit message. Do not push automatically — tell the user the issue will close on `git push`.
-- NEVER commit without first completing the full Quality Gates sequence (lint, tests, visual verification if UI-facing, `/codex:review` if available). "The change is only docs/skills" is not an exemption.
+- NEVER commit without first completing the full Quality Gates sequence (lint, tests, visual verification if UI-facing, Codex review if available). "The change is only docs/skills" is not an exemption.
 
 ## Development Process
 
@@ -55,8 +55,10 @@
 - For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
-- When any Codex skill (`codex:review` or `codex:rescue`) is listed in available skills: after lint, tests, and visual verification (if UI-facing) pass, run `/codex:review --wait --scope working-tree`. If `codex:review` is unavailable, use `codex:rescue` subagent to perform the review.
-- Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run the Codex review.
+- After lint, tests, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
+  - If `codex:review` is available: run `/codex:review --wait --scope working-tree`.
+  - If only `codex:rescue` is available: spawn a subagent (type `codex:codex-rescue`) with prompt "Review the staged and unstaged changes (`git diff HEAD`). List files changed, summarize the intent, and report any issues." Treat its output as equivalent to `/codex:review` findings.
+- Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run the same Codex review method used above.
 - Loop until Codex review is clean or 3 review cycles complete. If issues remain after 3 cycles, report them to the user.
 - Auto-fix Codex findings without asking. This overrides the `codex:codex-result-handling` default of requiring user approval before applying fixes.
 - `/codex:adversarial-review` is not part of the automated loop. Use only when explicitly requested.
