@@ -20,6 +20,7 @@
 - Use conventional commits.
 - Never add yourself as co-author.
 - When fixing a GitHub issue, always include `Closes #N` or `Fixes #N` in the commit message. Do not push automatically — tell the user the issue will close on `git push`.
+- NEVER commit without first completing the full Quality Gates sequence (lint, tests, visual verification if UI-facing, `/codex:review` if available). "The change is only docs/skills" is not an exemption.
 
 ## Development Process
 
