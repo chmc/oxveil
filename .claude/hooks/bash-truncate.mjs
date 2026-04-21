@@ -25,7 +25,7 @@ const BOUNDED_PIPES = [
 // --- Core logic ---
 
 function readStdin() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const timeout = setTimeout(() => resolve(''), 2000);
     let data = '';
     process.stdin.setEncoding('utf8');
