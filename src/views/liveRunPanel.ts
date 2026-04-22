@@ -63,6 +63,15 @@ export class LiveRunPanel {
     return this._panel;
   }
 
+  clearAiParseStatus(): void {
+    if (this._aiParseStatus !== "idle") {
+      this._aiParseStatus = "idle";
+      this._panel?.webview.postMessage({ type: "ai-parse-status", status: "idle" });
+      // Also clear any verify banner that might be showing
+      this._panel?.webview.postMessage({ type: "clear-verify-banner" });
+    }
+  }
+
   reveal(progress: ProgressState, folderUri?: string): void {
     this._currentFolderUri = folderUri;
     this._lastProgress = progress;
@@ -70,15 +79,9 @@ export class LiveRunPanel {
       this._runStartedAt = Date.now();
     }
 
-    // Clear any stale AI parse status when switching to normal run mode
-    if (this._aiParseStatus !== "idle") {
-      this._aiParseStatus = "idle";
-      if (this._panel) {
-        this._panel.webview.postMessage({ type: "ai-parse-status", status: "idle" });
-      }
-    }
-
     this._ensurePanel();
+    // Clear any stale AI parse status when switching to normal run mode
+    this.clearAiParseStatus();
     this._sendDashboard(progress);
     this._flushBuffer();
   }
@@ -94,10 +97,11 @@ export class LiveRunPanel {
   onProgressChanged(progress: ProgressState): void {
     this._lastProgress = progress;
     if (this._panel) {
-      // Clear any stale AI parse status when normal run updates arrive
-      if (this._aiParseStatus !== "idle") {
-        this._aiParseStatus = "idle";
-        this._panel.webview.postMessage({ type: "ai-parse-status", status: "idle" });
+      // Skip dashboard updates when ai-parse is in a terminal state (complete or needs-input)
+      // to prevent file watcher activity from clearing the verify banner.
+      // These states are cleared explicitly by reveal() or clearAiParseStatus().
+      if (this._aiParseStatus === "complete" || this._aiParseStatus === "needs-input") {
+        return;
       }
       this._sendDashboard(progress);
     }
@@ -131,7 +135,10 @@ export class LiveRunPanel {
     }
 
     if (todoUpdated && this._panel && this._lastProgress) {
-      this._sendDashboard(this._lastProgress);
+      // Skip dashboard updates in ai-parse terminal states to preserve verify banner
+      if (this._aiParseStatus !== "complete" && this._aiParseStatus !== "needs-input") {
+        this._sendDashboard(this._lastProgress);
+      }
     }
 
     const maxLines = this._getMaxLines();
@@ -227,7 +234,14 @@ export class LiveRunPanel {
           }
         } else if (msg.type === "open-replay") {
           this._deps.executeCommand("oxveil.openReplayViewer");
-        } else if (msg.type === "ai-parse-retry" || msg.type === "ai-parse-continue" || msg.type === "ai-parse-abort" || msg.type === "open-result") {
+        } else if (msg.type === "open-result") {
+          // Handle open-result directly - open the ai-parsed-plan.md file
+          // Pass the folder URI so the correct workspace's file is opened
+          this._deps.executeCommand("oxveil._openParsedPlan", this._currentFolderUri);
+          for (const listener of this._aiParseActionListeners) {
+            listener(msg.type);
+          }
+        } else if (msg.type === "ai-parse-retry" || msg.type === "ai-parse-continue" || msg.type === "ai-parse-abort") {
           for (const listener of this._aiParseActionListeners) {
             listener(msg.type);
           }

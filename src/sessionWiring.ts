@@ -86,6 +86,9 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           const autoOpen = deps.getConfig?.("liveRunAutoOpen") ?? true;
           if (autoOpen) {
             deps.liveRunPanel.reveal(p ?? { phases: [], totalPhases: 0 }, deps.folderUri);
+          } else {
+            // Clear ai-parse status even when not auto-opening the panel
+            deps.liveRunPanel.clearAiParseStatus();
           }
         }
         break;

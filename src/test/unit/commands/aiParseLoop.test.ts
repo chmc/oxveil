@@ -23,6 +23,7 @@ function makeLiveRunPanel() {
       return () => { actionCallbacks.splice(actionCallbacks.indexOf(cb), 1); };
     }),
     onLogAppended: vi.fn(),
+    clearAiParseStatus: vi.fn(),
     visible: false,
     _triggerAction(action: string) {
       for (const cb of actionCallbacks) cb(action);

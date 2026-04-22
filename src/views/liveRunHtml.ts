@@ -355,6 +355,9 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
             logContainer.after(banner);
           }
           banner.innerHTML = msg.html;
+        } else if (msg.type === "clear-verify-banner") {
+          var vb = document.getElementById("verify-banner");
+          if (vb) vb.remove();
         }
       });
 
@@ -364,6 +367,9 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
 
       window.sendAction = function(type) {
         vscode.postMessage({ type: type });
+        // Remove verify-banner after user takes action (e.g., "Open Result")
+        var vb = document.getElementById("verify-banner");
+        if (vb) vb.remove();
       };
 
       // Toggle dashboard collapse

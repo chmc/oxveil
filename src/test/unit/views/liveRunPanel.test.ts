@@ -444,7 +444,7 @@ describe("LiveRunPanel", () => {
       expect(aiParseStatusCalls[0][0].status).toBe("idle");
     });
 
-    it("onProgressChanged() clears stale AI parse status header when panel already open", () => {
+    it("onProgressChanged() skips dashboard when ai-parse is complete", () => {
       const mockPanel = makeMockPanel();
       const deps = makeDeps(mockPanel);
       const panel = new LiveRunPanel(deps);
@@ -453,15 +453,78 @@ describe("LiveRunPanel", () => {
       panel.onAiParseComplete();
       mockPanel.webview.postMessage.mockClear();
 
-      // Normal run starts with liveRunAutoOpen=false, so onProgressChanged is called
-      // instead of reveal()
+      // File watcher triggers onProgressChanged - should NOT send any messages
+      // to preserve the verify-passed banner
       panel.onProgressChanged(makeProgress());
+
+      expect(mockPanel.webview.postMessage).not.toHaveBeenCalled();
+    });
+
+    it("onProgressChanged() skips dashboard when ai-parse needs-input", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      panel.onVerifyFailed({ reason: "Test failure", attempt: 1, maxAttempts: 3 });
+      mockPanel.webview.postMessage.mockClear();
+
+      // File watcher triggers onProgressChanged - should NOT send any messages
+      // to preserve the verify-failed banner
+      panel.onProgressChanged(makeProgress());
+
+      expect(mockPanel.webview.postMessage).not.toHaveBeenCalled();
+    });
+
+    it("clearAiParseStatus() resets status and sends messages when not idle", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      panel.onAiParseComplete();
+      mockPanel.webview.postMessage.mockClear();
+
+      panel.clearAiParseStatus();
+
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ai-parse-status", status: "idle" }),
+      );
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "clear-verify-banner" }),
+      );
+    });
+
+    it("clearAiParseStatus() does nothing when already idle", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.reveal(makeProgress());
+      mockPanel.webview.postMessage.mockClear();
+
+      panel.clearAiParseStatus();
 
       const aiParseStatusCalls = mockPanel.webview.postMessage.mock.calls.filter(
         (c: any) => c[0].type === "ai-parse-status",
       );
-      expect(aiParseStatusCalls).toHaveLength(1);
-      expect(aiParseStatusCalls[0][0].status).toBe("idle");
+      expect(aiParseStatusCalls).toHaveLength(0);
+    });
+
+    it("onLogAppended() skips dashboard when ai-parse is complete", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      panel.onAiParseComplete();
+      // Set up lastProgress so dashboard would normally be sent
+      panel.onProgressChanged(makeProgress());
+      mockPanel.webview.postMessage.mockClear();
+
+      // Log with todo update - should NOT trigger dashboard in ai-parse complete state
+      panel.onLogAppended("some content\n[Todos: 1/3 done] \u25b8 \"current task\"\nmore content");
+
+      const dashboardCalls = mockPanel.webview.postMessage.mock.calls.filter(
+        (c: any) => c[0].type === "dashboard",
+      );
+      expect(dashboardCalls).toHaveLength(0);
     });
 
     it("reveal() after onRunFinished sends dashboard (clears banner in webview)", () => {

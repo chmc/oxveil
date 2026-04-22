@@ -234,6 +234,28 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand("oxveil._liveRunAbort", () => {
       liveRunPanel?.triggerAiParseAction("ai-parse-abort");
     }),
+    vscode.commands.registerCommand("oxveil._openParsedPlan", async (folderUri?: string) => {
+      // Use provided folder URI, or fall back to active session
+      let workspaceRoot: string | undefined;
+      if (folderUri) {
+        workspaceRoot = vscode.Uri.parse(folderUri).fsPath;
+      } else {
+        workspaceRoot = sessionManager.getActiveSession()?.workspaceRoot;
+      }
+      if (!workspaceRoot) return;
+      const parsedPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+      try {
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(parsedPath));
+        await vscode.window.showTextDocument(doc);
+      } catch {
+        // File might not exist if ai-parse failed or was in dry-run mode
+        const planPath = path.join(workspaceRoot, "PLAN.md");
+        try {
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(planPath));
+          await vscode.window.showTextDocument(doc);
+        } catch { /* ignore */ }
+      }
+    }),
     vscode.commands.registerCommand("oxveil.discardPlan", async () => {
       const active = getActive();
       if (active?.processManager?.isRunning) {

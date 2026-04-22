@@ -60,6 +60,7 @@ function makeLiveRunPanel() {
     onLogAppended: vi.fn(),
     onRunFinished: vi.fn(),
     onProgressChanged: vi.fn(),
+    clearAiParseStatus: vi.fn(),
     visible: false,
     currentFolderUri: undefined,
   };
