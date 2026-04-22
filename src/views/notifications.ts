@@ -53,6 +53,8 @@ export interface NotificationDeps {
   onSetPath?: () => void;
   onStop?: () => void;
   onForceUnlock?: () => void;
+  onOpenFile?: (path: string) => void;
+  onFocusLiveRun?: () => void;
 }
 
 export class NotificationManager {
@@ -150,6 +152,26 @@ export class NotificationManager {
           this._deps.onStop?.();
         } else if (action === "Force Unlock") {
           this._deps.onForceUnlock?.();
+        }
+      });
+  }
+
+  onAiParseSuccess(parsedPlanPath: string): void {
+    this._deps.window
+      .showInformationMessage("Plan parsed successfully", "Open Plan")
+      .then((action) => {
+        if (action === "Open Plan") {
+          this._deps.onOpenFile?.(parsedPlanPath);
+        }
+      });
+  }
+
+  onAiParseNeedsInput(): void {
+    this._deps.window
+      .showWarningMessage("Claudeloop needs input", "View Options")
+      .then((action) => {
+        if (action === "View Options") {
+          this._deps.onFocusLiveRun?.();
         }
       });
   }

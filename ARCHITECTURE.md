@@ -67,7 +67,7 @@ Watch `.claudeloop/` files for state changes. Render in sidebar webview, status 
 The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 
 **Oxveil reads:**
-- `live.log` — append-only process output
+- `live.log` — append-only process output (written in both normal and dry-run mode when ai-parse is active)
 - `PROGRESS.md` — phase status and structure
 - `lock` — plain text file containing the PID of the running process
 

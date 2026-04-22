@@ -44,6 +44,7 @@ export class LiveRunPanel {
   private _todoCurrentItem: string | undefined;
   private _runStartedAt: number | undefined;
   private _aiParseActionListeners: Array<(action: string) => void> = [];
+  private _aiParseStatus: "idle" | "parsing" | "complete" | "needs-input" = "idle";
 
   constructor(deps: LiveRunPanelDeps) {
     this._deps = deps;
@@ -69,6 +70,14 @@ export class LiveRunPanel {
       this._runStartedAt = Date.now();
     }
 
+    // Clear any stale AI parse status when switching to normal run mode
+    if (this._aiParseStatus !== "idle") {
+      this._aiParseStatus = "idle";
+      if (this._panel) {
+        this._panel.webview.postMessage({ type: "ai-parse-status", status: "idle" });
+      }
+    }
+
     this._ensurePanel();
     this._sendDashboard(progress);
     this._flushBuffer();
@@ -76,13 +85,20 @@ export class LiveRunPanel {
 
   revealForAiParse(folderUri?: string): void {
     this._currentFolderUri = folderUri;
+    this._aiParseStatus = "parsing";
+    this.clear();
     this._ensurePanel();
-    this._flushBuffer();
+    this._panel!.webview.postMessage({ type: "ai-parse-status", status: "parsing" });
   }
 
   onProgressChanged(progress: ProgressState): void {
     this._lastProgress = progress;
     if (this._panel) {
+      // Clear any stale AI parse status when normal run updates arrive
+      if (this._aiParseStatus !== "idle") {
+        this._aiParseStatus = "idle";
+        this._panel.webview.postMessage({ type: "ai-parse-status", status: "idle" });
+      }
       this._sendDashboard(progress);
     }
   }
@@ -133,15 +149,24 @@ export class LiveRunPanel {
   }
 
   onVerifyFailed(options: VerifyFailedOptions): void {
-    if (!this._panel) return;
+    this._ensurePanel();
+    this._aiParseStatus = "needs-input";
+    this._panel!.webview.postMessage({ type: "ai-parse-status", status: "needs-input" });
     const html = renderVerifyFailedBannerHtml(options);
-    this._panel.webview.postMessage({ type: "verify-failed", html });
+    this._panel!.webview.postMessage({ type: "verify-failed", html });
   }
 
   onVerifyPassed(options: VerifyPassedOptions): void {
     if (!this._panel) return;
+    this.onAiParseComplete();
     const html = renderVerifyPassedBannerHtml(options);
     this._panel.webview.postMessage({ type: "verify-passed", html });
+  }
+
+  onAiParseComplete(): void {
+    if (!this._panel) return;
+    this._aiParseStatus = "complete";
+    this._panel.webview.postMessage({ type: "ai-parse-status", status: "complete" });
   }
 
   onAiParseAction(listener: (action: string) => void): () => void {

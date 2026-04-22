@@ -262,9 +262,18 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
 
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .spinner { display: inline-block; animation: spin 1s linear infinite; }
+
+    /* AI Parse Status Header */
+    .ai-parse-status { padding: 10px 20px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+    .ai-parse-status.parsing { background: rgba(86, 156, 214, 0.1); color: #569cd6; }
+    .ai-parse-status.complete { background: rgba(78, 201, 176, 0.1); color: #4ec9b0; }
+    .ai-parse-status.needs-input { background: rgba(204, 167, 0, 0.1); color: #cca700; }
+    .ai-parse-status .status-icon { font-size: 14px; }
+    .ai-parse-status.parsing .status-icon { animation: spin 1s linear infinite; }
   </style>
 </head>
 <body>
+  <div id="ai-parse-status-header"></div>
   <div id="dashboard"></div>
   <div id="log-container"></div>
   <script nonce="${nonce}">
@@ -288,9 +297,29 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
         }
       }
 
+      var aiParseStatusHeader = document.getElementById("ai-parse-status-header");
+
       window.addEventListener("message", function(event) {
         var msg = event.data;
-        if (msg.type === "dashboard") {
+        if (msg.type === "ai-parse-status") {
+          var statusText = "";
+          var icon = "";
+          if (msg.status === "parsing") {
+            icon = "&#8635;";
+            statusText = "AI Parsing...";
+          } else if (msg.status === "complete") {
+            icon = "&#10003;";
+            statusText = "Parse complete";
+          } else if (msg.status === "needs-input") {
+            icon = "&#9888;";
+            statusText = "Input needed";
+          }
+          if (statusText) {
+            aiParseStatusHeader.innerHTML = '<div class="ai-parse-status ' + msg.status + '"><span class="status-icon">' + icon + '</span>' + statusText + '</div>';
+          } else {
+            aiParseStatusHeader.innerHTML = "";
+          }
+        } else if (msg.type === "dashboard") {
           dashboard.innerHTML = msg.html;
           var vb = document.getElementById("verify-banner");
           if (vb) vb.remove();

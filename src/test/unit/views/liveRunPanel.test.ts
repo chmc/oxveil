@@ -259,6 +259,119 @@ describe("LiveRunPanel", () => {
     expect(dashCalls.length).toBeGreaterThanOrEqual(1);
   });
 
+  describe("ai-parse state management", () => {
+    it("revealForAiParse resets log offset so fresh content is shown", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+
+      // First: reveal and process log content (this sets _logOffset)
+      panel.reveal(makeProgress());
+      panel.onLogAppended("old content from previous run\n");
+
+      // Now call revealForAiParse - should reset offset
+      mockPanel.webview.postMessage.mockClear();
+      panel.revealForAiParse();
+
+      // Now provide the SAME content again (simulating a fresh live.log write)
+      // If offset wasn't reset, this would be a no-op since offset > 0
+      panel.onLogAppended("fresh content\n");
+
+      const logCalls = mockPanel.webview.postMessage.mock.calls.filter(
+        (c: any) => c[0].type === "log-append",
+      );
+      // Should have log-append call with fresh content
+      expect(logCalls.length).toBeGreaterThanOrEqual(1);
+      expect(logCalls[0][0].lines).toContainEqual('<div class="log-line">fresh content</div>');
+    });
+
+    it("revealForAiParse clears buffered log lines", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+
+      // Add logs without revealing (goes to buffer)
+      panel.onLogAppended("buffered old line\n");
+
+      // Now revealForAiParse - should clear buffer
+      panel.revealForAiParse();
+
+      // The buffered old line should NOT be flushed
+      const logCalls = mockPanel.webview.postMessage.mock.calls.filter(
+        (c: any) => c[0].type === "log-append",
+      );
+      const allLines = logCalls.flatMap((c: any) => c[0].lines);
+      expect(allLines).not.toContainEqual('<div class="log-line">buffered old line</div>');
+    });
+  });
+
+  describe("ai-parse status header", () => {
+    it("revealForAiParse sends ai-parse-status message with parsing state", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ai-parse-status", status: "parsing" }),
+      );
+    });
+
+    it("onAiParseComplete sends ai-parse-status message with complete state", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      mockPanel.webview.postMessage.mockClear();
+      panel.onAiParseComplete();
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ai-parse-status", status: "complete" }),
+      );
+    });
+
+    it("onVerifyFailed reveals panel if disposed", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+
+      // First reveal to create panel, then simulate dispose
+      panel.revealForAiParse();
+      const disposeCallback = mockPanel.onDidDispose.mock.calls[0][0];
+      disposeCallback(); // Simulate panel being closed
+
+      // Reset mock to track new calls
+      deps.createWebviewPanel.mockClear();
+
+      // onVerifyFailed should re-create panel
+      panel.onVerifyFailed({ reason: "Missing req", attempt: 1, maxAttempts: 3 });
+
+      expect(deps.createWebviewPanel).toHaveBeenCalled();
+    });
+
+    it("onVerifyFailed sends ai-parse-status message with needs-input state", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      mockPanel.webview.postMessage.mockClear();
+      panel.onVerifyFailed({ reason: "Missing req", attempt: 1, maxAttempts: 3 });
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ai-parse-status", status: "needs-input" }),
+      );
+    });
+
+    it("onVerifyPassed calls onAiParseComplete", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      mockPanel.webview.postMessage.mockClear();
+      panel.onVerifyPassed({ retryCount: 0 });
+      expect(mockPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ai-parse-status", status: "complete" }),
+      );
+    });
+  });
+
   describe("verify messages", () => {
     it("posts verify-failed message to webview", () => {
       const mockPanel = makeMockPanel();
@@ -311,6 +424,44 @@ describe("LiveRunPanel", () => {
 
       const types = mockPanel.webview.postMessage.mock.calls.map((c: any) => c[0].type);
       expect(types).toContain("dashboard");
+    });
+
+    it("reveal() clears stale AI parse status header", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      panel.onAiParseComplete();
+      mockPanel.webview.postMessage.mockClear();
+
+      // reveal() for normal run should clear the "complete" status
+      panel.reveal(makeProgress());
+
+      const aiParseStatusCalls = mockPanel.webview.postMessage.mock.calls.filter(
+        (c: any) => c[0].type === "ai-parse-status",
+      );
+      expect(aiParseStatusCalls).toHaveLength(1);
+      expect(aiParseStatusCalls[0][0].status).toBe("idle");
+    });
+
+    it("onProgressChanged() clears stale AI parse status header when panel already open", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      // AI parse leaves panel open with "complete" status
+      panel.revealForAiParse();
+      panel.onAiParseComplete();
+      mockPanel.webview.postMessage.mockClear();
+
+      // Normal run starts with liveRunAutoOpen=false, so onProgressChanged is called
+      // instead of reveal()
+      panel.onProgressChanged(makeProgress());
+
+      const aiParseStatusCalls = mockPanel.webview.postMessage.mock.calls.filter(
+        (c: any) => c[0].type === "ai-parse-status",
+      );
+      expect(aiParseStatusCalls).toHaveLength(1);
+      expect(aiParseStatusCalls[0][0].status).toBe("idle");
     });
 
     it("reveal() after onRunFinished sends dashboard (clears banner in webview)", () => {

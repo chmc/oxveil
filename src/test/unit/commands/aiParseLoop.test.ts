@@ -129,6 +129,55 @@ describe("aiParseLoop", () => {
     expect(panel.revealForAiParse).toHaveBeenCalled();
   });
 
+  it("calls notificationManager.onAiParseSuccess on pass", async () => {
+    const pm = makeProcessManager([{ exitCode: 0 }]);
+    const panel = makeLiveRunPanel();
+    const readVerifyReason = vi.fn();
+    const notificationManager = {
+      onAiParseSuccess: vi.fn(),
+      onAiParseNeedsInput: vi.fn(),
+    };
+
+    await aiParseLoop({
+      processManager: pm as any,
+      liveRunPanel: panel as any,
+      granularity: "tasks",
+      readVerifyReason,
+      notificationManager: notificationManager as any,
+      parsedPlanPath: "/workspace/.claudeloop/ai-parsed-plan.md",
+    });
+
+    expect(notificationManager.onAiParseSuccess).toHaveBeenCalledWith(
+      "/workspace/.claudeloop/ai-parsed-plan.md",
+    );
+  });
+
+  it("calls notificationManager.onAiParseNeedsInput on verify-failed", async () => {
+    const pm = makeProcessManager([{ exitCode: 2 }]);
+    const panel = makeLiveRunPanel();
+    const readVerifyReason = vi.fn().mockResolvedValue("Missing req");
+    const notificationManager = {
+      onAiParseSuccess: vi.fn(),
+      onAiParseNeedsInput: vi.fn(),
+    };
+
+    const promise = aiParseLoop({
+      processManager: pm as any,
+      liveRunPanel: panel as any,
+      granularity: "tasks",
+      readVerifyReason,
+      notificationManager: notificationManager as any,
+      parsedPlanPath: "/workspace/.claudeloop/ai-parsed-plan.md",
+    });
+
+    await vi.waitFor(() => {
+      expect(notificationManager.onAiParseNeedsInput).toHaveBeenCalled();
+    });
+
+    panel._triggerAction("ai-parse-abort");
+    await promise;
+  });
+
   it("removes retry button after max attempts", async () => {
     const pm = makeProcessManager([
       { exitCode: 2 }, { exitCode: 2 }, { exitCode: 2 }, { exitCode: 2 },

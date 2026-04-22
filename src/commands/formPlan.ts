@@ -5,6 +5,7 @@ import { pickGranularity } from "./granularityPicker";
 import { parsePlan } from "../parsers/plan";
 import type { IProcessManager } from "../core/interfaces";
 import type { LiveRunPanel } from "../views/liveRunPanel";
+import type { NotificationManager } from "../views/notifications";
 import { aiParseLoop, type AiParseLoopResult } from "./aiParseLoop";
 
 export interface FormPlanCommandDeps {
@@ -14,6 +15,7 @@ export interface FormPlanCommandDeps {
   >;
   getActivePreviewFile: () => string | undefined;
   onPlanFormed?: () => void | Promise<void>;
+  notificationManager?: NotificationManager;
 }
 
 export function registerFormPlanCommand(
@@ -102,6 +104,8 @@ export function registerFormPlanCommand(
           granularity,
           readVerifyReason,
           options: { dryRun: true },
+          notificationManager: deps.notificationManager,
+          parsedPlanPath,
         });
         outcome = result.outcome;
       } catch {

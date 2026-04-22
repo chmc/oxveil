@@ -1,5 +1,6 @@
 import type { IProcessManager, AiParseResult } from "../core/interfaces";
 import type { LiveRunPanel } from "../views/liveRunPanel";
+import type { NotificationManager } from "../views/notifications";
 
 const MAX_RETRIES = 3;
 
@@ -13,10 +14,12 @@ export interface AiParseLoopDeps {
   granularity: string;
   readVerifyReason: () => Promise<string>;
   options?: { dryRun?: boolean };
+  notificationManager?: NotificationManager;
+  parsedPlanPath?: string;
 }
 
 export async function aiParseLoop(deps: AiParseLoopDeps): Promise<AiParseLoopResult> {
-  const { processManager, liveRunPanel, granularity, readVerifyReason, options } = deps;
+  const { processManager, liveRunPanel, granularity, readVerifyReason, options, notificationManager, parsedPlanPath } = deps;
   let attempt = 0;
 
   liveRunPanel.revealForAiParse();
@@ -27,6 +30,9 @@ export async function aiParseLoop(deps: AiParseLoopDeps): Promise<AiParseLoopRes
   while (true) {
     if (result.exitCode === 0) {
       liveRunPanel.onVerifyPassed({ retryCount: attempt });
+      if (parsedPlanPath) {
+        notificationManager?.onAiParseSuccess(parsedPlanPath);
+      }
       return { outcome: "pass" };
     }
 
@@ -40,6 +46,7 @@ export async function aiParseLoop(deps: AiParseLoopDeps): Promise<AiParseLoopRes
       attempt: Math.min(attempt, MAX_RETRIES),
       maxAttempts: MAX_RETRIES,
     });
+    notificationManager?.onAiParseNeedsInput();
 
     // Wait for user action
     const action = await waitForAction(liveRunPanel);

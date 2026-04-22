@@ -51,7 +51,7 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
 | **Status bar** | Real-time phase name and progress in the VS Code status bar |
 | **Dependency graph** | Interactive DAG webview showing phase dependencies with live updates |
 | **Execution timeline** | Gantt-style timeline of phase durations and retry attempts |
-| **Notifications** | Failure alerts with attempt count and quick actions (View Log) |
+| **Notifications** | Phase failure alerts with attempt count and quick actions; AI parse completion and input-needed alerts |
 
 <p align="center">
   <img src="docs/screenshots/dependency-graph.png" alt="Dependency Graph" width="700">
@@ -91,7 +91,7 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
 |---------|-------------|
 | **Syntax highlighting** | Dedicated TextMate grammar for claudeloop plan files — phase headers, dependency declarations, and directives are highlighted |
 | **CodeLens actions** | Inline Run / Diff / Log actions at each phase header |
-| **AI Parse Plan** | Turn free-form notes into structured phases with configurable granularity; retry-with-feedback loop streams AI output in the Live Run Panel until the plan passes verification |
+| **AI Parse Plan** | Turn free-form notes into structured phases with configurable granularity; Live Run Panel shows real-time streaming output with status header; retry-with-feedback loop until verification passes; notifications on completion or when input needed |
 | **Create Plan** | Scaffold a new plan file from the Command Palette |
 
 <p align="center">

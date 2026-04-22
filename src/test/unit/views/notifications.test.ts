@@ -357,6 +357,60 @@ describe("NotificationManager", () => {
     });
   });
 
+  describe("ai-parse notifications", () => {
+    it("onAiParseSuccess shows info message with Open Plan button", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      mgr.onAiParseSuccess("/workspace/.claudeloop/ai-parsed-plan.md");
+
+      expect(win.showInformationMessage).toHaveBeenCalledWith(
+        "Plan parsed successfully",
+        "Open Plan",
+      );
+    });
+
+    it("onAiParseSuccess Open Plan button opens file", async () => {
+      const win = makeWindow();
+      const onOpenFile = vi.fn();
+      const mgr = new NotificationManager({ window: win, onOpenFile });
+
+      win.showInformationMessage.mockResolvedValue("Open Plan");
+
+      mgr.onAiParseSuccess("/workspace/.claudeloop/ai-parsed-plan.md");
+
+      await vi.waitFor(() => {
+        expect(onOpenFile).toHaveBeenCalledWith("/workspace/.claudeloop/ai-parsed-plan.md");
+      });
+    });
+
+    it("onAiParseNeedsInput shows warning message with View Options button", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      mgr.onAiParseNeedsInput();
+
+      expect(win.showWarningMessage).toHaveBeenCalledWith(
+        "Claudeloop needs input",
+        "View Options",
+      );
+    });
+
+    it("onAiParseNeedsInput View Options button focuses Live Run panel", async () => {
+      const win = makeWindow();
+      const onFocusLiveRun = vi.fn();
+      const mgr = new NotificationManager({ window: win, onFocusLiveRun });
+
+      win.showWarningMessage.mockResolvedValue("View Options");
+
+      mgr.onAiParseNeedsInput();
+
+      await vi.waitFor(() => {
+        expect(onFocusLiveRun).toHaveBeenCalled();
+      });
+    });
+  });
+
   describe("double-spawn notification", () => {
     it("shows error notification with Stop and Force Unlock actions", () => {
       const win = makeWindow();

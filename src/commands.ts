@@ -15,6 +15,7 @@ import type { ConfigWizardPanel } from "./views/configWizard";
 import type { ReplayViewerPanel } from "./views/replayViewer";
 import type { LiveRunPanel } from "./views/liveRunPanel";
 import type { PlanPreviewPanel } from "./views/planPreviewPanel";
+import type { NotificationManager } from "./views/notifications";
 import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
@@ -41,10 +42,11 @@ export interface CommandDeps {
   onPlanChatSessionCreated?: (session: PlanChatSession) => void;
   getActivePlanChatSession?: () => PlanChatSession | undefined;
   onPlanFormed?: () => void;
+  notificationManager?: NotificationManager;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
-  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolveArchiveItem, claudePath } = deps;
+  const { sessionManager, installer, statusBar, readdir, onArchiveRefresh, dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, resolveArchiveItem, claudePath, notificationManager } = deps;
 
   function getActive() {
     const active = sessionManager.getActiveSession();
@@ -187,7 +189,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       planPreviewPanel?.reveal();
       await planPreviewPanel?.onFileChanged();
     }),
-    registerAiParsePlanCommand(sessionManager, liveRunPanel),
+    registerAiParsePlanCommand(sessionManager, liveRunPanel, notificationManager),
     registerCreatePlanCommand(),
     registerWritePlanCommand(() => getActive()?.workspaceRoot),
     vscode.commands.registerCommand("oxveil.welcome", () =>
@@ -221,6 +223,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       },
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),
       onPlanFormed: deps.onPlanFormed,
+      notificationManager,
     }),
     vscode.commands.registerCommand("oxveil._liveRunRetry", () => {
       liveRunPanel?.triggerAiParseAction("ai-parse-retry");

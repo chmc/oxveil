@@ -139,6 +139,9 @@ export async function activate(
       ),
     onStop: () => vscode.commands.executeCommand("oxveil.stop"),
     onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
+    onOpenFile: (filePath) =>
+      vscode.workspace.openTextDocument(filePath).then(vscode.window.showTextDocument),
+    onFocusLiveRun: () => liveRunPanel.panel?.reveal(),
   });
 
   // Plan chat session tracking
@@ -326,6 +329,7 @@ export async function activate(
         vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
       },
       onPlanFormed: sidebar.onPlanFormed,
+      notificationManager: notifications,
     }),
   );
 

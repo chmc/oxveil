@@ -6,10 +6,12 @@ import type { WorkspaceSessionManager } from "../core/workspaceSessionManager";
 import type { LiveRunPanel } from "../views/liveRunPanel";
 import { pickGranularity } from "./granularityPicker";
 import { aiParseLoop } from "./aiParseLoop";
+import type { NotificationManager } from "../views/notifications";
 
 export function registerAiParsePlanCommand(
   sessionManager: WorkspaceSessionManager,
   liveRunPanel?: LiveRunPanel,
+  notificationManager?: NotificationManager,
 ): vscode.Disposable {
   return vscode.commands.registerCommand("oxveil.aiParsePlan", async () => {
     const active = sessionManager.getActiveSession();
@@ -35,6 +37,8 @@ export function registerAiParsePlanCommand(
       return fsp.readFile(reasonPath, "utf-8");
     };
 
+    const parsedPlanPath = path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+
     let outcome: string;
     try {
       const result = await aiParseLoop({
@@ -42,6 +46,8 @@ export function registerAiParsePlanCommand(
         liveRunPanel,
         granularity,
         readVerifyReason,
+        notificationManager,
+        parsedPlanPath,
       });
       outcome = result.outcome;
     } catch (e: unknown) {
