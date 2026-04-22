@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import * as os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
@@ -16,6 +19,10 @@ import {
   type DetectionResult,
 } from "./activateDetection";
 import { Detection } from "./core/detection";
+import {
+  resolveClaudeloopPath,
+  type PathResolverDeps,
+} from "./core/pathResolver";
 import {
   createGitExec,
   initFolderSessions,
@@ -262,17 +269,25 @@ export async function activate(
       ));
     });
 
-  // Re-detect on setting change
-  const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration("oxveil.claudeloopPath")) {
-      const newPath = vscode.workspace
-        .getConfiguration("oxveil")
-        .get<string>("claudeloopPath", "claudeloop");
-      detection.updatePath(newPath);
-      refreshDetection();
-    }
-  });
-  disposables.push(configWatcher);
+  // Path resolver deps for config change re-resolution
+  const execFileAsync = promisify(execFile);
+  const pathResolverDeps: PathResolverDeps = {
+    execFile: async (cmd, args, opts) => {
+      const result = await execFileAsync(cmd, args, { timeout: opts.timeout });
+      return { stdout: result.stdout };
+    },
+    fileExists: async (p) => {
+      try {
+        await fs.access(p, fs.constants.X_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    env: process.env,
+    platform: process.platform,
+    homeDir: os.homedir(),
+  };
 
   _sessionManager = manager;
 
@@ -380,6 +395,38 @@ export async function activate(
       handleWorkspaceFolderChange(e, folderChangeOpts);
     }),
   );
+
+  // Re-detect on setting change
+  const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration("oxveil.claudeloopPath")) {
+      const configuredPath = vscode.workspace
+        .getConfiguration("oxveil")
+        .get<string>("claudeloopPath", "claudeloop");
+
+      // Re-resolve path through shell/fallbacks
+      resolveClaudeloopPath(configuredPath, pathResolverDeps).then((resolved) => {
+        const resolvedPath = resolved?.path ?? configuredPath;
+        if (resolved) {
+          console.log(`[Oxveil] claudeloop re-resolved via ${resolved.source}: ${resolved.path}`);
+        }
+        detection.updatePath(resolvedPath);
+        folderChangeOpts.resolvedPath = resolvedPath;
+        // Re-detect and update folderChangeOpts based on actual detection result
+        detection.detect().then((r) => {
+          folderChangeOpts.detected = r.status === "detected";
+          vscode.commands.executeCommand("setContext", "oxveil.detected", r.status === "detected");
+          sidebarState.detectionStatus = r.status;
+          const fullState = buildFullState();
+          sidebarPanel.updateState(fullState);
+          statusBar.update(deriveStatusBarFromView(
+            fullState.view,
+            manager.getActiveSession()?.sessionState.progress,
+          ));
+        });
+      });
+    }
+  });
+  disposables.push(configWatcher);
 
   // MCP bridge (opt-in)
   const mcpDisposables = await activateMcpBridge({
