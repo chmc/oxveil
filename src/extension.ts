@@ -333,7 +333,7 @@ export async function activate(
       getActivePlanChatSession: () => activePlanChatSession,
       onPlanChatSessionCreated: (session) => {
         // Clear stale sidebar state first (before reset() fires synchronous events)
-        sidebar.onPlanReset();
+        sidebar.onPlanChatStarted();
         const activeSession = manager.getActiveSession();
         if (activeSession) {
           activeSession.sessionState.reset();
