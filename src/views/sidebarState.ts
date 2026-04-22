@@ -14,9 +14,10 @@ export type SidebarView =
   | "running"
   | "stopped"
   | "failed"
-  | "completed";
+  | "completed"
+  | "planning";
 
-export type PlanUserChoice = "none" | "resume" | "dismiss";
+export type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
 
 export interface SidebarState {
   view: SidebarView;
@@ -80,6 +81,7 @@ export function deriveViewState(
   planUserChoice?: PlanUserChoice,
 ): SidebarView {
   if (detection !== "detected") return "not-found";
+  if (planUserChoice === "planning" && sessionStatus === "idle") return "planning";
   if (sessionStatus === "running") return "running";
   if (sessionStatus === "failed") return "failed";
   if (sessionStatus === "done") {
