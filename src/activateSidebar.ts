@@ -30,6 +30,10 @@ export interface SidebarActivationResult {
   onPlanFormed: () => Promise<void>;
   /** Called when a new plan chat starts — clears stale sidebar state */
   onPlanReset: () => void;
+  /** Called when plan chat starts — shows planning state in sidebar */
+  onPlanChatStarted: () => void;
+  /** Called when plan chat ends — clears planning state from sidebar */
+  onPlanChatEnded: () => void;
 }
 
 export interface SidebarMutableState {
@@ -133,7 +137,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     planWatcher.onDidCreate(async () => {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
       state.planDetected = true;
-      if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss") {
+      if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss" && state.planUserChoice !== "planning") {
         state.planUserChoice = "none";
       }
       sidebarPanel.updateState(buildFullState());
@@ -195,5 +199,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     sidebarPanel.updateState(buildFullState());
   }
 
-  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset };
+  function onPlanChatStarted(): void {
+    state.planUserChoice = "planning";
+    sidebarPanel.updateState(buildFullState());
+  }
+
+  function onPlanChatEnded(): void {
+    state.planUserChoice = "none";
+    sidebarPanel.updateState(buildFullState());
+  }
+
+  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded };
 }
