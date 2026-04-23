@@ -170,6 +170,22 @@ describe("renderSidebar", () => {
     expect(html).toContain("dismissPlan");
   });
 
+  it("renders planning state with Form Plan and chat links", () => {
+    const state: SidebarState = {
+      view: "planning",
+      archives: [],
+    };
+    const html = renderSidebar(nonce, csp, state);
+    expect(html).toContain("Shaping Your Plan");
+    expect(html).toContain("Plan chat active");
+    expect(html).toContain("Form Plan");
+    expect(html).toContain("Focus Chat");
+    expect(html).toContain("Show Plan Preview");
+    expect(html).toContain("formPlan");
+    expect(html).toContain("focusChat");
+    expect(html).toContain("showPlanPreview");
+  });
+
   it("renders archives section", () => {
     const state: SidebarState = {
       view: "ready",
