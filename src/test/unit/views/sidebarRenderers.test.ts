@@ -159,6 +159,13 @@ describe("renderBody data-command contract", () => {
     expect(html).not.toContain('data-command="openReplay"');
     expect(html).toContain('data-command="createPlan"');
   });
+
+  it("planning: formPlan button and chat/preview links", () => {
+    const html = renderBody({ view: "planning", archives: [] });
+    expect(html).toContain('data-command="formPlan"');
+    expect(html).toContain('data-command="focusChat"');
+    expect(html).toContain('data-command="showPlanPreview"');
+  });
 });
 
 describe("renderBody phase list rendering", () => {
@@ -264,6 +271,41 @@ describe("renderBody running info bar", () => {
       archives: [],
     });
     expect(html).toContain("attempt 2/3");
+  });
+});
+
+describe("renderBody planning view", () => {
+  it("shows 'Shaping Your Plan' title", () => {
+    const html = renderBody({ view: "planning", archives: [] });
+    expect(html).toContain("Shaping Your Plan");
+  });
+
+  it("contains Form Plan button", () => {
+    const html = renderBody({ view: "planning", archives: [] });
+    expect(html).toContain("Form Plan");
+    expect(html).toContain('class="action-btn primary"');
+  });
+
+  it("contains Focus Chat and Show Plan Preview links", () => {
+    const html = renderBody({ view: "planning", archives: [] });
+    expect(html).toContain("Focus Chat");
+    expect(html).toContain("Show Plan Preview");
+  });
+
+  it("shows archives section when archives exist", () => {
+    const html = renderBody({
+      view: "planning",
+      archives: [archive],
+    });
+    expect(html).toContain("Recent Runs");
+    expect(html).toContain("20260415");
+    expect(html).toContain('data-archive="20260415"');
+  });
+
+  it("omits archives section when no archives", () => {
+    const html = renderBody({ view: "planning", archives: [] });
+    expect(html).not.toContain("Recent Runs");
+    expect(html).not.toContain("archives-section");
   });
 });
 
