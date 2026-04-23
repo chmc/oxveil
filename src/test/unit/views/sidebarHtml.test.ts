@@ -182,7 +182,7 @@ describe("renderSidebar", () => {
     expect(html).toContain("Focus Chat");
     expect(html).toContain("Show Plan Preview");
     expect(html).toContain("formPlan");
-    expect(html).toContain("focusChat");
+    expect(html).toContain("focusPlanChat");
     expect(html).toContain("showPlanPreview");
   });
 

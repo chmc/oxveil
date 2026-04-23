@@ -51,6 +51,7 @@
 
 ## Quality Gates
 
+- When writing plans: always include documentation (README, ARCHITECTURE), workflow state docs (`docs/workflow/states.md`), and test coverage for affected user stories. Code-only plans are incomplete.
 - When writing plans: every task that touches rendering, webview, or user-visible state must include a `/visual-verification` step with task-specific acceptance criteria. Omitting it is a plan defect.
 - When executing: do not mark a UI-facing task done until its `/visual-verification` step passes. If the plan omits verification for a task that touches rendering, webview, or user-visible state, add it before marking done.
 - For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.

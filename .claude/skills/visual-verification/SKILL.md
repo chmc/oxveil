@@ -47,9 +47,11 @@ The MCP bridge is the primary method for interacting with sidebar webview button
 
 **Pattern:** Read state via `GET /state`, click buttons via `POST /click`, execute commands via `POST /command`. After every click, poll state to confirm the effect.
 
-**Real DOM clicks:** POST `/click` now dispatches real `MouseEvent` in the webview via `dispatchEvent()`. This exercises the full click path: DOM event → event handler → postMessage → command execution. The same path as a real user click.
+**Real DOM clicks:** POST `/click` calls `element.click()` in the webview. This exercises the full click path: DOM event → event handler → postMessage → command execution. The same path as a real user click. Note: `/click` is fire-and-forget; check state after to confirm the effect.
 
 **Stale state detection:** GET `/state` includes `lastUpdatedAt` timestamp. After actions, verify timestamp advanced. Fail verification if state timestamp is older than action time.
+
+**Webview input fields:** MCP `/click` handles buttons but cannot type into input fields inside webviews. When verification requires form input (text fields, submit), create a test command (e.g., `oxveil._testAnnotation`) that accepts parameters and exercises the same code path. Invoke via MCP `/command`. This bypasses the UI while still exercising the underlying logic.
 
 See `references/visual-verification-recipes.md` for discovery file parsing, full command reference, and click-and-verify scripts.
 

@@ -233,7 +233,7 @@ function renderPlanning(state: SidebarState): string {
     { label: "Form Plan", command: "formPlan", primary: true },
   ])}
   <div class="link-actions">
-    <a class="link-action" data-command="focusChat">Focus Chat</a>
+    <a class="link-action" data-command="focusPlanChat">Focus Chat</a>
     <a class="link-action" data-command="showPlanPreview">Show Plan Preview</a>
   </div>
 </div>

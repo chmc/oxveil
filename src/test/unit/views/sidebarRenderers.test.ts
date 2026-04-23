@@ -163,7 +163,7 @@ describe("renderBody data-command contract", () => {
   it("planning: formPlan button and chat/preview links", () => {
     const html = renderBody({ view: "planning", archives: [] });
     expect(html).toContain('data-command="formPlan"');
-    expect(html).toContain('data-command="focusChat"');
+    expect(html).toContain('data-command="focusPlanChat"');
     expect(html).toContain('data-command="showPlanPreview"');
   });
 });
