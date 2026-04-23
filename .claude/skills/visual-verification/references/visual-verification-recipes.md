@@ -105,15 +105,22 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
 ### Click-and-verify pattern
 
 ```bash
-# Standard pattern: click, wait, verify state
+# Standard pattern: click, wait, verify state + timestamp advanced
 click_and_verify() {
     local CMD="$1" EXPECTED="$2"
+    local BEFORE_TS=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin).get('lastUpdatedAt', 0))")
     curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
       -d "{\"command\":\"$CMD\"}" http://127.0.0.1:$PORT/click > /dev/null
     sleep 1
-    local VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])")
+    local STATE=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state)
+    local VIEW=$(echo "$STATE" | python3 -c "import sys, json; print(json.load(sys.stdin)['view'])")
+    local AFTER_TS=$(echo "$STATE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('lastUpdatedAt', 0))")
     if [[ "$VIEW" == "$EXPECTED" ]]; then
-        echo "OK: $CMD → $EXPECTED"
+        if [[ "$AFTER_TS" -gt "$BEFORE_TS" ]]; then
+            echo "OK: $CMD → $EXPECTED (state updated)"
+        else
+            echo "WARN: $CMD → $EXPECTED but state timestamp unchanged (stale?)"
+        fi
     else
         echo "FAIL: $CMD → expected $EXPECTED, got $VIEW"
     fi
@@ -122,21 +129,22 @@ click_and_verify() {
 # Usage: click_and_verify "resumePlan" "ready"
 ```
 
-### Simulate sidebar command
+### Real DOM clicks
 
-Both `/click` and `_simulateClick` dispatch through `dispatchSidebarMessage` (not webview DOM).
+POST `/click` dispatches real `MouseEvent` in the webview via `dispatchEvent()`. This exercises the full click path: DOM event → event handler → postMessage → command execution.
 
 ```bash
 # /click — full SidebarCommand shape (phase, archive supported)
+# Now triggers real DOM click in webview
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"restart"}' http://127.0.0.1:$PORT/click
 
-# _simulateClick — simple {command: string} only
+# Phase-specific click
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"command":"oxveil._simulateClick","args":[{"command":"start"}]}' http://127.0.0.1:$PORT/command
+  -d '{"command":"retry","phase":2}' http://127.0.0.1:$PORT/click
 ```
 
-Use `/click` for phase-specific commands (`retry`, `skip`). Both available when MCP bridge is enabled.
+Use `/click` for all sidebar button interactions. MCP bridge converts command to CSS selector and dispatches MouseEvent.
 
 ### Sidebar command reference
 

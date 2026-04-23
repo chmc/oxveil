@@ -368,6 +368,9 @@ export async function activate(
 
   // Update visible webview panels when active session changes
   manager.on("active-session-changed", (session) => {
+    // Always refresh sidebar on session change to ensure fresh state
+    sidebarPanel.updateState(buildFullState());
+
     if (!session) return;
     const folderUri = session.folderUri;
     if (dependencyGraph?.visible && dependencyGraph.currentFolderUri !== folderUri) {

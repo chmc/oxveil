@@ -44,6 +44,10 @@ The MCP bridge is the primary method for interacting with sidebar webview button
 
 **Pattern:** Read state via `GET /state`, click buttons via `POST /click`, execute commands via `POST /command`. After every click, poll state to confirm the effect.
 
+**Real DOM clicks:** POST `/click` now dispatches real `MouseEvent` in the webview via `dispatchEvent()`. This exercises the full click path: DOM event → event handler → postMessage → command execution. The same path as a real user click.
+
+**Stale state detection:** GET `/state` includes `lastUpdatedAt` timestamp. After actions, verify timestamp advanced. Fail verification if state timestamp is older than action time.
+
 See `references/visual-verification-recipes.md` for discovery file parsing, full command reference, and click-and-verify scripts.
 
 ## Vision Analysis Tiers

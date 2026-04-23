@@ -50,6 +50,8 @@ describe("SidebarPanel", () => {
   it("sends fullState message on updateState instead of replacing HTML", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
+    // Simulate webview script ready
+    view._simulateMessage({ command: "__ready" });
     const initialHtml = view.webview.html;
     const state: SidebarState = { view: "empty", archives: [] };
     panel.updateState(state);
@@ -124,6 +126,8 @@ describe("SidebarPanel", () => {
   it("sends progressUpdate to webview", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
+    // Simulate webview script ready
+    view._simulateMessage({ command: "__ready" });
     const update = { phases: [], elapsed: "1m", currentPhase: 1 };
     panel.sendProgressUpdate(update);
     expect(view.webview.postMessage).toHaveBeenCalledWith({

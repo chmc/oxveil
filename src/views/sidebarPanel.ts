@@ -9,6 +9,7 @@ export interface SidebarPanelDeps {
   executeCommand: (command: string, ...args: any[]) => void;
   onPlanChoice?: (choice: "resume" | "dismiss") => void;
   buildState?: () => SidebarState;
+  showError?: (message: string) => void;
 }
 
 interface Webview {
@@ -31,6 +32,7 @@ export class SidebarPanel {
   private _pendingState: SidebarState | undefined;
   private _lastState: SidebarState | undefined;
   private _webviewReady = false;
+  private _pendingMessages: any[] = [];
   private readonly _deps: SidebarPanelDeps;
 
   constructor(deps: SidebarPanelDeps) {
@@ -68,7 +70,12 @@ export class SidebarPanel {
       // Webview script signals it has loaded and registered handlers
       if (msg.command === "__ready") {
         this._webviewReady = true;
-        // Re-send state — postMessage during HTML load is often lost
+        // Flush any messages queued before ready
+        for (const pending of this._pendingMessages) {
+          this._view?.webview.postMessage(pending);
+        }
+        this._pendingMessages = [];
+        // Re-send current state in case it was updated while loading
         const state = this._lastState ?? this._deps.buildState?.();
         if (state) {
           this._postMessage({ type: "fullState", html: renderBody(state) });
@@ -80,12 +87,13 @@ export class SidebarPanel {
         this._deps.onPlanChoice?.(msg.command === "resumePlan" ? "resume" : "dismiss");
         return;
       }
-      dispatchSidebarMessage(msg, this._deps.executeCommand);
+      dispatchSidebarMessage(msg, this._deps.executeCommand, this._deps.showError);
     });
 
     webviewView.onDidDispose(() => {
       this._view = undefined;
       this._webviewReady = false;
+      this._pendingMessages = []; // Clear queue on dispose
     });
 
     // If state was buffered before view resolved, it was already rendered
@@ -107,15 +115,26 @@ export class SidebarPanel {
       this._deps.onPlanChoice?.(command === "resumePlan" ? "resume" : "dismiss");
       return;
     }
-    dispatchSidebarMessage({ command } as SidebarCommand, this._deps.executeCommand);
+    dispatchSidebarMessage({ command } as SidebarCommand, this._deps.executeCommand, this._deps.showError);
   }
 
   sendProgressUpdate(update: ProgressUpdate): void {
     this._postMessage({ type: "progressUpdate", update });
   }
 
+  /** Trigger a real DOM click in the webview for testing. */
+  triggerClick(selector: string): void {
+    this._postMessage({ type: "triggerClick", selector });
+  }
+
   private _postMessage(msg: any): void {
     console.log("[Oxveil] posting to webview:", msg.type);
-    this._view?.webview.postMessage(msg);
+    if (!this._view) return;
+    if (!this._webviewReady) {
+      // Queue message until webview script is ready
+      this._pendingMessages.push(msg);
+      return;
+    }
+    this._view.webview.postMessage(msg);
   }
 }

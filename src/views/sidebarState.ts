@@ -38,6 +38,8 @@ export interface SidebarState {
   archives: ArchiveView[];
   folders?: FolderView[];
   activeFolder?: string;
+  /** Timestamp (Date.now()) when state was last built. For stale state detection. */
+  lastUpdatedAt?: number;
 }
 
 export interface PhaseView {

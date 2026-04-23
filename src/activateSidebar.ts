@@ -102,6 +102,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
         todos: state.todoTotal > 0 ? { done: state.todoDone, total: state.todoTotal } : undefined,
       } : undefined,
       archives: getArchives(),
+      lastUpdatedAt: Date.now(),
     };
   }
 
@@ -109,15 +110,17 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     executeCommand: vscode.commands.executeCommand,
     onPlanChoice: (choice) => {
       state.planUserChoice = choice;
+      // Always update immediately after choice
+      sidebarPanel.updateState(buildFullState());
+      // If phases need loading, update again when ready
       if (choice === "resume" && state.cachedPlanPhases.length === 0) {
         loadPlanPhases().then(() => {
           sidebarPanel.updateState(buildFullState());
         });
-      } else {
-        sidebarPanel.updateState(buildFullState());
       }
     },
     buildState: () => buildFullState(),
+    showError: (msg) => { vscode.window.showErrorMessage(`Oxveil: ${msg}`); },
   });
 
   // Eagerly parse plan phases if PLAN.md was detected at startup
@@ -125,6 +128,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     loadPlanPhases().then(() => {
       sidebarPanel.updateState(buildFullState());
     });
+  }
+
+  async function clearStaleParsedPlan(): Promise<void> {
+    if (!deps.workspaceRoot) return;
+    try {
+      await fs.unlink(path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md"));
+    } catch {
+      // File doesn't exist — nothing to clear
+    }
   }
 
   function registerPlanWatcher(): vscode.Disposable[] {
@@ -141,7 +153,8 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
         state.planUserChoice = "none";
       }
       sidebarPanel.updateState(buildFullState());
-      // Parse phases in background — sidebar updates again when ready
+      // Clear stale AI-parsed plan before loading — PLAN.md is authoritative
+      await clearStaleParsedPlan();
       await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
     });
@@ -153,6 +166,8 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       sidebarPanel.updateState(buildFullState());
     });
     planWatcher.onDidChange(async () => {
+      // Clear stale AI-parsed plan before loading — PLAN.md is authoritative
+      await clearStaleParsedPlan();
       await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
     });

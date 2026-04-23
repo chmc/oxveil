@@ -48,8 +48,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   }
 
   session.on("state-changed", (_from, to) => {
-    if (!deps.isActiveSession()) return;
-
+    // Removed isActiveSession() guard - sidebar should show whichever session is running
     vscode.commands.executeCommand(
       "setContext",
       "oxveil.processRunning",
@@ -148,18 +147,17 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
   });
 
   session.on("phases-changed", (progress) => {
-    if (deps.isActiveSession()) {
-      deps.dependencyGraph?.update(progress);
-      deps.executionTimeline?.update(progress);
-      deps.liveRunPanel?.onProgressChanged(progress);
-    }
+    // Removed isActiveSession() guards - UI should show whichever session is running
+    deps.dependencyGraph?.update(progress);
+    deps.executionTimeline?.update(progress);
+    deps.liveRunPanel?.onProgressChanged(progress);
 
     if (lastProgress) {
       notifications.onPhasesChanged(lastProgress, progress);
     }
     lastProgress = progress;
 
-    if (deps.isActiveSession() && session.status === "running" && progress.currentPhaseIndex !== undefined) {
+    if (session.status === "running" && progress.currentPhaseIndex !== undefined) {
       const phase = progress.phases[progress.currentPhaseIndex];
       statusBar.update({
         kind: "running",
@@ -171,7 +169,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       });
     }
 
-    if (deps.sidebarPanel && deps.isActiveSession()) {
+    if (deps.sidebarPanel) {
       deps.sidebarPanel.sendProgressUpdate({
         phases: mapPhases(progress.phases),
         elapsed: deps.elapsedTimer?.elapsed ?? "0m",
@@ -186,7 +184,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     deps.liveRunPanel?.onLogAppended(content);
 
     // Extract cost and todo data for sidebar
-    if (ms && deps.sidebarPanel && deps.isActiveSession()) {
+    // Removed isActiveSession() guard - sidebar should show whichever session is running
+    if (ms && deps.sidebarPanel) {
       const lines = content.split("\n");
       let updated = false;
       for (const line of lines) {

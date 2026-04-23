@@ -2,7 +2,19 @@ import * as vscode from "vscode";
 import type { SidebarState } from "./views/sidebarState";
 import type { SidebarPanel } from "./views/sidebarPanel";
 import type { SidebarMutableState } from "./activateSidebar";
-import { dispatchSidebarMessage } from "./views/sidebarMessages";
+import type { SidebarCommand } from "./views/sidebarMessages";
+
+/** Convert SidebarCommand to CSS selector for real DOM click. */
+function commandToSelector(msg: SidebarCommand): string {
+  let selector = `[data-command="${msg.command}"]`;
+  if ("phase" in msg && msg.phase !== undefined) {
+    selector += `[data-phase="${msg.phase}"]`;
+  }
+  if ("archive" in msg && msg.archive !== undefined) {
+    selector += `[data-archive="${msg.archive}"]`;
+  }
+  return selector;
+}
 
 export interface McpBridgeDeps {
   config: vscode.WorkspaceConfiguration;
@@ -28,12 +40,10 @@ export async function activateMcpBridge(deps: McpBridgeDeps): Promise<vscode.Dis
       workspaceRoot,
       buildFullState,
       dispatchClick: (msg) => {
-        if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
-          sidebarState.planUserChoice = msg.command === "resumePlan" ? "resume" : "dismiss";
-          sidebarPanel.updateState(buildFullState());
-          return;
-        }
-        dispatchSidebarMessage(msg, vscode.commands.executeCommand);
+        // Use real DOM click path - dispatches MouseEvent in webview,
+        // which triggers the click handler and posts command back to extension
+        const selector = commandToSelector(msg);
+        sidebarPanel.triggerClick(selector);
       },
       executeCommand: vscode.commands.executeCommand,
     });
