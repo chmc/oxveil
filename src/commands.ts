@@ -208,6 +208,14 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       onPlanChatSessionCreated: deps.onPlanChatSessionCreated,
       planPreviewPanel,
     }),
+    vscode.commands.registerCommand("oxveil.focusPlanChat", () => {
+      const session = deps.getActivePlanChatSession?.();
+      if (session) {
+        session.focusTerminal();
+      } else {
+        vscode.window.showWarningMessage("Oxveil: No active Plan Chat session.");
+      }
+    }),
     vscode.commands.registerCommand("oxveil.planPreviewNextTab", () =>
       planPreviewPanel?.nextTab(),
     ),
