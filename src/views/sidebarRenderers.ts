@@ -302,6 +302,26 @@ function renderCompleted(state: SidebarState): string {
 ${archivesHtml}`;
 }
 
+function renderPlanning(state: SidebarState): string {
+  const archivesHtml = renderArchives(state.archives);
+  return `<div class="centered-layout">
+  <div class="state-icon"><span class="codicon codicon-sync spin"></span></div>
+  <h2 class="state-title">Shaping Your Plan</h2>
+  <p class="state-desc">Chat with AI to refine your idea. When you're ready, form it into an executable plan.</p>
+  <div class="info-bar">
+    <span class="info-item">Plan chat active</span>
+  </div>
+  ${renderActionBar([
+    { label: "Form Plan", command: "formPlan", primary: true },
+  ])}
+  <div class="link-actions">
+    <a class="link-action" data-command="focusChat">Focus Chat</a>
+    <a class="link-action" data-command="showPlanPreview">Show Plan Preview</a>
+  </div>
+</div>
+${archivesHtml}`;
+}
+
 function renderArchives(archives: ArchiveView[]): string {
   if (!archives || archives.length === 0) return "";
 
@@ -337,6 +357,8 @@ export function renderBody(state?: SidebarState): string {
       return renderNotFound(state);
     case "empty":
       return renderEmpty(state);
+    case "planning":
+      return renderPlanning(state);
     case "ready":
       return renderReady(state);
     case "stale":
