@@ -54,7 +54,9 @@
 - When writing plans: every task that touches rendering, webview, or user-visible state must include a `/visual-verification` step with task-specific acceptance criteria. Omitting it is a plan defect.
 - When executing: do not mark a UI-facing task done until its `/visual-verification` step passes. If the plan omits verification for a task that touches rendering, webview, or user-visible state, add it before marking done.
 - For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.
+- When running visual verification on uncommitted changes, do NOT stash — the changes are what you're testing.
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
+- If sidebar shows wrong phases after manual PLAN.md edit, check for stale `.claudeloop/ai-parsed-plan.md`. `loadPlanPhases()` reads ai-parsed-plan.md first before falling back to PLAN.md.
 - Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
 - After lint, tests, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
   - If `codex:review` is available: run `/codex:review --wait --scope working-tree`.
