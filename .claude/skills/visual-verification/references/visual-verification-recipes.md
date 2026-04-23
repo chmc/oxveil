@@ -269,31 +269,49 @@ wait_for_view "completed" 45
 rm -f PLAN.md
 ```
 
-### Form Plan button path (manual only)
+### Form Plan button path (automatable via cliclick)
 
-Not fully automatable — `pickGranularity()` QuickPick requires osascript. `onPlanFormed()` transitions directly to `ready` (skips `stale`). Use `## Phase N:` headers for predictable fake_claude results.
+**Requires:** `cliclick` (`brew install cliclick`). osascript `keystroke` does NOT reliably interact with VS Code QuickPick dialogs — use cliclick for coordinate-based interaction.
+
+`onPlanFormed()` transitions directly to `ready` (skips `stale`). Use `## Phase N:` headers for predictable fake_claude results.
 
 1. Create source plan file (not PLAN.md). Invoke `/command`: `{"command":"oxveil.formPlan","args":[{"filePath":"/absolute/path/to/source.md"}]}`.
-2. Select granularity via osascript (`Phases`, `Tasks`, `Steps`):
+2. Select granularity via cliclick (`Phases`, `Tasks`, `Steps`):
 
 ```bash
-sleep 1
-osascript -e '
+# Get EDH window position
+WIN_INFO=$(osascript -e '
 tell application "System Events"
     tell process "Code"
-        set frontmost to true
-        perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
-        delay 0.5
-        keystroke "Phases"
-        delay 0.3
-        key code 36
+        set edhWindow to (first window whose name contains "[Extension Development Host]")
+        set winPos to position of edhWindow
+        set winSize to size of edhWindow
+        return (item 1 of winPos as string) & "," & (item 2 of winPos as string) & "," & (item 1 of winSize as string) & "," & (item 2 of winSize as string)
     end tell
-end tell'
+end tell')
+
+WIN_X=$(echo $WIN_INFO | cut -d, -f1)
+WIN_Y=$(echo $WIN_INFO | cut -d, -f2)
+WIN_W=$(echo $WIN_INFO | cut -d, -f3)
+
+# QuickPick appears at center-top of window (~100px from top)
+QUICKPICK_X=$((WIN_X + WIN_W/2))
+QUICKPICK_Y=$((WIN_Y + 100))
+
+# Wait for QuickPick to appear
+sleep 1.5
+
+# Click in QuickPick area to ensure focus, then type and confirm
+cliclick c:$QUICKPICK_X,$QUICKPICK_Y
+sleep 0.3
+cliclick t:"Phases"
+sleep 0.3
+cliclick kp:return
 ```
 
 3. `wait_for_view "ready" 15`. Continue with `start` → `running`. Cleanup: `rm -f source-plan.md PLAN.md`.
 
-Reserve this path for AI-parse pipeline testing. Use file-write recipe as default.
+**Why cliclick?** osascript `keystroke` sends keys to the system frontmost app but QuickPick input fields don't reliably receive them. cliclick's coordinate-based click + type bypasses this issue.
 
 ### Extended command reference (via /command endpoint)
 
