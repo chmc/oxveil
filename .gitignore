@@ -18,6 +18,10 @@ package-lock.json
 release_notes.md
 *.vsix
 
+# QA session media (large files, evidence only)
+docs/qa-sessions/*/videos/
+docs/qa-sessions/*/screenshots/
+
 # macOS
 .DS_Store
 ._*
