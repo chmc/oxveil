@@ -20,6 +20,7 @@ export type SidebarCommand =
   | { command: "aiParse" }
   | { command: "formPlan" }
   | { command: "planChat" }
+  | { command: "focusPlanChat" }
   | { command: "openTimeline" }
   | { command: "openGraph" }
   | { command: "openLog"; phase?: number }
