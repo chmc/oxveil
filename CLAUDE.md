@@ -10,6 +10,7 @@
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 - All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
+- NEVER propose manual verification when automated tools exist. Use `/visual-verification`, MCP bridge, fake_claude, and cliclick to verify UI behavior programmatically. Research and improve skills/tools when automation gaps exist rather than falling back to manual testing.
 
 ## Project
 
@@ -48,6 +49,17 @@
 - Each skill defines its own terminal action. Do not substitute a different exit (e.g., calling `ExitPlanMode` from brainstorming). Read the skill's terminal state before starting.
 - If plan mode activates during a skill, the skill's checklist still governs — plan mode is a tool within the skill, not a replacement for it.
 - "I already have evidence" and "this is simple enough" are not valid reasons to skip a specified action.
+
+## Automation Discipline
+
+- When an automation approach fails, do NOT retry the same method. Immediately research alternatives (web search, explore similar tools, check documentation).
+- Fix the tooling gap, then document the solution in the relevant skill file.
+- Retrying a failing approach multiple times before researching is a pattern violation.
+
+## Plan File Hygiene
+
+- When a plan's work is complete, clear the plan file or mark it done.
+- Do not leave stale completed plans sitting in the plan file.
 
 ## Quality Gates
 
