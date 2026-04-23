@@ -21,6 +21,7 @@ export type SidebarCommand =
   | { command: "formPlan" }
   | { command: "planChat" }
   | { command: "focusPlanChat" }
+  | { command: "showPlanPreview" }
   | { command: "openTimeline" }
   | { command: "openGraph" }
   | { command: "openLog"; phase?: number }
@@ -71,6 +72,7 @@ const COMMAND_MAP: Record<string, string> = {
   formPlan: "oxveil.formPlan",
   discardPlan: "oxveil.discardPlan",
   planChat: "oxveil.openPlanChat",
+  showPlanPreview: "oxveil.showPlanPreview",
   openTimeline: "oxveil.showTimeline",
   openGraph: "oxveil.showDependencyGraph",
   forceUnlock: "oxveil.forceUnlock",
