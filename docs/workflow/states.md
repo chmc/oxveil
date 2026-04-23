@@ -101,7 +101,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 | `sessionStatus` | `SessionStatus` (`"idle" \| "running" \| "done" \| "failed"`) | `SessionState.status` |
 | `planDetected` | `boolean` | PLAN.md file watcher in `activateSidebar.registerPlanWatcher()` |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
-| `planUserChoice` | `PlanUserChoice` (`"none" \| "resume" \| "dismiss"`) | User interaction in stale view; `activateSidebar.onPlanFormed()` / `onPlanReset()` |
+| `planUserChoice` | `PlanUserChoice` (`"none" \| "resume" \| "dismiss" \| "planning"`) | User interaction in stale view; `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
 | `cachedPlanPhases` | `PhaseView[]` | Plan phases for sidebar display before session runs. Populated by `loadPlanPhases()` from four sites: (1) `onPlanFormed()` after `formPlan` completes, (2) `onDidCreate` file watcher, (3) initial activation when `initialPlanDetected`, (4) `onPlanChoice("resume")` fallback when phases are empty |
 
 ### Output States
@@ -110,6 +110,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 |------|-------------|
 | `not-found` | claudeloop not installed or version incompatible |
 | `empty` | Detected, idle, no plan, no progress |
+| `planning` | Plan chat session is active — user is conversing with Claude to create a plan |
 | `ready` | Plan detected with all-pending phases, ready to execute |
 | `stale` | Plan file found on activation, no progress, user hasn't chosen what to do |
 | `running` | Session actively running |
@@ -124,20 +125,21 @@ The `deriveViewState()` function evaluates conditions top-to-bottom. First match
 | # | detection | sessionStatus | planDetected | progress | planUserChoice | → View |
 |---|-----------|---------------|--------------|----------|----------------|--------|
 | 1 | `≠ "detected"` | any | any | any | any | `not-found` |
-| 2 | `"detected"` | `"running"` | any | any | any | `running` |
-| 3 | `"detected"` | `"failed"` | any | any | any | `failed` |
-| 4 | `"detected"` | `"done"` | any | all completed | any | `completed` |
-| 5 | `"detected"` | `"done"` | any | not all completed | any | `stopped` |
-| 6 | `"detected"` | `"idle"` | any | has failed phase | any | `failed` |
-| 7 | `"detected"` | `"idle"` | any | has `in_progress` phase | any | `stopped` |
-| 8 | `"detected"` | `"idle"` | any | has completed + pending | any | `stopped` |
-| 9 | `"detected"` | `"idle"` | any | all completed | any | `completed` |
-| 10 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
-| 11 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
-| 12 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
-| 13 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
-| 14 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
-| 15 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
+| 2 | `"detected"` | `"idle"` | any | any | `"planning"` | `planning` |
+| 3 | `"detected"` | `"running"` | any | any | any | `running` |
+| 4 | `"detected"` | `"failed"` | any | any | any | `failed` |
+| 5 | `"detected"` | `"done"` | any | all completed | any | `completed` |
+| 6 | `"detected"` | `"done"` | any | not all completed | any | `stopped` |
+| 7 | `"detected"` | `"idle"` | any | has failed phase | any | `failed` |
+| 8 | `"detected"` | `"idle"` | any | has `in_progress` phase | any | `stopped` |
+| 9 | `"detected"` | `"idle"` | any | has completed + pending | any | `stopped` |
+| 10 | `"detected"` | `"idle"` | any | all completed | any | `completed` |
+| 11 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
+| 12 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
+| 13 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
+| 14 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
+| 15 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
+| 16 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
 
 <!-- NOTE: Row 15 is the final fallback for planDetected=false — reachable when progress exists but is empty (0 phases). -->
 
@@ -147,7 +149,9 @@ The `deriveViewState()` function evaluates conditions top-to-bottom. First match
 flowchart TD
     Start([deriveViewState called]) --> D1{detection = detected?}
     D1 -- No --> NotFound[not-found]
-    D1 -- Yes --> D2{sessionStatus?}
+    D1 -- Yes --> Dplan{planUserChoice = planning?}
+    Dplan -- Yes --> Planning[planning]
+    Dplan -- No --> D2{sessionStatus?}
     D2 -- running --> Running[running]
     D2 -- failed --> Failed1[failed]
     D2 -- done --> D3{all phases completed?}
@@ -181,6 +185,7 @@ Each view maps to a renderer function in `sidebarRenderers.ts` and a set of user
 |------|----------|-------|----------------|-------------------|-------------|
 | `not-found` | `renderNotFound()` | — | Install | Set custom path (link) | Warning icon, description |
 | `empty` | `renderEmpty()` | — | Let's Go (`createPlan`) | Write Plan, AI Parse, Form Plan | "How it works" steps, archives |
+| `planning` | `renderPlanning()` | — | — | — | Same as `empty` but during active plan chat session |
 | `ready` | `renderReady()` | Ready | Start | Edit, Discard (links) | Phase list, plan filename, archives |
 | `stale` | `renderStale()` | Found | Resume (`resumePlan`) | Dismiss (`dismissPlan`) | Plan filename, description, archives |
 | `running` | `renderRunning()` | Running | Stop | — | Progress bar, info bar (elapsed, cost, todos, attempts), phase list |
@@ -398,7 +403,7 @@ type DetectionStatus = "detected" | "not-found" | "version-incompatible";
 
 ### SidebarView
 ```typescript
-type SidebarView = "not-found" | "empty" | "ready" | "stale" | "running" | "stopped" | "failed" | "completed";
+type SidebarView = "not-found" | "empty" | "planning" | "ready" | "stale" | "running" | "stopped" | "failed" | "completed";
 ```
 
 ### StatusBarState
@@ -408,6 +413,7 @@ type StatusBarState =
   | { kind: "installing" }
   | { kind: "ready" }
   | { kind: "idle" }
+  | { kind: "stopped"; folderName?: string; otherRootsSummary?: string }
   | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string }
   | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string }
   | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string };
@@ -420,7 +426,7 @@ type PhaseStatus = "pending" | "completed" | "in_progress" | "failed";
 
 ### PlanUserChoice
 ```typescript
-type PlanUserChoice = "none" | "resume" | "dismiss";
+type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
 ```
 
 ### PlanPreviewState

@@ -95,6 +95,12 @@ describe("deriveViewState", () => {
   it("returns running when lock reacquired despite failed progress", () => {
     expect(deriveViewState("detected", "running", true, hasFailed)).toBe("running");
   });
+  it("returns planning when idle with planUserChoice set to planning", () => {
+    expect(deriveViewState("detected", "idle", false, noProgress, "planning")).toBe("planning");
+  });
+  it("returns planning when idle with plan and planUserChoice set to planning", () => {
+    expect(deriveViewState("detected", "idle", true, noProgress, "planning")).toBe("planning");
+  });
   it("returns stopped on idle with completed + in_progress phases", () => {
     const completedAndInProgress: ProgressState = {
       phases: [

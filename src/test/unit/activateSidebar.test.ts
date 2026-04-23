@@ -361,4 +361,33 @@ describe("activateSidebar", () => {
       expect(result.buildFullState().view).toBe("empty");
     });
   });
+
+  describe("onPlanChatStarted", () => {
+    it("sets planUserChoice to 'planning'", () => {
+      result.state.planUserChoice = "none";
+      result.onPlanChatStarted();
+      expect(result.state.planUserChoice).toBe("planning");
+    });
+
+    it("transitions view to 'planning' when idle", () => {
+      result.state.planUserChoice = "none";
+      result.onPlanChatStarted();
+      expect(result.buildFullState().view).toBe("planning");
+    });
+  });
+
+  describe("onPlanChatEnded", () => {
+    it("resets planUserChoice to 'none'", () => {
+      result.state.planUserChoice = "planning";
+      result.onPlanChatEnded();
+      expect(result.state.planUserChoice).toBe("none");
+    });
+
+    it("transitions view away from 'planning' when idle", () => {
+      result.state.planUserChoice = "planning";
+      expect(result.buildFullState().view).toBe("planning");
+      result.onPlanChatEnded();
+      expect(result.buildFullState().view).not.toBe("planning");
+    });
+  });
 });

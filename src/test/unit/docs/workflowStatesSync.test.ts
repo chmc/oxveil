@@ -73,6 +73,7 @@ const SOURCE_PHASE_STATUS = [
 const SOURCE_SIDEBAR_VIEW = [
   "not-found",
   "empty",
+  "planning",
   "ready",
   "stale",
   "running",
@@ -85,11 +86,12 @@ const SOURCE_STATUSBAR_KINDS = [
   "installing",
   "ready",
   "idle",
+  "stopped",
   "running",
   "failed",
   "done",
 ].sort();
-const SOURCE_PLAN_USER_CHOICE = ["none", "resume", "dismiss"].sort();
+const SOURCE_PLAN_USER_CHOICE = ["none", "resume", "dismiss", "planning"].sort();
 // Plan preview states are inline strings in planPreviewPanel.ts _sendUpdate(),
 // not a named TypeScript export. Must match the Appendix comment block.
 const SOURCE_PLAN_PREVIEW_STATES = [
