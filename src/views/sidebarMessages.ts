@@ -72,6 +72,7 @@ const COMMAND_MAP: Record<string, string> = {
   formPlan: "oxveil.formPlan",
   discardPlan: "oxveil.discardPlan",
   planChat: "oxveil.openPlanChat",
+  focusPlanChat: "oxveil.focusPlanChat",
   showPlanPreview: "oxveil.showPlanPreview",
   openTimeline: "oxveil.showTimeline",
   openGraph: "oxveil.showDependencyGraph",
