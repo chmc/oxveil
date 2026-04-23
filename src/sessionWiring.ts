@@ -9,6 +9,7 @@ import type { DependencyGraphPanel } from "./views/dependencyGraph";
 import type { ExecutionTimelinePanel } from "./views/executionTimeline";
 import type { SidebarPanel } from "./views/sidebarPanel";
 import { mapPhases } from "./views/sidebarState";
+import { renderPhaseList } from "./views/sidebarPhaseHelpers";
 import type { SidebarState } from "./views/sidebarState";
 import type { SidebarMutableState } from "./activateSidebar";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
@@ -170,12 +171,14 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     }
 
     if (deps.sidebarPanel) {
+      const phases = mapPhases(progress.phases);
       deps.sidebarPanel.sendProgressUpdate({
-        phases: mapPhases(progress.phases),
+        phases,
         elapsed: deps.elapsedTimer?.elapsed ?? "0m",
         cost: (ms?.cost ?? 0) > 0 ? `$${ms!.cost.toFixed(2)}` : undefined,
         todos: (ms?.todoTotal ?? 0) > 0 ? { done: ms!.todoDone, total: ms!.todoTotal } : undefined,
         currentPhase: progress.currentPhaseIndex,
+        phaseListHtml: renderPhaseList(phases, "running"),
       });
     }
   });
@@ -202,12 +205,14 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         }
       }
       if (updated && session.progress) {
+        const phases = mapPhases(session.progress.phases);
         deps.sidebarPanel.sendProgressUpdate({
-          phases: mapPhases(session.progress.phases),
+          phases,
           elapsed: deps.elapsedTimer?.elapsed ?? "0m",
           cost: ms.cost > 0 ? `$${ms.cost.toFixed(2)}` : undefined,
           todos: ms.todoTotal > 0 ? { done: ms.todoDone, total: ms.todoTotal } : undefined,
           currentPhase: session.progress.currentPhaseIndex,
+          phaseListHtml: renderPhaseList(phases, "running"),
         });
       }
     }

@@ -84,6 +84,12 @@ export function sidebarJs(): string {
             var fill = progressBar.querySelector(".progress-fill");
             if (fill) fill.style.width = pct + "%";
           }
+
+          // Update phase list
+          var phaseList = document.getElementById("phase-list");
+          if (phaseList && update.phaseListHtml) {
+            phaseList.outerHTML = update.phaseListHtml;
+          }
         }
       });
 

@@ -73,6 +73,7 @@ export interface ProgressUpdate {
   currentPhase?: number;
   attemptCount?: number;
   maxRetries?: number;
+  phaseListHtml?: string;
 }
 
 export function deriveViewState(
