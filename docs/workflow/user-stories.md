@@ -1,12 +1,30 @@
 ---
 title: Oxveil User Stories
-version: 1.0.0
+version: 2.0.0
 parent: docs/workflow/states.md
 ---
 
 # User Stories
 
 Each story traces the code path from trigger to final state across all four state systems. See [states.md](states.md) for the state tables, decision tables, and transition matrices referenced here.
+
+## Sidebar-First Architecture
+
+The sidebar is the primary UI entry point for all Oxveil workflows. Users interact with the sidebar to:
+- Start plan creation (Let's Go, Write Plan, AI Parse, Form Plan)
+- Execute sessions (Start, Stop, Resume, Retry, Skip)
+- Browse and manage archives (Recent Runs section)
+- Access visualization panels (Timeline, Graph links)
+- Handle stale state (Resume/Dismiss buttons)
+- Recover from errors (Force Unlock, Reset)
+
+Secondary entry points (command palette, status bar clicks, keyboard shortcuts) exist for power users but route through the same command handlers.
+
+---
+
+## Part A: Core Session Lifecycle (US-01 to US-10)
+
+These stories cover the primary session lifecycle from extension activation through completion.
 
 ---
 
@@ -283,3 +301,297 @@ Each story traces the code path from trigger to final state across all four stat
 - PLAN.md exists but progress also exists from prior run → sidebar shows `stopped` or `failed` instead of `stale` (rows 6-7 take precedence)
 - PLAN.md deleted while stale view is shown → watcher fires, `planDetected=false`, `planUserChoice="none"` → `empty`
 - Multiple PLAN.md create/delete events in rapid succession → each triggers full state rebuild, last one wins
+
+---
+
+## Part B: Archive Management (US-11 to US-14)
+
+Archives contain completed session state. These stories cover browsing, replay, restore, and timeline viewing.
+
+---
+
+### US-11: Browse Archives (Recent Runs Section)
+
+**As-is:**
+
+1. Archives are loaded asynchronously during activation via `loadArchives()` in `activateSidebar.ts`
+2. Archive entries parsed from `.claudeloop/archive/*/metadata.txt` and `PROGRESS.md`
+3. Sidebar state includes `archives: ArchiveView[]` array
+4. `renderArchives()` generates "Recent Runs" section with expandable entries
+5. Each archive entry shows: name (timestamp-based), status icon, phase count
+6. Archive section appears in all non-running sidebar views (empty, ready, stale, stopped, failed, completed)
+7. Each entry has action icons: Replay (play icon), Restore (folder-open icon), Timeline (clock icon)
+8. User can click "Refresh" icon in archives header to reload
+
+**States touched:**
+- Sidebar: archives array populated, section rendered in most views
+
+**Edge cases:**
+- No archives exist → section hidden entirely
+- Archive parsing fails → entry omitted silently, others still shown
+- Large archive count → no pagination (all shown)
+- Archive refresh while session running → safe, archives are read-only
+
+---
+
+### US-12: View Archive Replay
+
+**As-is:**
+
+1. User clicks Replay icon on archive entry in sidebar
+2. Sidebar sends `{ command: "openReplay", archive: "archiveName" }`
+3. Dispatched to `oxveil.archiveReplay` command
+4. Command resolves archive path: `.claudeloop/archive/{name}/replay.html`
+5. `ReplayViewerPanel.reveal()` called with replay path
+6. If panel doesn't exist: creates webview panel in column 1 with CSP headers
+7. If panel exists: reveals existing panel
+8. Reads `replay.html` content, injects security CSP meta tag
+9. Renders claudeloop's replay HTML (terminal recording with playback controls)
+
+**States touched:**
+- ReplayViewerPanel: created or revealed
+
+**Edge cases:**
+- replay.html doesn't exist → shows "No replay available" info message, no panel created
+- Panel already open with different replay → updates HTML content in place
+- Multiple archive replays opened → single panel reused (latest wins)
+
+---
+
+### US-13: Restore Archive Session State
+
+**As-is:**
+
+1. User clicks Restore icon on archive entry in sidebar
+2. Sidebar sends `{ command: "restoreArchive", archive: "archiveName" }`
+3. Dispatched to `oxveil.archiveRestore` command
+4. Command checks if session is running → if yes, shows error "Stop the current session first"
+5. Shows confirmation dialog: "Restore will overwrite current session state. Continue?"
+6. If confirmed: calls `processManager.restore(archiveName)`
+7. claudeloop restores progress state from archive to current `.claudeloop/` directory
+8. File watchers detect changes → SessionState updated → sidebar refreshes
+9. Sidebar now shows restored progress (stopped/failed/completed based on restored state)
+
+**States touched:**
+- Session: `idle` → (depends on restored progress)
+- Sidebar: refreshes based on restored state
+
+**Edge cases:**
+- Session running → blocked with error message
+- User cancels confirmation → no action
+- Restore fails (archive corrupt/missing) → shows error notification
+- Restored state has failed phases → sidebar shows `failed` view with retry option
+
+---
+
+### US-14: View Archive Timeline
+
+**As-is:**
+
+1. User clicks Timeline icon on archive entry in sidebar
+2. Sidebar sends `{ command: "archiveTimeline", archive: "archiveName" }`
+3. Dispatched to `oxveil.archiveTimeline` command
+4. Reads `PROGRESS.md` from archive directory
+5. Parses progress to extract phase timing data
+6. Optionally reads `metadata.txt` for cost/duration totals
+7. `ArchiveTimelinePanel.reveal()` called with archive name, progress, and metadata
+8. Panel renders horizontal timeline with phase bars showing duration/status
+
+**States touched:**
+- ArchiveTimelinePanel: created or revealed
+
+**Edge cases:**
+- PROGRESS.md missing → shows "No timeline data for this run" info message
+- Progress has 0 phases → shows "No timeline data for this run"
+- metadata.txt missing → proceeds without cost/duration totals (nullable)
+
+---
+
+## Part C: Configuration (US-15)
+
+---
+
+### US-15: Configure claudeloop Settings
+
+**As-is:**
+
+1. User clicks gear icon in sidebar header (configure command) or runs command palette "Oxveil: Open Config Wizard"
+2. Sidebar sends `{ command: "configure" }` → dispatched to `oxveil.openConfigWizard`
+3. Command resolves config path: `.claudeloop/config` in active workspace
+4. `ConfigWizardPanel.reveal()` called with config path
+5. If panel doesn't exist: creates webview panel with form UI
+6. Panel reads current config via `parseConfig()`, renders form with current values
+7. Form fields: PLAN_FILE, MAX_RETRIES, SIMPLE_MODE, timeouts, AI_PARSE, GRANULARITY, etc.
+8. Session status checked — if running, form shows "Config changes won't affect running session" warning
+9. User modifies fields and clicks Save
+10. Panel sends `{ type: "save", config: {...} }` message
+11. Handler preserves comments/unknown keys, serializes new config, writes to file
+12. Panel re-renders with saved state
+13. Sets context key `oxveil.walkthrough.configured=true`
+
+**States touched:**
+- ConfigWizardPanel: created or revealed
+- Context keys: `oxveil.walkthrough.configured=true`
+
+**Edge cases:**
+- Config file doesn't exist → creates with default values on save
+- Session running → warning shown but editing allowed (changes apply to next run)
+- Invalid values → form validation prevents save
+- User clicks Reload → re-reads config file, discarding unsaved changes
+
+---
+
+## Part D: Visualization Panels (US-16, US-17)
+
+---
+
+### US-16: View Dependency Graph
+
+**As-is:**
+
+1. User clicks Graph icon in sidebar or runs "Oxveil: Show Dependency Graph" command
+2. Sidebar sends `{ command: "openGraph" }` → dispatched to `oxveil.showDependencyGraph`
+3. `DependencyGraphPanel.reveal()` called with current progress
+4. If panel doesn't exist: creates webview panel with SVG rendering
+5. `layoutDag()` computes node positions based on phase dependencies
+6. `renderDagSvg()` generates SVG with phase nodes, dependency edges, status colors
+7. Nodes are clickable — clicking a node sends message to open that phase's log
+8. Panel receives `phases-changed` events during running session → `update()` re-renders DAG
+
+**States touched:**
+- DependencyGraphPanel: created or revealed
+
+**Edge cases:**
+- No progress exists → shows empty panel
+- Phase has no dependencies → rendered as standalone node
+- Many phases → SVG auto-scales, panel scrollable
+- Click on node with no log → `oxveil.viewLog` handles gracefully
+
+---
+
+### US-17: View Execution Timeline
+
+**As-is:**
+
+1. User clicks Timeline icon in sidebar or runs "Oxveil: Show Timeline" command
+2. Sidebar sends `{ command: "openTimeline" }` → dispatched to `oxveil.showTimeline`
+3. `ExecutionTimelinePanel.reveal()` called with current progress
+4. If panel doesn't exist: creates webview panel with timeline UI
+5. `computeTimeline()` calculates phase start/end times relative to now
+6. `renderTimelineHtml()` generates horizontal bar chart with phase durations
+7. Bars colored by status (green=completed, yellow=in_progress, red=failed, gray=pending)
+8. Panel receives `phases-changed` events during running session → `update()` re-renders
+
+**States touched:**
+- ExecutionTimelinePanel: created or revealed
+
+**Edge cases:**
+- No progress exists → shows "No timeline data available"
+- Phases have no timing data → bars rendered with minimum width
+- Session in progress → timeline updates live as phases complete
+
+---
+
+## Part E: Multi-Root Workspace (US-18)
+
+---
+
+### US-18: Switch Workspace Folder (Multi-Root)
+
+**As-is:**
+
+1. Multi-root workspace detected → `WorkspaceSessionManager` creates one `WorkspaceSession` per folder
+2. User runs any Oxveil command (start, stop, etc.)
+3. `resolveFolder()` called to determine which session to target
+4. If command has explicit folder argument → uses that
+5. If only one folder → uses it
+6. If multiple folders → `pickWorkspaceFolder()` shows QuickPick
+7. QuickPick lists all workspace folders with status details (Running, Done, Failed, Idle)
+8. User selects folder → command executes against that session
+9. Status bar shows multi-root format: `"folder — Phase 1/3 (+1 running, +1 failed)"`
+
+**States touched:**
+- Multiple SessionState instances (one per folder)
+- StatusBar: shows folder name and aggregate summary
+
+**Edge cases:**
+- User cancels folder picker → command aborted
+- All folders idle → picker still shown if >1 folder
+- Folder added/removed mid-session → `WorkspaceSessionManager` handles dynamically
+- Panels (DependencyGraph, Timeline, etc.) track `currentFolderUri` for targeted updates
+
+---
+
+## Part F: Recovery Commands (US-19, US-20)
+
+---
+
+### US-19: Force Unlock
+
+**As-is:**
+
+1. Lock file exists but process not running (orphaned lock from crash/kill)
+2. User clicks "Force Unlock" in sidebar or runs command palette
+3. Sidebar sends `{ command: "forceUnlock" }` → dispatched to `oxveil.forceUnlock`
+4. `processManager.forceUnlock()` called
+5. Deletes `.claudeloop/lock` file directly
+6. File watcher detects lock removal → `SessionState.onLockChanged({ locked: false })`
+7. Transition occurs based on progress state (done/failed based on phases)
+8. Sidebar updates to show stopped/failed/completed view
+
+**States touched:**
+- Session: `running` (orphaned) → `done` or `failed`
+- Sidebar: `running` → appropriate post-run view
+
+**Edge cases:**
+- No lock file exists → no-op (silent success)
+- Process actually running → kills it (same as stop)
+- Permissions error deleting lock → error thrown, user notified
+
+---
+
+### US-20: Reset Session
+
+**As-is:**
+
+1. User clicks "Restart" or "Create New Plan" button, or runs reset command
+2. Dispatched to `oxveil.reset` command
+3. `SessionState.reset()` called → transitions to `idle`
+4. `wireSessionEvents` state-changed handler: sets `oxveil.processRunning=false`
+5. Sidebar rebuilds based on plan detection → shows `empty`, `stale`, or `ready`
+
+**States touched:**
+- Session: `done`/`failed` → `idle`
+- Sidebar: derives from idle + plan detection
+
+**Edge cases:**
+- Reset while running → should stop first (or be prevented)
+- Reset with plan file still present → sidebar may show `stale` or `ready`
+- Reset clears cost/todo/elapsed tracking in `SidebarMutableState`
+
+---
+
+## Part G: Plan Chat Lifecycle (US-21)
+
+---
+
+### US-21: End Plan Chat Session
+
+**As-is:**
+
+1. User closes Claude CLI terminal (Cmd+W or terminal close button)
+2. Terminal close event fires → `onPlanChatSessionEnded` callback
+3. Sets `oxveil.planChatActive=false`
+4. `planPreviewPanel.setSessionActive(false)` → panel enters `session-ended` state
+5. Annotation buttons removed, "Session ended" banner shown
+6. Plan files remain on disk; user can Form Plan or start new chat
+7. If PLAN.md was created during chat: sidebar shows `stale` (if no progress) or `ready` (if formed)
+
+**States touched:**
+- PlanPreview: `active` → `session-ended`
+- Context keys: `oxveil.planChatActive=false`
+
+**Edge cases:**
+- Terminal killed externally (process exit) → same flow
+- Multiple plan chat terminals → only the registered one triggers callbacks
+- Closing terminal before any files written → sidebar stays in `empty`
