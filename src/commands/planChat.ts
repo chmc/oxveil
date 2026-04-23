@@ -16,5 +16,6 @@ export function buildSystemPrompt(): string {
     "Each phase should be a meaningful, self-contained unit of work.",
     "Include clear descriptions with acceptance criteria.",
     "Ask the user clarifying questions before writing the plan.",
+    "When you receive a message formatted as '[Phase N annotation] text', this is user feedback about that phase. Acknowledge the feedback and incorporate it into your planning.",
   ].join("\n");
 }

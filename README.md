@@ -85,6 +85,14 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
   <img src="docs/screenshots/config-wizard.png" alt="Config Wizard" width="700">
 </p>
 
+### Plan Chat & Plan Preview
+
+| Feature | Description |
+|---------|-------------|
+| **Plan Chat** | Interactive Claude session for collaborative plan creation — Claude helps refine requirements, suggests phases, and responds to feedback in real-time |
+| **Plan Preview** | Live preview panel showing parsed phases with "Live" badge during active sessions; tabs for switching between design/implementation/plan files |
+| **Phase Notes** | Click the "Note" button on any phase to send feedback to Claude — your annotation appears in the terminal and Claude responds; terminal auto-focuses so you see the response immediately |
+
 ### Plan Editing
 
 | Feature | Description |

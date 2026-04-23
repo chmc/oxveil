@@ -378,7 +378,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 |------|---------|---------|
 | `ready` | — | `_sendUpdate()` (sync state to newly loaded webview) |
 | `switchTab` | `{ category: PlanFileCategory }` | `_onTabSwitch()` |
-| `annotation` | `{ phase: number, text: string }` | Forwarded to `PlanChatSession.sendAnnotation()` |
+| `annotation` | `{ phase: number, text: string }` | Forwarded to `PlanChatSession.sendAnnotation()`, then `focusTerminal()` to bring user attention to terminal |
 | `formPlan` | — | `deps.onFormPlan?.()` |
 
 ---

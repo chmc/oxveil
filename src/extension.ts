@@ -174,7 +174,12 @@ export async function activate(
     workspaceRoot,
     gitExec,
     onAnnotation: (phase, text) => {
-      activePlanChatSession?.sendAnnotation(phase, text);
+      if (!activePlanChatSession) {
+        vscode.window.showWarningMessage("No active Plan Chat session. Start Plan Chat first.");
+        return;
+      }
+      activePlanChatSession.sendAnnotation(phase, text);
+      activePlanChatSession.focusTerminal();
     },
     context,
   });
@@ -311,6 +316,19 @@ export async function activate(
         sidebar.onPlanChatEnded();
         vscode.commands.executeCommand("setContext", "oxveil.planChatActive", false);
       }
+    }),
+  );
+
+  // Test command for visual verification — triggers annotation flow
+  disposables.push(
+    vscode.commands.registerCommand("oxveil._testAnnotation", (args: { phase: string; text: string }) => {
+      if (!args?.phase || !args?.text) return;
+      if (!activePlanChatSession) {
+        vscode.window.showWarningMessage("No active Plan Chat session. Start Plan Chat first.");
+        return;
+      }
+      activePlanChatSession.sendAnnotation(args.phase, args.text);
+      activePlanChatSession.focusTerminal();
     }),
   );
 

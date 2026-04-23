@@ -544,6 +544,32 @@ Dedicated language ID (`claudeloop-plan`) with a TextMate grammar for plan files
 
 **Architecture decision:** Separate webview panel rather than extending the dependency graph — see [ADR 0006](docs/adr/0006-execution-timeline-webview.md). Uses inline SVG/HTML consistent with the DAG rendering pattern.
 
+### Plan Chat Session
+
+Interactive Claude session for collaborative plan creation (`PlanChatSession` in `core/planChatSession.ts`).
+
+**Flow:** Opened via `oxveil.openPlanChat` command. Creates a VS Code terminal with Claude CLI using `--permission-mode plan`. The system prompt guides Claude to write numbered phases and respond to user feedback.
+
+**Lifecycle:** Terminal created on command invocation, tracked in `activePlanChatSession`. Terminal close event resets session state. Only one active session allowed at a time.
+
+**Annotation support:** Plan Preview panel sends `annotation` messages when user clicks "Note" buttons. The extension forwards these to `sendAnnotation()`, which sends `[Phase N annotation] text` to the terminal, then calls `focusTerminal()` to bring user attention to the terminal.
+
+### Plan Preview Panel
+
+`WebviewPanel` that renders live preview of plan files during Plan Chat sessions (`PlanPreviewPanel` in `views/planPreviewPanel.ts`).
+
+**Data flow:** File watcher detects plan file changes → `PlanFileResolver` tracks files by category → `parsePlanWithDescriptions()` extracts phases → `renderPhaseCardsHtml()` generates HTML → webview update.
+
+**States:** `empty` (no plan), `raw-markdown` (unparseable content), `active` (session running, Note buttons visible), `session-ended` (terminal closed, annotations disabled).
+
+**Tabs:** When multiple file categories exist (design/implementation/plan), tabs appear for switching between them. Auto-switches to newly created categories.
+
+**Message types (webview → extension):**
+- `ready` — sync state to newly loaded webview
+- `switchTab` — switch to a different file category
+- `annotation` — forward phase feedback to `PlanChatSession.sendAnnotation()` + `focusTerminal()`
+- `formPlan` — invoke `oxveil.formPlan` command
+
 ### Welcome Walkthrough
 
 VS Code native walkthrough (`contributes.walkthroughs` in `package.json`) that guides new users through first-time setup.

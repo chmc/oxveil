@@ -118,7 +118,7 @@ These stories cover the primary session lifecycle from extension activation thro
 4. `PlanFileResolver` tracks files by category, auto-switches to newly created categories
 5. Parsed phases render as cards in the preview panel
 6. If multiple categories exist, tabs appear (Design / Implementation / Plan)
-7. User can annotate phases via "Note" buttons → `PlanChatSession.sendAnnotation()` sends text to Claude terminal
+7. User can annotate phases via "Note" buttons → `PlanChatSession.sendAnnotation()` sends text to Claude terminal, then `focusTerminal()` brings user attention to the terminal to see the annotation and Claude's response
 8. User can switch tabs manually or via `oxveil.planPreviewNextTab` command
 
 **To-be:** Same as as-is.
