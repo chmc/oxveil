@@ -203,6 +203,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   }
 
   async function onPlanFormed(): Promise<void> {
+    // Clear stale progress from previous execution so new plan phases take precedence
+    const activeSession = manager.getActiveSession();
+    if (activeSession && activeSession.sessionState.status !== "running") {
+      activeSession.sessionState.reset();
+    }
+    // Reset mutable state counters for clean slate
+    state.cost = 0;
+    state.todoDone = 0;
+    state.todoTotal = 0;
     state.planUserChoice = "resume";
     await loadPlanPhases();
     sidebarPanel.updateState(buildFullState());

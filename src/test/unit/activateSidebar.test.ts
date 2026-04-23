@@ -214,6 +214,50 @@ describe("activateSidebar", () => {
       expect(res.state.cachedPlanPhases).toEqual([]);
       expect(res.state.planUserChoice).toBe("resume");
     });
+
+    it("resets session state when session exists and status is not running", async () => {
+      const resetSpy = vi.fn();
+      const sessionDeps = makeDeps({
+        manager: {
+          getActiveSession: vi.fn(() => ({
+            sessionState: {
+              status: "done",
+              reset: resetSpy,
+            },
+          })),
+        } as any,
+      });
+      const res = activateSidebar(sessionDeps);
+      await res.onPlanFormed();
+      expect(resetSpy).toHaveBeenCalled();
+    });
+
+    it("does NOT reset session state when session is running", async () => {
+      const resetSpy = vi.fn();
+      const sessionDeps = makeDeps({
+        manager: {
+          getActiveSession: vi.fn(() => ({
+            sessionState: {
+              status: "running",
+              reset: resetSpy,
+            },
+          })),
+        } as any,
+      });
+      const res = activateSidebar(sessionDeps);
+      await res.onPlanFormed();
+      expect(resetSpy).not.toHaveBeenCalled();
+    });
+
+    it("resets mutable state counters (cost, todoDone, todoTotal)", async () => {
+      result.state.cost = 1.5;
+      result.state.todoDone = 3;
+      result.state.todoTotal = 5;
+      await result.onPlanFormed();
+      expect(result.state.cost).toBe(0);
+      expect(result.state.todoDone).toBe(0);
+      expect(result.state.todoTotal).toBe(0);
+    });
   });
 
   describe("registerPlanWatcher", () => {
