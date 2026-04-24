@@ -131,15 +131,6 @@
 - After editing, verify: `node .claude/hooks/bash-truncate.mjs <<< '{"tool_input":{"command":"TEST_CMD"}}'`
 - To disable for a session without editing the hook: `export OXVEIL_BASH_HOOK=0`
 
-## Manual Verification Hook (.claude/hooks/check-manual-verification.mjs)
-
-- Stop hook that blocks responses containing forbidden manual verification phrases
-- **Skips enforcement in plan mode** — allows discussing the rule itself
-- **Blocks in implementation mode** — forces Claude to self-correct
-- Forbidden patterns: "manually test/verify/check/confirm", "test yourself", "try it yourself", "confirm by hand"
-- To refine patterns: edit FORBIDDEN_PATTERNS array in the hook file
-- To disable for a session: `export OXVEIL_SKIP_MANUAL_CHECK=1`
-
 ## Documentation
 
 When implementation changes affect user-facing behavior, update stale sections in README.md and make sure technical big picture is uptodate in ARCHITECTURE.md.
