@@ -1,5 +1,5 @@
 import { escapeHtml } from "../utils/html";
-import type { PhaseView } from "./sidebarState";
+import type { PhaseView, SubStepView } from "./sidebarState";
 
 // --- Phase status icons (codicon classes + text fallbacks) ---
 
@@ -30,6 +30,41 @@ export function phaseStatusText(status: string): string {
     default:
       return "&#9675;";
   }
+}
+
+export function renderSubSteps(subSteps: SubStepView[] | undefined): string {
+  if (!subSteps || subSteps.length === 0) return "";
+
+  const items = subSteps.map((s) => {
+    let icon = "";
+    let cssClass = "";
+    let name = s.name;
+
+    switch (s.status) {
+      case "completed":
+        icon = '<span class="substep-check">✓</span> ';
+        cssClass = "substep-done";
+        break;
+      case "in_progress":
+        cssClass = "substep-active";
+        // Add -ing suffix for in_progress
+        if (name === "Verify") name = "Verifying";
+        else if (name === "Refactor") name = "Refactoring";
+        else if (name === "Implement") name = "Implementing";
+        break;
+      case "failed":
+        icon = '<span class="substep-x">✗</span> ';
+        cssClass = "substep-failed";
+        break;
+      default:
+        cssClass = "substep-pending";
+    }
+
+    const attempts = s.attempts && s.attempts > 1 ? ` (${s.attempts})` : "";
+    return `<span class="${cssClass}">${icon}${escapeHtml(name)}${attempts}</span>`;
+  });
+
+  return items.join('<span class="substep-arrow"> → </span>');
 }
 
 // --- Render helpers ---
