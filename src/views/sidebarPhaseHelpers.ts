@@ -102,11 +102,18 @@ export function renderPhaseList(phases: PhaseView[], viewState?: string): string
       ? `<div class="phase-meta">${attempts}${duration}</div>`
       : "";
 
+    // Sub-steps line
+    const subStepsHtml = renderSubSteps(p.subSteps);
+    const subStepsDiv = subStepsHtml
+      ? `<div class="phase-substeps">${subStepsHtml}</div>`
+      : "";
+
     return `<div class="${rowClass}" data-phase="${num}">
   ${phaseStatusIcon(p.status, isPaused)}
   <span class="phase-num">${num}.</span>
   <div class="phase-body">
     <span class="phase-title">${title}</span>
+    ${subStepsDiv}
     ${meta}
   </div>
 </div>`;
