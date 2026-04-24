@@ -269,6 +269,13 @@
           "command": "oxveil.fullReset",
           "when": "oxveil.detected"
         }
+      ],
+      "view/title": [
+        {
+          "command": "oxveil.fullReset",
+          "when": "view == oxveil.sidebar",
+          "group": "navigation"
+        }
       ]
     },
     "walkthroughs": [
