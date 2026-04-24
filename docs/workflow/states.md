@@ -67,6 +67,7 @@ stateDiagram-v2
 | `running` | `done` | Lock file removed | `!lock.locked && !allCompleted && !hasFailed` (default) | `SessionState.onLockChanged()` |
 | `done` | `idle` | Reset command | `status === "done"` | `SessionState.reset()` |
 | `failed` | `idle` | Reset command | `status === "failed"` | `SessionState.reset()` |
+| `running` | `idle` | Full reset command | (process stopped first) | `fullReset` → `processManager.stop()` → `onFullReset()` → `SessionState.reset()` |
 
 ### Orphan Recovery
 
@@ -302,6 +303,25 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | `oxveil.walkthrough.hasRun` | `wireSessionEvents()` on done | `true`/`false` | At least one session completed |
 | `oxveil.walkthrough.configured` | Config wizard command | `true`/`false` | Config wizard opened |
 
+### Reset Flow
+
+The `fullReset` command performs a complete workspace reset via `onFullReset()` callback wired from `activateSidebar.ts`:
+
+1. **Command handler** (`commands.ts`):
+   - Shows modal confirmation dialog
+   - Stops running process if any (`processManager.stop()`)
+   - Deletes `PLAN.md`
+   - Deletes `.claudeloop/ai-parsed-plan.md`
+   - Deletes `.claudeloop/` contents except `archive/` directory
+   - Calls `onFullReset()` callback
+
+2. **State reset** (`activateSidebar.onFullReset()`):
+   - Resets `SidebarMutableState`: `cost=0`, `todoDone=0`, `todoTotal=0`, `cachedPlanPhases=[]`, `planUserChoice="none"`, `planDetected=false`
+   - Calls `sessionState.reset()` on active session (transitions to `idle`)
+   - Refreshes sidebar via `buildFullState()`
+
+**SessionState effect:** Unlike normal `reset()` which only transitions from `done`/`failed` to `idle`, `fullReset` first stops any running process, ensuring transition from any state (including `running`) to `idle`.
+
 ---
 
 ## F. Message Schemas
@@ -332,6 +352,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | `openGraph` | `oxveil.showDependencyGraph` | Visualization |
 | `forceUnlock` | `oxveil.forceUnlock` | Recovery |
 | `reset` | `oxveil.reset` | Recovery |
+| `fullReset` | `oxveil.fullReset` | Recovery |
 | `refreshArchives` | `oxveil.archiveRefresh` | Archives |
 
 #### Phase Commands (with `phase: number`)
