@@ -181,3 +181,50 @@ describe("readErrorSnippet", () => {
     expect(snippet).toHaveLength(200);
   });
 });
+
+describe("mapPhases with subSteps", () => {
+  it("maps SubStepState to SubStepView", () => {
+    const result = mapPhases([{
+      number: 1,
+      title: "Setup",
+      status: "completed",
+      subSteps: [
+        { name: "implement", status: "completed" },
+        { name: "verify", status: "completed", attempts: 2 },
+        { name: "refactor", status: "completed" },
+      ],
+    }]);
+
+    expect(result[0].subSteps).toEqual([
+      { name: "Implement", status: "completed" },
+      { name: "Verify", status: "completed", attempts: 2 },
+      { name: "Refactor", status: "completed" },
+    ]);
+  });
+
+  it("capitalizes sub-step names", () => {
+    const result = mapPhases([{
+      number: 1,
+      title: "Test",
+      status: "in_progress",
+      subSteps: [{ name: "implement", status: "in_progress" }],
+    }]);
+
+    expect(result[0].subSteps?.[0].name).toBe("Implement");
+  });
+
+  it("preserves attempts only when > 1", () => {
+    const result = mapPhases([{
+      number: 1,
+      title: "Test",
+      status: "completed",
+      subSteps: [
+        { name: "verify", status: "completed", attempts: 1 },
+        { name: "refactor", status: "completed", attempts: 3 },
+      ],
+    }]);
+
+    expect(result[0].subSteps?.[0].attempts).toBeUndefined();
+    expect(result[0].subSteps?.[1].attempts).toBe(3);
+  });
+});

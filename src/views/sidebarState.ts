@@ -4,6 +4,7 @@ import type {
   PhaseStatus,
   ProgressState,
   PhaseState,
+  SubStepState,
 } from "../types";
 
 export type SidebarView =
@@ -42,12 +43,19 @@ export interface SidebarState {
   lastUpdatedAt?: number;
 }
 
+export interface SubStepView {
+  name: string;  // Capitalized: "Implement", "Verify", "Refactor"
+  status: PhaseStatus;
+  attempts?: number;  // Only present when > 1
+}
+
 export interface PhaseView {
   number: number | string;
   title: string;
   status: PhaseStatus;
   duration?: string;
   attempts?: number;
+  subSteps?: SubStepView[];
 }
 
 export interface ArchiveView {
@@ -126,6 +134,11 @@ export function mapPhases(phases: PhaseState[]): PhaseView[] {
         )
       : undefined,
     attempts: p.attempts,
+    subSteps: p.subSteps?.map((s) => ({
+      name: s.name.charAt(0).toUpperCase() + s.name.slice(1),
+      status: s.status,
+      attempts: s.attempts && s.attempts > 1 ? s.attempts : undefined,
+    })),
   }));
 }
 
