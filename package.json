@@ -176,6 +176,11 @@
       {
         "command": "oxveil.discardPlan",
         "title": "Oxveil: Discard Plan"
+      },
+      {
+        "command": "oxveil.fullReset",
+        "title": "Oxveil: Reset",
+        "icon": "$(debug-restart)"
       }
     ],
     "menus": {
@@ -259,6 +264,10 @@
         {
           "command": "oxveil.discardPlan",
           "when": "oxveil.walkthrough.hasPlan"
+        },
+        {
+          "command": "oxveil.fullReset",
+          "when": "oxveil.detected"
         }
       ]
     },

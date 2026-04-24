@@ -43,6 +43,7 @@ export interface CommandDeps {
   getActivePlanChatSession?: () => PlanChatSession | undefined;
   onPlanFormed?: () => void;
   notificationManager?: NotificationManager;
+  onFullReset?: () => void;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -289,6 +290,61 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       } catch {
         // May not exist
       }
+    }),
+    vscode.commands.registerCommand("oxveil.fullReset", async () => {
+      const active = getActive();
+      const workspaceRoot = active?.workspaceRoot
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceRoot) {
+        vscode.window.showWarningMessage("Oxveil: No workspace open");
+        return;
+      }
+
+      const confirm = await vscode.window.showWarningMessage(
+        "This will delete PLAN.md and clear all session state. This cannot be undone.",
+        { modal: true },
+        "Reset",
+      );
+      if (confirm !== "Reset") return;
+
+      // Stop running process if any
+      if (active?.processManager?.isRunning) {
+        await active.processManager.stop();
+      }
+
+      // Delete PLAN.md
+      try {
+        await fs.unlink(path.join(workspaceRoot, "PLAN.md"));
+      } catch {
+        // May not exist
+      }
+
+      // Delete ai-parsed-plan.md
+      try {
+        await fs.unlink(path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md"));
+      } catch {
+        // May not exist
+      }
+
+      // Delete .claudeloop/ contents except archive/ directory
+      const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+      try {
+        const entries = await fs.readdir(claudeloopDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name === "archive") continue;
+          const entryPath = path.join(claudeloopDir, entry.name);
+          if (entry.isDirectory()) {
+            await fs.rm(entryPath, { recursive: true });
+          } else {
+            await fs.unlink(entryPath);
+          }
+        }
+      } catch {
+        // .claudeloop directory may not exist
+      }
+
+      // Call onFullReset callback
+      deps.onFullReset?.();
     }),
   ];
 }

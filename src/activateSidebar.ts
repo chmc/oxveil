@@ -34,6 +34,8 @@ export interface SidebarActivationResult {
   onPlanChatStarted: () => void;
   /** Called when plan chat ends — clears planning state from sidebar */
   onPlanChatEnded: () => void;
+  /** Called when full reset occurs — clears all mutable state and resets session */
+  onFullReset: () => void;
 }
 
 export interface SidebarMutableState {
@@ -233,5 +235,24 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     sidebarPanel.updateState(buildFullState());
   }
 
-  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded };
+  function onFullReset(): void {
+    // Reset all SidebarMutableState fields
+    state.cost = 0;
+    state.todoDone = 0;
+    state.todoTotal = 0;
+    state.cachedPlanPhases = [];
+    state.planUserChoice = "none";
+    state.planDetected = false;
+
+    // Reset active session state
+    const activeSession = manager.getActiveSession();
+    if (activeSession) {
+      activeSession.sessionState.reset();
+    }
+
+    // Refresh sidebar
+    sidebarPanel.updateState(buildFullState());
+  }
+
+  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset };
 }

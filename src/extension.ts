@@ -364,6 +364,7 @@ export async function activate(
       },
       onPlanFormed: sidebar.onPlanFormed,
       notificationManager: notifications,
+      onFullReset: sidebar.onFullReset,
     }),
   );
 
