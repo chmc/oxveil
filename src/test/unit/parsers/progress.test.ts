@@ -329,4 +329,43 @@ Depends on: Phase 2.5 ✅
     expect(result.phases[1].status).toBe("failed");
     expect(result.phases[2].status).toBe("pending");
   });
+
+  describe("sub-step parsing", () => {
+    it("extracts Verify and Refactor status from completed phase", () => {
+      const content = readFixture("mock-substeps");
+      const result = parseProgress(content);
+
+      expect(result.phases[0].subSteps).toEqual([
+        { name: "implement", status: "completed" },
+        { name: "verify", status: "completed" },
+        { name: "refactor", status: "completed" },
+      ]);
+    });
+
+    it("extracts Verify in_progress with attempts", () => {
+      const content = readFixture("mock-substeps");
+      const result = parseProgress(content);
+
+      expect(result.phases[1].subSteps).toEqual([
+        { name: "implement", status: "completed" },
+        { name: "verify", status: "in_progress", attempts: 2 },
+      ]);
+    });
+
+    it("returns undefined subSteps for pending phases", () => {
+      const content = readFixture("mock-substeps");
+      const result = parseProgress(content);
+
+      expect(result.phases[2].subSteps).toBeUndefined();
+    });
+
+    it("omits attempts field when value is 1", () => {
+      const content = readFixture("mock-substeps");
+      const result = parseProgress(content);
+
+      // Phase 1 verify has 1 attempt — should not include attempts field
+      const verify = result.phases[0].subSteps?.find((s) => s.name === "verify");
+      expect(verify?.attempts).toBeUndefined();
+    });
+  });
 });
