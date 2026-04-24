@@ -30,6 +30,7 @@ export type SidebarCommand =
   | { command: "restoreArchive"; archive: string }
   | { command: "forceUnlock" }
   | { command: "reset" }
+  | { command: "fullReset" }
   | { command: "refreshArchives" }
   | { command: "discardPlan" }
   | { command: "resumePlan" }
@@ -78,6 +79,7 @@ const COMMAND_MAP: Record<string, string> = {
   openGraph: "oxveil.showDependencyGraph",
   forceUnlock: "oxveil.forceUnlock",
   reset: "oxveil.reset",
+  fullReset: "oxveil.fullReset",
   refreshArchives: "oxveil.archiveRefresh",
 };
 
