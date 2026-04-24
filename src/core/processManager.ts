@@ -143,6 +143,7 @@ export class ProcessManager implements IProcessManager {
     const child = this._deps.spawn(this._deps.claudeloopPath, args, {
       cwd: this._deps.workspaceRoot,
       stdio: ["ignore", "ignore", "pipe"],
+      env: { ...process.env, CLAUDECODE: "1" },
     });
 
     this._process = child;
@@ -181,6 +182,7 @@ export class ProcessManager implements IProcessManager {
     const child = this._deps.spawn(this._deps.claudeloopPath, args, {
       cwd: this._deps.workspaceRoot,
       stdio: ["ignore", "ignore", "pipe"],
+      env: { ...process.env, CLAUDECODE: "1" },
     });
 
     this._process = child;
