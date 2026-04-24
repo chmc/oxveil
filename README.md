@@ -48,6 +48,7 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
 |---------|-------------|
 | **Live Run Panel** | Webview dashboard with collapsible phase list, todo progress bar, formatted log stream, and completion banner |
 | **Sidebar** | Context-aware webview with 7 states: onboarding, plan ready, live progress, error recovery, completion summary |
+| **Sub-step progress** | See implement/verify/refactor status within each phase when verify or refactor options are enabled |
 | **Status bar** | Real-time phase name and progress in the VS Code status bar |
 | **Dependency graph** | Interactive DAG webview showing phase dependencies with live updates |
 | **Execution timeline** | Gantt-style timeline of phase durations and retry attempts |

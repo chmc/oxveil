@@ -410,6 +410,64 @@ See [user-stories.md](user-stories.md) for the full 10 user stories with as-is/t
 
 ---
 
+## H. Sub-Step Progress
+
+**Source:** `src/parsers/progress.ts` — `buildSubSteps()`, `src/views/sidebarState.ts` — `mapPhases()`
+
+Sub-step progress tracks the internal stages within each phase: implement, verify, and refactor. When verify/refactor options are enabled in claudeloop, PROGRESS.md includes sub-step status lines that Oxveil parses and displays.
+
+### Parsing Flow
+
+```
+PROGRESS.md → parseProgress() → buildSubSteps() → SubStepState[]
+                                                        ↓
+                              mapPhases() → SubStepView[] → renderSubSteps() → HTML
+```
+
+1. **parseProgress()** in `progress.ts` reads PROGRESS.md and extracts `Verify:` and `Refactor:` status lines per phase
+2. **buildSubSteps()** constructs `SubStepState[]` from the extracted status values:
+   - Skipped for `pending` phases (no sub-steps yet)
+   - `implement` is inferred: `completed` if verify/refactor exists, else matches phase status
+   - `verify` and `refactor` added when their status lines are present
+   - Returns `undefined` if only one sub-step (no value in showing just "implement")
+3. **mapPhases()** in `sidebarState.ts` converts `SubStepState[]` to `SubStepView[]`:
+   - Capitalizes names ("implement" → "Implement")
+   - Filters attempts (only shown when > 1)
+4. **renderSubSteps()** in `sidebarPhaseHelpers.ts` generates HTML with status icons
+
+### Sub-Step Status Icons
+
+| Status | Icon | CSS Class |
+|--------|------|-----------|
+| `completed` | ✓ | `sub-step-icon--completed` |
+| `in_progress` | ◐ | `sub-step-icon--running` |
+| `failed` | ✗ | `sub-step-icon--failed` |
+| `pending` | ○ | `sub-step-icon--pending` |
+
+### PROGRESS.md Format
+
+Sub-step status appears within phase blocks:
+
+```markdown
+## Phase 1: Setup
+
+Status: in_progress
+Verify: completed
+Verify Attempts: 2
+Refactor: in_progress
+```
+
+Parsed into:
+```typescript
+subSteps: [
+  { name: "implement", status: "completed" },
+  { name: "verify", status: "completed", attempts: 2 },
+  { name: "refactor", status: "in_progress" }
+]
+```
+
+---
+
 ## Appendix: Type Definitions
 
 ### SessionStatus
@@ -443,6 +501,29 @@ type StatusBarState =
 ### PhaseStatus
 ```typescript
 type PhaseStatus = "pending" | "completed" | "in_progress" | "failed";
+```
+
+### SubStepName
+```typescript
+type SubStepName = "implement" | "verify" | "refactor";
+```
+
+### SubStepState
+```typescript
+interface SubStepState {
+  name: SubStepName;
+  status: PhaseStatus;
+  attempts?: number;  // Only present when > 1
+}
+```
+
+### SubStepView
+```typescript
+interface SubStepView {
+  name: string;       // Capitalized: "Implement", "Verify", "Refactor"
+  status: PhaseStatus;
+  attempts?: number;  // Only present when > 1
+}
 ```
 
 ### PlanUserChoice

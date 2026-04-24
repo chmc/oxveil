@@ -362,6 +362,8 @@ Pure function, no VS Code dependency.
 
 **Notifications:** Compares old vs new ProgressState on each update. Info notification on phase completion, error notification on failure.
 
+**Sub-step progress:** When verify/refactor options are enabled, phases show internal progress (implement → verify → refactor). Parsed from PROGRESS.md via `buildSubSteps()` in `progress.ts`, mapped to `SubStepView[]` in `mapPhases()`, rendered via `renderSubSteps()` in `sidebarPhaseHelpers.ts`.
+
 ### Status Bar
 
 `StatusBarItem` on the left side, always visible.
