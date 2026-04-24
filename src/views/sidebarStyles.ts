@@ -114,6 +114,33 @@ export function sidebarCss(): string {
     .phase-duration { font-size: 11px; color: var(--vscode-descriptionForeground, #888); }
     .phase-attempts { font-size: 10px; color: var(--vscode-descriptionForeground, #888); }
 
+    /* Sub-step progress */
+    .phase-substeps {
+      font-size: 10px;
+      margin-top: 3px;
+      color: var(--vscode-descriptionForeground, #888);
+    }
+    .substep-done {
+      color: var(--vscode-testing-iconPassed, #4ec9b0);
+      opacity: 0.7;
+    }
+    .substep-active {
+      color: var(--vscode-progressBar-background, #569cd6);
+    }
+    .substep-failed {
+      color: var(--vscode-errorForeground, #f44747);
+    }
+    .substep-pending {
+      opacity: 0.4;
+    }
+    .substep-arrow {
+      opacity: 0.4;
+      margin: 0 2px;
+    }
+    .substep-check, .substep-x {
+      margin-right: 2px;
+    }
+
     /* Error snippet */
     .error-snippet {
       margin-bottom: 10px;
