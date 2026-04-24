@@ -8,6 +8,25 @@
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Run Extension (Isolated)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${input:testWorkspacePath}"
+      ],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "preLaunchTask": "npm: build"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testWorkspacePath",
+      "type": "promptString",
+      "description": "Path to workspace folder for isolated testing",
+      "default": "${workspaceFolder}"
     }
   ]
 }
