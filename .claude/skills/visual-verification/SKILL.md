@@ -102,6 +102,11 @@ Example: Verifying 10px sub-step text requires either:
 - If the sidebar isn't in your capture, adjust the capture region to include it
 - Do not confuse the Live Run panel (editor tab) with the sidebar webview
 
+**Troubleshooting order:** When expected UI is missing from a screenshot, diagnose capture issues before code issues:
+1. Verify you captured the correct panel/region (sidebar vs editor, correct window)
+2. Retry with different capture strategies (zoom, crop, different coordinates)
+3. Only after confirming the capture is correct and the element is still missing, investigate as a code bug
+
 ## Vision Analysis Tiers
 
 - **Tier 1 (reliable — use screenshots):** Element presence/absence, text content, gross layout, item count, notification visibility.
