@@ -10,10 +10,35 @@ import {
   type PathResolverDeps,
   type ResolvedPath,
 } from "./core/pathResolver";
+import type { SidebarMutableState } from "./activateSidebar";
+import type { SidebarState } from "./views/sidebarState";
+import type { SidebarPanel } from "./views/sidebarPanel";
+import type { StatusBarManager } from "./views/statusBar";
+import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
+import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 
 const execFileAsync = promisify(execFile);
 
 export const MINIMUM_VERSION = "0.22.0";
+
+/**
+ * Creates a fallback detection result for when detection fails.
+ */
+export function createFallbackDetection(claudeloopPath: string): DetectionResult {
+  const noopExecutor = async () => {
+    throw new Error("fallback");
+  };
+  const fallbackDetection = new Detection(
+    noopExecutor,
+    claudeloopPath,
+    MINIMUM_VERSION,
+  );
+  return {
+    detection: fallbackDetection,
+    result: { status: "not-found", minimumVersion: MINIMUM_VERSION },
+    resolvedClaudePath: null,
+  };
+}
 
 export interface DetectionResult {
   detection: Detection;
@@ -94,4 +119,34 @@ export async function activateDetection(
   );
 
   return { detection, result, resolvedClaudePath, pathSource: resolved?.source };
+}
+
+export interface RefreshDetectionDeps {
+  detection: Detection;
+  sidebarState: SidebarMutableState;
+  buildFullState: () => SidebarState;
+  sidebarPanel: SidebarPanel;
+  statusBar: StatusBarManager;
+  manager: WorkspaceSessionManager;
+}
+
+/**
+ * Creates a re-detection handler that updates UI state after detection.
+ */
+export function createRefreshDetection(deps: RefreshDetectionDeps): () => Promise<void> {
+  return () =>
+    deps.detection.detect().then((r) => {
+      vscode.commands.executeCommand(
+        "setContext",
+        "oxveil.detected",
+        r.status === "detected",
+      );
+      deps.sidebarState.detectionStatus = r.status;
+      const fullState = deps.buildFullState();
+      deps.sidebarPanel.updateState(fullState);
+      deps.statusBar.update(deriveStatusBarFromView(
+        fullState.view,
+        deps.manager.getActiveSession()?.sessionState.progress,
+      ));
+    });
 }

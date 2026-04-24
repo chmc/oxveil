@@ -1,28 +1,19 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as os from "node:os";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
 import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
-import { NotificationManager } from "./views/notifications";
-import { ElapsedTimer } from "./views/elapsedTimer";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import {
   activateDetection,
+  createFallbackDetection,
+  createRefreshDetection,
   MINIMUM_VERSION,
-  type DetectionResult,
 } from "./activateDetection";
-import { Detection } from "./core/detection";
-import {
-  resolveClaudeloopPath,
-  type PathResolverDeps,
-} from "./core/pathResolver";
 import {
   createGitExec,
   initFolderSessions,
@@ -34,6 +25,14 @@ import { SidebarPanel } from "./views/sidebarPanel";
 import { activateSidebar } from "./activateSidebar";
 import { activateMcpBridge } from "./activateMcpBridge";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
+import { createConfigWatcher } from "./activateConfigWatcher";
+import { createNotificationManager, showDetectionNotifications } from "./activateNotifications";
+import {
+  createElapsedTimer,
+  createTerminalCloseHandler,
+  createTestAnnotationCommand,
+  setupSessionChangeHandler,
+} from "./activateSessionHandlers";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -54,24 +53,12 @@ export async function activate(
   const statusBar = new StatusBarManager(statusBarItem as any);
 
   // Detection
-  let detectionResult: DetectionResult;
+  let detectionResult;
   try {
     detectionResult = await activateDetection(config);
   } catch (err) {
     console.warn("[Oxveil] Detection failed:", err);
-    const noopExecutor = async () => {
-      throw new Error("fallback");
-    };
-    const fallbackDetection = new Detection(
-      noopExecutor,
-      claudeloopPath,
-      MINIMUM_VERSION,
-    );
-    detectionResult = {
-      detection: fallbackDetection,
-      result: { status: "not-found", minimumVersion: MINIMUM_VERSION },
-      resolvedClaudePath: null,
-    };
+    detectionResult = createFallbackDetection(claudeloopPath);
   }
   const { detection, result, resolvedClaudePath } = detectionResult;
 
@@ -112,44 +99,7 @@ export async function activate(
   }
 
   // Elapsed timer
-  const elapsedTimer = new ElapsedTimer((elapsed) => {
-    const active = manager.getActiveSession();
-    if (active?.sessionState.status === "running") {
-      const p = active.sessionState.progress;
-      const currentPhase = p?.currentPhaseIndex !== undefined
-        ? (p.phases[p.currentPhaseIndex]?.number as number) ?? 1
-        : 1;
-      statusBar.update({
-        kind: "running",
-        currentPhase,
-        totalPhases: p?.totalPhases ?? 0,
-        elapsed,
-      });
-    }
-  });
-
-  // Notifications
-  const notifications = new NotificationManager({
-    window: vscode.window,
-    onShowOutput: () => {
-      const active = manager.getActiveSession();
-      const progress = active?.sessionState.progress ?? { phases: [], totalPhases: 0 };
-      liveRunPanel.reveal(progress, active?.folderUri);
-    },
-    onViewLog: (phaseNumber) =>
-      vscode.commands.executeCommand("oxveil.viewLog", { phaseNumber }),
-    onInstall: () => vscode.commands.executeCommand("oxveil.install"),
-    onSetPath: () =>
-      vscode.commands.executeCommand(
-        "workbench.action.openSettings",
-        "oxveil.claudeloopPath",
-      ),
-    onStop: () => vscode.commands.executeCommand("oxveil.stop"),
-    onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
-    onOpenFile: (filePath) =>
-      vscode.workspace.openTextDocument(filePath).then(vscode.window.showTextDocument),
-    onFocusLiveRun: () => liveRunPanel.panel?.reveal(),
-  });
+  const elapsedTimer = createElapsedTimer({ manager, statusBar });
 
   // Plan chat session tracking
   let activePlanChatSession: PlanChatSession | undefined;
@@ -186,6 +136,9 @@ export async function activate(
   disposables.push(...panels.disposables);
   const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
 
+  // Notifications
+  const notifications = createNotificationManager({ manager, liveRunPanel });
+
   // Sidebar
   const sidebar = activateSidebar({
     manager,
@@ -205,8 +158,7 @@ export async function activate(
     ),
   );
 
-  // Plan watcher
-  disposables.push(...sidebar.registerPlanWatcher());
+  disposables.push(...sidebar.registerPlanWatcher()); // Plan watcher
 
   // Wire each session's events
   const wiringCtx = {
@@ -230,14 +182,7 @@ export async function activate(
   wireAllSessions(manager, wiringCtx, { refreshArchive, onArchiveDone });
 
   // Detection notifications
-  if (result.status === "not-found") {
-    notifications.onDetection("not-found");
-  } else if (result.status === "version-incompatible") {
-    notifications.onDetection("version-incompatible", {
-      found: result.version ?? "unknown",
-      required: MINIMUM_VERSION,
-    });
-  }
+  showDetectionNotifications(notifications, result.status, result.version, MINIMUM_VERSION);
 
   // Per-folder file watchers
   if (workspaceFolders && workspaceFolders.length > 0) {
@@ -258,41 +203,14 @@ export async function activate(
   }
 
   // Shared re-detection handler
-  const refreshDetection = () =>
-    detection.detect().then((r) => {
-      vscode.commands.executeCommand(
-        "setContext",
-        "oxveil.detected",
-        r.status === "detected",
-      );
-      sidebarState.detectionStatus = r.status;
-      const fullState = buildFullState();
-      sidebarPanel.updateState(fullState);
-      statusBar.update(deriveStatusBarFromView(
-        fullState.view,
-        manager.getActiveSession()?.sessionState.progress,
-      ));
-    });
-
-  // Path resolver deps for config change re-resolution
-  const execFileAsync = promisify(execFile);
-  const pathResolverDeps: PathResolverDeps = {
-    execFile: async (cmd, args, opts) => {
-      const result = await execFileAsync(cmd, args, { timeout: opts.timeout });
-      return { stdout: result.stdout };
-    },
-    fileExists: async (p) => {
-      try {
-        await fs.access(p, fs.constants.X_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    env: process.env,
-    platform: process.platform,
-    homeDir: os.homedir(),
-  };
+  const refreshDetection = createRefreshDetection({
+    detection,
+    sidebarState,
+    buildFullState,
+    sidebarPanel,
+    statusBar,
+    manager,
+  });
 
   _sessionManager = manager;
 
@@ -307,30 +225,15 @@ export async function activate(
   });
 
   // Terminal close listener — detect when plan chat terminal is closed
-  disposables.push(
-    vscode.window.onDidCloseTerminal((terminal) => {
-      if (activePlanChatSession?.matchesTerminal(terminal)) {
-        activePlanChatSession = undefined;
-        planPreviewPanel.setSessionActive(false);
-        planPreviewPanel.endSession();
-        sidebar.onPlanChatEnded();
-        vscode.commands.executeCommand("setContext", "oxveil.planChatActive", false);
-      }
-    }),
-  );
+  disposables.push(createTerminalCloseHandler({
+    getActivePlanChatSession: () => activePlanChatSession,
+    setActivePlanChatSession: (session) => { activePlanChatSession = session; },
+    planPreviewPanel,
+    onPlanChatEnded: sidebar.onPlanChatEnded,
+  }));
 
   // Test command for visual verification — triggers annotation flow
-  disposables.push(
-    vscode.commands.registerCommand("oxveil._testAnnotation", (args: { phase: string; text: string }) => {
-      if (!args?.phase || !args?.text) return;
-      if (!activePlanChatSession) {
-        vscode.window.showWarningMessage("No active Plan Chat session. Start Plan Chat first.");
-        return;
-      }
-      activePlanChatSession.sendAnnotation(args.phase, args.text);
-      activePlanChatSession.focusTerminal();
-    }),
-  );
+  disposables.push(createTestAnnotationCommand(() => activePlanChatSession));
 
   // Register commands — handlers resolve active session at runtime
   disposables.push(
@@ -378,29 +281,14 @@ export async function activate(
       sidebarPanel.updateState(buildFullState());
     });
 
-  // Active folder tracking
-  disposables.push(
-    vscode.window.onDidChangeActiveTextEditor(() => {
-      manager.notifyActiveChanged();
-    }),
-  );
-
-  // Update visible webview panels when active session changes
-  manager.on("active-session-changed", (session) => {
-    // Always refresh sidebar on session change to ensure fresh state
-    sidebarPanel.updateState(buildFullState());
-
-    if (!session) return;
-    const folderUri = session.folderUri;
-    if (dependencyGraph?.visible && dependencyGraph.currentFolderUri !== folderUri) {
-      dependencyGraph.reveal(session.sessionState.progress, folderUri);
-    }
-    if (executionTimeline?.visible && executionTimeline.currentFolderUri !== folderUri) {
-      executionTimeline.reveal(session.sessionState.progress, folderUri);
-    }
-    if (liveRunPanel?.visible && liveRunPanel.currentFolderUri !== folderUri) {
-      liveRunPanel.reveal(session.sessionState.progress ?? { phases: [], totalPhases: 0 }, folderUri);
-    }
+  // Active folder tracking + session change handler
+  disposables.push(vscode.window.onDidChangeActiveTextEditor(() => manager.notifyActiveChanged()));
+  setupSessionChangeHandler(manager, {
+    sidebarPanel,
+    buildFullState,
+    dependencyGraph,
+    executionTimeline,
+    liveRunPanel,
   });
 
   // Handle workspace folder add/remove
@@ -420,36 +308,15 @@ export async function activate(
   );
 
   // Re-detect on setting change
-  const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration("oxveil.claudeloopPath")) {
-      const configuredPath = vscode.workspace
-        .getConfiguration("oxveil")
-        .get<string>("claudeloopPath", "claudeloop");
-
-      // Re-resolve path through shell/fallbacks
-      resolveClaudeloopPath(configuredPath, pathResolverDeps).then((resolved) => {
-        const resolvedPath = resolved?.path ?? configuredPath;
-        if (resolved) {
-          console.log(`[Oxveil] claudeloop re-resolved via ${resolved.source}: ${resolved.path}`);
-        }
-        detection.updatePath(resolvedPath);
-        folderChangeOpts.resolvedPath = resolvedPath;
-        // Re-detect and update folderChangeOpts based on actual detection result
-        detection.detect().then((r) => {
-          folderChangeOpts.detected = r.status === "detected";
-          vscode.commands.executeCommand("setContext", "oxveil.detected", r.status === "detected");
-          sidebarState.detectionStatus = r.status;
-          const fullState = buildFullState();
-          sidebarPanel.updateState(fullState);
-          statusBar.update(deriveStatusBarFromView(
-            fullState.view,
-            manager.getActiveSession()?.sessionState.progress,
-          ));
-        });
-      });
-    }
-  });
-  disposables.push(configWatcher);
+  disposables.push(createConfigWatcher({
+    detection,
+    folderChangeOpts,
+    sidebarState,
+    buildFullState,
+    sidebarPanel,
+    statusBar,
+    manager,
+  }));
 
   // MCP bridge (opt-in)
   const mcpDisposables = await activateMcpBridge({

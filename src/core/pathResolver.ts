@@ -1,4 +1,8 @@
 import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 export interface PathResolverDeps {
   execFile: (
@@ -116,4 +120,29 @@ async function resolveViaShell(
   }
 
   return null;
+}
+
+/**
+ * Creates PathResolverDeps using Node.js built-ins.
+ * Used by extension activation for config change handling.
+ */
+export function createPathResolverDeps(): PathResolverDeps {
+  const execFileAsync = promisify(execFile);
+  return {
+    execFile: async (cmd, args, opts) => {
+      const result = await execFileAsync(cmd, args, { timeout: opts.timeout });
+      return { stdout: result.stdout };
+    },
+    fileExists: async (p) => {
+      try {
+        await fs.access(p, fs.constants.X_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    env: process.env,
+    platform: process.platform,
+    homeDir: os.homedir(),
+  };
 }
