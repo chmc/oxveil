@@ -74,6 +74,34 @@ The MCP bridge is the primary method for interacting with sidebar webview button
 
 See `references/visual-verification-recipes.md` for discovery file parsing, full command reference, and click-and-verify scripts.
 
+## Screenshot Readability Loop
+
+After each screenshot capture, **verify the target UI element is actually readable** in the image:
+
+1. Read the screenshot
+2. Check: Can you see and read the specific text/element being verified?
+3. **If not readable** (too small, cropped out, obscured):
+   - Zoom: Focus the specific panel/area, close other panels
+   - Crop: Use `-R x,y,w,h` to capture just the target region
+   - Resize window: Make the target panel larger before capture
+   - Higher DPI: Capture at native resolution without `sips` downscaling
+4. **Retry capture** with adjusted approach
+5. Repeat until the acceptance criteria are visually confirmable
+6. **Only fail** after 3 attempts with different capture strategies
+
+**Never** substitute MCP state JSON for visual verification. Data existing is not the same as UI rendering correctly. The goal is evidence a user can see the feature.
+
+Example: Verifying 10px sub-step text requires either:
+- Cropped capture of just the sidebar
+- Full-resolution capture without downscaling
+- Zoomed screenshot where text is readable
+
+**Sidebar vs Editor Area:** The sidebar webview and editor panels (like Live Run) are DIFFERENT components. When verifying sidebar content:
+- The primary sidebar is on the left (or right if user moved it)
+- Capture the window region that includes the sidebar, not just the editor area
+- If the sidebar isn't in your capture, adjust the capture region to include it
+- Do not confuse the Live Run panel (editor tab) with the sidebar webview
+
 ## Vision Analysis Tiers
 
 - **Tier 1 (reliable — use screenshots):** Element presence/absence, text content, gross layout, item count, notification visibility.
