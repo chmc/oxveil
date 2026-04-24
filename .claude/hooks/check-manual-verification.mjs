@@ -13,19 +13,19 @@ try {
   input = JSON.parse(readFileSync(0, 'utf8'));
 } catch {
   // Malformed input — allow
-  console.log(JSON.stringify({ decision: 'allow' }));
+  console.log(JSON.stringify({ decision: 'approve' }));
   process.exit(0);
 }
 
 // Skip if disabled via env var
 if (process.env.OXVEIL_SKIP_MANUAL_CHECK === '1') {
-  console.log(JSON.stringify({ decision: 'allow' }));
+  console.log(JSON.stringify({ decision: 'approve' }));
   process.exit(0);
 }
 
 // Skip enforcement in plan mode — allow discussion of the rule
 if (input.permission_mode === 'plan') {
-  console.log(JSON.stringify({ decision: 'allow' }));
+  console.log(JSON.stringify({ decision: 'approve' }));
   process.exit(0);
 }
 
@@ -48,7 +48,7 @@ try {
   }
 } catch {
   // Can't read transcript — allow
-  console.log(JSON.stringify({ decision: 'allow' }));
+  console.log(JSON.stringify({ decision: 'approve' }));
   process.exit(0);
 }
 
@@ -64,4 +64,4 @@ for (const pattern of FORBIDDEN_PATTERNS) {
   }
 }
 
-console.log(JSON.stringify({ decision: 'allow' }));
+console.log(JSON.stringify({ decision: 'approve' }));
