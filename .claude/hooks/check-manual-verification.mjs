@@ -54,10 +54,11 @@ try {
 
 // Check for forbidden patterns in the last response only
 for (const pattern of FORBIDDEN_PATTERNS) {
-  if (pattern.test(lastAssistantText)) {
+  const match = lastAssistantText.match(pattern);
+  if (match) {
     console.log(JSON.stringify({
       decision: 'block',
-      reason: `Forbidden phrase detected: ${pattern}. Use /visual-verification or other automation instead of suggesting manual testing.`
+      reason: `Blocked: "${match[0]}". Use /visual-verification or automation instead.`
     }));
     process.exit(0);
   }
