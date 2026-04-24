@@ -10,7 +10,7 @@
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 - All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
-- NEVER propose manual verification when automated tools exist. Use `/visual-verification`, MCP bridge, fake_claude, and cliclick to verify UI behavior programmatically. Research and improve skills/tools when automation gaps exist rather than falling back to manual testing.
+- NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude, cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
 
 ## Project
 
@@ -81,6 +81,7 @@
 - Never suggest the user test something manually when you can do it yourself.
 - Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps (when interfaces change, grep `src/test/` for all mock sites of the changed class), (3) alternatives / UX impact. Run in parallel. End all critic prompts with "terse. bullets only. no preamble. if clean: LGTM."
 - One critic agent must always verify the plan includes `/visual-verification` for every phase that changes user-visible behavior (sidebar, status bar, webview, notifications). "This is backend logic" is not a valid exemption if the change affects what the user sees. "This is state derivation, not rendering" is not a valid exemption. Visual verification is dynamic testing — it verifies app behavior the way a real user would. Any change that alters what the user experiences requires it. Trace the call chain to the UI before deciding.
+- One critic must verify the plan contains no manual verification steps when `/visual-verification` or other automation exists.
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
 
 ## Writing Style
