@@ -144,6 +144,12 @@ describe("dispatchSidebarMessage", () => {
     expect(exec).toHaveBeenCalledWith("oxveil.reset");
   });
 
+  it("dispatches fullReset", () => {
+    const exec = vi.fn();
+    dispatchSidebarMessage({ command: "fullReset" }, exec);
+    expect(exec).toHaveBeenCalledWith("oxveil.fullReset");
+  });
+
   it("dispatches refreshArchives", () => {
     const exec = vi.fn();
     dispatchSidebarMessage({ command: "refreshArchives" }, exec);
