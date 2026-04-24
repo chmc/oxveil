@@ -11,6 +11,7 @@
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 - All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
 - NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude, cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
+- NEVER claim work is complete without checking for documentation impact. Before final verification, ask: (1) Did I change user-facing behavior? → update README.md (2) Did I change architecture? → update ARCHITECTURE.md, consider ADR (3) Did I touch state machine files? → update `docs/workflow/states.md`
 
 ## Project
 
@@ -70,8 +71,21 @@
 - When running visual verification on uncommitted changes, do NOT stash — the changes are what you're testing.
 - After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
 - If sidebar shows wrong phases after manual PLAN.md edit, check for stale `.claudeloop/ai-parsed-plan.md`. `loadPlanPhases()` reads ai-parsed-plan.md first before falling back to PLAN.md.
-- Run `npm run lint` and `npm test` before claiming work is complete. Pre-existing errors are not exempt — fix them.
-- After lint, tests, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
+
+### Completion Checklist (execute in order before claiming done)
+
+1. `npm run lint` — fix all errors (pre-existing errors are not exempt)
+2. `npm test` — fix all failures
+3. Documentation impact scan:
+   - Changed files in `src/views/sidebar*.ts`, `src/core/session*.ts`, `src/views/statusBar.ts`, `src/views/planPreviewPanel.ts`, `src/sessionWiring.ts`, `src/activateSidebar.ts`, `src/types.ts` → update `docs/workflow/states.md`
+   - Changed user-facing behavior → update README.md
+   - Architectural decision → create ADR in `docs/adr/`
+   - Technical changes → verify ARCHITECTURE.md is current
+4. UI-facing changes → `/visual-verification`
+5. Codex review (if available) — see below
+6. Only after 1-5 pass: state result and next step
+
+- After lint, tests, documentation, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
   - If `codex:review` is available: run `/codex:review --wait --scope working-tree`.
   - If only `codex:rescue` is available: spawn a subagent (type `codex:codex-rescue`) with prompt "review `git diff`. issues only. terse. no preamble. if clean: LGTM. under 200 words."
 - Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run the same Codex review method.
@@ -82,6 +96,7 @@
 - Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps (when interfaces change, grep `src/test/` for all mock sites of the changed class), (3) alternatives / UX impact. Run in parallel. End all critic prompts with "terse. bullets only. no preamble. if clean: LGTM."
 - One critic agent must always verify the plan includes `/visual-verification` for every phase that changes user-visible behavior (sidebar, status bar, webview, notifications). "This is backend logic" is not a valid exemption if the change affects what the user sees. "This is state derivation, not rendering" is not a valid exemption. Visual verification is dynamic testing — it verifies app behavior the way a real user would. Any change that alters what the user experiences requires it. Trace the call chain to the UI before deciding.
 - One critic must verify the plan contains no manual verification steps when `/visual-verification` or other automation exists.
+- One critic must verify the plan includes `docs/workflow/states.md` updates when the plan touches state machine files (sidebar*.ts, session*.ts, statusBar.ts, planPreviewPanel.ts, sessionWiring.ts, activateSidebar.ts, types.ts).
 
 ## Verification Integrity
 
@@ -133,8 +148,6 @@
 
 ## Documentation
 
-When implementation changes affect user-facing behavior, update stale sections in README.md and make sure technical big picture is uptodate in ARCHITECTURE.md.
+Documentation updates are enforced via the Completion Checklist in Quality Gates. This section covers the ADR workflow only.
 
-**ADR workflow (mandatory):** For architectural decisions (new pattern, technology choice, significant design change): assign next number from `docs/adr/`, create `docs/adr/NNNN-slug.md` using the [template](docs/adr/TEMPLATE.md), update `docs/adr/README.md`.
-
-**Workflow state docs (mandatory):** When modifying state machines or UI state derivation (`sidebarState.ts`, `sessionState.ts`, `statusBar.ts`, `planPreviewPanel.ts`, `sidebarMessages.ts`, `sessionWiring.ts`, `activateSidebar.ts`, `types.ts`), update `docs/workflow/states.md`. Run `npm test` to catch state enumeration drift.
+**ADR workflow:** For architectural decisions (new pattern, technology choice, significant design change): assign next number from `docs/adr/`, create `docs/adr/NNNN-slug.md` using the [template](docs/adr/TEMPLATE.md), update `docs/adr/README.md`.
