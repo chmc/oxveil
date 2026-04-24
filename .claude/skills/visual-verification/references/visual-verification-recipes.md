@@ -9,6 +9,7 @@ description: Scripts, templates, and checklists for the visual verification loop
 
 - [Safety Rules](#safety-rules)
 - [Pre-flight Checks](#pre-flight-checks)
+- [Self-Implementation Mode Recipes](#self-implementation-mode-recipes)
 - [MCP Bridge Recipes](#mcp-bridge-recipes)
 - [End-to-End Workflow Recipes](#end-to-end-workflow-recipes)
 - [Swift CGWindowID Script](#swift-cgwindowid-script)
@@ -62,6 +63,306 @@ tell application "System Events"
 end tell' 2>/dev/null
 
 grep -q '"oxveil.mcpBridge": true' .vscode/settings.json 2>/dev/null || { echo "FAIL: Enable oxveil.mcpBridge in .vscode/settings.json"; exit 1; }
+```
+
+## Self-Implementation Mode Recipes
+
+When running visual verification on Oxveil itself, use these recipes to avoid cross-instance state bleeding between the main VS Code and EDH.
+
+### Self-implementation detection
+
+Check if the current workspace is Oxveil by inspecting `package.json`:
+
+```bash
+detect_self_implementation() {
+    if [[ -f package.json ]]; then
+        local PKG_NAME=$(python3 -c "import json; print(json.load(open('package.json')).get('name', ''))" 2>/dev/null)
+        if [[ "$PKG_NAME" == "oxveil" ]]; then
+            echo "SELF_IMPL=true"
+            return 0
+        fi
+    fi
+    echo "SELF_IMPL=false"
+    return 1
+}
+
+# Usage
+eval "$(detect_self_implementation)"
+if [[ "$SELF_IMPL" == "true" ]]; then
+    echo "Self-implementation mode: will use worktree isolation"
+fi
+```
+
+### WIP preservation (stash before worktree)
+
+Worktrees only see committed changes. Preserve uncommitted work before creating worktree:
+
+```bash
+preserve_wip() {
+    local STASH_MSG="visual-verification-$(date +%s)"
+    
+    # Check for uncommitted changes
+    if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+        echo "WIP detected — stashing..."
+        
+        # Create stash including untracked files
+        STASH_REF=$(git stash create -u)
+        if [[ -n "$STASH_REF" ]]; then
+            # Store the stash so it persists (stash create doesn't add to stash list)
+            git stash store -m "$STASH_MSG" "$STASH_REF"
+            echo "STASH_MSG=$STASH_MSG"
+            echo "Stashed as: $STASH_MSG"
+            
+            # Reset working tree to match HEAD (worktree will see HEAD)
+            git checkout -- .
+            git clean -fd
+        else
+            echo "WARN: Stash create returned empty — no changes to stash"
+        fi
+    else
+        echo "No uncommitted changes — skipping stash"
+        echo "STASH_MSG="
+    fi
+}
+
+# Usage (capture STASH_MSG for restore in Phase 6)
+eval "$(preserve_wip)"
+```
+
+**Alternative: commit WIP to temp branch** (when stash is unreliable for complex states):
+
+```bash
+preserve_wip_commit() {
+    local TEMP_BRANCH="visual-verify-wip-$(date +%s)"
+    local ORIG_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    
+    if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+        echo "WIP detected — committing to temp branch..."
+        
+        git checkout -b "$TEMP_BRANCH"
+        git add -A
+        git commit -m "WIP: visual verification checkpoint"
+        git checkout "$ORIG_BRANCH"
+        
+        echo "TEMP_BRANCH=$TEMP_BRANCH"
+        echo "ORIG_BRANCH=$ORIG_BRANCH"
+    else
+        echo "No uncommitted changes"
+        echo "TEMP_BRANCH="
+        echo "ORIG_BRANCH=$ORIG_BRANCH"
+    fi
+}
+```
+
+### Worktree setup
+
+Create isolated worktree for verification. Use timestamp for uniqueness:
+
+```bash
+setup_worktree() {
+    local TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    local WORKTREE_PATH="../oxveil-verify-$TIMESTAMP"
+    local WORKTREE_BRANCH="verify-$TIMESTAMP"
+    
+    # Create worktree from current HEAD (detached)
+    git worktree add --detach "$WORKTREE_PATH" HEAD
+    [[ $? -eq 0 ]] || { echo "FAIL: git worktree add failed"; return 1; }
+    
+    # Build in worktree
+    echo "Installing dependencies in worktree..."
+    (cd "$WORKTREE_PATH" && npm install --silent)
+    [[ $? -eq 0 ]] || { echo "FAIL: npm install failed in worktree"; return 1; }
+    
+    echo "Building in worktree..."
+    (cd "$WORKTREE_PATH" && npm run build)
+    [[ $? -eq 0 ]] || { echo "FAIL: npm run build failed in worktree"; return 1; }
+    
+    echo "WORKTREE_PATH=$WORKTREE_PATH"
+    echo "Worktree ready at: $WORKTREE_PATH"
+}
+
+# Usage (capture WORKTREE_PATH)
+eval "$(setup_worktree)"
+```
+
+### EDH launch in worktree
+
+Launch EDH with worktree as both extension source AND workspace:
+
+```bash
+launch_edh_worktree() {
+    local WORKTREE_PATH="$1"
+    
+    [[ -d "$WORKTREE_PATH" ]] || { echo "FAIL: Worktree not found at $WORKTREE_PATH"; return 1; }
+    
+    # Launch EDH with worktree as extension AND workspace
+    # This ensures .oxveil-mcp and .claudeloop/ are isolated to the worktree
+    code --extensionDevelopmentPath="$WORKTREE_PATH" "$WORKTREE_PATH" &
+    
+    echo "EDH launched with worktree workspace"
+}
+
+# Usage
+launch_edh_worktree "$WORKTREE_PATH"
+```
+
+### Bridge path handling (worktree-aware)
+
+Read `.oxveil-mcp` from the correct location based on mode:
+
+```bash
+get_bridge_credentials() {
+    local WORKSPACE_ROOT="${1:-.}"
+    local DISCOVERY_PATH="$WORKSPACE_ROOT/.oxveil-mcp"
+    
+    # Poll for discovery file (15s timeout)
+    for i in $(seq 1 15); do
+        [[ -f "$DISCOVERY_PATH" ]] && break
+        sleep 1
+    done
+    
+    [[ -f "$DISCOVERY_PATH" ]] || { echo "FAIL: MCP bridge not started — $DISCOVERY_PATH not found"; return 1; }
+    
+    local DISCOVERY=$(cat "$DISCOVERY_PATH")
+    PORT=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['port'])")
+    TOKEN=$(echo "$DISCOVERY" | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
+    
+    echo "Bridge ready at port $PORT"
+    export PORT TOKEN
+}
+
+# Usage in self-implementation mode
+if [[ "$SELF_IMPL" == "true" ]]; then
+    get_bridge_credentials "$WORKTREE_PATH"
+else
+    get_bridge_credentials "."
+fi
+```
+
+### Worktree cleanup (Phase 6)
+
+Remove worktree and restore stashed WIP:
+
+```bash
+cleanup_worktree() {
+    local WORKTREE_PATH="$1"
+    local STASH_MSG="$2"
+    
+    # Close EDH first (see osascript recipes for process-scoped close)
+    osascript -e '
+    tell application "System Events"
+        tell process "Code"
+            set edh to (every window whose name contains "[Extension Development Host]")
+            repeat with w in edh
+                perform action "AXRaise" of w
+                delay 0.3
+                click menu item "Close Window" of menu "File" of menu bar 1
+                delay 0.5
+            end repeat
+        end tell
+    end tell' 2>/dev/null
+    
+    sleep 1
+    
+    # Remove worktree
+    if [[ -d "$WORKTREE_PATH" ]]; then
+        echo "Removing worktree at $WORKTREE_PATH..."
+        git worktree remove --force "$WORKTREE_PATH" 2>/dev/null || {
+            echo "WARN: git worktree remove failed — trying manual cleanup"
+            rm -rf "$WORKTREE_PATH"
+            git worktree prune
+        }
+    fi
+    
+    # Restore stash if created
+    if [[ -n "$STASH_MSG" ]]; then
+        echo "Restoring stashed WIP..."
+        local STASH_REF=$(git stash list | grep "$STASH_MSG" | cut -d: -f1 | head -1)
+        if [[ -n "$STASH_REF" ]]; then
+            git stash pop "$STASH_REF"
+            echo "WIP restored"
+        else
+            echo "WARN: Stash not found — may have been manually dropped"
+        fi
+    fi
+    
+    # Clean up any orphaned .oxveil-mcp in main repo
+    rm -f .oxveil-mcp
+    
+    echo "Cleanup complete"
+}
+
+# Usage
+cleanup_worktree "$WORKTREE_PATH" "$STASH_MSG"
+```
+
+### Alternative: restore WIP from temp branch
+
+```bash
+cleanup_wip_branch() {
+    local ORIG_BRANCH="$1"
+    local TEMP_BRANCH="$2"
+    
+    if [[ -n "$TEMP_BRANCH" ]]; then
+        git checkout "$ORIG_BRANCH"
+        # Cherry-pick the WIP commit (soft reset to unstage)
+        git cherry-pick --no-commit "$TEMP_BRANCH"
+        # Delete temp branch
+        git branch -D "$TEMP_BRANCH"
+        echo "WIP restored from temp branch"
+    fi
+}
+```
+
+### Full self-implementation workflow
+
+Combines all recipes into a complete workflow:
+
+```bash
+#!/bin/bash
+# Self-implementation visual verification orchestrator
+
+set -e
+
+# Phase 0: Detection and WIP preservation
+eval "$(detect_self_implementation)"
+if [[ "$SELF_IMPL" != "true" ]]; then
+    echo "Not in Oxveil workspace — use standard verification"
+    exit 0
+fi
+
+eval "$(preserve_wip)"
+
+# Phase 1: Worktree setup and launch
+eval "$(setup_worktree)"
+launch_edh_worktree "$WORKTREE_PATH"
+
+# Wait for EDH window
+for i in $(seq 1 15); do
+    WINDOW_ID=$(swift -e '
+import CoreGraphics
+let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]
+for w in windows {
+    let owner = w["kCGWindowOwnerName"] as? String ?? ""
+    let name = w["kCGWindowName"] as? String ?? ""
+    if owner.contains("Code") && name.contains("[Extension Development Host]") {
+        print(w["kCGWindowNumber"] as? Int ?? 0)
+        break
+    }
+}
+')
+    [[ -n "$WINDOW_ID" && "$WINDOW_ID" != "0" ]] && break
+    sleep 1
+done
+echo "EDH ready (WindowID: $WINDOW_ID)"
+
+# Get bridge credentials from worktree
+get_bridge_credentials "$WORKTREE_PATH"
+
+# ... verification phases 2-5 here ...
+
+# Phase 6: Cleanup
+cleanup_worktree "$WORKTREE_PATH" "$STASH_MSG"
 ```
 
 ## MCP Bridge Recipes
