@@ -82,6 +82,15 @@
 - Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps (when interfaces change, grep `src/test/` for all mock sites of the changed class), (3) alternatives / UX impact. Run in parallel. End all critic prompts with "terse. bullets only. no preamble. if clean: LGTM."
 - One critic agent must always verify the plan includes `/visual-verification` for every phase that changes user-visible behavior (sidebar, status bar, webview, notifications). "This is backend logic" is not a valid exemption if the change affects what the user sees. "This is state derivation, not rendering" is not a valid exemption. Visual verification is dynamic testing — it verifies app behavior the way a real user would. Any change that alters what the user experiences requires it. Trace the call chain to the UI before deciding.
 - One critic must verify the plan contains no manual verification steps when `/visual-verification` or other automation exists.
+
+## Verification Integrity
+
+- NEVER claim a verification passed when prerequisites were missing. If a test requires MCP bridge active, main VS Code running, or specific state — and that prerequisite isn't met — the verification FAILED, not "passed with caveats."
+- NEVER substitute a weaker test for the specified test. "File isolation confirmed" is not equivalent to "UI state bleeding verified." If the plan says "monitor main instance sidebar state," you must actually poll the main instance's `/state` endpoint, not just check file existence.
+- NEVER rationalize around blocked paths. Forbidden phrases during verification: "This is actually fine," "We can still verify X instead," "This doesn't affect the test." If a prerequisite fails, either fix it or report failure — do not proceed with a different test and claim the original passed.
+- When a verification step has prerequisites, check them FIRST. If any prerequisite fails, stop and report which prerequisite failed — do not continue to "see what we can verify."
+- Verification results must match what was actually tested. If you tested file isolation but the plan specified UI behavior, report: "File isolation: PASS. UI state bleeding: NOT TESTED (prerequisite failed: main MCP bridge not active)."
+
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
 
 ## Writing Style
