@@ -1,7 +1,14 @@
 ## Index
-- [Hard Rules](#hard-rules) - NEVER rules, blocking gates
-- [Quality Gates](#quality-gates) - Completion checklist, critic requirements
+
+**Tier 1: Blocking Gates** (NEVER rules, hard stops)
+- [Hard Rules](#hard-rules) - Tool availability, destructive ops, plan mode, activation safety, verification/completion
 - [Verification Integrity](#verification-integrity) - No rationalization during verification
+- [Bash Truncation Hook](#bash-truncation-hook-claudehooksbash-truncatemjs) - Hook bypass prevention
+
+**Tier 2: Quality Checkpoints** (execute in order, do not skip)
+- [Quality Gates](#quality-gates) - Completion checklist, critic requirements
+
+**Tier 3: Guidelines** (best practices, workflow patterns)
 - [Oxveil Testing Patterns](#oxveil-testing-patterns) - Project-specific TDD patterns
 - [Rationalization Blockers](#rationalization-blockers) - Forbidden thoughts indicating rule bypass
 
@@ -21,19 +28,34 @@
 
 ## Hard Rules
 
+<BLOCKING-GATE id="tool-availability">
 - NEVER claim a tool is unavailable without first checking: (1) skill reference files, (2) related repos (`~/source/claudeloop/tests/` for fake_claude), (3) workspace-wide search. A single `which` command is not sufficient. Forbidden: "fake_claude not found" after only checking PATH.
+</BLOCKING-GATE>
+
+<BLOCKING-GATE id="destructive-ops">
 - NEVER recursively delete the `.claudeloop/` directory. It is managed by claudeloop and contains live runtime state.
 - During mock cleanup, only remove individual mock-created files (those newer than `.MOCK_SESSION` marker). Never `rm -rf .claudeloop`.
 - NEVER use `keystroke` via osascript for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W). `keystroke` always targets the system frontmost app, not the `tell process` target — it can kill the terminal. Use accessibility menu clicks instead (`click menu item` of the target process's menu bar), which are process-scoped.
 - For non-destructive keystrokes (Cmd+Shift+P, typing text, Enter, Escape), always `set frontmost to true` and `AXRaise` the target window first.
+</BLOCKING-GATE>
+
+<BLOCKING-GATE id="plan-mode">
 - NEVER edit non-plan files while plan mode is active. Plan mode restricts edits to the plan file only. When a change is needed, write it to the plan file and call ExitPlanMode to request permission — do not make the change directly.
+</BLOCKING-GATE>
+
+<BLOCKING-GATE id="activation-safety">
 - NEVER `await` an external process (execFile, spawn, fetch) without a timeout in `activate()`. Use `Promise.race` with 5s timeout. A hanging CLI blocks `resolveWebviewView` and the sidebar stays on the loading spinner forever.
 - Wrap non-critical awaits in `activate()` (bridge startup, optional detection) in try-catch. Activation must always complete.
+</BLOCKING-GATE>
+
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 - All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
+
+<BLOCKING-GATE id="verification-completion">
 - NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude (setup: `visual-verification/references/visual-verification-recipes.md#claudeloop-fake-cli`), cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
 - NEVER claim work is complete without checking for documentation impact. Before final verification, ask: (1) Did I change user-facing behavior? → update README.md (2) Did I change architecture? → update ARCHITECTURE.md, consider ADR (3) Did I touch state machine files? → update `docs/workflow/states.md`
+</BLOCKING-GATE>
 
 ## Project
 
@@ -45,7 +67,10 @@
 - Use conventional commits.
 - Never add yourself as co-author.
 - When fixing a GitHub issue, always include `Closes #N` or `Fixes #N` in the commit message. Do not push automatically — tell the user the issue will close on `git push`.
+
+<BLOCKING-GATE id="commit-gate">
 - NEVER commit without first completing the full Quality Gates sequence (lint, tests, visual verification if UI-facing, Codex review if available). "The change is only docs/skills" is not an exemption.
+</BLOCKING-GATE>
 
 ## Development Process
 
@@ -96,6 +121,9 @@
 
 ### Completion Checklist (execute in order before claiming done)
 
+<QUALITY-CHECKPOINT>
+Execute in order. Do not skip.
+
 1. `npm run lint` — fix all errors (pre-existing errors are not exempt)
 2. `npm test` — fix all failures
 3. Documentation impact scan:
@@ -106,6 +134,7 @@
 4. UI-facing changes → `/visual-verification`
 5. Codex review (if available) — see below
 6. Only after 1-5 pass: state result and next step
+</QUALITY-CHECKPOINT>
 
 - After lint, tests, documentation, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
   - If `codex:review` is available: run `/codex:review --wait --scope working-tree`.
@@ -132,11 +161,13 @@
 
 ## Verification Integrity
 
+<BLOCKING-GATE id="verification-integrity">
 - NEVER claim a verification passed when prerequisites were missing. If a test requires MCP bridge active, main VS Code running, or specific state — and that prerequisite isn't met — the verification FAILED, not "passed with caveats."
 - NEVER substitute a weaker test for the specified test. "File isolation confirmed" is not equivalent to "UI state bleeding verified." If the plan says "monitor main instance sidebar state," you must actually poll the main instance's `/state` endpoint, not just check file existence.
 - NEVER rationalize around blocked paths. Forbidden phrases during verification: "This is actually fine," "We can still verify X instead," "This doesn't affect the test." If a prerequisite fails, either fix it or report failure — do not proceed with a different test and claim the original passed.
 - When a verification step has prerequisites, check them FIRST. If any prerequisite fails, stop and report which prerequisite failed — do not continue to "see what we can verify."
 - Verification results must match what was actually tested. If you tested file isolation but the plan specified UI behavior, report: "File isolation: PASS. UI state bleeding: NOT TESTED (prerequisite failed: main MCP bridge not active)."
+</BLOCKING-GATE>
 
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
 
@@ -186,9 +217,12 @@ Oxveil-specific patterns for TDD and testing. Use alongside `superpowers:test-dr
 
 ## Bash Truncation Hook (.claude/hooks/bash-truncate.mjs)
 
+<BLOCKING-GATE id="bash-hook-bypass">
 - NEVER work around the hook by modifying commands to avoid pattern matching. Fix the hook instead.
 - NEVER wrap commands in `sh -c` or `bash -c` to bypass the hook.
 - NEVER remove or disable the hook entry in `.claude/settings.json`.
+</BLOCKING-GATE>
+
 - On false positive (useful output truncated): add command pattern to ALLOWLIST in bash-truncate.mjs.
 - On false negative (verbose output passed through): add pattern to BOUNDED_PIPES.
 - After editing, verify: `node .claude/hooks/bash-truncate.mjs <<< '{"tool_input":{"command":"TEST_CMD"}}'`
