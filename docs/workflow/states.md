@@ -406,7 +406,7 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 | Type | Payload | Handler |
 |------|---------|---------|
 | `ready` | — | `_sendUpdate()` (sync state to newly loaded webview) |
-| `switchTab` | `{ category: PlanFileCategory }` | `_onTabSwitch()` |
+| `switchTab` | `{ category: PlanFileCategory }` | `_onTabSwitch()` — categories: design, implementation, plan, ai-parsed |
 | `annotation` | `{ phase: number, text: string }` | Forwarded to `PlanChatSession.sendAnnotation()`, then `focusTerminal()` to bring user attention to terminal |
 | `formPlan` | — | `deps.onFormPlan?.()` |
 

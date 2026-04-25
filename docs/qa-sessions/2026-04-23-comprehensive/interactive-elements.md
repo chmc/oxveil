@@ -99,7 +99,7 @@ Source: `src/views/planPreviewHtml.ts`, `src/views/planPreviewPanel.ts`
 
 | Element | Action | Expected Behavior |
 |---------|--------|-------------------|
-| `.tab-pill[data-category]` | click | Switch to category tab (design/implementation/plan) |
+| `.tab-pill[data-category]` | click | Switch to category tab (design/implementation/plan/ai-parsed) |
 
 ### Phase Cards
 
