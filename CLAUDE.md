@@ -35,63 +35,45 @@
 
 ## Project
 
-- Oxveil is a VS Code extension for managing AI coding workflows, powered by [claudeloop](https://github.com/chmc/claudeloop).
-- Both repos share the same author. Coordinate and ship changes across both repos simultaneously when needed.
+Oxveil: VS Code extension for AI coding workflows, powered by [claudeloop](https://github.com/chmc/claudeloop). Same author — ship both repos together.
 
 ## Git
 
-- Use conventional commits.
-- Never add yourself as co-author.
-- When fixing a GitHub issue, always include `Closes #N` or `Fixes #N` in the commit message. Do not push automatically — tell the user the issue will close on `git push`.
+- Never add yourself as co-author. Include `Closes #N` for issue fixes. No auto-push.
 
 - NEVER commit without completing Quality Gates (lint, tests, visual verification if UI, Codex if available). "Only docs/skills" not exempt.
 
 ## Development Process
 
-- Follow trunk-based development and feature flag policy. See `.claude/skills/dev-workflow/SKILL.md`.
-- Oxveil is not yet published. Ship all features directly — no feature flags. Re-evaluate when publishing to marketplace.
-- Automate processes (CI, releases, testing) from the start. Do not defer to manual workflows.
+Trunk-based. See `.claude/skills/dev-workflow/SKILL.md`. Not published yet — no feature flags.
 
-## Cost Control for External Services
+## Cost Control
 
-- When building features that spawn external paid services (Claude CLI, APIs), always implement dev-mode cost control:
-  - Detect `ExtensionMode.Development` to auto-default to the cheapest option (e.g., `haiku` for Claude).
-  - Provide an `OXVEIL_<SERVICE>_<PARAM>` env var override (takes precedence over dev-mode default).
-  - Precedence: (1) env var, (2) cheapest default in dev mode, (3) no override (user's default in production).
-- Never modify user-level settings files for testing. Use dependency injection and extension mode detection.
-- Prefer fake/mock services (e.g., fake_claude for claudeloop) over real API calls when the interaction is not user-facing.
+Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL_<SERVICE>_<PARAM>` env var overrides. Prefer fake_claude over real API.
 
 ## Execution Discipline
 
-- When a skill has a checklist, read it fully, create a task per item, then execute in order. Do not skip, merge, or shortcut items — the checklist exists to prevent exactly that reasoning.
-- When executing a plan phase, the description is your specification. Follow it literally.
-- If the description says "Action: `/skill-name`", invoke that skill via the Skill tool. Do not substitute programmatic checks. Do not rationalize skipping it.
-- If the description contains a checklist, complete every item. Do not mark the phase done with items unchecked.
-- If the description says "Compare against" a reference, read that file and compare.
-- Each skill defines its own terminal action. Do not substitute a different exit (e.g., calling `ExitPlanMode` from brainstorming). Read the skill's terminal state before starting.
-- If plan mode activates during a skill, the skill's checklist still governs — plan mode is a tool within the skill, not a replacement for it.
-- "I already have evidence" and "this is simple enough" are not valid reasons to skip a specified action.
+- Skill checklist → task per item, execute in order. No skip/merge.
+- Plan phase description = spec. Follow literally.
+- "Action: `/skill`" → invoke via Skill tool. No substitution.
+- Checklist → complete all. "Compare against" → read and compare.
+- Skill terminal action governs. Don't substitute ExitPlanMode for skill exit.
 
 ## Automation Discipline
 
-- When an automation approach fails, do NOT retry the same method. Immediately research alternatives (web search, explore similar tools, check documentation).
-- Fix the tooling gap, then document the solution in the relevant skill file.
-- Retrying a failing approach multiple times before researching is a pattern violation.
+Automation fails → research alternatives first. Don't retry same method. Document fix in skill file.
 
 ## Plan File Hygiene
 
-- When a plan's work is complete, clear the plan file or mark it done.
-- Do not leave stale completed plans sitting in the plan file.
+Clear plan file when done. No stale plans.
 
 ## Quality Gates
 
-- When writing plans: always include documentation (README, ARCHITECTURE), workflow state docs (`docs/workflow/states.md`), and test coverage for affected user stories. Code-only plans are incomplete.
-- When writing plans: every task that touches rendering, webview, or user-visible state must include a `/visual-verification` step with task-specific acceptance criteria. Omitting it is a plan defect.
-- When executing: do not mark a UI-facing task done until its `/visual-verification` step passes. If the plan omits verification for a task that touches rendering, webview, or user-visible state, add it before marking done.
-- For UI-facing changes executed without a plan, run `/visual-verification` before claiming done.
-- When running visual verification on uncommitted changes, do NOT stash — the changes are what you're testing.
-- After every screenshot capture, read the image and describe what you see in concrete terms. Do not assume success from blurry/small screenshots. Verify keystrokes reached the intended target by checking for typed text.
-- If sidebar shows wrong phases after manual PLAN.md edit, check for stale `.claudeloop/ai-parsed-plan.md`. `loadPlanPhases()` reads ai-parsed-plan.md first before falling back to PLAN.md.
+**Plans:** Include docs (README, ARCHITECTURE, states.md), test coverage. UI tasks → `/visual-verification` with acceptance criteria.
+
+**Executing:** UI task not done until `/visual-verification` passes. No stash for uncommitted changes. Read screenshots, describe concretely.
+
+**Debug:** Wrong sidebar phases → check stale `.claudeloop/ai-parsed-plan.md`.
 
 ### Completion Checklist (execute in order before claiming done)
 
@@ -104,18 +86,12 @@ Execute in order. Do not skip.
 5. Codex review if available
 6. After 1-5: state result + next step
 
-- After lint, tests, documentation, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
-  - If `codex:review` is available: run `/codex:review --wait --scope working-tree`.
-  - If only `codex:rescue` is available: spawn a subagent (type `codex:codex-rescue`) with prompt "review `git diff`. issues only. terse. no preamble. if clean: LGTM. under 200 words."
-- Read Codex findings and fix them. After fixes, re-run lint, tests, and `/visual-verification` (if UI-facing). Then re-run the same Codex review method.
-- Loop until Codex review is clean or 3 review cycles complete. If issues remain after 3 cycles, report them to the user.
-- Auto-fix Codex findings without asking. This overrides the `codex:codex-result-handling` default of requiring user approval before applying fixes.
-- `/codex:adversarial-review` is not part of the automated loop. Use only when explicitly requested.
-- Never suggest the user test something manually when you can do it yourself.
-- Critic agents before ExitPlanMode must cover: (1) root cause correctness / feasibility, (2) scope completeness / missing steps (when interfaces change, grep `src/test/` for all mock sites of the changed class), (3) alternatives / UX impact. Run in parallel. End all critic prompts with "terse. bullets only. no preamble. if clean: LGTM."
-- One critic agent must always verify the plan includes `/visual-verification` for every phase that changes user-visible behavior (sidebar, status bar, webview, notifications). "This is backend logic" is not a valid exemption if the change affects what the user sees. "This is state derivation, not rendering" is not a valid exemption. Visual verification is dynamic testing — it verifies app behavior the way a real user would. Any change that alters what the user experiences requires it. Trace the call chain to the UI before deciding.
-- One critic must verify the plan contains no manual verification steps when `/visual-verification` or other automation exists.
-- One critic must verify the plan includes `docs/workflow/states.md` updates when the plan touches state machine files (sidebar*.ts, session*.ts, statusBar.ts, planPreviewPanel.ts, sessionWiring.ts, activateSidebar.ts, types.ts).
+**Codex review:** After checklist passes, run `/codex:review --wait` or spawn `codex:codex-rescue`. Auto-fix findings. Loop until clean or 3 cycles. `/codex:adversarial-review` only when requested.
+
+**Critic agents (before ExitPlanMode):** Run 2-3 in parallel covering: (1) root cause, (2) scope/mock sites, (3) alternatives/UX. Each must verify:
+- `/visual-verification` included for UI-visible changes (trace call chain to UI)
+- No manual verification when automation exists
+- `docs/workflow/states.md` updated when touching state files
 
 ## Verification Integrity
 
@@ -128,16 +104,11 @@ Execute in order. Do not skip.
 
 ## Writing Style
 
-- AI-facing files (CLAUDE.md, skills): imperative voice, flat bullet lists, one rule per line, no prose. Front-load constraints. Add YAML frontmatter to skill files.
-- Remove redundancy. One rule per line.
+AI files: imperative, flat bullets, one rule per line. YAML frontmatter for skills.
 
 ## Output Discipline
 
-- No trailing summaries. Do not restate what was just done.
-- No preamble ("I'll now...", "Let me..."). Start with the action or answer.
-- No filler ("Great question", "Certainly", "I'd be happy to").
-- Prefer bullet lists over prose for status updates and findings.
-- Completion reports: state result and next step only.
+No summaries, preamble, filler. Bullets for status. Completion: result + next step.
 
 ## Oxveil Testing Patterns
 
@@ -145,20 +116,12 @@ See `.claude/skills/oxveil-testing/SKILL.md`. Use alongside `superpowers:test-dr
 
 ## Continuous Improvement
 
-- Raise friction points and missing guardrails at natural pause points. Suggest concrete changes targeting CLAUDE.md, skills/hooks, or MCP tools/plugins.
-- Behavioral corrections go in CLAUDE.md (cross-cutting) or the relevant skill file (workflow-scoped). Never use the memory system for this project.
+Raise friction at pause points. Corrections → CLAUDE.md or skill file. Memory banned.
 
-## Bash Truncation Hook (.claude/hooks/bash-truncate.mjs)
+## Bash Truncation Hook
 
-- NEVER bypass hook via command modification, `sh -c`, `bash -c`, or disabling in settings. Fix the hook.
-
-- On false positive (useful output truncated): add command pattern to ALLOWLIST in bash-truncate.mjs.
-- On false negative (verbose output passed through): add pattern to BOUNDED_PIPES.
-- After editing, verify: `node .claude/hooks/bash-truncate.mjs <<< '{"tool_input":{"command":"TEST_CMD"}}'`
-- To disable for a session without editing the hook: `export OXVEIL_BASH_HOOK=0`
+NEVER bypass hook. Fix it: false positive → ALLOWLIST, false negative → BOUNDED_PIPES. Disable session: `export OXVEIL_BASH_HOOK=0`.
 
 ## Documentation
 
-Documentation updates are enforced via the Completion Checklist in Quality Gates. This section covers the ADR workflow only.
-
-**ADR workflow:** For architectural decisions (new pattern, technology choice, significant design change): assign next number from `docs/adr/`, create `docs/adr/NNNN-slug.md` using the [template](docs/adr/TEMPLATE.md), update `docs/adr/README.md`.
+ADR: `docs/adr/NNNN-slug.md` using [template](docs/adr/TEMPLATE.md). Other docs enforced via Quality Gates.
