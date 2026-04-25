@@ -197,19 +197,7 @@ Execute in order. Do not skip.
 
 ## Oxveil Testing Patterns
 
-Oxveil-specific patterns for TDD and testing. Use alongside `superpowers:test-driven-development`.
-
-- For bug fixes: if your first test passes immediately, you are likely testing the wrong code path. Trace the actual broken path before writing the test. The test must exercise the code that contains the bug, not a parallel path that happens to work.
-- For multi-component bugs: trace the data flow backward from symptom to source before choosing where to fix.
-- Document which component owns the broken transformation before writing the fix.
-- When an issue attributes a bug to a specific function, verify the attribution. If the function's inputs are already wrong, the fix belongs upstream.
-- When adding public methods to widely-mocked classes, grep for the class/interface name across `src/test/**/*.test.ts` before writing the implementation. Update all mock sites in the same phase.
-- When adding `reset()` or cleanup logic to a stateful manager, audit the wiring closure (`sessionWiring.ts`) for local variables (`lastProgress`, etc.) and `SidebarMutableState` fields (`cost`, `todoDone`, `todoTotal`) that also need resetting.
-- Do not add new closure-scoped tracking state to `wireSessionEvents` for data that `buildFullState()` needs. Use `SidebarMutableState` fields instead — closure state is invisible to `buildFullState()` and all its callers (MCP bridge, webview init, archive refresh).
-- When using nullish coalescing (`??`) with VS Code config values, check if the schema default is empty string. `get<string>()` returns `""` if default is `""`, and `"" ?? fallback` doesn't fall through. Use `||` if empty string should trigger fallback.
-- `deps.folderUri` is a URI string (`file:///path`), not a filesystem path. Use `vscode.Uri.parse(deps.folderUri).fsPath` when building paths with `join()`.
-- Claudeloop files use uppercase names: `PROGRESS.md`, `PLAN.md`. Watchers are case-sensitive.
-- When adding fields to `SidebarMutableState`, check if they need resetting in the `to === "running"` block of `sessionWiring.ts`. Session-scoped state (cost, todos, selfImprovementActive) must reset; persistent state (detectionStatus, planDetected) must not.
+See `.claude/skills/oxveil-testing/SKILL.md`. Use alongside `superpowers:test-driven-development`.
 
 ## Continuous Improvement
 
