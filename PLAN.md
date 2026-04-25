@@ -79,7 +79,7 @@ export interface Lesson {
 
 ---
 
-### Phase 2: Lessons Capture (Claudeloop)
+### Phase 2: Lessons Capture (Claudeloop) ✅
 
 **Goal:** Write token-free metrics to `.claudeloop/lessons.md` after each phase.
 
