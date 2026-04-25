@@ -3,7 +3,7 @@
 **Tier 1: Blocking Gates** (NEVER rules, hard stops)
 - [Hard Rules](#hard-rules) - Tool availability, destructive ops, plan mode, activation safety, verification/completion
 - [Verification Integrity](#verification-integrity) - No rationalization during verification
-- [Bash Truncation Hook](#bash-truncation-hook-claudehooksbash-truncatemjs) - Hook bypass prevention
+- [Bash Truncation Hook](#bash-truncation-hook) - Hook bypass prevention
 
 **Tier 2: Quality Checkpoints** (execute in order, do not skip)
 - [Quality Gates](#quality-gates) - Completion checklist, critic requirements
@@ -48,9 +48,11 @@
 - Wrap non-critical awaits in `activate()` (bridge startup, optional detection) in try-catch. Activation must always complete.
 </BLOCKING-GATE>
 
+<BLOCKING-GATE id="critic-agents">
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 - All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
+</BLOCKING-GATE>
 
 <BLOCKING-GATE id="verification-completion">
 - NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude (setup: `visual-verification/references/visual-verification-recipes.md#claudeloop-fake-cli`), cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
@@ -167,9 +169,8 @@ Execute in order. Do not skip.
 - NEVER rationalize around blocked paths. Forbidden phrases during verification: "This is actually fine," "We can still verify X instead," "This doesn't affect the test." If a prerequisite fails, either fix it or report failure — do not proceed with a different test and claim the original passed.
 - When a verification step has prerequisites, check them FIRST. If any prerequisite fails, stop and report which prerequisite failed — do not continue to "see what we can verify."
 - Verification results must match what was actually tested. If you tested file isolation but the plan specified UI behavior, report: "File isolation: PASS. UI state bleeding: NOT TESTED (prerequisite failed: main MCP bridge not active)."
-</BLOCKING-GATE>
-
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
+</BLOCKING-GATE>
 
 ### Forbidden Thoughts During Verification
 
