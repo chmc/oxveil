@@ -67,6 +67,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         ms.cost = 0;
         ms.todoDone = 0;
         ms.todoTotal = 0;
+        ms.selfImprovementActive = false;
       }
       notifications.reset();
       lastProgress = undefined;

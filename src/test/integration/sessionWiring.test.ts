@@ -546,4 +546,61 @@ describe("Self-improvement trigger on session completion", () => {
     expect(selfImprovementPanel.reveal).not.toHaveBeenCalled();
     expect(mutableState.selfImprovementActive).toBe(false);
   });
+
+  it("resets selfImprovementActive on new run and loads fresh lessons", async () => {
+    const session = new SessionState();
+    const mutableState = makeMutableState();
+    // Simulate stale state from previous self-improvement session
+    mutableState.selfImprovementActive = true;
+
+    const selfImprovementPanel = { reveal: vi.fn() };
+    function buildFullState(): SidebarState {
+      const view = deriveViewState(
+        mutableState.detectionStatus,
+        session.status,
+        mutableState.planDetected,
+        session.progress,
+        mutableState.planUserChoice,
+        mutableState.selfImprovementActive,
+      );
+      return { view, archives: [] };
+    }
+
+    const deps: SessionWiringDeps = {
+      session,
+      statusBar: { update: vi.fn(), dispose: vi.fn() },
+      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+      isActiveSession: () => true,
+      folderUri: "file:///test",
+      buildSidebarState: buildFullState,
+      sidebarMutableState: mutableState,
+      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+      selfImprovementPanel: selfImprovementPanel as any,
+    };
+    wireSessionEvents(deps);
+
+    // First: new run starts - should reset selfImprovementActive
+    session.onLockChanged({ locked: true, pid: 42 });
+    expect(mutableState.selfImprovementActive).toBe(false);
+
+    // Second: run completes with new lessons
+    vi.mocked(readFile).mockResolvedValueOnce(`## Phase 1: Fresh
+- retries: 0
+- duration: 30s
+- exit: success`);
+
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Fresh", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(selfImprovementPanel.reveal).toHaveBeenCalledWith([
+      expect.objectContaining({ phase: 1, title: "Fresh" }),
+    ]);
+    expect(mutableState.selfImprovementActive).toBe(true);
+  });
 });
