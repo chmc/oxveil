@@ -3,10 +3,11 @@
 - [Quality Gates](#quality-gates) - Completion checklist, critic requirements
 - [Verification Integrity](#verification-integrity) - No rationalization during verification
 - [Oxveil Testing Patterns](#oxveil-testing-patterns) - Project-specific TDD patterns
+- [Rationalization Blockers](#rationalization-blockers) - Forbidden thoughts indicating rule bypass
 
 ## Rationalization Blockers
 
-<⚠️ WARNING: If you hear yourself thinking any of these, STOP and re-read the rule you are about to violate. These are red flags that you are about to rationalize your way around a guardrail. ⚠️>
+<WARNING>If you hear yourself thinking any of these, STOP and re-read the rule you are about to violate. These are red flags that you are about to rationalize your way around a guardrail.</WARNING>
 
 - "This case is different"
 - "I can do this after"
