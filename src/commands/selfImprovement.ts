@@ -65,5 +65,16 @@ export function registerSelfImprovementCommands(
 
       deps.refreshSidebar();
     }),
+
+    vscode.commands.registerCommand("oxveil.selfImprovement.focus", () => {
+      const panel = deps.getSelfImprovementPanel();
+      if (panel?.visible) {
+        // Panel already has lessons from reveal() call - just reveal it again to focus
+        panel.panel?.reveal();
+      } else {
+        // Panel not visible - need lessons to reveal
+        vscode.window.showWarningMessage("Oxveil: No self-improvement session active");
+      }
+    }),
   ];
 }

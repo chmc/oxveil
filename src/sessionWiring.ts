@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { SessionState } from "./core/sessionState";
 import type { StatusBarManager } from "./views/statusBar";
@@ -17,6 +17,46 @@ import type { SidebarMutableState } from "./activateSidebar";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 import { parseLessons } from "./parsers/lessons";
 import type { SelfImprovementPanel } from "./views/selfImprovementPanel";
+
+/**
+ * Find lessons.md in .claudeloop or the most recent archive.
+ * Claudeloop archives files immediately on completion, so lessons.md
+ * may have been moved to archive before the "done" event fires.
+ */
+async function findLessonsContent(folderPath: string): Promise<string | null> {
+  const claudeloopDir = join(folderPath, ".claudeloop");
+
+  // Try .claudeloop/lessons.md first
+  try {
+    return await readFile(join(claudeloopDir, "lessons.md"), "utf-8");
+  } catch {
+    // Not in main directory, check archive
+  }
+
+  // Find most recent archive
+  const archiveDir = join(claudeloopDir, "archive");
+  try {
+    const entries = await readdir(archiveDir);
+    const archiveDirs = [];
+    for (const entry of entries) {
+      const entryPath = join(archiveDir, entry);
+      const s = await stat(entryPath).catch(() => null);
+      if (s?.isDirectory()) {
+        archiveDirs.push({ name: entry, mtime: s.mtimeMs });
+      }
+    }
+    // Sort by mtime descending (most recent first)
+    archiveDirs.sort((a, b) => b.mtime - a.mtime);
+    if (archiveDirs.length > 0) {
+      const mostRecent = archiveDirs[0].name;
+      return await readFile(join(archiveDir, mostRecent, "lessons.md"), "utf-8");
+    }
+  } catch {
+    // Archive doesn't exist or isn't readable
+  }
+
+  return null;
+}
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -121,17 +161,14 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         // Self-improvement trigger
         const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
         if (selfImprovementEnabled && view === "completed") {
-          try {
-            const folderPath = vscode.Uri.parse(deps.folderUri).fsPath;
-            const lessonsPath = join(folderPath, ".claudeloop", "lessons.md");
-            const lessonsContent = await readFile(lessonsPath, "utf-8");
+          const folderPath = vscode.Uri.parse(deps.folderUri).fsPath;
+          const lessonsContent = await findLessonsContent(folderPath);
+          if (lessonsContent) {
             const lessons = parseLessons(lessonsContent);
             if (lessons.length > 0 && session.status === "done") {
               deps.selfImprovementPanel?.reveal(lessons);
               if (ms) ms.selfImprovementActive = true;
             }
-          } catch {
-            // lessons.md not found or unreadable - no self-improvement
           }
         }
         break;

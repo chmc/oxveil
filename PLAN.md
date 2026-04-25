@@ -260,7 +260,7 @@ Focus on actionable rules. Be concise. Output a diff.
 
 ---
 
-### Phase 8: End-to-End Integration
+### Phase 8: End-to-End Integration [COMPLETED]
 
 **Goal:** Wire everything together and test full flow.
 

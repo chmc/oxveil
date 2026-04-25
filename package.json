@@ -189,6 +189,10 @@
       {
         "command": "oxveil.selfImprovement.skip",
         "title": "Oxveil: Skip Self-Improvement"
+      },
+      {
+        "command": "oxveil.selfImprovement.focus",
+        "title": "Oxveil: Focus Self-Improvement Panel"
       }
     ],
     "menus": {

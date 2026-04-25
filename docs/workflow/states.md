@@ -360,7 +360,7 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 | `reset` | `oxveil.reset` | Recovery |
 | `fullReset` | `oxveil.fullReset` | Recovery |
 | `refreshArchives` | `oxveil.archiveRefresh` | Archives |
-| `focusSelfImprovement` | `oxveil.selfImprovement.start` | Self-improvement |
+| `focusSelfImprovement` | `oxveil.selfImprovement.focus` | Self-improvement |
 | `skipSelfImprovement` | `oxveil.selfImprovement.skip` | Self-improvement |
 
 #### Phase Commands (with `phase: number`)

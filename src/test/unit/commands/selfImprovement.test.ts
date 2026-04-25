@@ -64,17 +64,21 @@ describe("registerSelfImprovementCommands", () => {
     };
   });
 
-  it("registers start and skip commands", async () => {
+  it("registers start, skip, and focus commands", async () => {
     const vscode = await import("vscode");
     const disposables = registerSelfImprovementCommands(deps);
 
-    expect(disposables).toHaveLength(2);
+    expect(disposables).toHaveLength(3);
     expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
       "oxveil.selfImprovement.start",
       expect.any(Function),
     );
     expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
       "oxveil.selfImprovement.skip",
+      expect.any(Function),
+    );
+    expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+      "oxveil.selfImprovement.focus",
       expect.any(Function),
     );
   });
@@ -170,6 +174,40 @@ describe("registerSelfImprovementCommands", () => {
       skipCall[1](); // Execute the handler
 
       expect(deps.refreshSidebar).toHaveBeenCalled();
+    });
+  });
+
+  describe("oxveil.selfImprovement.focus", () => {
+    it("reveals panel if visible", async () => {
+      const vscode = await import("vscode");
+      const mockPanelInner = {
+        reveal: vi.fn(),
+      };
+      mockPanel.visible = true;
+      mockPanel.panel = mockPanelInner as any;
+      registerSelfImprovementCommands(deps);
+
+      const focusCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.focus"
+      );
+      focusCall[1](); // Execute the handler
+
+      expect(mockPanelInner.reveal).toHaveBeenCalled();
+    });
+
+    it("shows warning when panel not visible", async () => {
+      const vscode = await import("vscode");
+      mockPanel.visible = false;
+      registerSelfImprovementCommands(deps);
+
+      const focusCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.focus"
+      );
+      focusCall[1](); // Execute the handler
+
+      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+        expect.stringContaining("No self-improvement session active"),
+      );
     });
   });
 });

@@ -35,6 +35,8 @@ export type SidebarCommand =
   | { command: "discardPlan" }
   | { command: "resumePlan" }
   | { command: "dismissPlan" }
+  | { command: "focusSelfImprovement" }
+  | { command: "skipSelfImprovement" }
   // selectFolder deferred to multi-root follow-up
   ;
 
@@ -81,6 +83,8 @@ const COMMAND_MAP: Record<string, string> = {
   reset: "oxveil.reset",
   fullReset: "oxveil.fullReset",
   refreshArchives: "oxveil.archiveRefresh",
+  focusSelfImprovement: "oxveil.selfImprovement.focus",
+  skipSelfImprovement: "oxveil.selfImprovement.skip",
 };
 
 // Phase commands: pass { phaseNumber } to match commands.ts argument shape
