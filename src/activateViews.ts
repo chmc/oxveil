@@ -122,6 +122,18 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
           // Directory doesn't exist — skip
         }
       }
+
+      // Check for ai-parsed-plan.md specifically
+      if (deps.workspaceRoot) {
+        const aiParsedPath = path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+        try {
+          const s = await stat(aiParsedPath);
+          results.push({ path: aiParsedPath, category: "ai-parsed", mtimeMs: s.mtimeMs });
+        } catch {
+          // File doesn't exist - skip
+        }
+      }
+
       return results;
     },
     onAnnotation: (phase, text) => {
