@@ -18,7 +18,11 @@ export function sidebarJs(): string {
           vscode.postMessage(msg);
           if (btn.tagName === "BUTTON") {
             btn.setAttribute("disabled", "true");
-            setTimeout(function() { btn.removeAttribute("disabled"); }, 2000);
+            if (msg.command === "start") {
+              btn.innerHTML = '<span class="codicon codicon-sync spin"></span> Starting...';
+            } else {
+              setTimeout(function() { btn.removeAttribute("disabled"); }, 2000);
+            }
           }
           return;
         }
