@@ -4,6 +4,20 @@
 - [Verification Integrity](#verification-integrity) - No rationalization during verification
 - [Oxveil Testing Patterns](#oxveil-testing-patterns) - Project-specific TDD patterns
 
+## Rationalization Blockers
+
+<⚠️ WARNING: If you hear yourself thinking any of these, STOP and re-read the rule you are about to violate. These are red flags that you are about to rationalize your way around a guardrail. ⚠️>
+
+- "This case is different"
+- "I can do this after"
+- "The user won't mind"
+- "It's obvious this works"
+- "I already know the answer"
+- "This is trivial"
+- "I already verified"
+- "Tests passed earlier"
+- "Change is trivial"
+
 ## Hard Rules
 
 - NEVER claim a tool is unavailable without first checking: (1) skill reference files, (2) related repos (`~/source/claudeloop/tests/` for fake_claude), (3) workspace-wide search. A single `which` command is not sufficient. Forbidden: "fake_claude not found" after only checking PATH.
