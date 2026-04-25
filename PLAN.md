@@ -132,7 +132,7 @@ export function parseLessons(content: string): Lesson[] {
 
 ---
 
-### Phase 4: Self-Improvement Panel (Oxveil)
+### Phase 4: Self-Improvement Panel (Oxveil) ✅
 
 **Goal:** Create webview panel to display lessons and trigger improvement session.
 
