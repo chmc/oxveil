@@ -21,36 +21,17 @@
 
 ## Hard Rules
 
-<BLOCKING-GATE id="tool-availability">
-- NEVER claim a tool is unavailable without first checking: (1) skill reference files, (2) related repos (`~/source/claudeloop/tests/` for fake_claude), (3) workspace-wide search. A single `which` command is not sufficient. Forbidden: "fake_claude not found" after only checking PATH.
-</BLOCKING-GATE>
-
-<BLOCKING-GATE id="destructive-ops">
-- NEVER recursively delete the `.claudeloop/` directory. It is managed by claudeloop and contains live runtime state.
-- During mock cleanup, only remove individual mock-created files (those newer than `.MOCK_SESSION` marker). Never `rm -rf .claudeloop`.
-- NEVER use `keystroke` via osascript for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W). `keystroke` always targets the system frontmost app, not the `tell process` target — it can kill the terminal. Use accessibility menu clicks instead (`click menu item` of the target process's menu bar), which are process-scoped.
-- For non-destructive keystrokes (Cmd+Shift+P, typing text, Enter, Escape), always `set frontmost to true` and `AXRaise` the target window first.
-</BLOCKING-GATE>
-
-<BLOCKING-GATE id="plan-mode">
-- NEVER edit non-plan files while plan mode is active. Plan mode restricts edits to the plan file only. When a change is needed, write it to the plan file and call ExitPlanMode to request permission — do not make the change directly.
-</BLOCKING-GATE>
-
-<BLOCKING-GATE id="activation-safety">
-- NEVER `await` an external process (execFile, spawn, fetch) without a timeout in `activate()`. Use `Promise.race` with 5s timeout. A hanging CLI blocks `resolveWebviewView` and the sidebar stays on the loading spinner forever.
-- Wrap non-critical awaits in `activate()` (bridge startup, optional detection) in try-catch. Activation must always complete.
-</BLOCKING-GATE>
-
-<BLOCKING-GATE id="critic-agents">
-- NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
-- After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
-- All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
-</BLOCKING-GATE>
-
-<BLOCKING-GATE id="verification-completion">
-- NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude (setup: `visual-verification/references/visual-verification-recipes.md#claudeloop-fake-cli`), cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
-- NEVER claim work is complete without checking for documentation impact. Before final verification, ask: (1) Did I change user-facing behavior? → update README.md (2) Did I change architecture? → update ARCHITECTURE.md, consider ADR (3) Did I touch state machine files? → update `docs/workflow/states.md`
-</BLOCKING-GATE>
+- NEVER claim tool unavailable without checking: (1) skill refs, (2) related repos (`~/source/claudeloop/tests/`), (3) workspace search. Single `which` insufficient.
+- NEVER `rm -rf .claudeloop`. Remove only individual mock-created files (newer than `.MOCK_SESSION`).
+- NEVER `keystroke` via osascript for destructive ops (Cmd+W/Q). `keystroke` targets frontmost app, not `tell process` target. Use `click menu item`.
+- Non-destructive keystrokes: `set frontmost to true` + `AXRaise` first.
+- NEVER edit non-plan files in plan mode. Write to plan file, call ExitPlanMode.
+- NEVER `await` external process in `activate()` without timeout. Use `Promise.race` 5s. Hanging CLI = stuck spinner.
+- NEVER call ExitPlanMode without 2-3 critic agents. Exception: trivial (config/docs only, no source) → say "Skipping critics — trivial: [reason]."
+- After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
+- Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
+- NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
+- NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md`.
 
 ## Project
 
@@ -63,9 +44,7 @@
 - Never add yourself as co-author.
 - When fixing a GitHub issue, always include `Closes #N` or `Fixes #N` in the commit message. Do not push automatically — tell the user the issue will close on `git push`.
 
-<BLOCKING-GATE id="commit-gate">
-- NEVER commit without first completing the full Quality Gates sequence (lint, tests, visual verification if UI-facing, Codex review if available). "The change is only docs/skills" is not an exemption.
-</BLOCKING-GATE>
+- NEVER commit without completing Quality Gates (lint, tests, visual verification if UI, Codex if available). "Only docs/skills" not exempt.
 
 ## Development Process
 
@@ -116,20 +95,14 @@
 
 ### Completion Checklist (execute in order before claiming done)
 
-<QUALITY-CHECKPOINT>
 Execute in order. Do not skip.
 
-1. `npm run lint` — fix all errors (pre-existing errors are not exempt)
-2. `npm test` — fix all failures
-3. Documentation impact scan:
-   - Changed files in `src/views/sidebar*.ts`, `src/core/session*.ts`, `src/views/statusBar.ts`, `src/views/planPreviewPanel.ts`, `src/sessionWiring.ts`, `src/activateSidebar.ts`, `src/types.ts` → update `docs/workflow/states.md`
-   - Changed user-facing behavior → update README.md
-   - Architectural decision → create ADR in `docs/adr/`
-   - Technical changes → verify ARCHITECTURE.md is current
-4. UI-facing changes → `/visual-verification`
-5. Codex review (if available) — see below
-6. Only after 1-5 pass: state result and next step
-</QUALITY-CHECKPOINT>
+1. `npm run lint` — fix all
+2. `npm test` — fix all
+3. Doc scan: state files → `docs/workflow/states.md`, user-facing → README, architecture → ADR
+4. UI changes → `/visual-verification`
+5. Codex review if available
+6. After 1-5: state result + next step
 
 - After lint, tests, documentation, and visual verification (if UI-facing) pass, run a Codex review if either `codex:review` or `codex:rescue` is listed in available skills.
   - If `codex:review` is available: run `/codex:review --wait --scope working-tree`.
@@ -146,14 +119,12 @@ Execute in order. Do not skip.
 
 ## Verification Integrity
 
-<BLOCKING-GATE id="verification-integrity">
-- NEVER claim a verification passed when prerequisites were missing. If a test requires MCP bridge active, main VS Code running, or specific state — and that prerequisite isn't met — the verification FAILED, not "passed with caveats."
-- NEVER substitute a weaker test for the specified test. "File isolation confirmed" is not equivalent to "UI state bleeding verified." If the plan says "monitor main instance sidebar state," you must actually poll the main instance's `/state` endpoint, not just check file existence.
-- NEVER rationalize around blocked paths. Forbidden phrases during verification: "This is actually fine," "We can still verify X instead," "This doesn't affect the test." If a prerequisite fails, either fix it or report failure — do not proceed with a different test and claim the original passed.
-- When a verification step has prerequisites, check them FIRST. If any prerequisite fails, stop and report which prerequisite failed — do not continue to "see what we can verify."
-- Verification results must match what was actually tested. If you tested file isolation but the plan specified UI behavior, report: "File isolation: PASS. UI state bleeding: NOT TESTED (prerequisite failed: main MCP bridge not active)."
-- When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
-</BLOCKING-GATE>
+- NEVER claim verification passed if prerequisites missing. Missing prerequisite = FAILED, not "passed with caveats."
+- NEVER substitute weaker test. "File isolation" ≠ "UI state bleeding." Run specified test.
+- NEVER rationalize blocked paths. Prerequisite fails → fix or report failure.
+- Check prerequisites FIRST. If any fail, stop and report which.
+- Results must match what was tested. "X: PASS. Y: NOT TESTED (prerequisite failed)."
+- Mutable state interfaces: check for stale snapshots. Prefer getters over copied values.
 
 ## Writing Style
 
@@ -179,11 +150,7 @@ See `.claude/skills/oxveil-testing/SKILL.md`. Use alongside `superpowers:test-dr
 
 ## Bash Truncation Hook (.claude/hooks/bash-truncate.mjs)
 
-<BLOCKING-GATE id="bash-hook-bypass">
-- NEVER work around the hook by modifying commands to avoid pattern matching. Fix the hook instead.
-- NEVER wrap commands in `sh -c` or `bash -c` to bypass the hook.
-- NEVER remove or disable the hook entry in `.claude/settings.json`.
-</BLOCKING-GATE>
+- NEVER bypass hook via command modification, `sh -c`, `bash -c`, or disabling in settings. Fix the hook.
 
 - On false positive (useful output truncated): add command pattern to ALLOWLIST in bash-truncate.mjs.
 - On false negative (verbose output passed through): add pattern to BOUNDED_PIPES.
