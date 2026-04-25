@@ -21,6 +21,8 @@ import {
   handleWorkspaceFolderChange,
 } from "./workspaceSetup";
 import type { PlanChatSession } from "./core/planChatSession";
+import type { SelfImprovementSession } from "./core/selfImprovementSession";
+import { registerSelfImprovementCommands } from "./commands/selfImprovement";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { activateSidebar } from "./activateSidebar";
 import { activateMcpBridge } from "./activateMcpBridge";
@@ -30,6 +32,7 @@ import { createNotificationManager, showDetectionNotifications } from "./activat
 import {
   createElapsedTimer,
   createTerminalCloseHandler,
+  createSelfImprovementTerminalCloseHandler,
   createTestAnnotationCommand,
   setupSessionChangeHandler,
 } from "./activateSessionHandlers";
@@ -103,6 +106,9 @@ export async function activate(
 
   // Plan chat session tracking
   let activePlanChatSession: PlanChatSession | undefined;
+
+  // Self-improvement session tracking
+  let activeSelfImprovementSession: SelfImprovementSession | undefined;
 
   // Check initial plan state
   let initialPlanDetected = false;
@@ -233,6 +239,12 @@ export async function activate(
     onPlanChatEnded: sidebar.onPlanChatEnded,
   }));
 
+  // Terminal close listener — detect when self-improvement terminal is closed
+  disposables.push(createSelfImprovementTerminalCloseHandler({
+    getActiveSelfImprovementSession: () => activeSelfImprovementSession,
+    setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
+  }));
+
   // Test command for visual verification — triggers annotation flow
   disposables.push(createTestAnnotationCommand(() => activePlanChatSession));
 
@@ -269,6 +281,21 @@ export async function activate(
       onPlanFormed: sidebar.onPlanFormed,
       notificationManager: notifications,
       onFullReset: sidebar.onFullReset,
+    }),
+  );
+
+  // Register self-improvement commands
+  disposables.push(
+    ...registerSelfImprovementCommands({
+      claudePath: resolvedClaudePath,
+      extensionMode: context.extensionMode,
+      getSelfImprovementPanel: () => selfImprovementPanel,
+      getMutableState: () => sidebarState,
+      refreshSidebar: () => sidebarPanel.updateState(buildFullState()),
+      getActiveSelfImprovementSession: () => activeSelfImprovementSession,
+      onSelfImprovementSessionCreated: (session) => {
+        activeSelfImprovementSession = session;
+      },
     }),
   );
 

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { PlanChatSession } from "./core/planChatSession";
+import type { SelfImprovementSession } from "./core/selfImprovementSession";
 import type { PlanPreviewPanel } from "./views/planPreviewPanel";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import type { DependencyGraphPanel } from "./views/dependencyGraph";
@@ -55,6 +56,25 @@ export function createTerminalCloseHandler(deps: TerminalHandlerDeps): vscode.Di
       deps.planPreviewPanel.endSession();
       deps.onPlanChatEnded();
       vscode.commands.executeCommand("setContext", "oxveil.planChatActive", false);
+    }
+  });
+}
+
+export interface SelfImprovementTerminalHandlerDeps {
+  getActiveSelfImprovementSession: () => SelfImprovementSession | undefined;
+  setActiveSelfImprovementSession: (session: SelfImprovementSession | undefined) => void;
+}
+
+/**
+ * Creates a terminal close handler that tracks self-improvement session lifecycle.
+ */
+export function createSelfImprovementTerminalCloseHandler(
+  deps: SelfImprovementTerminalHandlerDeps,
+): vscode.Disposable {
+  return vscode.window.onDidCloseTerminal((terminal) => {
+    const session = deps.getActiveSelfImprovementSession();
+    if (session?.matchesTerminal(terminal)) {
+      deps.setActiveSelfImprovementSession(undefined);
     }
   });
 }

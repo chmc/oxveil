@@ -226,7 +226,7 @@ Action: `/visual-verification` - verify sidebar shows "Learning" badge after com
 
 ---
 
-### Phase 7: Improvement Session (Oxveil)
+### Phase 7: Improvement Session (Oxveil) [COMPLETED]
 
 **Goal:** Spawn Claude CLI with lessons context to propose CLAUDE.md updates.
 

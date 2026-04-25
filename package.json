@@ -181,6 +181,14 @@
         "command": "oxveil.fullReset",
         "title": "Oxveil: Reset",
         "icon": "$(debug-restart)"
+      },
+      {
+        "command": "oxveil.selfImprovement.start",
+        "title": "Oxveil: Start Self-Improvement Session"
+      },
+      {
+        "command": "oxveil.selfImprovement.skip",
+        "title": "Oxveil: Skip Self-Improvement"
       }
     ],
     "menus": {
