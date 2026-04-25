@@ -266,3 +266,38 @@ describe("PlanPreviewPanel > multi-file tab switching", () => {
     expect(deps.readFile).toHaveBeenCalledWith(IMPL_PATH);
   });
 });
+
+describe("PlanPreviewPanel > ai-parsed category", () => {
+  const AI_PARSED_PATH = "/workspace/.claudeloop/ai-parsed-plan.md";
+  const AI_PARSED_CONTENT = `# AI Parsed Plan
+
+## Phase 1: First Task
+[status: pending]
+Do the first thing
+`;
+
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("should render AI Parsed tab when ai-parsed file exists", async () => {
+    const deps = makeDeps();
+    const now = Date.now();
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+      { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: now + 100 },
+    ]);
+    (deps.statFile as any).mockResolvedValue({ birthtimeMs: now + 500, mtimeMs: now + 500 });
+    deps.readFile = vi.fn(async (p: string) =>
+      p === DESIGN_PATH ? DESIGN_CONTENT : AI_PARSED_CONTENT,
+    );
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    panel.beginSession();
+
+    await panel.onFileChanged();
+
+    const call = deps._panel.webview.postMessage.mock.calls[0][0];
+    expect(call.html).toContain('data-category="ai-parsed"');
+    expect(call.html).toContain("AI Parsed");
+  });
+});

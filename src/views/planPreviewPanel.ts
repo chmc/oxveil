@@ -6,7 +6,7 @@ import { parseSections } from "../parsers/planSections";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
 import { PlanFileResolver } from "./planFileResolver";
 
-export type PlanFileCategory = "design" | "implementation" | "plan";
+export type PlanFileCategory = "design" | "implementation" | "plan" | "ai-parsed";
 
 export interface FileSystemWatcher {
   onDidChange: (cb: () => void) => { dispose: () => void };

@@ -205,6 +205,7 @@ export class PlanFileResolver {
       design: "Design",
       implementation: "Implementation",
       plan: "Plan",
+      "ai-parsed": "AI Parsed",
     };
     return Array.from(this._trackedFiles.keys()).map((cat) => ({
       category: cat,
