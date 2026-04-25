@@ -133,6 +133,7 @@
 - When using nullish coalescing (`??`) with VS Code config values, check if the schema default is empty string. `get<string>()` returns `""` if default is `""`, and `"" ?? fallback` doesn't fall through. Use `||` if empty string should trigger fallback.
 - `deps.folderUri` is a URI string (`file:///path`), not a filesystem path. Use `vscode.Uri.parse(deps.folderUri).fsPath` when building paths with `join()`.
 - Claudeloop files use uppercase names: `PROGRESS.md`, `PLAN.md`. Watchers are case-sensitive.
+- When adding fields to `SidebarMutableState`, check if they need resetting in the `to === "running"` block of `sessionWiring.ts`. Session-scoped state (cost, todos, selfImprovementActive) must reset; persistent state (detectionStatus, planDetected) must not.
 
 ## Continuous Improvement
 
