@@ -120,6 +120,16 @@
 - One critic must verify the plan contains no manual verification steps when `/visual-verification` or other automation exists.
 - One critic must verify the plan includes `docs/workflow/states.md` updates when the plan touches state machine files (sidebar*.ts, session*.ts, statusBar.ts, planPreviewPanel.ts, sessionWiring.ts, activateSidebar.ts, types.ts).
 
+### Forbidden Thoughts During Completion
+
+| If thinking... | Stop. Instead... |
+|---|---|
+| "Tests passed earlier" | Run them now — state may have changed |
+| "This change is trivial" | Run the full checklist anyway — trivial changes break too |
+| "I can verify after claiming done" | Verify before claiming — the checklist exists to prevent this |
+| "Lint/tests took too long before" | Run them again — they're faster than debugging prod |
+| "Documentation doesn't apply here" | Check all four doc categories — architecture/README/states/ADR |
+
 ## Verification Integrity
 
 - NEVER claim a verification passed when prerequisites were missing. If a test requires MCP bridge active, main VS Code running, or specific state — and that prerequisite isn't met — the verification FAILED, not "passed with caveats."
@@ -129,6 +139,16 @@
 - Verification results must match what was actually tested. If you tested file isolation but the plan specified UI behavior, report: "File isolation: PASS. UI state bleeding: NOT TESTED (prerequisite failed: main MCP bridge not active)."
 
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
+
+### Forbidden Thoughts During Verification
+
+| If thinking... | Stop. Instead... |
+|---|---|
+| "This is actually fine" | No. If prerequisites fail, the test is incomplete |
+| "We can verify X instead" | No. Run the test specified in the plan |
+| "This doesn't affect the outcome" | No. Run the actual test — don't rationalize around it |
+| "The prerequisite isn't critical" | Run it anyway — it gates the entire verification |
+| "I tested something similar before" | Test this now with this state — state changes invalidate prior results |
 
 ## Writing Style
 
