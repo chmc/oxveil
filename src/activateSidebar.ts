@@ -89,8 +89,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     const sessionStatus = sessionState?.status ?? "idle";
     const progress = sessionState?.progress;
     // Debug override for visual verification (set oxveil.debugView in settings)
+    // Use || instead of ?? because config default is "" which is falsy but not nullish
     const debugView = vscode.workspace.getConfiguration?.("oxveil")?.get<string>("debugView") as SidebarView | undefined;
-    const viewState = debugView ?? deriveViewState(
+    const viewState = debugView || deriveViewState(
       state.detectionStatus,
       sessionStatus,
       state.planDetected,

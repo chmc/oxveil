@@ -151,7 +151,7 @@ describe("walkthrough step completion", () => {
         } as any,
         folderUri: "file:///test",
         isActiveSession: () => true,
-        sidebarMutableState: { detectionStatus: "detected", planDetected: false, planUserChoice: "none", cachedPlanPhases: [], cost: 0, todoDone: 0, todoTotal: 0 },
+        sidebarMutableState: { detectionStatus: "detected", planDetected: false, planUserChoice: "none", cachedPlanPhases: [], cost: 0, todoDone: 0, todoTotal: 0, selfImprovementActive: false },
       };
 
       wireSessionEvents(wiringDeps);

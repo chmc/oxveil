@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { SessionState } from "./core/sessionState";
 import type { StatusBarManager } from "./views/statusBar";
 import type { LiveRunPanel } from "./views/liveRunPanel";
@@ -13,6 +15,8 @@ import { renderPhaseList } from "./views/sidebarPhaseHelpers";
 import type { SidebarState } from "./views/sidebarState";
 import type { SidebarMutableState } from "./activateSidebar";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
+import { parseLessons } from "./parsers/lessons";
+import type { SelfImprovementPanel } from "./views/selfImprovementPanel";
 
 export interface SessionWiringDeps {
   session: SessionState;
@@ -30,6 +34,7 @@ export interface SessionWiringDeps {
   sidebarPanel?: SidebarPanel;
   buildSidebarState?: () => SidebarState;
   sidebarMutableState?: SidebarMutableState;
+  selfImprovementPanel?: SelfImprovementPanel;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -48,7 +53,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     deps.sidebarPanel.updateState(deps.buildSidebarState());
   }
 
-  session.on("state-changed", (_from, to) => {
+  session.on("state-changed", async (_from, to) => {
     // Removed isActiveSession() guard - sidebar should show whichever session is running
     vscode.commands.executeCommand(
       "setContext",
@@ -112,6 +117,22 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         }
         deps.liveRunPanel?.onRunFinished(view === "stopped" ? "stopped" : "done");
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
+        // Self-improvement trigger
+        const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
+        if (selfImprovementEnabled && view === "completed") {
+          try {
+            const folderPath = vscode.Uri.parse(deps.folderUri).fsPath;
+            const lessonsPath = join(folderPath, ".claudeloop", "lessons.md");
+            const lessonsContent = await readFile(lessonsPath, "utf-8");
+            const lessons = parseLessons(lessonsContent);
+            if (lessons.length > 0 && session.status === "done") {
+              deps.selfImprovementPanel?.reveal(lessons);
+              if (ms) ms.selfImprovementActive = true;
+            }
+          } catch {
+            // lessons.md not found or unreadable - no self-improvement
+          }
+        }
         break;
       }
       case "failed": {

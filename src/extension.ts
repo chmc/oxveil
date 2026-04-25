@@ -134,7 +134,7 @@ export async function activate(
     context,
   });
   disposables.push(...panels.disposables);
-  const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel } = panels;
+  const { dependencyGraph, executionTimeline, configWizard, replayViewer, archiveTimelinePanel, liveRunPanel, planPreviewPanel, selfImprovementPanel } = panels;
 
   // Notifications
   const notifications = createNotificationManager({ manager, liveRunPanel });
@@ -172,6 +172,7 @@ export async function activate(
     sidebarPanel,
     buildSidebarState: buildFullState,
     sidebarMutableState: sidebarState,
+    selfImprovementPanel,
   };
 
   const onArchiveDone = async () => {
