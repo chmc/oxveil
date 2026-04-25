@@ -7,18 +7,23 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 
 ## Constraints
 
-- macOS only. Requires osascript (Accessibility permission) and screencapture (Screen Recording permission).
+<BLOCKING-GATE id="visual-verification-critical">
+
+- Screenshot failure is blocking. Stop and tell user: "Screenshot capture failed: [error]."
 - NEVER use `screencapture -w` (blocks in automation). Use `-l <CGWindowID>` or `-R x,y,w,h -x`.
+- NEVER delete `verification-sessions/` or any session subfolder.
+- All code paths must reach Phase 6 (Cleanup). No exceptions.
+
+</BLOCKING-GATE>
+
+- macOS only. Requires osascript (Accessibility permission) and screencapture (Screen Recording permission).
 - **ALWAYS capture videos for state transitions and workflows.** Screenshots show static states; videos capture timing, animations, and transitions. Use `screencapture -v -l <CGWindowID>` for video (30s default, or `-V <seconds>` for custom duration). Save to `videos/NN-description.mov`.
-- Screenshot failure is blocking. Stop and tell the user: "Screenshot capture failed: [error]." Never silently fall back to non-visual checks.
 - Do not invoke during TDD cycles. This is a standalone verification activity.
 - Do not commit fixes automatically. Log changes in SESSION.md. Developer reviews `git diff` after session.
-- All code paths must reach Phase 6 (Cleanup). No exceptions.
 - Do not mock `.claudeloop/` if a real session is running (check lock file first).
 - Exercise the full workflow path, not static screenshots of a single state.
 - Vary plan content every run — different phase counts, titles, descriptions. Use `generate_plan` from recipes.
 - Stash or use worktree if uncommitted changes exist — fake_claude `success` triggers auto-commit that captures dirty state.
-- NEVER delete `verification-sessions/` or any session subfolder. They are gitignored but kept on disk for developer auditing.
 - Before claiming "fake_claude not available", you MUST: (1) read `references/visual-verification-recipes.md` claudeloop section, (2) check `~/source/claudeloop/tests/fake_claude`. Setup is documented; "not in PATH" is not "not available."
 
 ## Self-Implementation Mode
