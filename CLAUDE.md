@@ -1,30 +1,23 @@
+## STOP if Thinking
+
+| Thought | Reality |
+|---------|---------|
+| "This case is different" | The rule still applies |
+| "I can do this after" | Do it now or it won't happen |
+| "The user won't mind" | Follow the rule |
+| "It's obvious this works" | Run verification anyway |
+| "Tests passed earlier" | Run them now — state changes |
+| "This is trivial" | Trivial changes break too. Full checklist. |
+| "I can verify after" | Verify before claiming done |
+| "We can verify X instead" | Run the specified test |
+| "Prerequisite isn't critical" | It gates the verification |
+| "Documentation doesn't apply" | Check all 4 categories |
+
 ## Index
 
-**Tier 1: Blocking Gates** (NEVER rules, hard stops)
-- [Hard Rules](#hard-rules) - Tool availability, destructive ops, plan mode, activation safety, verification/completion
-- [Verification Integrity](#verification-integrity) - No rationalization during verification
-- [Bash Truncation Hook](#bash-truncation-hook) - Hook bypass prevention
-
-**Tier 2: Quality Checkpoints** (execute in order, do not skip)
+- [Hard Rules](#hard-rules) - NEVER rules (tool, destructive ops, plan mode, activation, verification)
 - [Quality Gates](#quality-gates) - Completion checklist, critic requirements
-
-**Tier 3: Guidelines** (best practices, workflow patterns)
-- [Oxveil Testing Patterns](#oxveil-testing-patterns) - Project-specific TDD patterns
-- [Rationalization Blockers](#rationalization-blockers) - Forbidden thoughts indicating rule bypass
-
-## Rationalization Blockers
-
-<WARNING>If you hear yourself thinking any of these, STOP and re-read the rule you are about to violate. These are red flags that you are about to rationalize your way around a guardrail.</WARNING>
-
-- "This case is different"
-- "I can do this after"
-- "The user won't mind"
-- "It's obvious this works"
-- "I already know the answer"
-- "This is trivial"
-- "I already verified"
-- "Tests passed earlier"
-- "Change is trivial"
+- [Verification Integrity](#verification-integrity) - No rationalization during verification
 
 ## Hard Rules
 
@@ -151,16 +144,6 @@ Execute in order. Do not skip.
 - One critic must verify the plan contains no manual verification steps when `/visual-verification` or other automation exists.
 - One critic must verify the plan includes `docs/workflow/states.md` updates when the plan touches state machine files (sidebar*.ts, session*.ts, statusBar.ts, planPreviewPanel.ts, sessionWiring.ts, activateSidebar.ts, types.ts).
 
-### Forbidden Thoughts During Completion
-
-| If thinking... | Stop. Instead... |
-|---|---|
-| "Tests passed earlier" | Run them now — state may have changed |
-| "This change is trivial" | Run the full checklist anyway — trivial changes break too |
-| "I can verify after claiming done" | Verify before claiming — the checklist exists to prevent this |
-| "Lint/tests took too long before" | Run them again — they're faster than debugging prod |
-| "Documentation doesn't apply here" | Check all four doc categories — architecture/README/states/ADR |
-
 ## Verification Integrity
 
 <BLOCKING-GATE id="verification-integrity">
@@ -171,16 +154,6 @@ Execute in order. Do not skip.
 - Verification results must match what was actually tested. If you tested file isolation but the plan specified UI behavior, report: "File isolation: PASS. UI state bleeding: NOT TESTED (prerequisite failed: main MCP bridge not active)."
 - When reviewing interfaces that pass mutable state (wiring contexts, dependency injection), critic agents should check: are any fields stale snapshots of values that can change at runtime? Prefer getters or callbacks over copied values.
 </BLOCKING-GATE>
-
-### Forbidden Thoughts During Verification
-
-| If thinking... | Stop. Instead... |
-|---|---|
-| "This is actually fine" | No. If prerequisites fail, the test is incomplete |
-| "We can verify X instead" | No. Run the test specified in the plan |
-| "This doesn't affect the outcome" | No. Run the actual test — don't rationalize around it |
-| "The prerequisite isn't critical" | Run it anyway — it gates the entire verification |
-| "I tested something similar before" | Test this now with this state — state changes invalidate prior results |
 
 ## Writing Style
 
