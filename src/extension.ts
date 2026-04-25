@@ -1,10 +1,7 @@
 import * as vscode from "vscode";
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";
 import { StatusBarManager } from "./views/statusBar";
-import { registerCommands } from "./commands";
 import { initWorkspaceWatchers } from "./workspaceInit";
 import { createWebviewPanels, createArchiveView } from "./activateViews";
 import { WorkspaceSessionManager } from "./core/workspaceSessionManager";
@@ -22,10 +19,10 @@ import {
 } from "./workspaceSetup";
 import type { PlanChatSession } from "./core/planChatSession";
 import type { SelfImprovementSession } from "./core/selfImprovementSession";
-import { registerSelfImprovementCommands } from "./commands/selfImprovement";
 import { SidebarPanel } from "./views/sidebarPanel";
-import { activateSidebar } from "./activateSidebar";
+import { activateSidebar, checkInitialPlanState } from "./activateSidebar";
 import { activateMcpBridge } from "./activateMcpBridge";
+import { activateCommands } from "./activateCommands";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 import { createConfigWatcher } from "./activateConfigWatcher";
 import { createNotificationManager, showDetectionNotifications } from "./activateNotifications";
@@ -111,15 +108,7 @@ export async function activate(
   let activeSelfImprovementSession: SelfImprovementSession | undefined;
 
   // Check initial plan state
-  let initialPlanDetected = false;
-  if (workspaceRoot) {
-    try {
-      await fs.access(path.join(workspaceRoot, "PLAN.md"));
-      initialPlanDetected = true;
-    } catch {
-      // PLAN.md doesn't exist yet
-    }
-  }
+  const initialPlanDetected = await checkInitialPlanState(workspaceRoot);
 
   // Webview panels, CodeLens, and diff provider
   const activeSession = manager.getActiveSession();
@@ -248,14 +237,13 @@ export async function activate(
   // Test command for visual verification — triggers annotation flow
   disposables.push(createTestAnnotationCommand(() => activePlanChatSession));
 
-  // Register commands — handlers resolve active session at runtime
+  // Register commands
   disposables.push(
-    ...registerCommands({
-      sessionManager: manager,
+    ...activateCommands({
+      manager,
       installer,
       statusBar,
-      readdir: (dir: string) => fs.readdir(dir),
-      onArchiveRefresh: refreshArchive,
+      refreshArchive,
       dependencyGraph,
       executionTimeline,
       configWizard,
@@ -263,39 +251,22 @@ export async function activate(
       archiveTimelinePanel,
       liveRunPanel,
       planPreviewPanel,
+      selfImprovementPanel,
       claudePath: resolvedClaudePath,
       extensionMode: context.extensionMode,
+      notifications,
+      sidebarState,
+      sidebarPanel,
+      buildFullState,
+      sidebar: {
+        onPlanChatStarted: sidebar.onPlanChatStarted,
+        onPlanFormed: sidebar.onPlanFormed,
+        onFullReset: sidebar.onFullReset,
+      },
       getActivePlanChatSession: () => activePlanChatSession,
-      onPlanChatSessionCreated: (session) => {
-        // Clear stale sidebar state first (before reset() fires synchronous events)
-        sidebar.onPlanChatStarted();
-        const activeSession = manager.getActiveSession();
-        if (activeSession) {
-          activeSession.sessionState.reset();
-        }
-
-        activePlanChatSession = session;
-        planPreviewPanel.setSessionActive(true);
-        vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
-      },
-      onPlanFormed: sidebar.onPlanFormed,
-      notificationManager: notifications,
-      onFullReset: sidebar.onFullReset,
-    }),
-  );
-
-  // Register self-improvement commands
-  disposables.push(
-    ...registerSelfImprovementCommands({
-      claudePath: resolvedClaudePath,
-      extensionMode: context.extensionMode,
-      getSelfImprovementPanel: () => selfImprovementPanel,
-      getMutableState: () => sidebarState,
-      refreshSidebar: () => sidebarPanel.updateState(buildFullState()),
+      setActivePlanChatSession: (session) => { activePlanChatSession = session; },
       getActiveSelfImprovementSession: () => activeSelfImprovementSession,
-      onSelfImprovementSessionCreated: (session) => {
-        activeSelfImprovementSession = session;
-      },
+      setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
     }),
   );
 

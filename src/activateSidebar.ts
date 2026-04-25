@@ -264,3 +264,16 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
   return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset };
 }
+
+/**
+ * Checks if PLAN.md exists in the workspace root.
+ */
+export async function checkInitialPlanState(workspaceRoot: string | undefined): Promise<boolean> {
+  if (!workspaceRoot) return false;
+  try {
+    await fs.access(path.join(workspaceRoot, "PLAN.md"));
+    return true;
+  } catch {
+    return false;
+  }
+}
