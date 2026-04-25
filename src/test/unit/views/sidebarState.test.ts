@@ -112,6 +112,15 @@ describe("deriveViewState", () => {
     };
     expect(deriveViewState("detected", "idle", true, completedAndInProgress)).toBe("stopped");
   });
+  it("returns self-improvement when done, all phases complete, and selfImprovementActive", () => {
+    expect(deriveViewState("detected", "done", true, allDone, undefined, true)).toBe("self-improvement");
+  });
+  it("returns completed when done, all phases complete, but selfImprovementActive false", () => {
+    expect(deriveViewState("detected", "done", true, allDone, undefined, false)).toBe("completed");
+  });
+  it("returns stopped when done but phases incomplete, even with selfImprovementActive", () => {
+    expect(deriveViewState("detected", "done", true, partial, undefined, true)).toBe("stopped");
+  });
 });
 
 describe("formatDuration", () => {

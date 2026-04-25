@@ -31,6 +31,7 @@ function makeMutableState() {
     cost: 0,
     todoDone: 0,
     todoTotal: 0,
+    selfImprovementActive: false,
   };
 }
 

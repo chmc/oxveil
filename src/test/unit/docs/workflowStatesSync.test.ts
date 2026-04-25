@@ -80,6 +80,7 @@ const SOURCE_SIDEBAR_VIEW = [
   "stopped",
   "failed",
   "completed",
+  "self-improvement",
 ].sort();
 const SOURCE_STATUSBAR_KINDS = [
   "not-found",

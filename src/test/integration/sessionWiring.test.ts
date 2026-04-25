@@ -21,6 +21,7 @@ function makeMutableState(): SidebarMutableState {
     cost: 0,
     todoDone: 0,
     todoTotal: 0,
+    selfImprovementActive: false,
   };
 }
 
@@ -37,6 +38,7 @@ function setup() {
       mutableState.planDetected,
       progress,
       mutableState.planUserChoice,
+      mutableState.selfImprovementActive,
     );
     return {
       view,

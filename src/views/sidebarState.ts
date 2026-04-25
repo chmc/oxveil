@@ -91,6 +91,7 @@ export function deriveViewState(
   planDetected: boolean,
   progress: ProgressState | undefined,
   planUserChoice?: PlanUserChoice,
+  selfImprovementActive?: boolean,
 ): SidebarView {
   if (detection !== "detected") return "not-found";
   if (planUserChoice === "planning" && sessionStatus === "idle") return "planning";
@@ -100,7 +101,11 @@ export function deriveViewState(
     const allCompleted =
       progress?.phases.length &&
       progress.phases.every((p) => p.status === "completed");
-    return allCompleted ? "completed" : "stopped";
+    if (allCompleted) {
+      if (selfImprovementActive) return "self-improvement";
+      return "completed";
+    }
+    return "stopped";
   }
   // idle — check for orphaned progress (extension restart after crash)
   if (progress?.phases.some((p) => p.status === "failed")) return "failed";

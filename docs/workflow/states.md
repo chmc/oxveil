@@ -103,6 +103,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 | `planDetected` | `boolean` | PLAN.md file watcher in `activateSidebar.registerPlanWatcher()` |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
 | `planUserChoice` | `PlanUserChoice` (`"none" \| "resume" \| "dismiss" \| "planning"`) | User interaction in stale view; `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
+| `selfImprovementActive` | `boolean` | Whether self-improvement mode is active after session completion. Set to `true` by `sessionWiring` when session completes and lessons are captured. Reset by `skipSelfImprovement` command or `onFullReset()`. |
 | `cachedPlanPhases` | `PhaseView[]` | Plan phases for sidebar display before session runs. Populated by `loadPlanPhases()` from four sites: (1) `onPlanFormed()` after `formPlan` completes, (2) `onDidCreate` file watcher, (3) initial activation when `initialPlanDetected`, (4) `onPlanChoice("resume")` fallback when phases are empty |
 
 ### Output States
@@ -118,29 +119,31 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 | `stopped` | Session done but partial progress (not all completed, not all failed) |
 | `failed` | At least one phase failed (session failed, or orphaned failed progress) |
 | `completed` | Session done, all phases completed |
+| `self-improvement` | Session completed, self-improvement mode active (lessons captured) |
 
 ### Decision Table
 
 The `deriveViewState()` function evaluates conditions top-to-bottom. First match wins.
 
-| # | detection | sessionStatus | planDetected | progress | planUserChoice | → View |
-|---|-----------|---------------|--------------|----------|----------------|--------|
-| 1 | `≠ "detected"` | any | any | any | any | `not-found` |
-| 2 | `"detected"` | `"idle"` | any | any | `"planning"` | `planning` |
-| 3 | `"detected"` | `"running"` | any | any | any | `running` |
-| 4 | `"detected"` | `"failed"` | any | any | any | `failed` |
-| 5 | `"detected"` | `"done"` | any | all completed | any | `completed` |
-| 6 | `"detected"` | `"done"` | any | not all completed | any | `stopped` |
-| 7 | `"detected"` | `"idle"` | any | has failed phase | any | `failed` |
-| 8 | `"detected"` | `"idle"` | any | has `in_progress` phase | any | `stopped` |
-| 9 | `"detected"` | `"idle"` | any | has completed + pending | any | `stopped` |
-| 10 | `"detected"` | `"idle"` | any | all completed | any | `completed` |
-| 11 | `"detected"` | `"idle"` | `false` | `undefined` | any | `empty` |
-| 12 | `"detected"` | `"idle"` | any | all pending | any | `ready` |
-| 13 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | `empty` |
-| 14 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | `ready` |
-| 15 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | `stale` |
-| 16 | `"detected"` | `"idle"` | `false` | `undefined` | any | `ready` |
+| # | detection | sessionStatus | planDetected | progress | planUserChoice | selfImprovementActive | → View |
+|---|-----------|---------------|--------------|----------|----------------|----------------------|--------|
+| 1 | `≠ "detected"` | any | any | any | any | any | `not-found` |
+| 2 | `"detected"` | `"idle"` | any | any | `"planning"` | any | `planning` |
+| 3 | `"detected"` | `"running"` | any | any | any | any | `running` |
+| 4 | `"detected"` | `"failed"` | any | any | any | any | `failed` |
+| 5 | `"detected"` | `"done"` | any | all completed | any | `true` | `self-improvement` |
+| 6 | `"detected"` | `"done"` | any | all completed | any | `false`/undefined | `completed` |
+| 7 | `"detected"` | `"done"` | any | not all completed | any | any | `stopped` |
+| 8 | `"detected"` | `"idle"` | any | has failed phase | any | any | `failed` |
+| 9 | `"detected"` | `"idle"` | any | has `in_progress` phase | any | any | `stopped` |
+| 10 | `"detected"` | `"idle"` | any | has completed + pending | any | any | `stopped` |
+| 11 | `"detected"` | `"idle"` | any | all completed | any | any | `completed` |
+| 12 | `"detected"` | `"idle"` | `false` | `undefined` | any | any | `empty` |
+| 13 | `"detected"` | `"idle"` | any | all pending | any | any | `ready` |
+| 14 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | any | `empty` |
+| 15 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | any | `ready` |
+| 16 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | any | `stale` |
+| 17 | `"detected"` | `"idle"` | `false` | `undefined` | any | any | `ready` |
 
 <!-- NOTE: Row 15 is the final fallback for planDetected=false — reachable when progress exists but is empty (0 phases). -->
 
@@ -156,7 +159,9 @@ flowchart TD
     D2 -- running --> Running[running]
     D2 -- failed --> Failed1[failed]
     D2 -- done --> D3{all phases completed?}
-    D3 -- Yes --> Completed[completed]
+    D3 -- Yes --> D3b{selfImprovementActive?}
+    D3b -- Yes --> SelfImprove[self-improvement]
+    D3b -- No --> Completed[completed]
     D3 -- No --> Stopped1[stopped]
     D2 -- idle --> D4{any phase failed?}
     D4 -- Yes --> Failed2[failed]
@@ -193,6 +198,7 @@ Each view maps to a renderer function in `sidebarRenderers.ts` and a set of user
 | `stopped` | `renderStopped()` | Stopped | Resume (from next pending phase) | Restart | Progress bar, phase list (paused phase highlighted), archives |
 | `failed` | `renderFailed()` | Failed | Retry (failed phase) | Skip (failed phase) | Progress bar, error snippet, phase list, archives |
 | `completed` | `renderCompleted()` | Completed | Replay (latest archive) | Create New Plan | Success banner, summary (elapsed, cost), phase list, archives |
+| `self-improvement` | `renderSelfImprovement()` | Learning | Focus Session (`focusSelfImprovement`) | Skip (`skipSelfImprovement`) | Lightbulb icon, "Lessons captured", archives |
 
 ---
 
@@ -316,7 +322,7 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
    - Calls `onFullReset()` callback
 
 2. **State reset** (`activateSidebar.onFullReset()`):
-   - Resets `SidebarMutableState`: `cost=0`, `todoDone=0`, `todoTotal=0`, `cachedPlanPhases=[]`, `planUserChoice="none"`, `planDetected=false`
+   - Resets `SidebarMutableState`: `cost=0`, `todoDone=0`, `todoTotal=0`, `cachedPlanPhases=[]`, `planUserChoice="none"`, `planDetected=false`, `selfImprovementActive=false`
    - Calls `sessionState.reset()` on active session (transitions to `idle`)
    - Refreshes sidebar via `buildFullState()`
 
@@ -354,6 +360,8 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 | `reset` | `oxveil.reset` | Recovery |
 | `fullReset` | `oxveil.fullReset` | Recovery |
 | `refreshArchives` | `oxveil.archiveRefresh` | Archives |
+| `focusSelfImprovement` | `oxveil.selfImprovement.start` | Self-improvement |
+| `skipSelfImprovement` | `oxveil.selfImprovement.skip` | Self-improvement |
 
 #### Phase Commands (with `phase: number`)
 
@@ -482,7 +490,7 @@ type DetectionStatus = "detected" | "not-found" | "version-incompatible";
 
 ### SidebarView
 ```typescript
-type SidebarView = "not-found" | "empty" | "planning" | "ready" | "stale" | "running" | "stopped" | "failed" | "completed";
+type SidebarView = "not-found" | "empty" | "planning" | "ready" | "stale" | "running" | "stopped" | "failed" | "completed" | "self-improvement";
 ```
 
 ### StatusBarState

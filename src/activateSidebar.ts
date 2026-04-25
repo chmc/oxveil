@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarState";
-import type { ArchiveView, SidebarState, PlanUserChoice, PhaseView } from "./views/sidebarState";
+import type { ArchiveView, SidebarState, PlanUserChoice, PhaseView, SidebarView } from "./views/sidebarState";
 import type { DetectionStatus } from "./types";
 import { computeDuration } from "./parsers/archive";
 import type { ArchiveTreeProvider } from "./views/archiveTree";
@@ -88,12 +88,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     const sessionState = active?.sessionState;
     const sessionStatus = sessionState?.status ?? "idle";
     const progress = sessionState?.progress;
-    const viewState = deriveViewState(
+    // Debug override for visual verification (set oxveil.debugView in settings)
+    const debugView = vscode.workspace.getConfiguration?.("oxveil")?.get<string>("debugView") as SidebarView | undefined;
+    const viewState = debugView ?? deriveViewState(
       state.detectionStatus,
       sessionStatus,
       state.planDetected,
       progress,
       state.planUserChoice,
+      state.selfImprovementActive,
     );
     return {
       view: viewState,

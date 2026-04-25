@@ -240,6 +240,31 @@ function renderPlanning(state: SidebarState): string {
 ${archivesHtml}`;
 }
 
+function renderSelfImprovement(state: SidebarState): string {
+  const plan = state.plan;
+  const filename = plan ? escapeHtml(plan.filename) : "Session";
+  const archivesHtml = renderArchives(state.archives);
+
+  return `<div class="card">
+  <div class="card-header">
+    <span class="plan-filename">${filename}</span>
+    <span class="badge learning">Learning</span>
+  </div>
+  <div class="success-banner">
+    <span class="codicon codicon-lightbulb"></span>
+    <span>Lessons captured</span>
+  </div>
+  <p class="state-desc">Review what happened and improve your workflow.</p>
+  ${renderActionBar([
+    { label: "Focus Session", command: "focusSelfImprovement", primary: true },
+  ])}
+  <div class="link-actions">
+    <a class="link-action" data-command="skipSelfImprovement">Skip</a>
+  </div>
+</div>
+${archivesHtml}`;
+}
+
 function renderArchives(archives: ArchiveView[]): string {
   if (!archives || archives.length === 0) return "";
 
@@ -289,6 +314,8 @@ export function renderBody(state?: SidebarState): string {
       return renderFailed(state);
     case "completed":
       return renderCompleted(state);
+    case "self-improvement":
+      return renderSelfImprovement(state);
     default:
       return "";
   }

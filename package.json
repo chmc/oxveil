@@ -400,6 +400,11 @@
           "type": "boolean",
           "default": false,
           "description": "Enable self-improvement mode to capture lessons and propose CLAUDE.md updates after sessions"
+        },
+        "oxveil.debugView": {
+          "type": "string",
+          "default": "",
+          "description": "(Debug only) Force sidebar to show a specific view state"
         }
       }
     }
