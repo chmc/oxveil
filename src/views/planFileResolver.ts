@@ -99,6 +99,17 @@ export class PlanFileResolver {
 
   private async _resolveWithSession(candidates: FileCandidate[]): Promise<PlanFileCategory | undefined> {
     let newCategoryAdded: PlanFileCategory | undefined;
+    const candidatePaths = new Set(candidates.map((c) => c.path));
+
+    // Prune tracked files that no longer exist in candidates
+    for (const [category, tracked] of this._trackedFiles) {
+      if (!candidatePaths.has(tracked.path)) {
+        this._trackedFiles.delete(category);
+        if (this._activeCategory === category) {
+          this._activeCategory = undefined;
+        }
+      }
+    }
 
     // Session-aware tracking: only track files created OR modified after session start.
     for (const candidate of candidates) {
