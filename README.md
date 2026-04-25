@@ -119,6 +119,17 @@ The walkthrough guides you through setup: detect claudeloop, configure your proj
   <img src="docs/screenshots/replay-viewer.png" alt="Replay Viewer" width="700">
 </p>
 
+### Self-Improvement Mode
+
+When enabled (`oxveil.selfImprovement`), Oxveil captures lessons during claudeloop sessions and proposes updates to your CLAUDE.md after completion.
+
+| Feature | Description |
+|---------|-------------|
+| **Lessons capture** | claudeloop records retries, duration, and exit status for each phase in `.claudeloop/lessons.md` |
+| **Self-improvement panel** | After session completion, a panel displays captured lessons with a summary table |
+| **Improvement session** | Click "Start Improvement Session" to open a Claude CLI terminal that analyzes the lessons and proposes actionable CLAUDE.md updates |
+| **Skip option** | Skip self-improvement at any time to return to the completed state |
+
 ### Onboarding
 
 A built-in **welcome walkthrough** guides new users through setup:
@@ -157,6 +168,7 @@ claudeloop is a runtime dependency — Oxveil detects it automatically and offer
 | `oxveil.dryRun` | boolean | `false` | Preview plan without executing (`--dry-run`) |
 | `oxveil.aiParse` | boolean | `true` | Auto-parse plan into phases (`--ai-parse`) |
 | `oxveil.liveRunAutoOpen` | boolean | `true` | Automatically open the Live Run Panel when a session starts or when AI parse begins |
+| `oxveil.selfImprovement` | boolean | `false` | Enable self-improvement mode to capture lessons and propose CLAUDE.md updates after sessions |
 
 ## Commands
 
@@ -177,6 +189,8 @@ claudeloop is a runtime dependency — Oxveil detects it automatically and offer
 | `Oxveil: Create Plan` | Scaffold a new plan file | Always |
 | `Oxveil: View Phase Log` | Open log file for a phase | Sidebar actions |
 | `Oxveil: View Phase Diff` | View git diff for a completed phase | Completed phase context menu |
+| `Oxveil: Start Self-Improvement Session` | Start Claude session to propose CLAUDE.md updates | Self-improvement mode active |
+| `Oxveil: Skip Self-Improvement` | Skip self-improvement and return to idle | Self-improvement mode active |
 
 ## Architecture
 

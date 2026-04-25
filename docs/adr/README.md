@@ -16,3 +16,4 @@
 | [0012](0012-ai-parse-retry-feedback-loop.md) | AI parse retry-with-feedback loop and Live Run Panel integration | Accepted |
 | [0013](0013-user-journey-documentation.md) | User journey documentation with LLM-consumable workflow spec | Accepted |
 | [0014](0014-canonical-sidebar-state-builder.md) | Canonical sidebar state builder for session wiring | Accepted |
+| [0015](0015-self-improvement.md) | Self-improvement mode with lessons capture | Accepted |

@@ -70,6 +70,7 @@ The `.claudeloop/` directory is the contract between Oxveil and claudeloop.
 - `live.log` — append-only process output (written in both normal and dry-run mode when ai-parse is active)
 - `PROGRESS.md` — phase status and structure
 - `lock` — plain text file containing the PID of the running process
+- `lessons.md` — phase metrics (retries, duration, exit) for self-improvement mode
 
 **Contract rules:**
 - claudeloop owns all files in `.claudeloop/`. It creates, writes, and cleans them up.
@@ -145,7 +146,8 @@ src/
 ├── commands.ts                   # Command handler registration
 ├── commands/
 │   ├── createPlan.ts             # Plan creation command with walkthrough trigger
-│   └── aiParseLoop.ts            # Shared retry orchestrator for AI parse with feedback
+│   ├── aiParseLoop.ts            # Shared retry orchestrator for AI parse with feedback
+│   └── selfImprovement.ts        # Self-improvement command registration (start, skip, focus)
 ├── types.ts                      # Shared type definitions (DetectionStatus, SessionStatus, etc.)
 ├── sessionWiring.ts              # Connects session events to UI updates
 ├── workspaceInit.ts              # File watcher setup for .claudeloop directory
@@ -156,6 +158,7 @@ src/
 │   ├── interfaces.ts             # Core interface definitions for DI
 │   ├── lock.ts                   # Read-only lock file observation
 │   ├── processManager.ts         # Spawn/stop/reset claudeloop
+│   ├── selfImprovementSession.ts # Terminal session for Claude-based improvement proposals
 │   ├── sessionState.ts           # State machine + EventEmitter
 │   ├── watchers.ts               # Single FileSystemWatcher + debounce
 │   ├── workspaceSession.ts       # Per-folder session container
@@ -163,6 +166,7 @@ src/
 ├── parsers/
 │   ├── archive.ts                # Archive directory → ArchiveEntry[]
 │   ├── config.ts                 # .claudeloop.conf → ConfigState (key=value parsing)
+│   ├── lessons.ts                # lessons.md → Lesson[] (phase metrics)
 │   ├── plan.ts                   # PLAN.md → PlanState (phase structure + dependencies)
 │   ├── progress.ts               # PROGRESS.md → ProgressState
 │   └── timeline.ts               # ProgressState → TimelineData (bar positions + durations)
@@ -182,6 +186,8 @@ src/
 │   ├── outputChannel.ts          # Output channel wrapper
 │   ├── planCodeLens.ts           # CodeLens actions for plan file phases
 │   ├── replayViewer.ts           # Inline replay viewer webview panel
+│   ├── selfImprovementHtml.ts    # Self-improvement panel HTML generation
+│   ├── selfImprovementPanel.ts   # Self-improvement webview panel lifecycle
 │   ├── sidebarHtml.ts            # Sidebar HTML rendering (renderSidebar())
 │   ├── sidebarMessages.ts        # Sidebar message dispatch (user actions → commands)
 │   ├── sidebarPanel.ts           # WebviewViewProvider registered as oxveil.sidebar
@@ -571,6 +577,57 @@ Interactive Claude session for collaborative plan creation (`PlanChatSession` in
 - `switchTab` — switch to a different file category
 - `annotation` — forward phase feedback to `PlanChatSession.sendAnnotation()` + `focusTerminal()`
 - `formPlan` — invoke `oxveil.formPlan` command
+
+### Lessons Parser
+
+Pure function, no VS Code dependency (`parsers/lessons.ts`).
+
+**Input:** Raw `.claudeloop/lessons.md` content string (markdown format with phase headers and metrics).
+**Output:** `Lesson[]` with phase number, title, retries, duration, and exit status.
+
+**Format:**
+```markdown
+## Phase 1: Setup
+- retries: 0
+- duration: 45s
+- exit: success
+
+## Phase 2: Implementation
+- retries: 2
+- duration: 312s (expected: 180s)
+- exit: error
+```
+
+Used by the self-improvement panel to display captured metrics and by the self-improvement session to build the system prompt.
+
+### Self-Improvement Panel
+
+`WebviewPanel` that displays captured lessons after session completion (`SelfImprovementPanel` in `views/selfImprovementPanel.ts`).
+
+**Trigger:** Auto-opened by `sessionWiring.ts` when session completes, `oxveil.selfImprovement` is enabled, and `lessons.md` contains valid lessons.
+
+**UI elements:**
+- Header: "Self-Improvement"
+- Lessons summary table (phase, retries, duration, exit status)
+- "Start Improvement Session" button → invokes `oxveil.selfImprovement.start`
+- "Skip" button → invokes `oxveil.selfImprovement.skip`
+
+**Lifecycle:** Revealed via `reveal(lessons)` with lesson data. Disposed when user clicks Skip or closes the panel. Tracked via `selfImprovementActive` in `SidebarMutableState`.
+
+### Self-Improvement Session
+
+Terminal session for Claude-based improvement proposals (`SelfImprovementSession` in `core/selfImprovementSession.ts`).
+
+**Flow:** User clicks "Start Improvement Session" → `oxveil.selfImprovement.start` command → creates terminal with Claude CLI using `--append-system-prompt`.
+
+**System prompt:** Instructs Claude to analyze the captured lessons and propose CLAUDE.md updates. Includes formatted lesson data (phase, retries, duration, exit).
+
+**Cost control:** In development mode (`ExtensionMode.Development`), defaults to `haiku` model. Production uses default model unless overridden via `OXVEIL_CLAUDE_MODEL` env var.
+
+**Commands:**
+- `oxveil.selfImprovement.start` — start terminal session
+- `oxveil.selfImprovement.skip` — close panel, reset `selfImprovementActive`, return to completed state
+- `oxveil.selfImprovement.focus` — reveal existing panel
 
 ### Welcome Walkthrough
 
