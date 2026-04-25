@@ -27,6 +27,30 @@ Oops duplicate
 
 export const ACTIVE_PLAN_PATH = "/workspace/.claude/plans/typed-hugging-dawn.md";
 
+// Shared test fixture paths
+export const DESIGN_PATH = "/workspace/docs/superpowers/specs/2026-04-07-feature-design.md";
+export const IMPL_PATH = "/workspace/docs/superpowers/plans/2026-04-07-feature.md";
+export const AI_PARSED_PATH = "/workspace/.claudeloop/ai-parsed-plan.md";
+
+// Shared test fixture content
+export const DESIGN_CONTENT = "# Feature Design\n\n## Problem\n\nSome problem description.";
+export const IMPL_CONTENT = `# Feature Implementation
+
+## Phase 1: Setup
+[status: pending]
+Install things
+
+## Phase 2: Build
+[status: pending]
+Build things
+`;
+export const AI_PARSED_CONTENT = `# AI Parsed Plan
+
+## Phase 1: First Task
+[status: pending]
+Do the first thing
+`;
+
 export function makeMockPanel() {
   let messageHandler: ((msg: any) => void) | undefined;
   return {
