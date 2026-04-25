@@ -130,6 +130,9 @@
 - When adding public methods to widely-mocked classes, grep for the class/interface name across `src/test/**/*.test.ts` before writing the implementation. Update all mock sites in the same phase.
 - When adding `reset()` or cleanup logic to a stateful manager, audit the wiring closure (`sessionWiring.ts`) for local variables (`lastProgress`, etc.) and `SidebarMutableState` fields (`cost`, `todoDone`, `todoTotal`) that also need resetting.
 - Do not add new closure-scoped tracking state to `wireSessionEvents` for data that `buildFullState()` needs. Use `SidebarMutableState` fields instead — closure state is invisible to `buildFullState()` and all its callers (MCP bridge, webview init, archive refresh).
+- When using nullish coalescing (`??`) with VS Code config values, check if the schema default is empty string. `get<string>()` returns `""` if default is `""`, and `"" ?? fallback` doesn't fall through. Use `||` if empty string should trigger fallback.
+- `deps.folderUri` is a URI string (`file:///path`), not a filesystem path. Use `vscode.Uri.parse(deps.folderUri).fsPath` when building paths with `join()`.
+- Claudeloop files use uppercase names: `PROGRESS.md`, `PLAN.md`. Watchers are case-sensitive.
 
 ## Continuous Improvement
 
