@@ -101,3 +101,11 @@ export interface ParsedConfig {
   unknownKeys: Array<{ key: string; value: string }>;
   comments: string[];
 }
+
+export interface Lesson {
+  phase: number | string;
+  title: string;
+  retries: number;
+  duration: number;  // seconds
+  exit: "success" | "error";
+}

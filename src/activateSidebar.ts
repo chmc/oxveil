@@ -47,6 +47,8 @@ export interface SidebarMutableState {
   cost: number;
   todoDone: number;
   todoTotal: number;
+  /** Whether self-improvement mode is active after session completion */
+  selfImprovementActive: boolean;
 }
 
 export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationResult {
@@ -60,6 +62,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     cost: 0,
     todoDone: 0,
     todoTotal: 0,
+    selfImprovementActive: false,
   };
 
   function getArchives(): ArchiveView[] {
@@ -243,6 +246,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     state.cachedPlanPhases = [];
     state.planUserChoice = "none";
     state.planDetected = false;
+    state.selfImprovementActive = false;
 
     // Reset active session state
     const activeSession = manager.getActiveSession();

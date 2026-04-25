@@ -395,6 +395,11 @@
           "type": "boolean",
           "default": false,
           "description": "Start an MCP bridge server for Claude Code interaction (localhost only)"
+        },
+        "oxveil.selfImprovement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable self-improvement mode to capture lessons and propose CLAUDE.md updates after sessions"
         }
       }
     }

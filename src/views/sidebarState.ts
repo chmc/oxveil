@@ -16,7 +16,8 @@ export type SidebarView =
   | "stopped"
   | "failed"
   | "completed"
-  | "planning";
+  | "planning"
+  | "self-improvement";
 
 export type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
 

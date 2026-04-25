@@ -51,7 +51,7 @@ The issue describes a comprehensive feature set. We'll implement in phases, with
 
 ## Phases
 
-### Phase 1: Configuration & Types (Oxveil)
+### Phase 1: Configuration & Types (Oxveil) ✅
 
 **Goal:** Add config option and type definitions.
 
