@@ -19,6 +19,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 - Vary plan content every run — different phase counts, titles, descriptions. Use `generate_plan` from recipes.
 - Stash or use worktree if uncommitted changes exist — fake_claude `success` triggers auto-commit that captures dirty state.
 - NEVER delete `verification-sessions/` or any session subfolder. They are gitignored but kept on disk for developer auditing.
+- Before claiming "fake_claude not available", you MUST: (1) read `references/visual-verification-recipes.md` claudeloop section, (2) check `~/source/claudeloop/tests/fake_claude`. Setup is documented; "not in PATH" is not "not available."
 
 ## Self-Implementation Mode
 

@@ -1,5 +1,12 @@
+## Index
+- [Hard Rules](#hard-rules) - NEVER rules, blocking gates
+- [Quality Gates](#quality-gates) - Completion checklist, critic requirements
+- [Verification Integrity](#verification-integrity) - No rationalization during verification
+- [Oxveil Testing Patterns](#oxveil-testing-patterns) - Project-specific TDD patterns
+
 ## Hard Rules
 
+- NEVER claim a tool is unavailable without first checking: (1) skill reference files, (2) related repos (`~/source/claudeloop/tests/` for fake_claude), (3) workspace-wide search. A single `which` command is not sufficient. Forbidden: "fake_claude not found" after only checking PATH.
 - NEVER recursively delete the `.claudeloop/` directory. It is managed by claudeloop and contains live runtime state.
 - During mock cleanup, only remove individual mock-created files (those newer than `.MOCK_SESSION` marker). Never `rm -rf .claudeloop`.
 - NEVER use `keystroke` via osascript for destructive operations (Cmd+W, Cmd+Q, Cmd+Shift+W). `keystroke` always targets the system frontmost app, not the `tell process` target — it can kill the terminal. Use accessibility menu clicks instead (`click menu item` of the target process's menu bar), which are process-scoped.
@@ -10,7 +17,7 @@
 - NEVER call ExitPlanMode without first launching and completing 2-3 critic agents. This is a hard gate, not a suggestion. **Exception — trivial changes** (config-only, docs-only, no source code, no interface changes): skip critics, but tell the user explicitly: "Skipping critic review — trivial change: [reason]." If the user disagrees, run critics. "The fix is simple" is not sufficient — the change must be mechanically trivial (no logic, no branching, no new behavior).
 - After critic agents complete, personally spot-check their blind spots before declaring confidence: grep for mock/call sites of changed interfaces, verify the plan's file list is complete, and trace one end-to-end code path through the fix. Do not trust critic output without verification. Critics catch design issues; mechanical blast radius is your responsibility.
 - All subagent prompts must request compressed output. Gate-check agents (critics, Codex review): end with "terse. bullets only. no preamble. if clean: LGTM." Deliverable agents (Plan, Explore, general-purpose): end with "no preamble. no trailing summary. no filler. bullets for status and progress. prose only for deliverable content."
-- NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude, cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
+- NEVER suggest manual verification when automated tools exist. Forbidden phrases: "Manual test:", "manually verify", "confirm by hand", "test this yourself". Use `/visual-verification`, MCP bridge, fake_claude (setup: `visual-verification/references/visual-verification-recipes.md#claudeloop-fake-cli`), cliclick. If automation gaps exist, research and fix the tooling — do not fall back to manual.
 - NEVER claim work is complete without checking for documentation impact. Before final verification, ask: (1) Did I change user-facing behavior? → update README.md (2) Did I change architecture? → update ARCHITECTURE.md, consider ADR (3) Did I touch state machine files? → update `docs/workflow/states.md`
 
 ## Project
@@ -121,7 +128,9 @@
 - Prefer bullet lists over prose for status updates and findings.
 - Completion reports: state result and next step only.
 
-## TDD Addendum
+## Oxveil Testing Patterns
+
+Oxveil-specific patterns for TDD and testing. Use alongside `superpowers:test-driven-development`.
 
 - For bug fixes: if your first test passes immediately, you are likely testing the wrong code path. Trace the actual broken path before writing the test. The test must exercise the code that contains the bug, not a parallel path that happens to work.
 - For multi-component bugs: trace the data flow backward from symptom to source before choosing where to fix.
