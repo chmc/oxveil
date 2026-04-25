@@ -37,6 +37,12 @@
 
 Oxveil: VS Code extension for AI coding workflows, powered by [claudeloop](https://github.com/chmc/claudeloop). Same author — ship both repos together.
 
+## Cross-Repo Verification
+
+Before visual verification of cross-repo features (self-improvement, lessons capture), verify dependent repos are installed at matching versions:
+- `claudeloop --version` vs `~/source/claudeloop/VERSION`
+- If mismatch: `cd ~/source/claudeloop && ./install.sh`
+
 ## Git
 
 - Never add yourself as co-author. Include `Closes #N` for issue fixes. No auto-push.

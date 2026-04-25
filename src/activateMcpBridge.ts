@@ -27,36 +27,82 @@ export interface McpBridgeDeps {
 /**
  * Activates the MCP bridge if enabled. Wrapped in try-catch so a bridge failure
  * does not prevent activate() from completing (which blocks resolveWebviewView).
+ *
+ * Also watches for config changes to start/stop the bridge dynamically.
  */
 export async function activateMcpBridge(deps: McpBridgeDeps): Promise<vscode.Disposable[]> {
-  const { config, workspaceRoot, buildFullState, sidebarPanel, sidebarState } = deps;
-  const mcpEnabled = config.get<boolean>("mcpBridge", false);
-  if (!mcpEnabled || !workspaceRoot) return [];
+  const { workspaceRoot, buildFullState, sidebarPanel } = deps;
+  if (!workspaceRoot) return [];
+
+  // Capture non-null value for closure
+  const wsRoot = workspaceRoot;
 
   const disposables: vscode.Disposable[] = [];
-  try {
-    const { startBridge } = await import("./mcp/bridge");
-    const bridge = await startBridge({
-      workspaceRoot,
-      buildFullState,
-      dispatchClick: (msg) => {
-        // Use real DOM click path - dispatches MouseEvent in webview,
-        // which triggers the click handler and posts command back to extension
-        const selector = commandToSelector(msg);
-        sidebarPanel.triggerClick(selector);
-      },
-      executeCommand: vscode.commands.executeCommand,
-    });
-    disposables.push(bridge);
-    disposables.push(
-      vscode.commands.registerCommand("oxveil._simulateClick", (args: { command: string }) => {
-        if (args?.command && /^[a-zA-Z]+$/.test(args.command)) {
-          sidebarPanel.simulateClick(args.command);
-        }
-      }),
-    );
-  } catch (err) {
-    console.warn("[Oxveil] MCP bridge failed to start:", err);
+  let bridgeHandle: vscode.Disposable | undefined;
+  let simulateClickDisposable: vscode.Disposable | undefined;
+
+  async function startBridgeIfEnabled(): Promise<void> {
+    // Re-read config each time (may have changed since activation)
+    const currentConfig = vscode.workspace.getConfiguration("oxveil");
+    const mcpEnabled = currentConfig.get<boolean>("mcpBridge", false);
+
+    if (!mcpEnabled) {
+      // Stop bridge if running
+      bridgeHandle?.dispose();
+      bridgeHandle = undefined;
+      return;
+    }
+
+    // Already running
+    if (bridgeHandle) return;
+
+    try {
+      const { startBridge } = await import("./mcp/bridge");
+      const bridge = await startBridge({
+        workspaceRoot: wsRoot,
+        buildFullState,
+        dispatchClick: (msg) => {
+          const selector = commandToSelector(msg);
+          sidebarPanel.triggerClick(selector);
+        },
+        executeCommand: vscode.commands.executeCommand,
+      });
+      bridgeHandle = bridge;
+      console.log("[Oxveil] MCP bridge started on port", bridge.port);
+    } catch (err) {
+      console.warn("[Oxveil] MCP bridge failed to start:", err);
+    }
   }
+
+  // Initial start
+  await startBridgeIfEnabled();
+
+  // Register simulate click command once
+  simulateClickDisposable = vscode.commands.registerCommand(
+    "oxveil._simulateClick",
+    (args: { command: string }) => {
+      if (args?.command && /^[a-zA-Z]+$/.test(args.command)) {
+        sidebarPanel.simulateClick(args.command);
+      }
+    },
+  );
+  disposables.push(simulateClickDisposable);
+
+  // Watch for config changes to start/stop bridge
+  disposables.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("oxveil.mcpBridge")) {
+        startBridgeIfEnabled();
+      }
+    }),
+  );
+
+  // Cleanup on dispose
+  disposables.push({
+    dispose() {
+      bridgeHandle?.dispose();
+    },
+  });
+
   return disposables;
 }

@@ -310,7 +310,7 @@ Action: `/visual-verification` - full flow per Verification section criteria.
 
 ---
 
-## Verification
+## Verification [COMPLETED]
 
 Action: `/visual-verification` with these acceptance criteria:
 

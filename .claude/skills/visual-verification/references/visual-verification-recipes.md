@@ -63,6 +63,16 @@ tell application "System Events"
 end tell' 2>/dev/null
 
 grep -q '"oxveil.mcpBridge": true' .vscode/settings.json 2>/dev/null || { echo "FAIL: Enable oxveil.mcpBridge in .vscode/settings.json"; exit 1; }
+
+# Cross-repo version check: claudeloop installed version should match source
+if [[ -d ~/source/claudeloop ]]; then
+    INSTALLED_VER=$(claudeloop --version 2>/dev/null || echo "0.0.0")
+    SOURCE_VER=$(cat ~/source/claudeloop/VERSION 2>/dev/null || echo "unknown")
+    if [[ "$INSTALLED_VER" != "$SOURCE_VER" ]]; then
+        echo "WARN: claudeloop version mismatch - installed: $INSTALLED_VER, source: $SOURCE_VER"
+        echo "Run: cd ~/source/claudeloop && ./install.sh"
+    fi
+fi
 ```
 
 ## Self-Implementation Mode Recipes
