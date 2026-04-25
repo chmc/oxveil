@@ -1,369 +1,325 @@
-# Plan: Self-Improvement Mode (Issue #73)
+# AI Parsed Tab Implementation Plan
 
-## Context
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-When implementation runs via Oxveil/claudeloop, the learning loop is lost. In traditional Claude Code sessions, users give feedback and Claude updates CLAUDE.md. With Oxveil, implementation context is in claudeloop logs — expensive to process post-hoc.
+**Goal:** Add "AI Parsed" as a fourth top-level tab in Plan Preview that shows when `.claudeloop/ai-parsed-plan.md` exists.
 
-This feature adds optional self-improvement mode that captures behavioral lessons during implementation and proposes updates to instruction files after session completion.
+**Architecture:** Extend existing `PlanFileCategory` type with `"ai-parsed"`, add specific file check in `findAllPlanFiles()`, and update label map. Auto-activate leverages existing resolver logic.
 
-**Cross-repo:** claudeloop (capture) + oxveil (trigger/UI)
-
----
-
-## Implementation Strategy: MVP First
-
-The issue describes a comprehensive feature set. We'll implement in phases, with MVP delivering end-to-end value first.
-
-**MVP scope:**
-- Config option to enable self-improvement
-- Token-free metrics capture in claudeloop (retries, duration, exit)
-- Self-improvement tab opens after session completion
-- Tab displays lessons, spawns Claude to propose updates
-- User approval before any changes
-
-**Deferred to future iterations:**
-- Trigger-based Claude explanations (slow, retry, deviation)
-- In-tab chat interface (use terminal for MVP)
-- Dismissal learning
-- Positive reinforcement tracking
-- Skill promotion suggestions
-- Token cost visibility in UI (requires API call tracking)
+**Tech Stack:** TypeScript, VS Code Extension API, Vitest
 
 ---
 
-## Critical Files
+## File Structure
 
-**Oxveil:**
-- `src/types.ts:3` - SessionStatus enum
-- `src/sessionWiring.ts:96-115` - state-changed to "done" hook
-- `src/views/sidebarState.ts:10-19` - SidebarView enum, `deriveViewState()` at line 87
-- `src/views/sidebarRenderers.ts` - view rendering functions
-- `src/views/replayViewer.ts` - pattern for simple webview panel
-- `src/core/planChatSession.ts` - pattern for spawning Claude CLI in terminal
-- `package.json:334-400` - configuration schema
-
-**Claudeloop:**
-- `lib/execution.sh:268-354` - `evaluate_phase_result()` where metrics available
-- `lib/execution.sh:250-266` - `_complete_phase()` where success logged
-- `lib/archive.sh` - archive session files
+| File | Responsibility |
+|------|----------------|
+| `src/views/planPreviewPanel.ts` | Type definition for `PlanFileCategory` |
+| `src/views/planFileResolver.ts` | Tab label mapping |
+| `src/activateViews.ts` | File detection for ai-parsed-plan.md |
+| `src/test/unit/views/planPreviewPanel.tabs.test.ts` | Tab behavior tests |
+| `docs/workflow/states.md` | Workflow documentation |
+| `docs/qa-sessions/2026-04-23-comprehensive/interactive-elements.md` | QA element docs |
 
 ---
 
-## Phases
-
-### Phase 1: Configuration & Types (Oxveil) ✅
-
-**Goal:** Add config option and type definitions.
+## Task 1: Add Type Definition
 
 **Files:**
-- `package.json` - Add `oxveil.selfImprovement` boolean config (default: false)
-- `src/types.ts` - Add `Lesson` interface
-- `src/views/sidebarState.ts` - Add `"self-improvement"` to `SidebarView` union (type only, no logic change yet)
-- `src/activateSidebar.ts` - Add `selfImprovementActive: boolean` to `SidebarMutableState` interface
+- Modify: `src/views/planPreviewPanel.ts:9`
 
-**Types to add:**
+- [ ] **Step 1: Write the failing test**
+
+Add to `src/test/unit/views/planPreviewPanel.tabs.test.ts`:
+
 ```typescript
-// src/types.ts
-export interface Lesson {
-  phase: number | string;
-  title: string;
-  retries: number;
-  duration: number;  // seconds
-  exit: "success" | "error";
-}
+describe("ai-parsed category", () => {
+  const AI_PARSED_PATH = "/workspace/.claudeloop/ai-parsed-plan.md";
+
+  it("should render AI Parsed tab when ai-parsed file exists", async () => {
+    const deps = createTestDeps();
+    const now = Date.now();
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+      { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: now + 100 },
+    ]);
+
+    const panel = new PlanPreviewPanel(deps);
+    await panel.reveal();
+    await flushMicrotasks();
+
+    const html = deps.postMessage.mock.calls[0][0].html;
+    expect(html).toContain('data-category="ai-parsed"');
+    expect(html).toContain("AI Parsed");
+  });
+});
 ```
 
-**Tests:** Type-checking only (no runtime tests needed for type definitions).
+- [ ] **Step 2: Run test to verify it fails**
 
-**Mock site updates:** None yet (signature changes come in Phase 5).
+Run: `npm test -- --run planPreviewPanel.tabs`
+Expected: FAIL - Type '"ai-parsed"' is not assignable to type 'PlanFileCategory'
 
----
+- [ ] **Step 3: Update type definition**
 
-### Phase 2: Lessons Capture (Claudeloop) ✅
+In `src/views/planPreviewPanel.ts` line 9, change:
 
-**Goal:** Write token-free metrics to `.claudeloop/lessons.md` after each phase.
-
-**Files:**
-- `lib/lessons.sh` (new) - Functions to write lessons
-- `lib/execution.sh` - Call lessons capture in `_complete_phase()` and on failure
-- `lib/archive.sh` - Include lessons.md in archive
-
-**lessons.md format:**
-```markdown
-## Phase 1: <title>
-- retries: 0
-- duration: 45s
-- exit: success
-
-## Phase 2: <title>
-- retries: 2
-- duration: 312s (expected: 180s)
-- exit: error
+```typescript
+export type PlanFileCategory = "design" | "implementation" | "plan" | "ai-parsed";
 ```
 
-**Implementation:**
-1. Create `lib/lessons.sh` with:
-   - `lessons_init()` - create/clear lessons.md
-   - `lessons_write_phase()` - append phase metrics
-2. Call `lessons_init()` at session start (in `claudeloop` main)
-3. Call `lessons_write_phase()` in `_complete_phase()` and after `update_phase_status "failed"`
-4. Add `lessons.md` to archive file list in `lib/archive.sh`
+- [ ] **Step 4: Run test - still fails (missing label)**
 
-**Tests:** Shell unit test for lessons.sh functions.
+Run: `npm test -- --run planPreviewPanel.tabs`
+Expected: FAIL - html does not contain "AI Parsed"
 
 ---
 
-### Phase 3: Lessons Parser (Oxveil) ✅
-
-**Goal:** Parse `.claudeloop/lessons.md` into structured data.
+## Task 2: Add Label Mapping
 
 **Files:**
-- `src/parsers/lessons.ts` (new) - Parse lessons.md format
-- `src/parsers/lessons.test.ts` (new) - Unit tests
+- Modify: `src/views/planFileResolver.ts:204-208`
 
-**Implementation:**
+- [ ] **Step 1: Update label map**
+
+In `src/views/planFileResolver.ts`, update `buildTabs()`:
+
 ```typescript
-export function parseLessons(content: string): Lesson[] {
-  // Parse markdown format into Lesson[]
-}
+const labelMap: Record<PlanFileCategory, string> = {
+  design: "Design",
+  implementation: "Implementation",
+  plan: "Plan",
+  "ai-parsed": "AI Parsed",
+};
 ```
 
-**Tests:** Unit tests with fixture data covering success/failure/multi-phase.
+- [ ] **Step 2: Run test to verify it passes**
 
----
+Run: `npm test -- --run planPreviewPanel.tabs`
+Expected: PASS
 
-### Phase 4: Self-Improvement Panel (Oxveil) ✅
+- [ ] **Step 3: Commit type and label changes**
 
-**Goal:** Create webview panel to display lessons and trigger improvement session.
-
-**Files:**
-- `src/views/selfImprovementPanel.ts` (new) - Webview panel class
-- `src/views/selfImprovementHtml.ts` (new) - HTML rendering
-- `src/activateViews.ts` - Instantiate panel
-
-**Pattern:** Follow `replayViewer.ts` structure.
-
-**Panel UI:**
-- Header: "Self-Improvement"
-- Lessons summary table (phase, retries, duration, status)
-- "Start Improvement Session" button
-- "Skip" button
-
-**Tests:** Unit test for HTML rendering.
-
-Action: `/visual-verification` after implementation.
-
----
-
-### Phase 5: Sidebar Self-Improvement View (Oxveil) ✅
-
-**Goal:** Add sidebar state and renderer for self-improvement.
-
-**Files:**
-- `src/views/sidebarState.ts` - Add `selfImprovementActive` param to `deriveViewState()`, extend logic
-- `src/views/sidebarRenderers.ts` - Add `renderSelfImprovement()` function
-
-**Logic in deriveViewState():**
-```typescript
-// New parameter: selfImprovementActive?: boolean
-// After completed check (before return "completed"):
-if (sessionStatus === "done" && selfImprovementActive) return "self-improvement";
+```bash
+git add src/views/planPreviewPanel.ts src/views/planFileResolver.ts src/test/unit/views/planPreviewPanel.tabs.test.ts
+git commit -m "feat(plan-preview): add ai-parsed category type and label"
 ```
 
-**Sidebar UI:**
-- Badge: "Learning"
-- Summary: "N lessons captured"
-- Button: "Focus Session" (reveals panel)
-- Link: "Skip" → calls `oxveil.selfImprovement.skip` command, sets `selfImprovementActive=false`, returns to idle
-
-**Mock site updates (41 occurrences across 5 files):**
-- `src/test/unit/views/sidebarState.test.ts` - 23 calls need new param (default undefined)
-- `src/test/integration/stateSync.test.ts` - 10 calls
-- `src/test/unit/core/lockPollWiring.test.ts` - 5 calls
-- `src/test/integration/sessionWiring.test.ts` - 2 calls + `makeMutableState()` needs `selfImprovementActive`
-- `src/test/integration/activateSidebar.test.ts` - 1 call
-
-**Tests:** 
-- Update existing `sidebarState.test.ts` tests for new param
-- Add new tests for self-improvement view derivation
-
-Action: `/visual-verification` after implementation.
-
 ---
 
-### Phase 6: Session Wiring (Oxveil) ✅
-
-**Goal:** Trigger self-improvement panel on session completion.
+## Task 3: Add File Detection
 
 **Files:**
-- `src/sessionWiring.ts` - Add hook in "done" case block (inside existing switch case, not new if)
-- `src/sessionWiring.ts` - Add `selfImprovementPanel` to `SessionWiringDeps` interface
+- Modify: `src/activateViews.ts:100-126`
 
-**Implementation in sessionWiring.ts (inside case "done", after line 113):**
+- [ ] **Step 1: Write integration test**
+
+Add to `src/test/unit/views/planPreviewPanel.tabs.test.ts`:
+
 ```typescript
-// Inside case "done":
-const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
-if (selfImprovementEnabled && view === "completed") {
-  // Read and parse lessons.md
-  const lessonsPath = path.join(deps.folderUri, ".claudeloop", "lessons.md");
-  const lessonsContent = await fs.readFile(lessonsPath, "utf-8").catch(() => "");
-  const lessons = parseLessons(lessonsContent);
-  if (lessons.length > 0) {
-    deps.selfImprovementPanel?.reveal(lessons);
-    if (ms) ms.selfImprovementActive = true;
+it("should auto-switch to ai-parsed tab when file is created mid-session", async () => {
+  const deps = createTestDeps();
+  const now = Date.now();
+  
+  // Initial state: only design file
+  deps.findAllPlanFiles = vi.fn(async () => [
+    { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+  ]);
+
+  const panel = new PlanPreviewPanel(deps);
+  await panel.reveal();
+  panel.beginSession();
+  await flushMicrotasks();
+
+  // Simulate ai-parsed-plan.md creation
+  deps.findAllPlanFiles = vi.fn(async () => [
+    { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+    { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: now + 1000 },
+  ]);
+  deps.statFile = vi.fn(async () => ({ birthtimeMs: now + 500, mtimeMs: now + 1000 }));
+
+  // Trigger file change
+  deps.onDidChange?.();
+  await flushMicrotasks();
+
+  const lastCall = deps.postMessage.mock.calls.at(-1)[0];
+  expect(lastCall.html).toContain('data-category="ai-parsed"');
+  expect(lastCall.html).toContain('class="tab-pill active"');
+  expect(lastCall.html).toContain("AI Parsed");
+});
+```
+
+- [ ] **Step 2: Run test to verify behavior**
+
+Run: `npm test -- --run planPreviewPanel.tabs`
+Expected: PASS (file detection is mocked, but verifies auto-switch)
+
+- [ ] **Step 3: Add file detection in activateViews.ts**
+
+In `src/activateViews.ts`, after line 124 (after the directory loop), add:
+
+```typescript
+// Check for ai-parsed-plan.md specifically
+if (deps.workspaceRoot) {
+  const aiParsedPath = path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
+  try {
+    const s = await stat(aiParsedPath);
+    results.push({ path: aiParsedPath, category: "ai-parsed", mtimeMs: s.mtimeMs });
+  } catch {
+    // File doesn't exist - skip
   }
 }
 ```
 
-**Note:** `selfImprovementActive` field added to `SidebarMutableState` in Phase 1. `deriveViewState()` updated in Phase 5.
+- [ ] **Step 4: Run full test suite**
 
-**Tests:** 
-- Integration test for state transition
-- Test for empty lessons.md (no panel reveal)
-- Test for config disabled (no action)
+Run: `npm test`
+Expected: All tests PASS
 
-Action: `/visual-verification` - verify sidebar shows "Learning" badge after completion.
+- [ ] **Step 5: Run lint**
 
----
+Run: `npm run lint`
+Expected: No errors
 
-### Phase 7: Improvement Session (Oxveil) [COMPLETED]
+- [ ] **Step 6: Commit file detection**
 
-**Goal:** Spawn Claude CLI with lessons context to propose CLAUDE.md updates.
-
-**Files:**
-- `src/core/selfImprovementSession.ts` (new) - Terminal session manager
-- `src/commands/selfImprovement.ts` (new) - Register commands
-- `package.json` - Register commands in contributes.commands
-
-**Pattern:** Follow `planChatSession.ts` structure.
-
-**System prompt:**
-```
-You are reviewing a completed implementation session. Based on the lessons captured, propose updates to CLAUDE.md that would prevent similar issues in future sessions.
-
-Lessons:
-<lessons content>
-
-Focus on actionable rules. Be concise. Output a diff.
+```bash
+git add src/activateViews.ts src/test/unit/views/planPreviewPanel.tabs.test.ts
+git commit -m "feat(plan-preview): detect ai-parsed-plan.md file"
 ```
 
-**Commands:**
-- `oxveil.selfImprovement.start` - Start improvement session (opens terminal with Claude CLI)
-- `oxveil.selfImprovement.skip` - Skip and return to idle:
-  1. Set `ms.selfImprovementActive = false`
-  2. Close self-improvement panel
-  3. Sidebar transitions to "completed" (then user can archive or start new)
-
-**Skip behavior:** User can skip at any time. Lessons.md is preserved (archived with session). No changes applied.
-
-**Tests:** Unit test for prompt construction, command registration.
-
 ---
 
-### Phase 8: End-to-End Integration [COMPLETED]
-
-**Goal:** Wire everything together and test full flow.
+## Task 4: Add Edge Case Tests
 
 **Files:**
-- `src/activateViews.ts` - Wire panel creation, pass to session wiring
-- `src/views/sidebarMessages.ts` - Add message types for self-improvement actions
-- `src/extension.ts` - Register commands
+- Modify: `src/test/unit/views/planPreviewPanel.tabs.test.ts`
 
-**Flow:**
-1. Session completes (all phases done)
-2. Config check: selfImprovement enabled?
-3. Read `.claudeloop/lessons.md`
-4. Parse into Lesson[]
-5. If lessons.length > 0: set `selfImprovementActive = true`
-6. Sidebar shows "self-improvement" view
-7. Auto-open self-improvement panel
-8. User clicks "Start Improvement Session" → terminal with Claude
-9. User reviews/applies suggestions (manual copy/paste in MVP)
-10. User clicks "Skip" or closes terminal → `selfImprovementActive = false` → idle
+- [ ] **Step 1: Test tab disappears when file deleted**
 
-Action: `/visual-verification` - full flow per Verification section criteria.
+```typescript
+it("should remove ai-parsed tab when file is deleted", async () => {
+  const deps = createTestDeps();
+  const now = Date.now();
+  
+  // Start with ai-parsed file
+  deps.findAllPlanFiles = vi.fn(async () => [
+    { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+    { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: now + 100 },
+  ]);
+
+  const panel = new PlanPreviewPanel(deps);
+  await panel.reveal();
+  await flushMicrotasks();
+
+  // File deleted - only design remains
+  deps.findAllPlanFiles = vi.fn(async () => [
+    { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: now },
+  ]);
+
+  deps.onDidChange?.();
+  await flushMicrotasks();
+
+  const lastCall = deps.postMessage.mock.calls.at(-1)[0];
+  expect(lastCall.html).not.toContain('data-category="ai-parsed"');
+});
+```
+
+- [ ] **Step 2: Test ai-parsed tab at startup**
+
+```typescript
+it("should show ai-parsed tab when file exists at startup", async () => {
+  const deps = createTestDeps();
+  const now = Date.now();
+  
+  deps.findAllPlanFiles = vi.fn(async () => [
+    { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: now },
+  ]);
+
+  const panel = new PlanPreviewPanel(deps);
+  await panel.reveal();
+  await flushMicrotasks();
+
+  const html = deps.postMessage.mock.calls[0][0].html;
+  // Single file = no tab strip, but content should be from ai-parsed
+  expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
+});
+```
+
+- [ ] **Step 3: Run tests**
+
+Run: `npm test -- --run planPreviewPanel.tabs`
+Expected: All PASS
+
+- [ ] **Step 4: Commit edge case tests**
+
+```bash
+git add src/test/unit/views/planPreviewPanel.tabs.test.ts
+git commit -m "test(plan-preview): add edge case tests for ai-parsed tab"
+```
 
 ---
 
-### Phase 9: Documentation [COMPLETED]
+## Task 5: Update Documentation
 
 **Files:**
+- Modify: `docs/workflow/states.md:409`
+- Modify: `docs/qa-sessions/2026-04-23-comprehensive/interactive-elements.md:102`
 
-**Oxveil:**
-- `README.md` - Self-improvement feature section (config option, how to use)
-- `ARCHITECTURE.md` - Self-improvement panel, sidebar state, terminal session
-- `docs/workflow/states.md`:
-  - Section B: Add `"self-improvement"` to SidebarView table
-  - Section B: Add decision table row for self-improvement derivation
-  - Section B: Add row to renderer mapping table
-  - Section E: Document `selfImprovementActive` in SidebarMutableState
-  - Section F: Document `oxveil.selfImprovement.start` and `skip` commands
-- `docs/adr/NNNN-self-improvement.md` - Design rationale:
-  - Decision: Token-free metrics only in MVP (defer Claude explanations)
-  - Decision: Cross-repo architecture (claudeloop capture + oxveil UI)
-  - Decision: Terminal-based improvement session (not in-panel chat)
-  - Decision: lessons.md format specification
-  - Consequences: Manual copy/paste of suggestions in MVP
+- [ ] **Step 1: Update states.md**
 
-**Claudeloop:**
-- `README.md` - lessons.md capture, format, archive behavior
+In `docs/workflow/states.md`, find the Plan Preview Messages table and update the switchTab row comment or add a note that PlanFileCategory now includes `"ai-parsed"`.
 
----
+- [ ] **Step 2: Update interactive-elements.md**
 
-## Verification [COMPLETED]
+In `docs/qa-sessions/2026-04-23-comprehensive/interactive-elements.md`, line 102, change:
 
-Action: `/visual-verification` with these acceptance criteria:
+```markdown
+| `.tab-pill[data-category]` | click | Switch to category tab (design/implementation/plan/ai-parsed) |
+```
 
-**Setup:**
-1. Enable `oxveil.selfImprovement` in VS Code settings
-2. Create a test project with PLAN.md containing 2-3 phases
+- [ ] **Step 3: Commit documentation**
 
-**Happy path:**
-1. Run session → at least one phase should retry or fail then succeed
-2. `.claudeloop/lessons.md` exists with correct format (phase headers, retries, duration, exit)
-3. After completion: sidebar shows "Learning" badge, "N lessons captured"
-4. Self-improvement panel auto-opens with lessons table
-5. Click "Start Improvement Session" → terminal opens with Claude CLI
-6. Terminal shows lessons in system prompt
-7. Claude proposes CLAUDE.md changes
-
-**Skip path:**
-1. Click "Skip" in sidebar or panel
-2. `selfImprovementActive` resets to false
-3. Sidebar transitions to "completed" state (or idle if user archived)
-4. Panel closes
-
-**Edge cases:**
-1. Config disabled → no self-improvement panel, no "Learning" badge
-2. Empty lessons.md (0 phases) → no panel reveal
-3. Session fails → self-improvement still triggers (lessons captured for failed phases)
-4. Archive → lessons.md included in archive
-
-**Multi-root:**
-1. Self-improvement triggers only for the workspace folder that completed
+```bash
+git add docs/workflow/states.md docs/qa-sessions/2026-04-23-comprehensive/interactive-elements.md
+git commit -m "docs: update Plan Preview tab categories for ai-parsed"
+```
 
 ---
 
-## Future Iterations (Not MVP)
+## Task 6: Visual Verification
 
-**Trigger-based explanations (Phase 1+):**
-- `oxveil.selfImprovement.slowThreshold` config
-- `oxveil.selfImprovement.minRetries` config
-- Claudeloop injects explanation prompt when triggers fire
-- `[claude]` sections in lessons.md
+**Files:** None (verification only)
 
-**In-tab chat interface (Phase 2+):**
-- Replace terminal with webview chat
-- Inline diff display
-- Approve/dismiss individual proposals
+- [ ] **Step 1: Run visual verification**
 
-**Dismissal learning (Phase 3+):**
-- `.oxveil/dismissed-patterns.md`
-- Stop proposing rejected patterns
+Run: `/visual-verification`
 
-**Positive reinforcement (Phase 4+):**
-- Note when rules followed successfully
-- Data for "what's working" insights
+Acceptance criteria:
+- Start Oxveil in VS Code
+- Open Plan Preview panel
+- Create a plan using Plan Chat
+- Run "Form Plan" command
+- Verify "AI Parsed" tab appears in tab strip
+- Verify tab is auto-activated (has "active" class)
+- Verify content matches `.claudeloop/ai-parsed-plan.md`
+- Switch to another tab, verify switching works
+- Delete `.claudeloop/ai-parsed-plan.md`, verify tab disappears
 
-**Skill promotion (Phase 5+):**
-- Suggest converting repeated patterns to dedicated skill files
+- [ ] **Step 2: Final commit if needed**
+
+If visual verification reveals issues, fix and commit.
+
+---
+
+## Summary
+
+| Task | Description | Commit |
+|------|-------------|--------|
+| 1-2 | Type definition + label mapping | `feat(plan-preview): add ai-parsed category type and label` |
+| 3 | File detection | `feat(plan-preview): detect ai-parsed-plan.md file` |
+| 4 | Edge case tests | `test(plan-preview): add edge case tests for ai-parsed tab` |
+| 5 | Documentation | `docs: update Plan Preview tab categories for ai-parsed` |
+| 6 | Visual verification | — |
+
+Closes chmc/oxveil#68.
