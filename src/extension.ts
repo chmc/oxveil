@@ -232,6 +232,8 @@ export async function activate(
   disposables.push(createSelfImprovementTerminalCloseHandler({
     getActiveSelfImprovementSession: () => activeSelfImprovementSession,
     setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
+    setSelfImprovementActive: (active) => { sidebarState.selfImprovementActive = active; },
+    refreshSidebar: () => sidebarPanel.updateState(buildFullState()),
   }));
 
   // Test command for visual verification — triggers annotation flow

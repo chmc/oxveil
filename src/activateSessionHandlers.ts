@@ -63,10 +63,13 @@ export function createTerminalCloseHandler(deps: TerminalHandlerDeps): vscode.Di
 export interface SelfImprovementTerminalHandlerDeps {
   getActiveSelfImprovementSession: () => SelfImprovementSession | undefined;
   setActiveSelfImprovementSession: (session: SelfImprovementSession | undefined) => void;
+  setSelfImprovementActive: (active: boolean) => void;
+  refreshSidebar: () => void;
 }
 
 /**
  * Creates a terminal close handler that tracks self-improvement session lifecycle.
+ * When terminal closes, resets selfImprovementActive to transition sidebar back to completed view.
  */
 export function createSelfImprovementTerminalCloseHandler(
   deps: SelfImprovementTerminalHandlerDeps,
@@ -75,6 +78,8 @@ export function createSelfImprovementTerminalCloseHandler(
     const session = deps.getActiveSelfImprovementSession();
     if (session?.matchesTerminal(terminal)) {
       deps.setActiveSelfImprovementSession(undefined);
+      deps.setSelfImprovementActive(false);
+      deps.refreshSidebar();
     }
   });
 }

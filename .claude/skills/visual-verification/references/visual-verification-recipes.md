@@ -1020,6 +1020,36 @@ fi
 5. Prepend to PATH: `export PATH="$FAKE_BIN:$PATH"`
 6. Launch Oxveil normally. It spawns claudeloop, which finds the fake `claude` in PATH.
 
+### System PATH Setup (VS Code Child Processes)
+
+VS Code child processes don't inherit terminal PATH modifications. For fake_claude to work inside EDH terminals and claudeloop spawns, symlink to a system PATH location:
+
+```bash
+# Option 1: User-local bin (no sudo required, preferred)
+mkdir -p ~/.local/bin
+ln -sf "$FAKE_BIN/claude" ~/.local/bin/claude
+
+# Option 2: System-wide (requires sudo)
+sudo ln -sf "$FAKE_BIN/claude" /usr/local/bin/claude
+
+# Verify symlink is in PATH
+which claude  # Should show ~/.local/bin/claude or /usr/local/bin/claude
+```
+
+**Environment variables:** FAKE_CLAUDE_DIR must also be available. Launch EDH with the variable:
+
+```bash
+# Launch EDH with FAKE_CLAUDE_DIR inherited
+FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" code --extensionDevelopmentPath="$WORKTREE_PATH" "$WORKTREE_PATH"
+```
+
+**Why symlink instead of PATH export?**
+- PATH export only affects current shell and direct children
+- VS Code launches as new process tree
+- System PATH (~/.local/bin, /usr/local/bin) is inherited everywhere
+
+**Cleanup:** Remove symlink in Phase 6 (see Cleanup section).
+
 ### Scenario Reference
 
 | Scenario | Exit | Description | Visual Verification Use |
@@ -1044,6 +1074,26 @@ fi
 | `read_only` | 0 | Read + Grep only | UI when no file modifications occur |
 | `custom` | 0 | Reads `$FAKE_CLAUDE_DIR/custom_output` | Ad-hoc testing of specific outputs |
 
+### Known Limitation: Verification Prompt Detection
+
+The `success*` scenarios auto-detect verification prompts via `is_phase_verify_prompt()`. When claudeloop runs phase verification (prompt contains "verification"), fake_claude emits `VERIFICATION_PASSED` without file changes. claudeloop then treats the phase as failed (`no_write_actions`).
+
+**Impact:** Cannot test features requiring successful session completion (e.g., self-improvement auto-start) with fake_claude "success" scenarios.
+
+**Workaround:** Use `success_verbose` which writes multiple files, or create a custom scenario:
+```bash
+cat > "$FAKE_CLAUDE_DIR/custom_output" << 'EOF'
+{"type":"system","subtype":"init","model":"fake-claude-v1"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Making changes..."}]}}
+{"type":"tool_use","name":"Write","input":{"file_path":"output.txt","content":"done"},"id":"t1"}
+{"type":"tool_result","content":"ok","id":"t1"}
+{"type":"result","total_cost_usd":0.01,"duration_ms":3000,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":200}}
+EOF
+echo "custom" > "$FAKE_CLAUDE_DIR/scenario"
+# Must also create the file fake_claude claims to write
+echo "done" > "$WORKTREE_PATH/output.txt"
+```
+
 ### Environment Variables
 
 | Variable | Required | Purpose |
@@ -1056,6 +1106,7 @@ fi
 
 - Remove fake bin dir: `rm -rf "$FAKE_BIN"`
 - Remove config dir: `rm -rf "$FAKE_CLAUDE_DIR"`
+- **Remove symlink:** `rm -f ~/.local/bin/claude` (or `sudo rm -f /usr/local/bin/claude` if system-wide)
 - Do NOT remove `.claudeloop/`. It contains state written through claudeloop's normal pipeline. The next real run overwrites it naturally.
 
 ## SESSION.md Template

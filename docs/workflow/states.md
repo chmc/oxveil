@@ -198,7 +198,7 @@ Each view maps to a renderer function in `sidebarRenderers.ts` and a set of user
 | `stopped` | `renderStopped()` | Stopped | Resume (from next pending phase) | Restart | Progress bar, phase list (paused phase highlighted), archives |
 | `failed` | `renderFailed()` | Failed | Retry (failed phase) | Skip (failed phase) | Progress bar, error snippet, phase list, archives |
 | `completed` | `renderCompleted()` | Completed | Replay (latest archive) | Create New Plan | Success banner, summary (elapsed, cost), phase list, self-improvement status, archives |
-| `self-improvement` | `renderSelfImprovement()` | Learning | Focus Session (`focusSelfImprovement`) | Skip (`skipSelfImprovement`) | Lightbulb icon, "Lessons captured", archives |
+| `self-improvement` | `renderSelfImprovement()` | Learning | Focus Terminal (`focusSelfImprovement`) | End Session (`skipSelfImprovement`) | Lightbulb icon, "Self-improvement session active", archives |
 
 ### Self-Improvement Status Section
 
@@ -211,6 +211,21 @@ The `ready` and `completed` views include a self-improvement status section rend
 | `selfImprovement.enabled = true`, `lessonsAvailable = true` | "Self-improvement: On" badge + "Lessons captured" |
 
 The `lessonsAvailable` field is derived from the presence of `lessons.md` in the latest archive directory. It is populated by `findLessonsContent()` during sidebar state building.
+
+### Self-Improvement Session Lifecycle
+
+When a session completes with `selfImprovement` enabled and lessons captured:
+
+1. **Auto-start:** A Claude CLI terminal auto-starts with lessons context in the system prompt (no user click required)
+2. **Sidebar view:** Transitions to `self-improvement` view showing "Self-improvement session active"
+3. **Terminal close:** When user closes the terminal, `selfImprovementActive` resets to `false`, transitioning sidebar back to `completed` view
+4. **Manual skip:** User can click "End Session" to close the terminal and return to `completed` view
+
+```mermaid
+stateDiagram-v2
+    completed --> self_improvement: lessons found + config ON (auto-start terminal)
+    self_improvement --> completed: terminal closed / End Session clicked
+```
 
 ---
 

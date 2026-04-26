@@ -256,14 +256,14 @@ function renderSelfImprovement(state: SidebarState): string {
   </div>
   <div class="success-banner">
     <span class="codicon codicon-lightbulb"></span>
-    <span>Lessons captured</span>
+    <span>Self-improvement session active</span>
   </div>
-  <p class="state-desc">Review what happened and improve your workflow.</p>
+  <p class="state-desc">Claude is reviewing lessons from this session. Discuss improvements in the terminal.</p>
   ${renderActionBar([
-    { label: "Focus Session", command: "focusSelfImprovement", primary: true },
+    { label: "Focus Terminal", command: "focusSelfImprovement", primary: true },
   ])}
   <div class="link-actions">
-    <a class="link-action" data-command="skipSelfImprovement">Skip</a>
+    <a class="link-action" data-command="skipSelfImprovement">End Session</a>
   </div>
 </div>
 ${archivesHtml}`;

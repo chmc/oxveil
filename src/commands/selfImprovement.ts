@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { SelfImprovementSession, resolveClaudeModel } from "../core/selfImprovementSession";
 import type { SelfImprovementPanel } from "../views/selfImprovementPanel";
 import type { SidebarMutableState } from "../activateSidebar";
+import type { Lesson } from "../types";
 
 export interface SelfImprovementCommandDeps {
   claudePath: string | null | undefined;
@@ -17,7 +18,7 @@ export function registerSelfImprovementCommands(
   deps: SelfImprovementCommandDeps,
 ): vscode.Disposable[] {
   return [
-    vscode.commands.registerCommand("oxveil.selfImprovement.start", () => {
+    vscode.commands.registerCommand("oxveil.selfImprovement.start", (lessonsArg?: Lesson[]) => {
       if (!deps.claudePath) {
         vscode.window.showErrorMessage(
           "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
@@ -34,7 +35,7 @@ export function registerSelfImprovementCommands(
       }
 
       const panel = deps.getSelfImprovementPanel();
-      const lessons = panel?.currentLessons ?? [];
+      const lessons = lessonsArg ?? panel?.currentLessons ?? [];
       if (lessons.length === 0) {
         vscode.window.showWarningMessage("Oxveil: No lessons captured for this session");
         return;

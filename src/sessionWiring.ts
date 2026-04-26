@@ -166,7 +166,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           if (lessonsContent) {
             const lessons = parseLessons(lessonsContent);
             if (lessons.length > 0 && session.status === "done") {
-              deps.selfImprovementPanel?.reveal(lessons);
+              vscode.commands.executeCommand("oxveil.selfImprovement.start", lessons);
               if (ms) ms.selfImprovementActive = true;
             }
           }

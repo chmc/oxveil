@@ -61,3 +61,17 @@ The improvement session spawns Claude CLI in a VS Code terminal rather than an i
 - In-panel chat interface with inline diff display
 - Dismissal learning (stop proposing rejected patterns)
 - Positive reinforcement tracking
+
+## Amendment: Auto-Start (2026-04-26)
+
+**Change:** Terminal session now auto-starts when session completes with lessons captured. Previously, a launcher panel with Start/Skip buttons required manual interaction.
+
+**Rationale:** Users expected the self-improvement session to open automatically (like plan chat), not require an extra click. The intermediate launcher panel created friction and was not discoverable.
+
+**New flow:**
+1. Session completes with `selfImprovement` enabled and `lessons.md` captured
+2. Claude CLI terminal auto-starts with lessons context in system prompt
+3. Sidebar shows "self-improvement" view with Focus Terminal / End Session buttons
+4. Closing terminal returns to `completed` view
+
+**Backward compatibility:** `SelfImprovementPanel` (lessons table) is retained for manual invocation via `oxveil.selfImprovement.focus`, but is no longer auto-shown.

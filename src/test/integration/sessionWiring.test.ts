@@ -396,16 +396,17 @@ describe("Self-improvement trigger on session completion", () => {
     session.onLockChanged({ locked: false });
 
     // Wait for async handler
+    const vscode = await import("vscode");
     await vi.waitFor(() => {
-      expect(selfImprovementPanel.reveal).toHaveBeenCalled();
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        "oxveil.selfImprovement.start",
+        expect.arrayContaining([
+          expect.objectContaining({ phase: 1, title: "Setup", exit: "success" }),
+          expect.objectContaining({ phase: 2, title: "Build", exit: "error" }),
+        ]),
+      );
     });
 
-    expect(selfImprovementPanel.reveal).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ phase: 1, title: "Setup", exit: "success" }),
-        expect.objectContaining({ phase: 2, title: "Build", exit: "error" }),
-      ]),
-    );
     expect(mutableState.selfImprovementActive).toBe(true);
   });
 
@@ -598,9 +599,11 @@ describe("Self-improvement trigger on session completion", () => {
 
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(selfImprovementPanel.reveal).toHaveBeenCalledWith([
-      expect.objectContaining({ phase: 1, title: "Fresh" }),
-    ]);
+    const vscode = await import("vscode");
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      "oxveil.selfImprovement.start",
+      [expect.objectContaining({ phase: 1, title: "Fresh" })],
+    );
     expect(mutableState.selfImprovementActive).toBe(true);
   });
 });
