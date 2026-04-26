@@ -119,7 +119,8 @@
       },
       {
         "command": "oxveil.openConfigWizard",
-        "title": "Oxveil: Edit Config"
+        "title": "Oxveil: Edit Config",
+        "icon": "$(gear)"
       },
       {
         "command": "oxveil.runFromPhase",
@@ -284,9 +285,14 @@
       ],
       "view/title": [
         {
+          "command": "oxveil.openConfigWizard",
+          "when": "view == oxveil.sidebar",
+          "group": "navigation@1"
+        },
+        {
           "command": "oxveil.fullReset",
           "when": "view == oxveil.sidebar",
-          "group": "navigation"
+          "group": "navigation@2"
         }
       ]
     },
