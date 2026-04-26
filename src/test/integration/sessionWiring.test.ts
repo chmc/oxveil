@@ -358,6 +358,7 @@ describe("Self-improvement trigger on session completion", () => {
     const session = new SessionState();
     const mutableState = makeMutableState();
     const selfImprovementPanel = { reveal: vi.fn() };
+    const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
 
     function buildFullState(): SidebarState {
       const view = deriveViewState(
@@ -380,6 +381,7 @@ describe("Self-improvement trigger on session completion", () => {
       folderUri: "file:///test",
       buildSidebarState: buildFullState,
       sidebarMutableState: mutableState,
+      sidebarPanel,
       getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
       selfImprovementPanel: selfImprovementPanel as any,
     };
@@ -408,6 +410,9 @@ describe("Self-improvement trigger on session completion", () => {
     });
 
     expect(mutableState.selfImprovementActive).toBe(true);
+    expect(sidebarPanel.updateState).toHaveBeenCalledWith(
+      expect.objectContaining({ view: "self-improvement" })
+    );
   });
 
   it("refreshes sidebar after setting selfImprovementActive flag", async () => {
