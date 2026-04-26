@@ -192,13 +192,25 @@ Each view maps to a renderer function in `sidebarRenderers.ts` and a set of user
 | `not-found` | `renderNotFound()` | — | Install | Set custom path (link) | Warning icon, description |
 | `empty` | `renderEmpty()` | — | Let's Go (`createPlan`) | Write Plan, AI Parse, Form Plan | "How it works" steps, archives |
 | `planning` | `renderPlanning()` | — | — | — | Same as `empty` but during active plan chat session |
-| `ready` | `renderReady()` | Ready | Start | Edit, Discard (links) | Phase list, plan filename, archives |
+| `ready` | `renderReady()` | Ready | Start | Edit, Discard (links) | Phase list, plan filename, self-improvement status, archives |
 | `stale` | `renderStale()` | Found | Resume (`resumePlan`) | Dismiss (`dismissPlan`) | Plan filename, description, archives |
 | `running` | `renderRunning()` | Running | Stop | — | Progress bar, info bar (elapsed, cost, todos, attempts), phase list |
 | `stopped` | `renderStopped()` | Stopped | Resume (from next pending phase) | Restart | Progress bar, phase list (paused phase highlighted), archives |
 | `failed` | `renderFailed()` | Failed | Retry (failed phase) | Skip (failed phase) | Progress bar, error snippet, phase list, archives |
-| `completed` | `renderCompleted()` | Completed | Replay (latest archive) | Create New Plan | Success banner, summary (elapsed, cost), phase list, archives |
+| `completed` | `renderCompleted()` | Completed | Replay (latest archive) | Create New Plan | Success banner, summary (elapsed, cost), phase list, self-improvement status, archives |
 | `self-improvement` | `renderSelfImprovement()` | Learning | Focus Session (`focusSelfImprovement`) | Skip (`skipSelfImprovement`) | Lightbulb icon, "Lessons captured", archives |
+
+### Self-Improvement Status Section
+
+The `ready` and `completed` views include a self-improvement status section rendered by `renderSelfImprovementStatus()`. This section displays:
+
+| Config State | Display |
+|--------------|---------|
+| `selfImprovement.enabled = false` | "Self-improvement: Off" badge + "Enable" link (opens settings) |
+| `selfImprovement.enabled = true`, `lessonsAvailable = false` | "Self-improvement: On" badge + "No lessons available" |
+| `selfImprovement.enabled = true`, `lessonsAvailable = true` | "Self-improvement: On" badge + "Lessons captured" |
+
+The `lessonsAvailable` field is derived from the presence of `lessons.md` in the latest archive directory. It is populated by `findLessonsContent()` during sidebar state building.
 
 ---
 
@@ -533,6 +545,16 @@ interface SubStepView {
   attempts?: number;  // Only present when > 1
 }
 ```
+
+### SelfImprovementConfig
+```typescript
+interface SelfImprovementConfig {
+  enabled: boolean;           // Mirrors oxveil.selfImprovement config setting
+  lessonsAvailable?: boolean; // True when lessons.md exists in latest archive
+}
+```
+
+Used in `SidebarState.selfImprovement` to render the self-improvement status section in ready and completed views.
 
 ### PlanUserChoice
 ```typescript
