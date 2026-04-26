@@ -42,6 +42,10 @@ export interface SidebarState {
   activeFolder?: string;
   /** Timestamp (Date.now()) when state was last built. For stale state detection. */
   lastUpdatedAt?: number;
+  selfImprovement?: {
+    enabled: boolean;           // mirrors config setting
+    lessonsAvailable?: boolean; // only relevant when enabled
+  };
 }
 
 export interface SubStepView {
