@@ -58,6 +58,7 @@ function renderReady(state: SidebarState): string {
   const plan = state.plan!;
   const filename = escapeHtml(plan.filename);
   const archivesHtml = renderArchives(state.archives);
+  const selfImprovementHtml = renderSelfImprovementStatus(state);
   return `<div class="card">
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
@@ -71,6 +72,7 @@ function renderReady(state: SidebarState): string {
     <a class="link-action" data-command="editPlan">Edit</a>
     <a class="link-action" data-command="discardPlan">Discard</a>
   </div>
+  ${selfImprovementHtml}
 </div>
 ${archivesHtml}`;
 }
@@ -194,6 +196,7 @@ function renderCompleted(state: SidebarState): string {
   const elapsed = session?.elapsed ? escapeHtml(session.elapsed) : "";
   const cost = session?.cost ? escapeHtml(session.cost) : "";
   const archivesHtml = renderArchives(state.archives);
+  const selfImprovementHtml = renderSelfImprovementStatus(state);
 
   return `<div class="card">
   <div class="card-header">
@@ -209,6 +212,7 @@ function renderCompleted(state: SidebarState): string {
     ${cost ? `<span class="summary-item">${cost}</span>` : ""}
   </div>
   ${renderPhaseList(plan.phases, "completed")}
+  ${selfImprovementHtml}
   <div class="whats-next">
     <h3>What's next?</h3>
     ${renderActionBar([
@@ -263,6 +267,24 @@ function renderSelfImprovement(state: SidebarState): string {
   </div>
 </div>
 ${archivesHtml}`;
+}
+
+function renderSelfImprovementStatus(state: SidebarState): string {
+  if (state.selfImprovement?.enabled) {
+    const lessonsInfo = state.selfImprovement.lessonsAvailable
+      ? "💡 Lessons captured"
+      : "📝 No lessons available";
+    return `<div class="self-improvement-status">
+  <span class="label">Self-improvement:</span>
+  <span class="badge on">On</span>
+  <div class="lessons-info">${lessonsInfo}</div>
+</div>`;
+  }
+  return `<div class="self-improvement-status">
+  <span class="label">Self-improvement:</span>
+  <span class="badge off">Off</span>
+  <a href="command:workbench.action.openSettings?%5B%22oxveil.selfImprovement%22%5D">Enable</a>
+</div>`;
 }
 
 function renderArchives(archives: ArchiveView[]): string {
