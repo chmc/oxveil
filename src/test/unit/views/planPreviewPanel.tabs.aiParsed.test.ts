@@ -130,4 +130,65 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     expect(lastCall.html).toContain('class="tab-pill active"');
     expect(lastCall.html).toContain("AI Parsed");
   });
+
+  it("should show tabs when ai-parsed created with pre-existing source file", async () => {
+    const deps = makeDeps();
+    // Use fixed timestamps to avoid timing race with Date.now() inside beginSession()
+    const sessionStartTime = 1000000;
+    const beforeSession = sessionStartTime - 10000;
+    const afterSession = sessionStartTime + 10000;
+
+    // Mock Date.now() to control session timing
+    vi.spyOn(Date, "now").mockReturnValue(sessionStartTime);
+
+    // Design file exists BEFORE session (birthtimeMs < sessionStartTime)
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: beforeSession },
+    ]);
+    (deps.statFile as any).mockImplementation(async (p: string) => {
+      if (p === DESIGN_PATH) {
+        return { birthtimeMs: beforeSession, mtimeMs: beforeSession };
+      }
+      return undefined;
+    });
+    deps.readFile = vi.fn(async () => DESIGN_CONTENT);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    panel.beginSession();
+
+    await panel.onFileChanged();
+
+    // Design file alone should be filtered out (stale, no ai-parsed yet)
+    expect(panel.getActiveFilePath()).toBeUndefined();
+
+    // Now ai-parsed is created during session
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: beforeSession },
+      { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: afterSession },
+    ]);
+    (deps.statFile as any).mockImplementation(async (p: string) => {
+      if (p === DESIGN_PATH) {
+        return { birthtimeMs: beforeSession, mtimeMs: beforeSession };
+      }
+      if (p === AI_PARSED_PATH) {
+        return { birthtimeMs: afterSession, mtimeMs: afterSession };
+      }
+      return undefined;
+    });
+    deps.readFile = vi.fn(async (p: string) =>
+      p === AI_PARSED_PATH ? AI_PARSED_CONTENT : DESIGN_CONTENT,
+    );
+    deps._panel.webview.postMessage.mockClear();
+
+    await panel.onFileChanged();
+
+    // Both tabs should be visible (design + ai-parsed)
+    const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
+    expect(lastCall.html).toContain('data-category="design"');
+    expect(lastCall.html).toContain('data-category="ai-parsed"');
+
+    // Restore Date.now
+    vi.mocked(Date.now).mockRestore();
+  });
 });
