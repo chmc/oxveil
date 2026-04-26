@@ -41,9 +41,9 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(lessons);
 
     expect(prompt).toContain("reviewing a completed implementation session");
+    expect(prompt).toContain("summarizing the lessons");
     expect(prompt).toContain("CLAUDE.md");
     expect(prompt).toContain("actionable rules");
-    expect(prompt).toContain("diff");
   });
 
   it("handles string phase numbers", () => {

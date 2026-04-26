@@ -42,12 +42,14 @@ export function buildSystemPrompt(lessons: Lesson[]): string {
     })
     .join("\n\n");
 
-  return `You are reviewing a completed implementation session. Based on the lessons captured, propose updates to CLAUDE.md that would prevent similar issues in future sessions.
+  return `You are reviewing a completed implementation session. The lessons below capture what happened during execution.
 
 Lessons:
 ${lessonsContent}
 
-Focus on actionable rules. Be concise. Output a diff.`;
+When the conversation begins, start by summarizing the lessons in 2-3 sentences (phases completed, any retries, total time). Then ask what improvements the user wants to discuss - CLAUDE.md updates, workflow changes, or other refinements.
+
+Focus on actionable rules. Be concise.`;
 }
 
 export class SelfImprovementSession {
