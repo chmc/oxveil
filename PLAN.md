@@ -1,132 +1,67 @@
-# Fix: Self-improvement session not appearing (Issue #77)
+# Plan: Show AI-Parsed Plan Tab in Plan Preview
+
+**Issue**: [#68](https://github.com/chmc/oxveil/issues/68)
 
 ## Context
 
-User reported that after completing a plan implementation via the sidebar start button, the self-improvement session UI never appeared. However, a valid `lessons.md` file was found in the archive (`/Users/aleksi/source/oxveil/.claudeloop/archive/20260426-094230/lessons.md`).
+When a user creates an AI-parsed plan during a Plan Chat session, the tab for comparing it with the source file doesn't appear. The user expects to see both "Source" and "AI Parsed" tabs to compare the original plan with the parsed version.
 
-**User's question:** "Does sessions learning really work or not?"
+**Root Cause**: Session filtering in `_resolveWithSession()` (line 120-121) excludes pre-existing source files when they weren't modified during the session. When only the new ai-parsed file is tracked, `buildTabs()` returns undefined (requires 2+ tracked files).
 
-## Root Cause
+## Phase 1: Modify Session Filtering Logic
 
-The `oxveil.selfImprovement` config **defaults to `false`** (package.json line 419). The self-improvement trigger in `sessionWiring.ts:162-163` checks this config first:
+**File**: `src/views/planFileResolver.ts`
 
+**Change**: When ai-parsed exists in candidates, allow source files to be tracked even if they predate the session. This enables the comparison use case.
+
+At lines 120-121, change:
 ```typescript
-const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
-if (selfImprovementEnabled && view === "completed") {
-  // ... trigger self-improvement
-}
+if (stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!)
+  continue;
 ```
 
-If the user hasn't explicitly enabled the config, the entire self-improvement flow is skipped even though:
-- lessons.md is created by claudeloop (always happens)
-- All phases completed successfully
-- The lessons.md format is valid and parseable
-
-**This behavior is intentional** (self-improvement spawns Claude CLI with API cost), but the feature is not discoverable.
-
-## Recommended Fix: Self-Improvement Status in Sidebar
-
-Add two UI elements to the sidebar:
-1. **Always visible:** Self-improvement on/off status indicator (toggle or badge)
-2. **Only when enabled:** Lessons status ("Lessons captured" or "No lessons available")
-
-**Why this approach:**
-- Clear visibility of feature status at all times
-- Lessons details only shown when relevant (feature enabled)
-- Non-intrusive - no popup interruption
-- Discoverable - users see the setting exists
-
-## Implementation
-
-### Phase 1: Add selfImprovementEnabled and lessonsAvailable to SidebarState
-
-**File:** `src/views/sidebarState.ts`
-
-Add to `SidebarState` interface:
+To:
 ```typescript
-selfImprovement?: {
-  enabled: boolean;           // mirrors config setting
-  lessonsAvailable?: boolean; // only relevant when enabled
-};
+const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
+const aiParsedInCandidates = candidates.some(c => c.category === "ai-parsed");
+if (isStale && !aiParsedInCandidates) continue;
 ```
 
-### Phase 2: Pass config state to sidebar builder
+**Rationale**: 
+- Preserves session filtering when no ai-parsed is involved (normal behavior)
+- Enables source file tracking when ai-parsed exists (comparison scenario)
+- Minimal change, no architectural changes needed
 
-**File:** `src/activateSidebar.ts`
+## Phase 2: Add Test Coverage
 
-When building sidebar state:
-- Read `oxveil.selfImprovement` config
-- If enabled, check for lessons via `findLessonsContent()`
-- Set `selfImprovement: { enabled, lessonsAvailable }`
+**File**: `src/test/unit/views/planPreviewPanel.tabs.aiParsed.test.ts`
 
-### Phase 3: Render self-improvement status in sidebar
-
-**File:** `src/views/sidebarRenderers.ts`
-
-Add to completed/ready views - self-improvement status section:
-```html
-<div class="self-improvement-status">
-  <span class="label">Self-improvement:</span>
-  ${state.selfImprovement?.enabled ? `
-    <span class="badge on">On</span>
-    <div class="lessons-info">
-      ${state.selfImprovement.lessonsAvailable 
-        ? '💡 Lessons captured' 
-        : '📝 No lessons available'}
-    </div>
-  ` : `
-    <span class="badge off">Off</span>
-    <a href="command:workbench.action.openSettings?%5B%22oxveil.selfImprovement%22%5D">Enable</a>
-  `}
-</div>
+Add test case:
+```typescript
+it("should show tabs when ai-parsed created with pre-existing source file", async () => {
+  // Setup: design file exists BEFORE session (birthtimeMs < sessionStartTime)
+  // Action: session starts, ai-parsed created
+  // Assert: both tabs visible (design + ai-parsed)
+});
 ```
 
-### Phase 4: Add CSS for self-improvement status
+## Phase 3: Verify Existing Tests Pass
 
-**File:** `src/views/sidebarStyles.ts`
-
-Add styling for:
-- `.self-improvement-status` - container
-- `.badge.on` / `.badge.off` - status indicator
-- `.lessons-info` - secondary text when enabled
-
-### Phase 5: Export findLessonsContent
-
-**File:** `src/sessionWiring.ts`
-
-Export `findLessonsContent` function for reuse in sidebar state builder.
-
-### Phase 6: Tests
-
-**File:** `src/test/unit/views/sidebarRenderers.test.ts`
-
-Add tests:
-- Shows "Self-improvement: Off" with Enable link when disabled
-- Shows "Self-improvement: On" with lessons status when enabled
-- Shows "Lessons captured" when enabled + lessons exist
-- Shows "No lessons available" when enabled + no lessons
-
-## Files to Modify
-
-1. `src/views/sidebarState.ts` - Add `selfImprovement` to SidebarState
-2. `src/sessionWiring.ts` - Export `findLessonsContent` function
-3. `src/activateSidebar.ts` - Build selfImprovement state from config + lessons check
-4. `src/views/sidebarRenderers.ts` - Render self-improvement status section
-5. `src/views/sidebarStyles.ts` - Add status styling
-6. `src/test/unit/views/sidebarRenderers.test.ts` - Test coverage
-7. `docs/workflow/states.md` - Document new sidebar section
+Run `npm test` to ensure existing session filtering tests still pass. The change should not affect scenarios without ai-parsed files.
 
 ## Verification
 
-1. Run `npm run lint` - fix all issues
-2. Run `npm test` - all tests pass
+1. `npm run lint` - no lint errors
+2. `npm test` - all tests pass including new test
 3. `/visual-verification` with acceptance criteria:
-   - With `oxveil.selfImprovement` OFF:
-     - Sidebar shows "Self-improvement: Off" with Enable link
-     - No lessons info shown
-   - Click Enable link - opens settings
-   - With `oxveil.selfImprovement` ON:
-     - Sidebar shows "Self-improvement: On"
-     - Shows "Lessons captured" or "No lessons available" based on archive
-   - Run a plan to completion with self-improvement ON
-     - Self-improvement panel appears (existing behavior)
+   - Start Plan Chat with pre-existing design file in `docs/superpowers/specs/`
+   - Run Form Plan to create ai-parsed plan
+   - Plan Preview shows tab strip with both "Design" and "AI Parsed" tabs
+   - Clicking tabs switches between source and parsed content
+   - Auto-switch to "AI Parsed" tab when file is created
+
+## Critical Files
+
+- `src/views/planFileResolver.ts:120-121` - session filtering logic
+- `src/test/unit/views/planPreviewPanel.tabs.aiParsed.test.ts` - test coverage
+- `src/test/unit/views/planPreviewPanel.helpers.ts` - test helpers (may need update)
