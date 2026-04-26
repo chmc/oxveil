@@ -41,6 +41,12 @@ export function registerSelfImprovementCommands(
         return;
       }
 
+      // If called with lessons (external trigger), reveal panel and wait for user action
+      if (lessonsArg && panel) {
+        panel.reveal(lessons);
+        return; // User clicks Start/Skip in panel
+      }
+
       const claudeModel = resolveClaudeModel(
         process.env.OXVEIL_CLAUDE_MODEL,
         deps.extensionMode,

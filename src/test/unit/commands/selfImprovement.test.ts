@@ -35,6 +35,7 @@ describe("registerSelfImprovementCommands", () => {
     mockPanel = {
       currentLessons: [],
       close: vi.fn(),
+      reveal: vi.fn(),
     };
 
     mockMutableState = {
@@ -136,6 +137,44 @@ describe("registerSelfImprovementCommands", () => {
         "Self-improvement session already active",
       );
       expect(activeSession.focusTerminal).toHaveBeenCalled();
+    });
+
+    it("reveals panel and returns early when called with lessonsArg", async () => {
+      const vscode = await import("vscode");
+      const testLessons: Lesson[] = [
+        { phase: 1, title: "Setup", retries: 0, duration: 10, exit: "success" as const },
+      ];
+
+      registerSelfImprovementCommands(deps);
+
+      const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
+      );
+      startCall[1](testLessons);
+
+      expect(mockPanel.reveal).toHaveBeenCalledWith(testLessons);
+      expect(deps.onSelfImprovementSessionCreated).not.toHaveBeenCalled();
+    });
+
+    it("starts terminal when called without lessonsArg (panel button)", async () => {
+      const vscode = await import("vscode");
+      (vscode.window.createTerminal as any).mockReturnValue({
+        show: vi.fn(),
+        dispose: vi.fn(),
+      });
+      mockPanel.currentLessons = [
+        { phase: 1, title: "Existing", retries: 0, duration: 5, exit: "success" as const },
+      ];
+
+      registerSelfImprovementCommands(deps);
+
+      const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
+      );
+      startCall[1]();
+
+      expect(mockPanel.reveal).not.toHaveBeenCalled();
+      expect(deps.onSelfImprovementSessionCreated).toHaveBeenCalled();
     });
   });
 
