@@ -410,6 +410,59 @@ describe("Self-improvement trigger on session completion", () => {
     expect(mutableState.selfImprovementActive).toBe(true);
   });
 
+  it("refreshes sidebar after setting selfImprovementActive flag", async () => {
+    const session = new SessionState();
+    const mutableState = makeMutableState();
+    const selfImprovementPanel = { reveal: vi.fn() };
+    const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() };
+
+    function buildFullState(): SidebarState {
+      const view = deriveViewState(
+        mutableState.detectionStatus,
+        session.status,
+        mutableState.planDetected,
+        session.progress,
+        mutableState.planUserChoice,
+        mutableState.selfImprovementActive,
+      );
+      return { view, archives: [] };
+    }
+
+    const deps: SessionWiringDeps = {
+      session,
+      statusBar: { update: vi.fn(), dispose: vi.fn() },
+      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+      isActiveSession: () => true,
+      folderUri: "file:///test",
+      buildSidebarState: buildFullState,
+      sidebarMutableState: mutableState,
+      sidebarPanel: sidebarPanel as any,
+      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+      selfImprovementPanel: selfImprovementPanel as any,
+    };
+    wireSessionEvents(deps);
+
+    vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+
+    await vi.waitFor(() => {
+      expect(mutableState.selfImprovementActive).toBe(true);
+    });
+
+    // Sidebar should be refreshed after flag is set
+    // The last call should reflect selfImprovementActive: true in the state
+    const lastCall = sidebarPanel.updateState.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    expect(lastCall![0].view).toBe("self-improvement");
+  });
+
   it("does not trigger when lessons.md is empty", async () => {
     const session = new SessionState();
     const mutableState = makeMutableState();
