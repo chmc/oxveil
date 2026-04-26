@@ -76,6 +76,9 @@ export class SelfImprovementSession {
     });
     this._terminal.show();
     this._active = true;
+
+    // Auto-start conversation - Claude will respond with lessons summary
+    this._terminal.sendText("start\n");
   }
 
   focusTerminal(): void {

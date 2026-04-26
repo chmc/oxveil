@@ -160,6 +160,13 @@ describe("SelfImprovementSession", () => {
       expect(mockTerminal.show).toHaveBeenCalled();
     });
 
+    it("auto-sends start message to trigger Claude response", () => {
+      const session = new SelfImprovementSession(deps);
+      session.start([]);
+
+      expect(mockTerminal.sendText).toHaveBeenCalledWith("start\n");
+    });
+
     it("marks session as active", () => {
       const session = new SelfImprovementSession(deps);
       expect(session.isActive()).toBe(false);

@@ -161,6 +161,7 @@ describe("registerSelfImprovementCommands", () => {
       (vscode.window.createTerminal as any).mockReturnValue({
         show: vi.fn(),
         dispose: vi.fn(),
+        sendText: vi.fn(),
       });
       mockPanel.currentLessons = [
         { phase: 1, title: "Existing", retries: 0, duration: 5, exit: "success" as const },
