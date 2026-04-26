@@ -117,8 +117,9 @@ export class PlanFileResolver {
 
       const stats = await this._deps.statFile(candidate.path);
       if (!stats) continue;
-      if (stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!)
-        continue;
+      const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
+      const aiParsedInCandidates = candidates.some(c => c.category === "ai-parsed");
+      if (isStale && !aiParsedInCandidates) continue;
 
       const existing = this._trackedFiles.get(candidate.category);
       if (!existing) {
