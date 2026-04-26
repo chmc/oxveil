@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   SelfImprovementSession,
-  buildSystemPrompt,
+  formatLessons,
+  INITIAL_QUESTION,
   resolveClaudeModel,
   type SelfImprovementSessionDeps,
 } from "../../../core/selfImprovementSession";
@@ -13,37 +14,24 @@ interface MockTerminal {
   dispose: ReturnType<typeof vi.fn>;
 }
 
-describe("buildSystemPrompt", () => {
+describe("formatLessons", () => {
   it("formats lessons into markdown sections", () => {
     const lessons: Lesson[] = [
       { phase: 1, title: "Setup project", retries: 0, duration: 45, exit: "success" },
       { phase: 2, title: "Add feature", retries: 2, duration: 312, exit: "error" },
     ];
 
-    const prompt = buildSystemPrompt(lessons);
+    const content = formatLessons(lessons);
 
-    expect(prompt).toContain("## Phase 1: Setup project");
-    expect(prompt).toContain("- retries: 0");
-    expect(prompt).toContain("- duration: 45s");
-    expect(prompt).toContain("- exit: success");
+    expect(content).toContain("## Phase 1: Setup project");
+    expect(content).toContain("- retries: 0");
+    expect(content).toContain("- duration: 45s");
+    expect(content).toContain("- exit: success");
 
-    expect(prompt).toContain("## Phase 2: Add feature");
-    expect(prompt).toContain("- retries: 2");
-    expect(prompt).toContain("- duration: 312s");
-    expect(prompt).toContain("- exit: error");
-  });
-
-  it("includes instructions for Claude", () => {
-    const lessons: Lesson[] = [
-      { phase: 1, title: "Test", retries: 0, duration: 10, exit: "success" },
-    ];
-
-    const prompt = buildSystemPrompt(lessons);
-
-    expect(prompt).toContain("reviewing a completed implementation session");
-    expect(prompt).toContain("summarizing the lessons");
-    expect(prompt).toContain("CLAUDE.md");
-    expect(prompt).toContain("actionable rules");
+    expect(content).toContain("## Phase 2: Add feature");
+    expect(content).toContain("- retries: 2");
+    expect(content).toContain("- duration: 312s");
+    expect(content).toContain("- exit: error");
   });
 
   it("handles string phase numbers", () => {
@@ -51,16 +39,20 @@ describe("buildSystemPrompt", () => {
       { phase: "1a", title: "Sub-phase", retries: 1, duration: 60, exit: "success" },
     ];
 
-    const prompt = buildSystemPrompt(lessons);
+    const content = formatLessons(lessons);
 
-    expect(prompt).toContain("## Phase 1a: Sub-phase");
+    expect(content).toContain("## Phase 1a: Sub-phase");
   });
 
   it("handles empty lessons array", () => {
-    const prompt = buildSystemPrompt([]);
+    const content = formatLessons([]);
+    expect(content).toBe("");
+  });
+});
 
-    expect(prompt).toContain("Lessons:");
-    expect(prompt).toContain("CLAUDE.md");
+describe("INITIAL_QUESTION", () => {
+  it("asks about improvements", () => {
+    expect(INITIAL_QUESTION).toContain("improvements");
   });
 });
 
@@ -111,7 +103,7 @@ describe("SelfImprovementSession", () => {
   });
 
   describe("start", () => {
-    it("creates terminal with claude path and system prompt", () => {
+    it("creates terminal with claude path and lessons content", () => {
       const session = new SelfImprovementSession(deps);
       const lessons: Lesson[] = [
         { phase: 1, title: "Test", retries: 0, duration: 10, exit: "success" },
@@ -128,6 +120,14 @@ describe("SelfImprovementSession", () => {
         ]),
         location: { viewColumn: 1 },
       });
+    });
+
+    it("includes initial question as positional argument", () => {
+      const session = new SelfImprovementSession(deps);
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).toContain(INITIAL_QUESTION);
     });
 
     it("includes --model flag when claudeModel is set", () => {
@@ -158,13 +158,6 @@ describe("SelfImprovementSession", () => {
       session.start([]);
 
       expect(mockTerminal.show).toHaveBeenCalled();
-    });
-
-    it("auto-sends start message to trigger Claude response", () => {
-      const session = new SelfImprovementSession(deps);
-      session.start([]);
-
-      expect(mockTerminal.sendText).toHaveBeenCalledWith("start\n");
     });
 
     it("marks session as active", () => {

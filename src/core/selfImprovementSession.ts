@@ -29,8 +29,8 @@ export function resolveClaudeModel(
   return undefined;
 }
 
-export function buildSystemPrompt(lessons: Lesson[]): string {
-  const lessonsContent = lessons
+export function formatLessons(lessons: Lesson[]): string {
+  return lessons
     .map((l) => {
       const parts = [
         `## Phase ${l.phase}: ${l.title}`,
@@ -41,16 +41,10 @@ export function buildSystemPrompt(lessons: Lesson[]): string {
       return parts.join("\n");
     })
     .join("\n\n");
-
-  return `You are reviewing a completed implementation session. The lessons below capture what happened during execution.
-
-Lessons:
-${lessonsContent}
-
-When the conversation begins, start by summarizing the lessons in 2-3 sentences (phases completed, any retries, total time). Then ask what improvements the user wants to discuss - CLAUDE.md updates, workflow changes, or other refinements.
-
-Focus on actionable rules. Be concise.`;
 }
+
+export const INITIAL_QUESTION =
+  "Based on these session lessons, what improvements should we discuss?";
 
 export class SelfImprovementSession {
   private _deps: SelfImprovementSessionDeps;
@@ -62,12 +56,13 @@ export class SelfImprovementSession {
   }
 
   start(lessons: Lesson[]): void {
-    const systemPrompt = buildSystemPrompt(lessons);
+    const lessonsContent = formatLessons(lessons);
     const args: string[] = [];
     if (this._deps.claudeModel) {
       args.push("--model", this._deps.claudeModel);
     }
-    args.push("--append-system-prompt", systemPrompt);
+    args.push("--append-system-prompt", lessonsContent);
+    args.push(INITIAL_QUESTION);
     this._terminal = this._deps.createTerminal({
       name: "Self-Improvement",
       shellPath: this._deps.claudePath,
@@ -76,9 +71,6 @@ export class SelfImprovementSession {
     });
     this._terminal.show();
     this._active = true;
-
-    // Auto-start conversation - Claude will respond with lessons summary
-    this._terminal.sendText("start\n");
   }
 
   focusTerminal(): void {
