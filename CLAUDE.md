@@ -12,6 +12,7 @@
 | "We can verify X instead" | Run the specified test |
 | "Prerequisite isn't critical" | It gates the verification |
 | "Documentation doesn't apply" | Check all 4 categories |
+| "Verify manually" / "manual testing" | `/visual-verification` automates UI testing. Never write "manually". |
 
 ## Index
 
