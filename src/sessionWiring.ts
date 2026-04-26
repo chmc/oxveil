@@ -23,7 +23,7 @@ import type { SelfImprovementPanel } from "./views/selfImprovementPanel";
  * Claudeloop archives files immediately on completion, so lessons.md
  * may have been moved to archive before the "done" event fires.
  */
-async function findLessonsContent(folderPath: string): Promise<string | null> {
+export async function findLessonsContent(folderPath: string): Promise<string | null> {
   const claudeloopDir = join(folderPath, ".claudeloop");
 
   // Try .claudeloop/lessons.md first
