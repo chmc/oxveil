@@ -1,68 +1,132 @@
-# Plan: Add Configuration Button to Sidebar Header
-
-**Issue:** [#75](https://github.com/chmc/oxveil/issues/75)
+# Fix: Self-improvement session not appearing (Issue #77)
 
 ## Context
 
-The Oxveil sidebar header currently has only a reset button. Users need quick access to configuration settings without using the command palette. US-15 in `docs/workflow/user-stories.md` already anticipates "User clicks gear icon in sidebar header" — this plan implements that UI entry point.
+User reported that after completing a plan implementation via the sidebar start button, the self-improvement session UI never appeared. However, a valid `lessons.md` file was found in the archive (`/Users/aleksi/source/oxveil/.claudeloop/archive/20260426-094230/lessons.md`).
 
-## Phase 1: Add Config Button to package.json
+**User's question:** "Does sessions learning really work or not?"
 
-**File:** `/Users/aleksi/source/oxveil/package.json`
+## Root Cause
 
-### 1.1 Add icon to command definition (lines 120-123)
+The `oxveil.selfImprovement` config **defaults to `false`** (package.json line 419). The self-improvement trigger in `sessionWiring.ts:162-163` checks this config first:
 
-```json
-{
-  "command": "oxveil.openConfigWizard",
-  "title": "Oxveil: Edit Config",
-  "icon": "$(gear)"
+```typescript
+const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
+if (selfImprovementEnabled && view === "completed") {
+  // ... trigger self-improvement
 }
 ```
 
-### 1.2 Add entry to view/title menu (lines 285-291)
+If the user hasn't explicitly enabled the config, the entire self-improvement flow is skipped even though:
+- lessons.md is created by claudeloop (always happens)
+- All phases completed successfully
+- The lessons.md format is valid and parseable
 
-```json
-"view/title": [
-  {
-    "command": "oxveil.openConfigWizard",
-    "when": "view == oxveil.sidebar",
-    "group": "navigation@1"
-  },
-  {
-    "command": "oxveil.fullReset",
-    "when": "view == oxveil.sidebar",
-    "group": "navigation@2"
-  }
-]
+**This behavior is intentional** (self-improvement spawns Claude CLI with API cost), but the feature is not discoverable.
+
+## Recommended Fix: Self-Improvement Status in Sidebar
+
+Add two UI elements to the sidebar:
+1. **Always visible:** Self-improvement on/off status indicator (toggle or badge)
+2. **Only when enabled:** Lessons status ("Lessons captured" or "No lessons available")
+
+**Why this approach:**
+- Clear visibility of feature status at all times
+- Lessons details only shown when relevant (feature enabled)
+- Non-intrusive - no popup interruption
+- Discoverable - users see the setting exists
+
+## Implementation
+
+### Phase 1: Add selfImprovementEnabled and lessonsAvailable to SidebarState
+
+**File:** `src/views/sidebarState.ts`
+
+Add to `SidebarState` interface:
+```typescript
+selfImprovement?: {
+  enabled: boolean;           // mirrors config setting
+  lessonsAvailable?: boolean; // only relevant when enabled
+};
 ```
 
-**Note:** `@1`/`@2` controls ordering — config appears left (primary), reset appears right (destructive). Matches VS Code convention.
+### Phase 2: Pass config state to sidebar builder
 
-## Phase 2: Visual Verification
+**File:** `src/activateSidebar.ts`
 
-Run `/visual-verification` to confirm:
-- [ ] Gear icon appears left of reset icon in sidebar header
-- [ ] Clicking gear opens Config Wizard panel
-- [ ] Reset button still works
-- [ ] Buttons visible in all sidebar states (empty, ready, running, completed, failed)
+When building sidebar state:
+- Read `oxveil.selfImprovement` config
+- If enabled, check for lessons via `findLessonsContent()`
+- Set `selfImprovement: { enabled, lessonsAvailable }`
 
-## Files Modified
+### Phase 3: Render self-improvement status in sidebar
 
-| File | Change |
-|------|--------|
-| `package.json` | Add icon to command, add view/title menu entry |
+**File:** `src/views/sidebarRenderers.ts`
 
-## Files NOT Modified (already correct)
+Add to completed/ready views - self-improvement status section:
+```html
+<div class="self-improvement-status">
+  <span class="label">Self-improvement:</span>
+  ${state.selfImprovement?.enabled ? `
+    <span class="badge on">On</span>
+    <div class="lessons-info">
+      ${state.selfImprovement.lessonsAvailable 
+        ? '💡 Lessons captured' 
+        : '📝 No lessons available'}
+    </div>
+  ` : `
+    <span class="badge off">Off</span>
+    <a href="command:workbench.action.openSettings?%5B%22oxveil.selfImprovement%22%5D">Enable</a>
+  `}
+</div>
+```
 
-- `docs/workflow/states.md` — context keys documented, no menu contributions needed
-- `docs/workflow/user-stories.md` — US-15 already describes gear icon in header
-- `src/commands.ts` — `openConfigWizard` handler already exists
-- Tests — no state type changes, no snapshot tests for menu contributions
+### Phase 4: Add CSS for self-improvement status
+
+**File:** `src/views/sidebarStyles.ts`
+
+Add styling for:
+- `.self-improvement-status` - container
+- `.badge.on` / `.badge.off` - status indicator
+- `.lessons-info` - secondary text when enabled
+
+### Phase 5: Export findLessonsContent
+
+**File:** `src/sessionWiring.ts`
+
+Export `findLessonsContent` function for reuse in sidebar state builder.
+
+### Phase 6: Tests
+
+**File:** `src/test/unit/views/sidebarRenderers.test.ts`
+
+Add tests:
+- Shows "Self-improvement: Off" with Enable link when disabled
+- Shows "Self-improvement: On" with lessons status when enabled
+- Shows "Lessons captured" when enabled + lessons exist
+- Shows "No lessons available" when enabled + no lessons
+
+## Files to Modify
+
+1. `src/views/sidebarState.ts` - Add `selfImprovement` to SidebarState
+2. `src/sessionWiring.ts` - Export `findLessonsContent` function
+3. `src/activateSidebar.ts` - Build selfImprovement state from config + lessons check
+4. `src/views/sidebarRenderers.ts` - Render self-improvement status section
+5. `src/views/sidebarStyles.ts` - Add status styling
+6. `src/test/unit/views/sidebarRenderers.test.ts` - Test coverage
+7. `docs/workflow/states.md` - Document new sidebar section
 
 ## Verification
 
-1. `npm run lint`
-2. `npm test`
-3. `/visual-verification` — sidebar header buttons in all states
-4. `/visual-verification` — click gear icon, verify Config Wizard panel opens with form
+1. Run `npm run lint` - fix all issues
+2. Run `npm test` - all tests pass
+3. `/visual-verification` with acceptance criteria:
+   - With `oxveil.selfImprovement` OFF:
+     - Sidebar shows "Self-improvement: Off" with Enable link
+     - No lessons info shown
+   - Click Enable link - opens settings
+   - With `oxveil.selfImprovement` ON:
+     - Sidebar shows "Self-improvement: On"
+     - Shows "Lessons captured" or "No lessons available" based on archive
+   - Run a plan to completion with self-improvement ON
+     - Self-improvement panel appears (existing behavior)
