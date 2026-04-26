@@ -80,6 +80,29 @@ The MCP bridge is the primary method for interacting with sidebar webview button
 
 See `references/visual-verification-recipes.md` for discovery file parsing, full command reference, and click-and-verify scripts.
 
+## Perception-Reasoning-Action Loop (Mandatory)
+
+**After EVERY screenshot capture, you MUST complete this loop before taking any further action:**
+
+1. **Analyze**: What does this screenshot actually show? Describe it.
+2. **Understand**: Does this match what I expected to see? If not, why?
+3. **Decide**: Based on this understanding, what should my next action be?
+
+**Never proceed with a pre-planned action if your observation contradicts expectations.** Adapt based on what you actually see.
+
+**Wrong sidebar detection**: If you're verifying Oxveil UI but your screenshot shows:
+- "CHAT" header, "SESSIONS" section, conversation history → You captured **Copilot Chat**, not Oxveil
+- File tree with folders → You captured **Explorer**, not Oxveil
+- Git changes list → You captured **Source Control**, not Oxveil
+
+**Oxveil sidebar contains**: plan phases with status indicators, Start/Resume/Dismiss buttons, self-improvement status badge, session info (elapsed, cost, todos), archives section. In empty state: "Describe what to build" input.
+
+**If wrong sidebar captured**:
+1. Do NOT proceed with verification
+2. Focus Oxveil sidebar: Command Palette → "View: Show Oxveil" or click Oxveil activity bar icon
+3. Re-capture screenshot
+4. Re-run perception-reasoning-action loop
+
 ## Screenshot Readability Loop
 
 After each screenshot capture, **verify the target UI element is actually readable** in the image:

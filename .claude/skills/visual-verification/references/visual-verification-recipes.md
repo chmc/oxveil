@@ -8,6 +8,7 @@ description: Scripts, templates, and checklists for the visual verification loop
 ## Contents
 
 - [Safety Rules](#safety-rules)
+- [Oxveil Sidebar Identification](#oxveil-sidebar-identification)
 - [Pre-flight Checks](#pre-flight-checks)
 - [Self-Implementation Mode Recipes](#self-implementation-mode-recipes)
 - [MCP Bridge Recipes](#mcp-bridge-recipes)
@@ -32,6 +33,78 @@ description: Scripts, templates, and checklists for the visual verification loop
 - **Destructive ops: use accessibility menu clicks.** `click menu item X of menu Y of menu bar 1` is process-scoped.
 - **`AXRaise` before menu clicks** — ensures correct Code window receives the action.
 - **`set frontmost to true` before non-destructive keystrokes** — required because `keystroke` goes to system frontmost.
+
+## Oxveil Sidebar Identification
+
+VS Code has multiple sidebar views. You MUST verify you're capturing the Oxveil sidebar, not another view.
+
+### What Oxveil Sidebar Contains
+
+| State | Elements |
+|-------|----------|
+| Empty | "Describe what to build" input, Archives section |
+| Stale | Plan phases (greyed), Resume/Dismiss buttons, Archives |
+| Ready | Plan phases (pending), Start button, Archives |
+| Running | Plan phases (with progress), elapsed time, cost, todos |
+| Completed | Plan phases (all green), self-improvement status, Archives |
+| Failed | Plan phases (with red failed), error info, Retry button |
+
+**Always present:** Oxveil header, activity bar icon (lightning bolt or custom)
+
+### What Is NOT Oxveil (Common Confusion)
+
+| You See | This Is | Not Oxveil |
+|---------|---------|------------|
+| "CHAT" header, "SESSIONS" section, conversation history | Copilot Chat / Claude Code | ✗ |
+| File/folder tree | Explorer | ✗ |
+| Git changes, staged files | Source Control | ✗ |
+| Search results | Search | ✗ |
+| Extension list | Extensions | ✗ |
+
+### Focus Oxveil Sidebar Recipe
+
+If you captured the wrong sidebar, use this to focus Oxveil:
+
+```bash
+# Via Command Palette
+osascript -e '
+tell application "System Events"
+  tell process "Code"
+    set frontmost to true
+    delay 0.2
+    keystroke "p" using {command down, shift down}
+    delay 0.5
+    keystroke "View: Show Oxveil"
+    delay 0.3
+    key code 36  -- Enter
+    delay 0.5
+  end tell
+end tell'
+
+# Or via menu (more reliable)
+osascript -e '
+tell application "System Events"
+  tell process "Code"
+    set frontmost to true
+    delay 0.2
+    click menu item "Oxveil" of menu "View" of menu bar 1
+    delay 0.5
+  end tell
+end tell'
+```
+
+### Verify Correct Sidebar Script
+
+After capturing, verify MCP state matches visual:
+
+```bash
+# Get MCP state - should return Oxveil sidebar state
+STATE=$(curl -s -H "Authorization: Bearer $MCP_TOKEN" http://localhost:$MCP_PORT/state)
+echo "$STATE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'View: {d.get(\"view\", \"unknown\")}')"
+
+# If state shows valid Oxveil view (empty/stale/ready/running/completed/failed)
+# but screenshot shows CHAT/SESSIONS, you captured wrong sidebar
+```
 
 ## Pre-flight Checks
 
