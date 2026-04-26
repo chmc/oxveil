@@ -9,6 +9,7 @@ import { computeDuration } from "./parsers/archive";
 import type { ArchiveTreeProvider } from "./views/archiveTree";
 import type { ElapsedTimer } from "./views/elapsedTimer";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
+import { findLessonsContent } from "./sessionWiring";
 
 export interface SidebarActivationDeps {
   manager: WorkspaceSessionManager;
@@ -36,6 +37,8 @@ export interface SidebarActivationResult {
   onPlanChatEnded: () => void;
   /** Called when full reset occurs — clears all mutable state and resets session */
   onFullReset: () => void;
+  /** Refreshes lessonsAvailable state from disk */
+  refreshLessonsAvailable: () => Promise<void>;
 }
 
 export interface SidebarMutableState {
@@ -49,6 +52,8 @@ export interface SidebarMutableState {
   todoTotal: number;
   /** Whether self-improvement mode is active after session completion */
   selfImprovementActive: boolean;
+  /** Whether lessons.md exists (checked asynchronously) */
+  lessonsAvailable: boolean;
 }
 
 export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationResult {
@@ -63,6 +68,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     todoDone: 0,
     todoTotal: 0,
     selfImprovementActive: false,
+    lessonsAvailable: false,
   };
 
   function getArchives(): ArchiveView[] {
@@ -99,6 +105,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       state.planUserChoice,
       state.selfImprovementActive,
     );
+    const selfImprovementEnabled = vscode.workspace.getConfiguration?.("oxveil")?.get<boolean>("selfImprovement") ?? false;
     return {
       view: viewState,
       plan: (state.planDetected || progress) ? {
@@ -112,6 +119,10 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       } : undefined,
       archives: getArchives(),
       lastUpdatedAt: Date.now(),
+      selfImprovement: {
+        enabled: selfImprovementEnabled,
+        lessonsAvailable: selfImprovementEnabled ? state.lessonsAvailable : undefined,
+      },
     };
   }
 
@@ -135,6 +146,14 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   // Eagerly parse plan phases if PLAN.md was detected at startup
   if (deps.initialPlanDetected) {
     loadPlanPhases().then(() => {
+      sidebarPanel.updateState(buildFullState());
+    });
+  }
+
+  // Check for lessons at startup if self-improvement is enabled
+  const selfImprovementEnabled = vscode.workspace.getConfiguration?.("oxveil")?.get<boolean>("selfImprovement") ?? false;
+  if (selfImprovementEnabled) {
+    refreshLessonsAvailable().then(() => {
       sidebarPanel.updateState(buildFullState());
     });
   }
@@ -211,6 +230,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
   }
 
+  async function refreshLessonsAvailable(): Promise<void> {
+    if (!deps.workspaceRoot) {
+      state.lessonsAvailable = false;
+      return;
+    }
+    const lessonsContent = await findLessonsContent(deps.workspaceRoot);
+    state.lessonsAvailable = lessonsContent !== null;
+  }
+
   async function onPlanFormed(): Promise<void> {
     // Clear stale progress from previous execution so new plan phases take precedence
     const activeSession = manager.getActiveSession();
@@ -251,6 +279,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     state.planUserChoice = "none";
     state.planDetected = false;
     state.selfImprovementActive = false;
+    state.lessonsAvailable = false;
 
     // Reset active session state
     const activeSession = manager.getActiveSession();
@@ -262,7 +291,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     sidebarPanel.updateState(buildFullState());
   }
 
-  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset };
+  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable };
 }
 
 /**
