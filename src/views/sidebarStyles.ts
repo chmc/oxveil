@@ -298,6 +298,32 @@ export function sidebarCss(): string {
     .archive-label { flex: 1; color: var(--vscode-foreground); }
     .archive-meta { font-size: 11px; color: var(--vscode-descriptionForeground, #888); }
 
+    /* Self-improvement status */
+    .self-improvement-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      margin: 8px;
+      background: var(--vscode-sideBar-background, #252526);
+      border: 1px solid var(--vscode-panel-border, #333);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .badge.on {
+      background: var(--vscode-testing-iconPassed, #4ec9b0);
+      color: #fff;
+    }
+    .badge.off {
+      background: var(--vscode-disabledForeground, #555);
+      color: #fff;
+    }
+    .lessons-info {
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground, #888);
+      margin-left: auto;
+    }
+
     /* Spinner */
     .spinner-container { font-size: 24px; margin-bottom: 12px; }
     @keyframes codicon-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
