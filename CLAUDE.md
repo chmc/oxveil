@@ -13,6 +13,7 @@
 | "Prerequisite isn't critical" | It gates the verification |
 | "Documentation doesn't apply" | Check all 4 categories |
 | "Verify manually" / "manual testing" | `/visual-verification` automates UI testing. Never write "manually". |
+| "User asked for it" / "User said yes" | Plan mode exit wasn't granted. Request ExitPlanMode again. |
 
 ## Index
 
