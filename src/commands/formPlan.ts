@@ -16,6 +16,9 @@ export interface FormPlanCommandDeps {
   getActivePreviewFile: () => string | undefined;
   onPlanFormed?: () => void | Promise<void>;
   notificationManager?: NotificationManager;
+  onAiParseStarted?: () => void;
+  onAiParseEnded?: () => void;
+  isAiParsing?: () => boolean;
 }
 
 export function registerFormPlanCommand(
@@ -42,6 +45,12 @@ export function registerFormPlanCommand(
 
       const { workspaceRoot, processManager, liveRunPanel } = resolved;
       if (!liveRunPanel) return;
+
+      // Guard against concurrent AI parse calls
+      if (deps.isAiParsing?.()) {
+        vscode.window.showWarningMessage("Oxveil: AI parsing already in progress");
+        return;
+      }
 
       // 3. Read source content
       let sourceContent: string;
@@ -97,25 +106,30 @@ export function registerFormPlanCommand(
       };
 
       let outcome: AiParseLoopResult["outcome"];
+      deps.onAiParseStarted?.();
       try {
-        const result = await aiParseLoop({
-          processManager,
-          liveRunPanel,
-          granularity,
-          readVerifyReason,
-          options: { dryRun: true },
-          notificationManager: deps.notificationManager,
-          parsedPlanPath,
-        });
-        outcome = result.outcome;
-      } catch {
-        // Clean up partial ai-parsed-plan.md if claudeloop wrote one before crashing
-        try { await fs.unlink(parsedPlanPath); } catch { /* may not exist */ }
-        // Fall through to validation — claudeloop will re-parse on Start
-        outcome = "pass";
-      }
+        try {
+          const result = await aiParseLoop({
+            processManager,
+            liveRunPanel,
+            granularity,
+            readVerifyReason,
+            options: { dryRun: true },
+            notificationManager: deps.notificationManager,
+            parsedPlanPath,
+          });
+          outcome = result.outcome;
+        } catch {
+          // Clean up partial ai-parsed-plan.md if claudeloop wrote one before crashing
+          try { await fs.unlink(parsedPlanPath); } catch { /* may not exist */ }
+          // Fall through to validation — claudeloop will re-parse on Start
+          outcome = "pass";
+        }
 
-      if (outcome === "aborted") return;
+        if (outcome === "aborted") return;
+      } finally {
+        deps.onAiParseEnded?.();
+      }
 
       // 8. Validate result
       let resultPath = planPath;
