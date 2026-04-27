@@ -46,6 +46,7 @@ export interface SidebarState {
     enabled: boolean;           // mirrors config setting
     lessonsAvailable?: boolean; // only relevant when enabled
   };
+  aiParsing?: boolean;
 }
 
 export interface SubStepView {

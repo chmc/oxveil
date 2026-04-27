@@ -39,6 +39,10 @@ export interface SidebarActivationResult {
   onFullReset: () => void;
   /** Refreshes lessonsAvailable state from disk */
   refreshLessonsAvailable: () => Promise<void>;
+  /** Called when AI parsing of plan starts */
+  onAiParseStarted: () => void;
+  /** Called when AI parsing of plan ends */
+  onAiParseEnded: () => void;
 }
 
 export interface SidebarMutableState {
@@ -54,6 +58,8 @@ export interface SidebarMutableState {
   selfImprovementActive: boolean;
   /** Whether lessons.md exists (checked asynchronously) */
   lessonsAvailable: boolean;
+  /** Whether AI is currently parsing the plan */
+  aiParsing: boolean;
 }
 
 export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationResult {
@@ -69,6 +75,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     todoTotal: 0,
     selfImprovementActive: false,
     lessonsAvailable: false,
+    aiParsing: false,
   };
 
   function getArchives(): ArchiveView[] {
@@ -123,6 +130,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
         enabled: selfImprovementEnabled,
         lessonsAvailable: selfImprovementEnabled ? state.lessonsAvailable : undefined,
       },
+      aiParsing: state.aiParsing,
     };
   }
 
@@ -280,6 +288,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     state.planDetected = false;
     state.selfImprovementActive = false;
     state.lessonsAvailable = false;
+    state.aiParsing = false;
 
     // Reset active session state
     const activeSession = manager.getActiveSession();
@@ -291,7 +300,17 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     sidebarPanel.updateState(buildFullState());
   }
 
-  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable };
+  function onAiParseStarted(): void {
+    state.aiParsing = true;
+    sidebarPanel.updateState(buildFullState());
+  }
+
+  function onAiParseEnded(): void {
+    state.aiParsing = false;
+    sidebarPanel.updateState(buildFullState());
+  }
+
+  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable, onAiParseStarted, onAiParseEnded };
 }
 
 /**

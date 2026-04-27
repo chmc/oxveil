@@ -434,4 +434,32 @@ describe("activateSidebar", () => {
       expect(result.buildFullState().view).not.toBe("planning");
     });
   });
+
+  describe("onAiParseStarted", () => {
+    it("sets aiParsing to true", () => {
+      result.state.aiParsing = false;
+      result.onAiParseStarted();
+      expect(result.state.aiParsing).toBe(true);
+    });
+
+    it("includes aiParsing in buildFullState", () => {
+      result.state.aiParsing = false;
+      result.onAiParseStarted();
+      expect(result.buildFullState().aiParsing).toBe(true);
+    });
+  });
+
+  describe("onAiParseEnded", () => {
+    it("sets aiParsing to false", () => {
+      result.state.aiParsing = true;
+      result.onAiParseEnded();
+      expect(result.state.aiParsing).toBe(false);
+    });
+
+    it("includes aiParsing in buildFullState", () => {
+      result.state.aiParsing = true;
+      result.onAiParseEnded();
+      expect(result.buildFullState().aiParsing).toBe(false);
+    });
+  });
 });
