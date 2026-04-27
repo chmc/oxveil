@@ -9,6 +9,7 @@ related_files:
   - src/views/sidebarState.ts
   - src/views/statusBar.ts
   - src/views/planPreviewPanel.ts
+  - src/views/planPreviewHtml.ts
   - src/types.ts
   - src/sessionWiring.ts
   - src/views/sidebarMessages.ts
@@ -16,6 +17,7 @@ related_files:
   - src/activateSidebar.ts
   - src/activateDetection.ts
   - src/extension.ts
+  - src/commands/formPlan.ts
 ---
 
 # Oxveil Workflow State Specification
@@ -227,6 +229,51 @@ stateDiagram-v2
     self_improvement --> completed: terminal closed / End Session clicked
 ```
 
+### AI Parsing State
+
+**Source:** `src/activateSidebar.ts` — `onAiParseStarted()`, `onAiParseEnded()`
+
+When the user clicks "Form Plan", Oxveil invokes AI parsing to convert the plan chat output into a structured claudeloop plan. During this process, the sidebar tracks parsing state to provide visual feedback and prevent concurrent operations.
+
+#### State Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Sidebar
+    participant FormPlan
+    participant SidebarState
+
+    User->>Sidebar: Click "Form Plan"
+    Sidebar->>FormPlan: oxveil.formPlan
+    FormPlan->>FormPlan: isAiParsing()? → false
+    FormPlan->>SidebarState: onAiParseStarted()
+    SidebarState->>SidebarState: aiParsing = true
+    SidebarState->>Sidebar: updateState() → button disabled with spinner
+    FormPlan->>FormPlan: aiParseLoop() runs
+    FormPlan->>SidebarState: onAiParseEnded() (in finally)
+    SidebarState->>SidebarState: aiParsing = false
+    SidebarState->>Sidebar: updateState() → button re-enabled
+```
+
+#### UI Behavior
+
+| `aiParsing` | "Form Plan" Button |
+|-------------|-------------------|
+| `false` | Enabled: `<button data-command="formPlan">Form Plan</button>` |
+| `true` | Disabled with spinner: `<button disabled><span class="codicon codicon-sync spin"></span> Forming...</button>` |
+
+#### Concurrency Guard
+
+The `formPlan` command includes an `isAiParsing()` guard that returns early if parsing is already in progress. This prevents duplicate AI parse operations from concurrent button clicks.
+
+```typescript
+if (deps.isAiParsing?.()) {
+  vscode.window.showWarningMessage("Oxveil: AI parsing already in progress");
+  return;
+}
+```
+
 ---
 
 ## C. Status Bar Projection
@@ -298,6 +345,37 @@ flowchart TD
 ### Tab System
 
 When multiple plan files exist (design, implementation, plan), the resolver tracks them and provides tab navigation. Tabs are available when 2+ categories are tracked. Categories: `"design" | "implementation" | "plan"`.
+
+### Form Plan Button State
+
+**Source:** `src/views/planPreviewPanel.ts` — `_planFormed`, `setPlanFormed()`
+
+The Plan Preview panel includes a "Form Claudeloop Plan" button that triggers AI parsing. This button has two independent disable conditions:
+
+1. **After plan is formed:** Once `onPlanFormed` fires, the button is permanently disabled (until a new plan chat starts)
+2. **During AI parsing:** Handled by the sidebar's `aiParsing` state (see Section B)
+
+#### planFormed Flag
+
+| `_planFormed` | Button State |
+|---------------|--------------|
+| `false` | Enabled: `<button class="form-plan-btn">Form Claudeloop Plan</button>` |
+| `true` | Disabled with tooltip: `<button class="form-plan-btn" disabled title="Plan already formed. Start from sidebar.">Form Claudeloop Plan</button>` |
+
+#### Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> enabled: Panel created
+    enabled --> disabled: onPlanFormed()
+    disabled --> enabled: onPlanChatStarted() (new session)
+```
+
+The `setPlanFormed()` method is called:
+- `setPlanFormed(true)` — by `activateViews.onPlanFormed()` after AI parse completes successfully
+- `setPlanFormed(false)` — by `activateViews.onPlanChatStarted()` when user starts a new plan chat
+
+This ensures users don't accidentally re-run AI parsing on an already-formed plan.
 
 ---
 
