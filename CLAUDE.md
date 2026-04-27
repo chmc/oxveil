@@ -14,6 +14,7 @@
 | "Documentation doesn't apply" | Check all 4 categories |
 | "Verify manually" / "manual testing" | `/visual-verification` automates UI testing. Never write "manually". |
 | "User asked for it" / "User said yes" | Plan mode exit wasn't granted. Request ExitPlanMode again. |
+| "I'll close the issue later" | Include `gh issue close` in plan. Close before claiming done. |
 
 ## Index
 
@@ -53,7 +54,9 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 
 ## GitHub Issues
 
-- Plans for GitHub issue tasks MUST include a final step: "Close GitHub issue #N with `gh issue close`".
+- NEVER write a plan for a GitHub issue task without a final step: "Close GitHub issue #N with `gh issue close`".
+- NEVER claim GitHub issue work complete without closing the issue first.
+- Confirming work is done = close the issue. Don't ask, close it.
 
 ## Development Process
 
@@ -81,7 +84,7 @@ Clear plan file when done. No stale plans.
 
 ## Quality Gates
 
-**Plans:** Include docs (README, ARCHITECTURE, states.md), test coverage. UI tasks → `/visual-verification` with acceptance criteria.
+**Plans:** Include docs (README, ARCHITECTURE, states.md), test coverage. UI tasks → `/visual-verification` with acceptance criteria. GitHub issue tasks → final step closes issue.
 
 **Executing:** UI task not done until `/visual-verification` passes. No stash for uncommitted changes. Read screenshots, describe concretely.
 
@@ -91,6 +94,7 @@ Clear plan file when done. No stale plans.
 
 Execute in order. Do not skip.
 
+0. GitHub issue task? → plan MUST end with `gh issue close #N`
 1. `npm run lint` — fix all
 2. `npm test` — fix all
 3. Doc scan: state files → `docs/workflow/states.md`, user-facing → README, architecture → ADR
@@ -104,6 +108,7 @@ Execute in order. Do not skip.
 - `/visual-verification` included for UI-visible changes (trace call chain to UI)
 - No manual verification when automation exists
 - `docs/workflow/states.md` updated when touching state files
+- GitHub issue tasks include `gh issue close #N` as final step
 
 ## Verification Integrity
 
