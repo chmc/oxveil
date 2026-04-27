@@ -280,7 +280,7 @@ launch_edh_worktree() {
     
     # Launch EDH with worktree as extension AND workspace
     # This ensures .oxveil-mcp and .claudeloop/ are isolated to the worktree
-    code --extensionDevelopmentPath="$WORKTREE_PATH" "$WORKTREE_PATH" &
+    code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH" &
     
     echo "EDH launched with worktree workspace"
 }
@@ -1040,7 +1040,7 @@ which claude  # Should show ~/.local/bin/claude or /usr/local/bin/claude
 
 ```bash
 # Launch EDH with FAKE_CLAUDE_DIR inherited
-FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" code --extensionDevelopmentPath="$WORKTREE_PATH" "$WORKTREE_PATH"
+FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
 ```
 
 **Why symlink instead of PATH export?**
