@@ -22,6 +22,9 @@ release_notes.md
 docs/qa-sessions/*/videos/
 docs/qa-sessions/*/screenshots/
 
+# Graphify (knowledge graph)
+graphify-out/
+
 # macOS
 .DS_Store
 ._*

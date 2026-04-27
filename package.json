@@ -428,6 +428,7 @@
     }
   },
   "scripts": {
+    "postinstall": "./scripts/setup-graphify.sh || true",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "test": "vitest run",
