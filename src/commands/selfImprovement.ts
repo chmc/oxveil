@@ -51,10 +51,13 @@ export function registerSelfImprovementCommands(
         process.env.OXVEIL_CLAUDE_MODEL,
         deps.extensionMode,
       );
+      const config = vscode.workspace.getConfiguration("oxveil");
+      const allowSkipPermissions = config.get<boolean>("selfImprovement.allowSkipPermissions", false);
       const session = new SelfImprovementSession({
         createTerminal: (opts) => vscode.window.createTerminal(opts as vscode.TerminalOptions),
         claudePath: deps.claudePath,
         claudeModel,
+        allowSkipPermissions,
       });
       session.start(lessons);
 

@@ -153,6 +153,39 @@ describe("SelfImprovementSession", () => {
       expect(args).not.toContain("--model");
     });
 
+    it("includes --permission-mode plan always", () => {
+      const session = new SelfImprovementSession(deps);
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).toContain("--permission-mode");
+      expect(args).toContain("plan");
+    });
+
+    it("includes --allow-dangerously-skip-permissions when allowSkipPermissions is true", () => {
+      const session = new SelfImprovementSession({ ...deps, allowSkipPermissions: true });
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).toContain("--allow-dangerously-skip-permissions");
+    });
+
+    it("omits --allow-dangerously-skip-permissions when allowSkipPermissions is false", () => {
+      const session = new SelfImprovementSession({ ...deps, allowSkipPermissions: false });
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).not.toContain("--allow-dangerously-skip-permissions");
+    });
+
+    it("omits --allow-dangerously-skip-permissions when allowSkipPermissions is undefined", () => {
+      const session = new SelfImprovementSession(deps);
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).not.toContain("--allow-dangerously-skip-permissions");
+    });
+
     it("shows the terminal", () => {
       const session = new SelfImprovementSession(deps);
       session.start([]);

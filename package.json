@@ -392,6 +392,11 @@
           "default": false,
           "description": "Allow switching to dangerously-skip-permissions mode during Plan Chat via Shift+Tab. Session still starts in plan mode. Recommended only for sandboxed environments."
         },
+        "oxveil.selfImprovement.allowSkipPermissions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow switching to dangerously-skip-permissions mode during Self-Improvement chat via Shift+Tab. Session still starts in plan mode. Recommended only for sandboxed environments."
+        },
         "oxveil.liveRunAutoOpen": {
           "type": "boolean",
           "default": true,

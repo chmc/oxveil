@@ -6,6 +6,7 @@ import type { SelfImprovementSession } from "../../../core/selfImprovementSessio
 import type { Lesson } from "../../../types";
 
 // Mock VS Code
+const mockGetConfig = vi.fn().mockReturnValue(false);
 vi.mock("vscode", () => ({
   commands: {
     registerCommand: vi.fn((id: string, handler: Function) => ({
@@ -19,6 +20,11 @@ vi.mock("vscode", () => ({
     showErrorMessage: vi.fn(),
     showWarningMessage: vi.fn(),
     showInformationMessage: vi.fn(),
+  },
+  workspace: {
+    getConfiguration: vi.fn(() => ({
+      get: mockGetConfig,
+    })),
   },
   TerminalOptions: {},
 }));
@@ -176,6 +182,28 @@ describe("registerSelfImprovementCommands", () => {
 
       expect(mockPanel.reveal).not.toHaveBeenCalled();
       expect(deps.onSelfImprovementSessionCreated).toHaveBeenCalled();
+    });
+
+    it("reads selfImprovement.allowSkipPermissions config", async () => {
+      const vscode = await import("vscode");
+      (vscode.window.createTerminal as any).mockReturnValue({
+        show: vi.fn(),
+        dispose: vi.fn(),
+        sendText: vi.fn(),
+      });
+      mockPanel.currentLessons = [
+        { phase: 1, title: "Test", retries: 0, duration: 5, exit: "success" as const },
+      ];
+
+      registerSelfImprovementCommands(deps);
+
+      const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
+      );
+      startCall[1]();
+
+      expect(vscode.workspace.getConfiguration).toHaveBeenCalledWith("oxveil");
+      expect(mockGetConfig).toHaveBeenCalledWith("selfImprovement.allowSkipPermissions", false);
     });
   });
 

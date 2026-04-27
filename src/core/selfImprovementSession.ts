@@ -15,6 +15,7 @@ export interface SelfImprovementSessionDeps {
   }) => Terminal;
   claudePath: string;
   claudeModel?: string;
+  allowSkipPermissions?: boolean;
 }
 
 // ExtensionMode.Development = 2 in VS Code API
@@ -63,7 +64,10 @@ export class SelfImprovementSession {
     if (this._deps.claudeModel) {
       args.push("--model", this._deps.claudeModel);
     }
-    args.push("--append-system-prompt", lessonsContent);
+    args.push("--append-system-prompt", lessonsContent, "--permission-mode", "plan");
+    if (this._deps.allowSkipPermissions) {
+      args.push("--allow-dangerously-skip-permissions");
+    }
     args.push(INITIAL_QUESTION);
     this._terminal = this._deps.createTerminal({
       name: "Self-Improvement",
