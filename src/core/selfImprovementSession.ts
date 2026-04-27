@@ -46,7 +46,7 @@ export function formatLessons(lessons: Lesson[]): string {
 }
 
 export const INITIAL_QUESTION =
-  "Based on these session lessons, what improvements should we discuss?";
+  "The lessons above are from this session only. Analyze them to identify improvements. Do not search for historical lessons in archives.";
 
 export class SelfImprovementSession {
   private _deps: SelfImprovementSessionDeps;
