@@ -178,4 +178,43 @@ describe("PlanPreviewPanel", () => {
 
     expect(deps.onAnnotation).not.toHaveBeenCalled();
   });
+
+  describe("setPlanFormed", () => {
+    it("setPlanFormed(true) renders disabled Form button with tooltip", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      deps._panel.webview.postMessage.mockClear();
+
+      panel.setPlanFormed(true);
+
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.type).toBe("update");
+      expect(call.html).toContain("disabled");
+      expect(call.html).toContain("Plan already formed");
+    });
+
+    it("setPlanFormed(false) renders enabled Form button", async () => {
+      const deps = makeDeps();
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      panel.setPlanFormed(true);
+      deps._panel.webview.postMessage.mockClear();
+
+      panel.setPlanFormed(false);
+
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.type).toBe("update");
+      // Button should be present without disabled attribute
+      const buttonMatch = call.html.match(/<button[^>]*class="form-plan-btn"[^>]*>/);
+      expect(buttonMatch).toBeTruthy();
+      expect(buttonMatch[0]).not.toContain("disabled");
+    });
+  });
 });

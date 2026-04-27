@@ -286,6 +286,23 @@ describe("renderBody planning view", () => {
     expect(html).toContain('class="action-btn primary"');
   });
 
+  it("renders disabled button with spinner when aiParsing is true", () => {
+    const html = renderBody({ view: "planning", archives: [], aiParsing: true });
+    expect(html).toContain("disabled");
+    expect(html).toContain("Forming...");
+    expect(html).toContain("codicon-sync");
+    expect(html).toContain("spin");
+  });
+
+  it("renders enabled button when aiParsing is false", () => {
+    const html = renderBody({ view: "planning", archives: [], aiParsing: false });
+    expect(html).toContain('data-command="formPlan"');
+    // Button should not be disabled
+    const buttonMatch = html.match(/<button[^>]*data-command="formPlan"[^>]*>/);
+    expect(buttonMatch).toBeTruthy();
+    expect(buttonMatch![0]).not.toContain("disabled");
+  });
+
   it("contains Focus Chat and Show Plan Preview links", () => {
     const html = renderBody({ view: "planning", archives: [] });
     expect(html).toContain("Focus Chat");

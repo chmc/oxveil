@@ -72,6 +72,9 @@ function makeDeps(overrides: Partial<FormPlanCommandDeps> = {}): FormPlanCommand
     }),
     getActivePreviewFile: vi.fn().mockReturnValue("/workspace/docs/superpowers/plans/test.md"),
     onPlanFormed: vi.fn(),
+    onAiParseStarted: vi.fn(),
+    onAiParseEnded: vi.fn(),
+    isAiParsing: vi.fn().mockReturnValue(false),
     ...overrides,
   };
 }
@@ -200,5 +203,77 @@ describe("registerFormPlanCommand", () => {
       "utf-8",
     );
     expect(deps.onPlanFormed).toHaveBeenCalled();
+  });
+
+  describe("AI parse lifecycle callbacks", () => {
+    it("calls onAiParseStarted before aiParseLoop", async () => {
+      const callOrder: string[] = [];
+      vi.mocked(aiParseLoop).mockImplementation(async () => {
+        callOrder.push("aiParseLoop");
+        return { outcome: "pass" };
+      });
+      const deps = makeDeps({
+        onAiParseStarted: vi.fn(() => { callOrder.push("onAiParseStarted"); }),
+      });
+      registerFormPlanCommand(deps);
+
+      const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+      await cb();
+
+      expect(callOrder).toEqual(["onAiParseStarted", "aiParseLoop"]);
+    });
+
+    it("calls onAiParseEnded after aiParseLoop completes successfully", async () => {
+      vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "pass" });
+      const deps = makeDeps();
+      registerFormPlanCommand(deps);
+
+      const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+      await cb();
+
+      expect(deps.onAiParseEnded).toHaveBeenCalled();
+    });
+
+    it("calls onAiParseEnded in finally block when aiParseLoop throws", async () => {
+      vi.mocked(aiParseLoop).mockRejectedValue(new Error("Test error"));
+      vi.mocked(fs.readFile).mockImplementation(async (p: any) => {
+        if (String(p).includes("ai-parsed-plan.md")) throw new Error("ENOENT");
+        return "## Phase 1: Setup\nDo setup.";
+      });
+      const deps = makeDeps();
+      registerFormPlanCommand(deps);
+
+      const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+      await cb();
+
+      expect(deps.onAiParseEnded).toHaveBeenCalled();
+    });
+
+    it("calls onAiParseEnded when aiParseLoop returns aborted", async () => {
+      vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "aborted" });
+      const deps = makeDeps();
+      registerFormPlanCommand(deps);
+
+      const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+      await cb();
+
+      expect(deps.onAiParseEnded).toHaveBeenCalled();
+    });
+
+    it("returns early if isAiParsing returns true", async () => {
+      const deps = makeDeps({
+        isAiParsing: vi.fn().mockReturnValue(true),
+      });
+      registerFormPlanCommand(deps);
+
+      const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+      await cb();
+
+      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+        expect.stringContaining("already in progress"),
+      );
+      expect(aiParseLoop).not.toHaveBeenCalled();
+      expect(deps.onAiParseStarted).not.toHaveBeenCalled();
+    });
   });
 });
