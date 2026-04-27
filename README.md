@@ -125,7 +125,7 @@ When enabled (`oxveil.selfImprovement`), Oxveil captures lessons during claudelo
 
 | Feature | Description |
 |---------|-------------|
-| **Lessons capture** | claudeloop records retries, duration, and exit status for each phase in `.claudeloop/lessons.md` |
+| **Lessons capture** | claudeloop records retries, duration, exit status, failure reasons, and Claude's own summary of learnings for each phase in `.claudeloop/lessons.md` |
 | **Self-improvement panel** | After session completion, a panel displays captured lessons with a summary table |
 | **Improvement session** | Click "Start Improvement Session" to open a Claude CLI terminal that analyzes the lessons and proposes actionable CLAUDE.md updates |
 | **Skip option** | Skip self-improvement at any time to return to the completed state |

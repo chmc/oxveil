@@ -125,4 +125,58 @@ describe("parseLessons", () => {
     expect(result).toHaveLength(1);
     expect(result[0].duration).toBe(45);
   });
+
+  it("parses fail_reason when present", () => {
+    const content = `## Phase 1: Retry phase
+- retries: 2
+- duration: 312s
+- exit: success
+- fail_reason: verification_failed
+`;
+    const result = parseLessons(content);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].failReason).toBe("verification_failed");
+  });
+
+  it("parses summary when present", () => {
+    const content = `## Phase 1: Learning phase
+- retries: 0
+- duration: 45s
+- exit: success
+- summary: Learned that caching improves performance by 50%
+`;
+    const result = parseLessons(content);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].summary).toBe("Learned that caching improves performance by 50%");
+  });
+
+  it("parses both fail_reason and summary when present", () => {
+    const content = `## Phase 1: Complex phase
+- retries: 1
+- duration: 180s
+- exit: success
+- fail_reason: trapped_tool_calls
+- summary: Had to retry due to tool permission issue. Fixed by adding allowlist.
+`;
+    const result = parseLessons(content);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].failReason).toBe("trapped_tool_calls");
+    expect(result[0].summary).toBe("Had to retry due to tool permission issue. Fixed by adding allowlist.");
+  });
+
+  it("omits fail_reason and summary when not present (backwards compatibility)", () => {
+    const content = `## Phase 1: Legacy phase
+- retries: 0
+- duration: 45s
+- exit: success
+`;
+    const result = parseLessons(content);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].failReason).toBeUndefined();
+    expect(result[0].summary).toBeUndefined();
+  });
 });

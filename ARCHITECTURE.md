@@ -583,7 +583,7 @@ Interactive Claude session for collaborative plan creation (`PlanChatSession` in
 Pure function, no VS Code dependency (`parsers/lessons.ts`).
 
 **Input:** Raw `.claudeloop/lessons.md` content string (markdown format with phase headers and metrics).
-**Output:** `Lesson[]` with phase number, title, retries, duration, and exit status.
+**Output:** `Lesson[]` with phase number, title, retries, duration, exit status, and optional failReason/summary.
 
 **Format:**
 ```markdown
@@ -591,14 +591,21 @@ Pure function, no VS Code dependency (`parsers/lessons.ts`).
 - retries: 0
 - duration: 45s
 - exit: success
+- summary: Established project structure and config files
 
 ## Phase 2: Implementation
 - retries: 2
 - duration: 312s (expected: 180s)
 - exit: error
+- fail_reason: verification_failed
+- summary: Had to retry due to missing test coverage, added comprehensive unit tests
 ```
 
-Used by the self-improvement panel to display captured metrics and by the self-improvement session to build the system prompt.
+**Optional fields:**
+- `fail_reason` — Present when retries > 0. Captures why the phase needed retry (e.g., `verification_failed`, `trapped_tool_calls`, `empty_log`, `no_session`).
+- `summary` — Claude's LESSONS_SUMMARY marker content. One-sentence reflection on what was learned, a key decision made, or a pitfall encountered.
+
+Used by the self-improvement panel to display captured metrics and by the self-improvement session to build the system prompt. The failReason and summary provide richer context for the self-improvement Claude instance to understand what happened.
 
 ### Self-Improvement Panel
 

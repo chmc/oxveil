@@ -659,3 +659,20 @@ type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
 // Inline in planPreviewPanel.ts _sendUpdate() — not a named export
 type PlanPreviewState = "active" | "empty" | "session-ended" | "raw-markdown";
 ```
+
+### Lesson
+```typescript
+interface Lesson {
+  phase: number | string;
+  title: string;
+  retries: number;
+  duration: number;        // seconds
+  exit: "success" | "error";
+  failReason?: string;     // Present when retries > 0, captures why phase needed retry
+  summary?: string;        // Claude's LESSONS_SUMMARY: one-sentence learning from the phase
+}
+```
+
+**Source:** `src/types.ts`, parsed by `src/parsers/lessons.ts` from `.claudeloop/lessons.md`
+
+Used by self-improvement session to provide Claude with context about what happened during execution. The `failReason` captures why retries were needed (e.g., `verification_failed`, `trapped_tool_calls`, `empty_log`). The `summary` captures Claude's own reflection on what was learned during the phase.

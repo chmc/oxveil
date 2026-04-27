@@ -38,6 +38,8 @@ export function formatLessons(lessons: Lesson[]): string {
         `- duration: ${l.duration}s`,
         `- exit: ${l.exit}`,
       ];
+      if (l.failReason) parts.push(`- fail_reason: ${l.failReason}`);
+      if (l.summary) parts.push(`- summary: ${l.summary}`);
       return parts.join("\n");
     })
     .join("\n\n");

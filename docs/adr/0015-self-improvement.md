@@ -75,3 +75,33 @@ The improvement session spawns Claude CLI in a VS Code terminal rather than an i
 4. Closing terminal returns to `completed` view
 
 **Backward compatibility:** `SelfImprovementPanel` (lessons table) is retained for manual invocation via `oxveil.selfImprovement.focus`, but is no longer auto-shown.
+
+## Amendment: Richer Lessons Capture (2026-04-27)
+
+**Change:** Lessons now include `fail_reason` and `summary` fields, providing the self-improvement Claude with richer context about what happened during execution.
+
+**New fields:**
+- `fail_reason` — Present when retries > 0. Captures why the phase needed retry (e.g., `verification_failed`, `trapped_tool_calls`).
+- `summary` — Claude's `LESSONS_SUMMARY:` marker content extracted from the phase response.
+
+**lessons.md format:**
+```markdown
+## Phase N: Title
+- retries: N
+- duration: Ns
+- exit: success|error
+- fail_reason: verification_failed
+- summary: Had to retry due to missing edge case, added comprehensive tests
+```
+
+**Design decision: Inline extraction vs separate API call**
+
+We chose to instruct the executing Claude to emit a `LESSONS_SUMMARY: "<text>"` marker at the end of each phase response, then extract it from the log. Alternative was a post-phase API call to generate a summary.
+
+**Rationale:**
+- Zero API cost (no extra Claude call)
+- Claude already has full context about what it did
+- Simple grep/sed extraction from existing logs
+- Minimal latency impact on phase completion
+
+**Trade-off:** The summary quality depends on Claude following the instruction. If Claude forgets or the marker is malformed, the summary is empty. This is acceptable for MVP — we can add validation or fallback extraction in future iterations.

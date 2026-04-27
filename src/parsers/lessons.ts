@@ -8,6 +8,8 @@ import type { Lesson } from "../types";
  * - retries: N
  * - duration: Ns (expected: Ns)?
  * - exit: success|error
+ * - fail_reason: <reason> (optional, present when retries > 0)
+ * - summary: <text> (optional, Claude's LESSONS_SUMMARY)
  */
 export function parseLessons(content: string): Lesson[] {
   if (!content.trim()) {
@@ -56,6 +58,8 @@ function parseSection(phase: number | string, title: string, body: string): Less
   let retries: number | undefined;
   let duration: number | undefined;
   let exit: "success" | "error" | undefined;
+  let failReason: string | undefined;
+  let summary: string | undefined;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -83,12 +87,29 @@ function parseSection(phase: number | string, title: string, body: string): Less
       exit = exitMatch[1].toLowerCase() as "success" | "error";
       continue;
     }
+
+    // Parse fail_reason (optional)
+    const failReasonMatch = content.match(/^fail_reason:\s*(.+)/i);
+    if (failReasonMatch) {
+      failReason = failReasonMatch[1].trim();
+      continue;
+    }
+
+    // Parse summary (optional)
+    const summaryMatch = content.match(/^summary:\s*(.+)/i);
+    if (summaryMatch) {
+      summary = summaryMatch[1].trim();
+      continue;
+    }
   }
 
-  // All fields required
+  // Required fields
   if (retries === undefined || duration === undefined || exit === undefined) {
     return null;
   }
 
-  return { phase, title, retries, duration, exit };
+  const lesson: Lesson = { phase, title, retries, duration, exit };
+  if (failReason) lesson.failReason = failReason;
+  if (summary) lesson.summary = summary;
+  return lesson;
 }

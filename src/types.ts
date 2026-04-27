@@ -108,4 +108,6 @@ export interface Lesson {
   retries: number;
   duration: number;  // seconds
   exit: "success" | "error";
+  failReason?: string;
+  summary?: string;
 }
