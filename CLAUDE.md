@@ -15,6 +15,7 @@
 | "Verify manually" / "manual testing" | `/visual-verification` automates UI testing. Never write "manually". |
 | "User asked for it" / "User said yes" | Plan mode exit wasn't granted. Request ExitPlanMode again. |
 | "I'll close the issue later" | Include `gh issue close` in plan. Close before claiming done. |
+| "Let me explore the codebase" | Read `graphify-out/GRAPH_REPORT.md` first. Use `graphify query/path/explain`. |
 
 ## Index
 
