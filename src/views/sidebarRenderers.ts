@@ -226,6 +226,9 @@ ${archivesHtml}`;
 
 function renderPlanning(state: SidebarState): string {
   const archivesHtml = renderArchives(state.archives);
+  const formPlanButton = state.aiParsing
+    ? `<button class="action-btn primary" data-command="formPlan" disabled><span class="codicon codicon-sync spin"></span> Forming...</button>`
+    : `<button class="action-btn primary" data-command="formPlan">Form Plan</button>`;
   return `<div class="centered-layout">
   <div class="state-icon"><span class="codicon codicon-sync spin"></span></div>
   <h2 class="state-title">Shaping Your Plan</h2>
@@ -233,9 +236,7 @@ function renderPlanning(state: SidebarState): string {
   <div class="info-bar">
     <span class="info-item">Plan chat active</span>
   </div>
-  ${renderActionBar([
-    { label: "Form Plan", command: "formPlan", primary: true },
-  ])}
+  <div class="action-bar">${formPlanButton}</div>
   <div class="link-actions">
     <a class="link-action" data-command="focusPlanChat">Focus Chat</a>
     <a class="link-action" data-command="showPlanPreview">Show Plan Preview</a>

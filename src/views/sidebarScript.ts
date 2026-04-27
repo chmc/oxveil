@@ -20,6 +20,8 @@ export function sidebarJs(): string {
             btn.setAttribute("disabled", "true");
             if (msg.command === "start") {
               btn.innerHTML = '<span class="codicon codicon-sync spin"></span> Starting...';
+            } else if (msg.command === "formPlan") {
+              btn.innerHTML = '<span class="codicon codicon-sync spin"></span> Forming...';
             } else {
               setTimeout(function() { btn.removeAttribute("disabled"); }, 2000);
             }
