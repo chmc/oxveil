@@ -46,6 +46,9 @@ export interface ActivateCommandsDeps {
     onPlanChatStarted: () => void;
     onPlanFormed: () => void;
     onFullReset: () => void;
+    onAiParseStarted: () => void;
+    onAiParseEnded: () => void;
+    isAiParsing: () => boolean;
   };
   getActivePlanChatSession: () => PlanChatSession | undefined;
   setActivePlanChatSession: (session: PlanChatSession | undefined) => void;
@@ -89,6 +92,9 @@ export function activateCommands(deps: ActivateCommandsDeps): vscode.Disposable[
     onPlanFormed: deps.sidebar.onPlanFormed,
     notificationManager: deps.notifications,
     onFullReset: deps.sidebar.onFullReset,
+    onAiParseStarted: deps.sidebar.onAiParseStarted,
+    onAiParseEnded: deps.sidebar.onAiParseEnded,
+    isAiParsing: deps.sidebar.isAiParsing,
   };
 
   const selfImprovementDeps: SelfImprovementCommandDeps = {

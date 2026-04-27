@@ -44,6 +44,9 @@ export interface CommandDeps {
   onPlanFormed?: () => void;
   notificationManager?: NotificationManager;
   onFullReset?: () => void;
+  onAiParseStarted?: () => void;
+  onAiParseEnded?: () => void;
+  isAiParsing?: () => boolean;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -233,6 +236,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),
       onPlanFormed: deps.onPlanFormed,
       notificationManager,
+      onAiParseStarted: deps.onAiParseStarted,
+      onAiParseEnded: deps.onAiParseEnded,
+      isAiParsing: deps.isAiParsing,
     }),
     vscode.commands.registerCommand("oxveil._liveRunRetry", () => {
       liveRunPanel?.triggerAiParseAction("ai-parse-retry");
