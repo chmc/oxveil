@@ -17,13 +17,17 @@ export function renderSelfImprovementHtml(options: SelfImprovementHtmlOptions): 
       const statusIcon = lesson.exit === "success" ? "✓" : "✗";
       const statusClass = lesson.exit === "success" ? "success" : "error";
       const durationFormatted = formatDuration(lesson.duration);
+      const retriesTitle = lesson.failReason ? ` title="${escapeHtml(lesson.failReason)}"` : "";
+      const summaryText = lesson.summary ? escapeHtml(lesson.summary) : "—";
+      const summaryClass = lesson.summary ? "summary-cell" : "summary-cell empty";
       return `
         <tr>
           <td>${escapeHtml(String(lesson.phase))}</td>
           <td>${escapeHtml(lesson.title)}</td>
-          <td>${lesson.retries}</td>
+          <td${retriesTitle}>${lesson.retries}</td>
           <td>${durationFormatted}</td>
           <td class="${statusClass}">${statusIcon}</td>
+          <td class="${summaryClass}">${summaryText}</td>
         </tr>`;
     })
     .join("");
@@ -109,6 +113,19 @@ export function renderSelfImprovementHtml(options: SelfImprovementHtmlOptions): 
     .secondary:hover {
       background: var(--vscode-button-secondaryHoverBackground);
     }
+    th:nth-child(1), td:nth-child(1) { width: 60px; }
+    th:nth-child(2), td:nth-child(2) { width: 150px; }
+    th:nth-child(3), td:nth-child(3) { width: 60px; }
+    th:nth-child(4), td:nth-child(4) { width: 80px; }
+    th:nth-child(5), td:nth-child(5) { width: 60px; }
+    th:nth-child(6), td:nth-child(6) { width: auto; }
+    .summary-cell {
+      font-style: italic;
+      opacity: 0.9;
+    }
+    .summary-cell.empty {
+      opacity: 0.5;
+    }
   </style>
 </head>
 <body>
@@ -122,6 +139,7 @@ export function renderSelfImprovementHtml(options: SelfImprovementHtmlOptions): 
         <th>Retries</th>
         <th>Duration</th>
         <th>Status</th>
+        <th>Summary</th>
       </tr>
     </thead>
     <tbody>

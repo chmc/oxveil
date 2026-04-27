@@ -31,6 +31,7 @@ describe("renderSelfImprovementHtml", () => {
     expect(html).toContain("<th>Retries</th>");
     expect(html).toContain("<th>Duration</th>");
     expect(html).toContain("<th>Status</th>");
+    expect(html).toContain("<th>Summary</th>");
   });
 
   it("renders lesson rows", () => {
@@ -139,5 +140,44 @@ describe("renderSelfImprovementHtml", () => {
     ];
     const html = renderSelfImprovementHtml({ lessons: noRetries, cspSource, nonce });
     expect(html).not.toContain("total retries");
+  });
+
+  it("renders summary cell with em-dash when no summary", () => {
+    const html = renderSelfImprovementHtml({ lessons: sampleLessons, cspSource, nonce });
+    expect(html).toContain('class="summary-cell empty">—</td>');
+  });
+
+  it("renders summary cell with text when summary present", () => {
+    const withSummary: Lesson[] = [
+      { phase: 1, title: "Test phase", retries: 0, duration: 30, exit: "success", summary: "Learned to use TDD" },
+    ];
+    const html = renderSelfImprovementHtml({ lessons: withSummary, cspSource, nonce });
+    expect(html).toContain('class="summary-cell">Learned to use TDD</td>');
+  });
+
+  it("renders failReason as tooltip on retries cell", () => {
+    const withFailReason: Lesson[] = [
+      { phase: 1, title: "Failed phase", retries: 2, duration: 120, exit: "error", failReason: "timeout" },
+    ];
+    const html = renderSelfImprovementHtml({ lessons: withFailReason, cspSource, nonce });
+    expect(html).toContain('title="timeout">2</td>');
+  });
+
+  it("escapes HTML in summary", () => {
+    const xssSummary: Lesson[] = [
+      { phase: 1, title: "Test", retries: 0, duration: 10, exit: "success", summary: "<script>xss</script>" },
+    ];
+    const html = renderSelfImprovementHtml({ lessons: xssSummary, cspSource, nonce });
+    expect(html).not.toContain("<script>xss");
+    expect(html).toContain("&lt;script&gt;xss&lt;/script&gt;");
+  });
+
+  it("escapes HTML in failReason tooltip", () => {
+    const xssFailReason: Lesson[] = [
+      { phase: 1, title: "Test", retries: 1, duration: 10, exit: "error", failReason: '<img onerror="xss">' },
+    ];
+    const html = renderSelfImprovementHtml({ lessons: xssFailReason, cspSource, nonce });
+    expect(html).not.toContain('<img onerror');
+    expect(html).toContain('title="&lt;img onerror=&quot;xss&quot;&gt;">1</td>');
   });
 });
