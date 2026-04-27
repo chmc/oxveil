@@ -87,9 +87,13 @@ export function activateCommands(deps: ActivateCommandsDeps): vscode.Disposable[
       }
       deps.setActivePlanChatSession(session);
       deps.planPreviewPanel.setSessionActive(true);
+      deps.planPreviewPanel.setPlanFormed(false);
       vscode.commands.executeCommand("setContext", "oxveil.planChatActive", true);
     },
-    onPlanFormed: deps.sidebar.onPlanFormed,
+    onPlanFormed: () => {
+      deps.sidebar.onPlanFormed();
+      deps.planPreviewPanel.setPlanFormed(true);
+    },
     notificationManager: deps.notifications,
     onFullReset: deps.sidebar.onFullReset,
     onAiParseStarted: deps.sidebar.onAiParseStarted,

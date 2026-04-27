@@ -195,4 +195,36 @@ describe("PlanPreviewPanel > session pinning", () => {
     expect(call?.html).toContain("Start chatting with Claude");
     expect(call?.html).not.toContain("Waiting for Claude to write a plan");
   });
+
+  it("setPlanFormed(true) disables the Form Plan button", async () => {
+    const deps = makeDeps();
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    deps._panel._simulateMessage({ type: "ready" });
+    deps._panel.webview.postMessage.mockClear();
+
+    await panel.onFileChanged();
+    panel.setPlanFormed(true);
+
+    const calls = deps._panel.webview.postMessage.mock.calls;
+    const lastCall = calls[calls.length - 1][0];
+    expect(lastCall.html).toContain("disabled");
+    expect(lastCall.html).toContain('title="Plan already formed. Start from sidebar."');
+  });
+
+  it("setPlanFormed(false) enables the Form Plan button", async () => {
+    const deps = makeDeps();
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    deps._panel._simulateMessage({ type: "ready" });
+    deps._panel.webview.postMessage.mockClear();
+
+    await panel.onFileChanged();
+    panel.setPlanFormed(true);
+    panel.setPlanFormed(false);
+
+    const calls = deps._panel.webview.postMessage.mock.calls;
+    const lastCall = calls[calls.length - 1][0];
+    expect(lastCall.html).not.toMatch(/<button[^>]*class="form-plan-btn"[^>]*disabled/);
+  });
 });

@@ -163,6 +163,19 @@ describe("renderPhaseCardsHtml", () => {
       const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: false });
       expect(html).not.toContain("action-bar");
     });
+
+    it("renders Form Plan button as disabled with tooltip when planFormed is true", () => {
+      const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: true, planFormed: true });
+      expect(html).toContain("form-plan-btn");
+      expect(html).toContain("disabled");
+      expect(html).toContain('title="Plan already formed. Start from sidebar."');
+    });
+
+    it("renders Form Plan button as enabled when planFormed is false", () => {
+      const html = renderPhaseCardsHtml({ ...activeOpts, showFormButton: true, planFormed: false });
+      expect(html).toContain("form-plan-btn");
+      expect(html).not.toMatch(/<button[^>]*class="form-plan-btn"[^>]*disabled/);
+    });
   });
 
   describe("session ended state", () => {

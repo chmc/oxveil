@@ -29,6 +29,7 @@ export interface PhaseCardsOptions {
   keyword?: string;
   tabs?: Array<{ category: string; label: string; active: boolean }>;
   showFormButton?: boolean;
+  planFormed?: boolean;
 }
 
 function formatLabel(format: PhaseCardsOptions["format"], keyword: string | undefined, num: string): string {
@@ -111,9 +112,14 @@ function renderMarkdownHtml(raw: string): string {
 
 export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   const header = renderHeader(options);
-  const formBtn = options.showFormButton
-    ? '<button class="form-plan-btn">Form Claudeloop Plan</button>'
-    : "";
+  let formBtn = "";
+  if (options.showFormButton) {
+    if (options.planFormed) {
+      formBtn = '<button class="form-plan-btn" disabled title="Plan already formed. Start from sidebar.">Form Claudeloop Plan</button>';
+    } else {
+      formBtn = '<button class="form-plan-btn">Form Claudeloop Plan</button>';
+    }
+  }
 
   if (options.state === "empty") {
     const subtitle = options.sessionActive
@@ -189,7 +195,8 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .ended-badge { background: #3b1d1d; color: #f44747; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .valid-badge { background: #1b4332; color: #4ec9b0; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
     .form-plan-btn { flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
-    .form-plan-btn:hover { background: #2d5a8a; }
+    .form-plan-btn:hover:not(:disabled) { background: #2d5a8a; }
+    .form-plan-btn:disabled { background: #3c3c3c; border-color: #555; color: #888; cursor: not-allowed; }
 
     /* Tab strip */
     .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }

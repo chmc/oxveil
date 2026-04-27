@@ -58,6 +58,7 @@ export class PlanPreviewPanel {
   private readonly _deps: PlanPreviewPanelDeps;
   private readonly _resolver: PlanFileResolver;
   private _sessionActive = false;
+  private _planFormed = false;
   private _lastPhases: PhaseCardData[] = [];
   private _lastValid = false;
   private _lastFormat: PhaseCardsOptions["format"] = undefined;
@@ -198,6 +199,11 @@ export class PlanPreviewPanel {
     this._sendUpdate();
   }
 
+  setPlanFormed(formed: boolean): void {
+    this._planFormed = formed;
+    this._sendUpdate();
+  }
+
   startWatching(watchers: FileSystemWatcher[]): void {
     this.stopWatching();
 
@@ -276,6 +282,7 @@ export class PlanPreviewPanel {
       keyword: this._lastKeyword,
       tabs: this._resolver.buildTabs(),
       showFormButton: state !== "empty",
+      planFormed: this._planFormed,
     };
     const html = renderPhaseCardsHtml(options);
     this._panel.webview.postMessage({ type: "update", html });
