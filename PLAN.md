@@ -1,86 +1,64 @@
-# Fix: Self-Improvement Chat Tab Not Appearing (Issue #81)
+# Fix: Remove Chat Sessions Sidebar from Visual Verification
 
 ## Context
 
-After a session completes with all phases successful, the self-improvement chat tab should appear. User has `oxveil.selfImprovement` enabled in settings, but the sidebar stays on the "completed" view and no self-improvement UI appears.
+GitHub issue #82: During visual verification sessions, the "Chat sessions" view from GitHub Copilot Chat extension appears in screenshots, cluttering the viewport. The existing `closeAuxiliaryBar` command in the Maximize Viewport recipe isn't sufficient because:
 
-**Issue**: https://github.com/chmc/oxveil/issues/81
-**Archived session**: `/Users/aleksi/source/oxveil/.claudeloop/archive/20260426-213041`
+1. EDH (Extension Development Host) doesn't inherit `.vscode/settings.json` from the Oxveil repo
+2. Chat sessions view can appear in either primary or secondary sidebar
+3. VS Code may restore window state, reopening sidebars after our close commands
 
-## Root Cause Analysis
+## Approach
 
-### Missing Sidebar Refresh (Bug)
-In `src/sessionWiring.ts` lines 161-173, the "done" handler:
-1. Derives view state while `selfImprovementActive = false`
-2. Runs self-improvement trigger asynchronously
-3. Sets `ms.selfImprovementActive = true` (line 170)
-4. **BUG**: Never refreshes sidebar with new state
+Disable Copilot Chat extension in EDH via `--disable-extension` flag. This is the simplest and most robust solution - no timing issues, no settings to inject, works regardless of sidebar placement.
 
-The `buildAndSendSidebarState()` helper exists (lines 91-94) but is only called at line 206, which runs synchronously before the async self-improvement trigger completes.
+## Implementation
 
-## Implementation Plan
+### Phase 1: Update VS Code Launch Command
 
-### Phase 1: Add Sidebar Refresh After Flag Set
+**File:** `.claude/skills/visual-verification/SKILL.md`
 
-**File**: `src/sessionWiring.ts`
+Update the EDH launch commands to disable Copilot Chat:
 
-**Current code** (lines 168-172):
-```typescript
-if (lessons.length > 0 && session.status === "done") {
-  vscode.commands.executeCommand("oxveil.selfImprovement.start", lessons);
-  if (ms) ms.selfImprovementActive = true;
-}
+```bash
+# Standard launch (before)
+code --extensionDevelopmentPath="$(pwd)"
+
+# Standard launch (after)
+code --extensionDevelopmentPath="$(pwd)" --disable-extension GitHub.copilot-chat
+
+# Self-implementation mode (before)
+code --extensionDevelopmentPath="$WORKTREE_PATH" "$WORKTREE_PATH"
+
+# Self-implementation mode (after)
+code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
 ```
 
-**Fixed code**:
-```typescript
-if (lessons.length > 0 && session.status === "done") {
-  vscode.commands.executeCommand("oxveil.selfImprovement.start", lessons);
-  if (ms) {
-    ms.selfImprovementActive = true;
-    buildAndSendSidebarState();
-  }
-}
-```
+### Phase 2: Update Recipes Reference
 
-### Phase 2: Add Test Coverage
+**File:** `.claude/skills/visual-verification/references/visual-verification-recipes.md`
 
-**File**: `src/test/integration/sessionWiring.test.ts`
+Update all EDH launch recipes to include `--disable-extension GitHub.copilot-chat`.
 
-The existing test "triggers self-improvement panel when config enabled and lessons exist" (line ~363) verifies the flag is set but does NOT verify sidebar refresh.
+### Phase 3: Verification
 
-**Add to existing test deps**:
-```typescript
-const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
-// Include in deps object:
-sidebarPanel,
-```
+Run `/visual-verification` on Oxveil to confirm:
+- Chat sessions sidebar no longer appears in screenshots
+- Oxveil sidebar still visible and functional
+- No regressions in sidebar state capture
 
-**Add assertion**:
-```typescript
-expect(sidebarPanel.updateState).toHaveBeenCalledWith(
-  expect.objectContaining({ view: "self-improvement" })
-);
-```
+### Phase 4: Close Issue
 
-## Verification
-
-1. `npm run lint` - no errors
-2. `npm test` - all tests pass including new assertion
-3. `/visual-verification`:
-   - Run a session with multiple phases that all complete
-   - Verify sidebar shows "self-improvement" view (lightbulb badge, "Learning")
-   - Verify webview panel "Self-Improvement" appears with lessons table + Start/Skip buttons
-   - Click Start → verify terminal opens with Claude CLI
+Close GitHub issue #82 with `gh issue close`.
 
 ## Critical Files
 
-- `/Users/aleksi/source/oxveil/src/sessionWiring.ts` (fix location: line 170)
-- `/Users/aleksi/source/oxveil/src/test/integration/sessionWiring.test.ts` (test update)
-- `/Users/aleksi/source/oxveil/src/views/sidebarState.ts` (reference: `deriveViewState`)
+- `.claude/skills/visual-verification/SKILL.md` (lines 58, 40-46)
+- `.claude/skills/visual-verification/references/visual-verification-recipes.md` (lines 283, 1043)
 
-## Notes
+## Verification
 
-- The fix is a single-line addition calling an existing helper function.
-- If webview panel still doesn't appear after fix, investigate `selfImprovement.ts` command handler (panel.reveal may be failing silently).
-- No architectural changes needed.
+1. Launch EDH with new command
+2. Take screenshot - no Chat sessions visible
+3. Confirm Oxveil sidebar works normally
+4. `/visual-verification` pass
