@@ -46,9 +46,13 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 
 ## Git
 
+- Always use conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`. No exceptions.
 - Never add yourself as co-author. Include `Closes #N` for issue fixes. No auto-push.
-
 - NEVER commit without completing Quality Gates (lint, tests, visual verification if UI, Codex if available). "Only docs/skills" not exempt.
+
+## GitHub Issues
+
+- Plans for GitHub issue tasks MUST include a final step: "Close GitHub issue #N with `gh issue close`".
 
 ## Development Process
 
