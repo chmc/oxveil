@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   resolveClaudeloopPath,
+  resolveClaudePath,
   type PathResolverDeps,
   type ResolvedPath,
 } from "../../../core/pathResolver";
@@ -337,6 +338,160 @@ describe("resolveClaudeloopPath", () => {
 
       expect(result).toBeNull();
       expect(deps.execFile).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("resolveClaudePath", () => {
+  describe("configured absolute path", () => {
+    it("returns configured path when it contains / and exists", async () => {
+      const deps = makeDeps({
+        fileExists: vi.fn().mockResolvedValue(true),
+      });
+
+      const result = await resolveClaudePath("/custom/path/claude", deps);
+
+      expect(result).toEqual<ResolvedPath>({
+        path: "/custom/path/claude",
+        source: "configured",
+      });
+    });
+
+    it("returns null when configured absolute path does not exist", async () => {
+      const deps = makeDeps({
+        fileExists: vi.fn().mockResolvedValue(false),
+      });
+
+      const result = await resolveClaudePath("/missing/claude", deps);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("fallback paths", () => {
+    it("tries /opt/homebrew/bin/claude first on macOS", async () => {
+      const deps = makeDeps({
+        platform: "darwin",
+        fileExists: vi.fn().mockImplementation((p: string) =>
+          Promise.resolve(p === "/opt/homebrew/bin/claude")
+        ),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(result).toEqual<ResolvedPath>({
+        path: "/opt/homebrew/bin/claude",
+        source: "fallback",
+      });
+    });
+
+    it("tries /usr/local/bin/claude as fallback", async () => {
+      const deps = makeDeps({
+        platform: "darwin",
+        fileExists: vi.fn().mockImplementation((p: string) =>
+          Promise.resolve(p === "/usr/local/bin/claude")
+        ),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(result).toEqual<ResolvedPath>({
+        path: "/usr/local/bin/claude",
+        source: "fallback",
+      });
+    });
+
+    it("tries ~/.local/bin/claude as fallback", async () => {
+      const deps = makeDeps({
+        fileExists: vi.fn().mockImplementation((p: string) =>
+          Promise.resolve(p === "/Users/test/.local/bin/claude")
+        ),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(result).toEqual<ResolvedPath>({
+        path: "/Users/test/.local/bin/claude",
+        source: "fallback",
+      });
+    });
+
+    it("tries ~/bin/claude as fallback", async () => {
+      const deps = makeDeps({
+        fileExists: vi.fn().mockImplementation((p: string) =>
+          Promise.resolve(p === "/Users/test/bin/claude")
+        ),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(result).toEqual<ResolvedPath>({
+        path: "/Users/test/bin/claude",
+        source: "fallback",
+      });
+    });
+
+    it("does not include /opt/homebrew/bin/claude on non-macOS", async () => {
+      const deps = makeDeps({
+        platform: "linux",
+        fileExists: vi.fn().mockImplementation((p: string) =>
+          Promise.resolve(p === "/opt/homebrew/bin/claude")
+        ),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      // Should not find it because /opt/homebrew is macOS-only
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("shell resolution", () => {
+    it("resolves via shell when fallbacks fail", async () => {
+      const deps = makeDeps({
+        fileExists: vi.fn().mockResolvedValue(false),
+        execFile: vi.fn().mockResolvedValue({
+          stdout: "/home/user/.npm-global/bin/claude\n",
+        }),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(result).toEqual<ResolvedPath>({
+        path: "/home/user/.npm-global/bin/claude",
+        source: "shell",
+      });
+      expect(deps.execFile).toHaveBeenCalledWith(
+        "/bin/zsh",
+        ["-lc", "command -v claude"],
+        expect.objectContaining({ timeout: 5000 })
+      );
+    });
+
+    it("returns null when all resolution methods fail", async () => {
+      const deps = makeDeps({
+        fileExists: vi.fn().mockResolvedValue(false),
+        execFile: vi.fn().mockRejectedValue(new Error("not found")),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("Windows platform", () => {
+    it("skips shell resolution on Windows", async () => {
+      const deps = makeDeps({
+        platform: "win32",
+        fileExists: vi.fn().mockResolvedValue(false),
+        execFile: vi.fn(),
+      });
+
+      const result = await resolveClaudePath("claude", deps);
+
+      expect(deps.execFile).not.toHaveBeenCalled();
+      expect(result).toBeNull();
     });
   });
 });

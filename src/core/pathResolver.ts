@@ -82,6 +82,62 @@ function getFallbackPaths(homeDir: string, platform: NodeJS.Platform): string[] 
   return paths;
 }
 
+function getClaudeFallbackPaths(homeDir: string, platform: NodeJS.Platform): string[] {
+  const paths: string[] = [];
+
+  // Homebrew Cask paths first (most common for Claude Code)
+  if (platform === "darwin") {
+    paths.push("/opt/homebrew/bin/claude"); // ARM macOS
+  }
+  paths.push("/usr/local/bin/claude"); // Intel macOS or manual
+  paths.push(path.join(homeDir, ".local", "bin", "claude")); // npm global with custom prefix
+  paths.push(path.join(homeDir, "bin", "claude")); // manual install
+
+  return paths;
+}
+
+/**
+ * Resolves the Claude CLI executable path by:
+ * 1. Using configured absolute/relative path directly (if contains /)
+ * 2. Trying hardcoded fallback paths (fast, no shell spawn)
+ * 3. Resolving via user's login shell (slower, but respects PATH)
+ */
+export async function resolveClaudePath(
+  configuredPath: string,
+  deps: PathResolverDeps
+): Promise<ResolvedPath | null> {
+  // If path contains /, treat as configured absolute/relative path
+  if (configuredPath.includes("/")) {
+    const exists = await deps.fileExists(configuredPath);
+    if (exists) {
+      return { path: configuredPath, source: "configured" };
+    }
+    return null;
+  }
+
+  // Bare command - try fallback paths first (fast)
+  const fallbackPaths = getClaudeFallbackPaths(deps.homeDir, deps.platform);
+  for (const fallbackPath of fallbackPaths) {
+    const exists = await deps.fileExists(fallbackPath);
+    if (exists) {
+      return { path: fallbackPath, source: "fallback" };
+    }
+  }
+
+  // Skip shell resolution on Windows (PATH works correctly there)
+  if (deps.platform === "win32") {
+    return null;
+  }
+
+  // Try shell resolution
+  const resolved = await resolveViaShell(configuredPath, deps);
+  if (resolved) {
+    return { path: resolved, source: "shell" };
+  }
+
+  return null;
+}
+
 const SHELL_TIMEOUT_MS = 5000;
 
 // Safe command pattern: alphanumeric, dash, underscore, dot (no shell metacharacters)

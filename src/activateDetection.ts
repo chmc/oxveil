@@ -7,6 +7,7 @@ import { Detection, type Executor } from "./core/detection";
 import { detectClaude, type ClaudeExecutor } from "./core/claudeDetection";
 import {
   resolveClaudeloopPath,
+  resolveClaudePath,
   type PathResolverDeps,
   type ResolvedPath,
 } from "./core/pathResolver";
@@ -106,12 +107,21 @@ export async function activateDetection(
   );
 
   // Claude CLI detection
-  const claudePath = config.get<string>("claudePath", "claude");
+  const configuredClaudePath = config.get<string>("claudePath", "claude");
+  const resolvedClaude = await resolveClaudePath(configuredClaudePath, pathResolverDeps);
+  const claudePathToUse = resolvedClaude?.path ?? configuredClaudePath;
+
+  if (resolvedClaude) {
+    console.log(`[Oxveil] Claude CLI resolved via ${resolvedClaude.source}: ${resolvedClaude.path}`);
+  } else {
+    console.log(`[Oxveil] Claude CLI resolution failed, using configured: ${configuredClaudePath}`);
+  }
+
   const claudeExecutor: ClaudeExecutor = async (command, args) => {
     const r = await execFileAsync(command, args);
     return { stdout: r.stdout };
   };
-  const resolvedClaudePath = await detectClaude(claudeExecutor, claudePath);
+  const resolvedClaudePath = await detectClaude(claudeExecutor, claudePathToUse);
   await vscode.commands.executeCommand(
     "setContext",
     "oxveil.claudeDetected",
