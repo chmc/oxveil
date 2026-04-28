@@ -194,6 +194,10 @@
       {
         "command": "oxveil.selfImprovement.focus",
         "title": "Oxveil: Focus Self-Improvement Panel"
+      },
+      {
+        "command": "oxveil.checkForUpdates",
+        "title": "Oxveil: Check for claudeloop Updates"
       }
     ],
     "menus": {
@@ -280,6 +284,10 @@
         },
         {
           "command": "oxveil.fullReset",
+          "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.checkForUpdates",
           "when": "oxveil.detected"
         }
       ],
@@ -428,6 +436,11 @@
           "type": "string",
           "default": "",
           "description": "(Debug only) Force sidebar to show a specific view state"
+        },
+        "oxveil.autoCheckForUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for claudeloop updates on extension activation"
         }
       }
     }
@@ -444,6 +457,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/semver": "^7.7.1",
     "@types/vscode": "^1.100.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.25.0",
@@ -452,6 +466,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "marked": "^18.0.0"
+    "marked": "^18.0.0",
+    "semver": "^7.7.4"
   }
 }

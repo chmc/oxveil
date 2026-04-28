@@ -33,6 +33,8 @@ export function createNotificationManager(deps: NotificationFactoryDeps): Notifi
     onOpenFile: (filePath) =>
       vscode.workspace.openTextDocument(filePath).then(vscode.window.showTextDocument),
     onFocusLiveRun: () => deps.liveRunPanel.panel?.reveal(),
+    onUpdate: () => vscode.commands.executeCommand("oxveil.install"),
+    onReleaseNotes: (url) => vscode.env.openExternal(vscode.Uri.parse(url)),
   });
 }
 

@@ -55,6 +55,8 @@ export interface NotificationDeps {
   onForceUnlock?: () => void;
   onOpenFile?: (path: string) => void;
   onFocusLiveRun?: () => void;
+  onUpdate?: () => void;
+  onReleaseNotes?: (url: string) => void;
 }
 
 export class NotificationManager {
@@ -172,6 +174,23 @@ export class NotificationManager {
       .then((action) => {
         if (action === "View Options") {
           this._deps.onFocusLiveRun?.();
+        }
+      });
+  }
+
+  onUpdateAvailable(current: string, latest: string, releaseUrl: string): void {
+    this._deps.window
+      .showInformationMessage(
+        `claudeloop update available: v${current} → v${latest}`,
+        "Update",
+        "Release Notes",
+        "Dismiss",
+      )
+      .then((action) => {
+        if (action === "Update") {
+          this._deps.onUpdate?.();
+        } else if (action === "Release Notes") {
+          this._deps.onReleaseNotes?.(releaseUrl);
         }
       });
   }

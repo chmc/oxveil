@@ -453,4 +453,48 @@ describe("NotificationManager", () => {
       });
     });
   });
+
+  describe("update notification", () => {
+    it("shows info notification with Update, Release Notes, and Dismiss actions", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win });
+
+      mgr.onUpdateAvailable("0.27.0", "0.28.0", "https://github.com/chmc/claudeloop/releases/tag/v0.28.0");
+
+      expect(win.showInformationMessage).toHaveBeenCalledWith(
+        "claudeloop update available: v0.27.0 → v0.28.0",
+        "Update",
+        "Release Notes",
+        "Dismiss",
+      );
+    });
+
+    it("invokes onUpdate callback when Update is clicked", async () => {
+      const win = makeWindow();
+      const onUpdate = vi.fn();
+      const mgr = new NotificationManager({ window: win, onUpdate });
+
+      win.showInformationMessage.mockResolvedValue("Update");
+
+      mgr.onUpdateAvailable("0.27.0", "0.28.0", "https://example.com");
+
+      await vi.waitFor(() => {
+        expect(onUpdate).toHaveBeenCalled();
+      });
+    });
+
+    it("invokes onReleaseNotes callback with URL when Release Notes is clicked", async () => {
+      const win = makeWindow();
+      const onReleaseNotes = vi.fn();
+      const mgr = new NotificationManager({ window: win, onReleaseNotes });
+
+      win.showInformationMessage.mockResolvedValue("Release Notes");
+
+      mgr.onUpdateAvailable("0.27.0", "0.28.0", "https://github.com/chmc/claudeloop/releases/tag/v0.28.0");
+
+      await vi.waitFor(() => {
+        expect(onReleaseNotes).toHaveBeenCalledWith("https://github.com/chmc/claudeloop/releases/tag/v0.28.0");
+      });
+    });
+  });
 });
