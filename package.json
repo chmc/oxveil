@@ -370,6 +370,17 @@
           "default": "claude",
           "description": "Path to Claude CLI executable"
         },
+        "oxveil.provider": {
+          "type": "string",
+          "enum": ["claude", "opencode"],
+          "default": "claude",
+          "description": "AI provider to use for pipelines"
+        },
+        "oxveil.opencodePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to OpenCode CLI executable (optional, uses PATH if empty)"
+        },
         "oxveil.watchDebounceMs": {
           "type": "number",
           "default": 100,
