@@ -63,6 +63,17 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 
 Trunk-based. See `.claude/skills/dev-workflow/SKILL.md`. Not published yet — no feature flags.
 
+## Adding Settings
+
+When adding a new VS Code setting:
+
+1. `package.json` → `contributes.configuration.properties` with default
+2. `src/processManagerSettings.ts` → add to interface
+3. `src/processManagerFactory.ts:getSettings()` → add with same default as `package.json`
+4. `src/processManager.ts:_settingsToArgs()` → map to CLI flag
+5. `test/processManager.test.ts` → add to mock's default return value in `beforeEach`
+6. Verify: `npm test` passes, setting appears in VS Code settings UI
+
 ## Cost Control
 
 Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL_<SERVICE>_<PARAM>` env var overrides. Prefer fake_claude over real API.
