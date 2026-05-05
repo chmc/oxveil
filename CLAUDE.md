@@ -85,6 +85,8 @@ Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL
 - "Action: `/skill`" → invoke via Skill tool. No substitution.
 - Checklist → complete all. "Compare against" → read and compare.
 - Skill terminal action governs. Don't substitute ExitPlanMode for skill exit.
+- Plan-spec code inserted → run `npm run lint` immediately. Catches phantom API references before they compound.
+- Before implementing plan phase → check git history. Work may have been co-committed in earlier phases.
 
 ## Automation Discipline
 

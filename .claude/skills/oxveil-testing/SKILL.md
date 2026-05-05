@@ -16,3 +16,4 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - `deps.folderUri` is URI string (`file:///path`), not path. Use `vscode.Uri.parse(deps.folderUri).fsPath` with `join()`.
 - Claudeloop files: uppercase (`PROGRESS.md`, `PLAN.md`). Watchers case-sensitive.
 - Adding `SidebarMutableState` fields: check if reset needed in `to === "running"` block of `sessionWiring.ts`. Session-scoped (cost, todos, selfImprovementActive) resets; persistent (detectionStatus, planDetected) doesn't.
+- Testing `activateSidebar.ts` functions that delegate to `sidebarRefresh.ts`: mock `node:fs/promises` (`access`/`readdir`/`unlink`) and add `isRunning`/`start`/`stop` to `elapsedTimer` mock — otherwise `detectInconsistencies` and `fullReInit` throw at runtime.
