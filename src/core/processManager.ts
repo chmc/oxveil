@@ -6,6 +6,8 @@ export interface ProcessManagerSettings {
   refactor: boolean;
   dryRun: boolean;
   aiParse: boolean;
+  provider: "claude" | "opencode";
+  opencodePath: string;
 }
 
 export interface ProcessManagerDeps {

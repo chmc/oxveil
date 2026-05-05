@@ -47,6 +47,8 @@ export function createProcessManager({
         refactor: c.get<boolean>("refactor", true),
         dryRun: c.get<boolean>("dryRun", false),
         aiParse: c.get<boolean>("aiParse", true),
+        provider: c.get<"claude" | "opencode">("provider", "claude"),
+        opencodePath: c.get<string>("opencodePath", "opencode"),
       };
     },
     platform,
