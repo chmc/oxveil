@@ -181,7 +181,7 @@
       {
         "command": "oxveil.fullReset",
         "title": "Oxveil: Reset",
-        "icon": "$(debug-restart)"
+        "icon": "$(trash)"
       },
       {
         "command": "oxveil.selfImprovement.start",
