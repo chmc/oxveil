@@ -66,6 +66,8 @@ describe("ProcessManager", () => {
       refactor: true,
       dryRun: false,
       aiParse: true,
+      provider: "claude",
+      opencodePath: "",
     });
   });
 
@@ -199,6 +201,63 @@ describe("ProcessManager", () => {
 
       await expect(spawnPromise).rejects.toThrow("claudeloop exited with code 2");
       expect(pm.isRunning).toBe(false);
+    });
+
+    describe("provider flags", () => {
+      it("omits --provider flag when provider is 'claude' (default)", async () => {
+        getSettings.mockReturnValue({
+          verify: false,
+          refactor: false,
+          dryRun: false,
+          aiParse: false,
+          provider: "claude",
+          opencodePath: "",
+        });
+        const pm = createManager();
+        await startSpawn(pm);
+
+        expect(spawnCalls[0].args).not.toContain("--provider");
+        closeCallback?.(0);
+      });
+
+      it("includes --provider opencode when provider is 'opencode'", async () => {
+        getSettings.mockReturnValue({
+          verify: false,
+          refactor: false,
+          dryRun: false,
+          aiParse: false,
+          provider: "opencode",
+          opencodePath: "",
+        });
+        const pm = createManager();
+        await startSpawn(pm);
+
+        const args = spawnCalls[0].args;
+        expect(args).toContain("--provider");
+        expect(args[args.indexOf("--provider") + 1]).toBe("opencode");
+        expect(args).not.toContain("--provider-path");
+        closeCallback?.(0);
+      });
+
+      it("includes --provider-path when provider is 'opencode' and opencodePath is set", async () => {
+        getSettings.mockReturnValue({
+          verify: false,
+          refactor: false,
+          dryRun: false,
+          aiParse: false,
+          provider: "opencode",
+          opencodePath: "/usr/local/bin/opencode",
+        });
+        const pm = createManager();
+        await startSpawn(pm);
+
+        const args = spawnCalls[0].args;
+        expect(args).toContain("--provider");
+        expect(args[args.indexOf("--provider") + 1]).toBe("opencode");
+        expect(args).toContain("--provider-path");
+        expect(args[args.indexOf("--provider-path") + 1]).toBe("/usr/local/bin/opencode");
+        closeCallback?.(0);
+      });
     });
   });
 
