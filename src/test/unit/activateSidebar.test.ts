@@ -9,13 +9,14 @@ let watcherCallbacks: {
 
 // Capture the onPlanChoice callback passed to SidebarPanel
 let capturedOnPlanChoice: ((choice: "resume" | "dismiss") => void) | undefined;
+let capturedUpdateState: ReturnType<typeof vi.fn> | undefined;
 
 vi.mock("../../views/sidebarPanel", () => ({
   SidebarPanel: vi.fn().mockImplementation((deps: any) => {
     capturedOnPlanChoice = deps.onPlanChoice;
-    return {
-      updateState: vi.fn(),
-    };
+    const updateState = vi.fn();
+    capturedUpdateState = updateState;
+    return { updateState };
   }),
 }));
 
@@ -27,13 +28,22 @@ vi.mock("vscode", () => ({
       onDidChange: vi.fn((cb: () => void | Promise<void>) => { watcherCallbacks.onChange = cb; }),
       dispose: vi.fn(),
     })),
+    getConfiguration: vi.fn(() => ({ get: vi.fn(() => false) })),
   },
   commands: { executeCommand: vi.fn() },
-  window: { registerWebviewViewProvider: vi.fn() },
+  window: {
+    registerWebviewViewProvider: vi.fn(),
+    showInformationMessage: vi.fn(),
+    showWarningMessage: vi.fn(),
+    showErrorMessage: vi.fn(),
+  },
 }));
 
 vi.mock("node:fs/promises", () => ({
   readFile: vi.fn(),
+  access: vi.fn(),
+  readdir: vi.fn(),
+  unlink: vi.fn(),
 }));
 
 import { activateSidebar } from "../../activateSidebar";
@@ -41,7 +51,8 @@ import type {
   SidebarActivationDeps,
   SidebarActivationResult,
 } from "../../activateSidebar";
-import { readFile } from "node:fs/promises";
+import * as vscode from "vscode";
+import { readFile, access, readdir } from "node:fs/promises";
 
 function makeDeps(overrides: Partial<SidebarActivationDeps> = {}): SidebarActivationDeps {
   return {
@@ -49,8 +60,8 @@ function makeDeps(overrides: Partial<SidebarActivationDeps> = {}): SidebarActiva
       getActiveSession: vi.fn(() => undefined),
     } as any,
     workspaceRoot: "/fake/root",
-    archiveTree: { getEntries: vi.fn(() => []) } as any,
-    elapsedTimer: { elapsed: "0m" } as any,
+    archiveTree: { getEntries: vi.fn(() => []), getArchiveCount: vi.fn(() => 0) } as any,
+    elapsedTimer: { elapsed: "0m", isRunning: vi.fn(() => false), start: vi.fn(), stop: vi.fn() } as any,
     initialDetectionStatus: "detected",
     initialPlanDetected: false,
     ...overrides,
@@ -65,6 +76,7 @@ describe("activateSidebar", () => {
     vi.clearAllMocks();
     watcherCallbacks = {};
     capturedOnPlanChoice = undefined;
+    capturedUpdateState = undefined;
     deps = makeDeps();
     result = activateSidebar(deps);
   });
@@ -460,6 +472,51 @@ describe("activateSidebar", () => {
       result.state.aiParsing = true;
       result.onAiParseEnded();
       expect(result.buildFullState().aiParsing).toBe(false);
+    });
+  });
+
+  describe("refreshSidebar", () => {
+    beforeEach(() => {
+      // Default: no files exist → consistent state, light refresh path
+      vi.mocked(access).mockRejectedValue(new Error("ENOENT"));
+      vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
+      vi.mocked(readdir).mockRejectedValue(new Error("ENOENT"));
+    });
+
+    it("calls sidebarPanel.updateState()", async () => {
+      await result.refreshSidebar();
+      expect(capturedUpdateState).toHaveBeenCalled();
+    });
+
+    it("shows 'Oxveil: Refreshed' when state is consistent", async () => {
+      await result.refreshSidebar();
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Refreshed");
+    });
+
+    it("detectInconsistencies returns false when planDetected matches disk (both false)", async () => {
+      result.state.planDetected = false;
+      await result.refreshSidebar();
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Refreshed");
+    });
+
+    it("detectInconsistencies returns true when planDetected=true but PLAN.md missing", async () => {
+      result.state.planDetected = true;
+      // access throws for all paths → PLAN.md doesn't exist → inconsistency
+      await result.refreshSidebar();
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Full refresh completed");
+    });
+
+    it("detectInconsistencies returns true when aiParsing=true but session not running", async () => {
+      result.state.aiParsing = true;
+      // session is not running (getActiveSession returns undefined) → inconsistency
+      await result.refreshSidebar();
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Full refresh completed");
+    });
+
+    it("detectInconsistencies returns false when aiParsing=false and session not running", async () => {
+      result.state.aiParsing = false;
+      await result.refreshSidebar();
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Refreshed");
     });
   });
 });
