@@ -91,6 +91,7 @@ describe("Self-improvement trigger on session completion", () => {
     });
 
     expect(mutableState.selfImprovementActive).toBe(true);
+    expect(mutableState.lessonsAvailable).toBe(true);
     expect(sidebarPanel.updateState).toHaveBeenCalledWith(
       expect.objectContaining({ view: "self-improvement" })
     );
