@@ -33,6 +33,10 @@ export class ElapsedTimer {
     }, TICK_INTERVAL_MS);
   }
 
+  isRunning(): boolean {
+    return this._intervalId !== undefined;
+  }
+
   stop(): void {
     if (this._intervalId !== undefined) {
       clearInterval(this._intervalId);

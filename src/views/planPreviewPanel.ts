@@ -245,6 +245,10 @@ export class PlanPreviewPanel {
     return this._resolver.getActiveFilePath();
   }
 
+  refresh(): void {
+    this._sendUpdate();
+  }
+
   dispose(): void {
     this.stopWatching();
     this._panel?.dispose();

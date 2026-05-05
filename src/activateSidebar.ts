@@ -8,6 +8,7 @@ import type { DetectionStatus } from "./types";
 import { computeDuration } from "./parsers/archive";
 import type { ArchiveTreeProvider } from "./views/archiveTree";
 import type { ElapsedTimer } from "./views/elapsedTimer";
+import type { PlanPreviewPanel } from "./views/planPreviewPanel";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { findLessonsContent } from "./sessionWiring";
 
@@ -18,6 +19,7 @@ export interface SidebarActivationDeps {
   elapsedTimer: ElapsedTimer;
   initialDetectionStatus: DetectionStatus;
   initialPlanDetected: boolean;
+  planPreviewPanel?: PlanPreviewPanel;
 }
 
 export interface SidebarActivationResult {
