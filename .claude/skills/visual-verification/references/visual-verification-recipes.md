@@ -1022,18 +1022,19 @@ fi
 
 ### System PATH Setup (VS Code Child Processes)
 
-VS Code child processes don't inherit terminal PATH modifications. For fake_claude to work inside EDH terminals and claudeloop spawns, symlink to a system PATH location:
+VS Code child processes don't inherit terminal PATH modifications. For fake_claude to work inside EDH terminals and claudeloop spawns, copy to a system PATH location:
 
 ```bash
-# Option 1: User-local bin (no sudo required, preferred)
+# Copy binary AND lib dir — symlinks break $0 path resolution
+# fake_claude uses $(dirname "$0")/lib/ to load helpers; symlink makes $0 resolve
+# to the symlink location, not the source, so lib/ is not found there.
 mkdir -p ~/.local/bin
-ln -sf "$FAKE_BIN/claude" ~/.local/bin/claude
+cp /Users/aleksi/source/claudeloop/tests/fake_claude ~/.local/bin/claude
+cp -r /Users/aleksi/source/claudeloop/tests/lib ~/.local/bin/
+chmod +x ~/.local/bin/claude
 
-# Option 2: System-wide (requires sudo)
-sudo ln -sf "$FAKE_BIN/claude" /usr/local/bin/claude
-
-# Verify symlink is in PATH
-which claude  # Should show ~/.local/bin/claude or /usr/local/bin/claude
+# Verify
+FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" ~/.local/bin/claude --version  # Should print: fake-claude 0.0.0
 ```
 
 **Environment variables:** FAKE_CLAUDE_DIR must also be available. Launch EDH with the variable:
@@ -1043,12 +1044,16 @@ which claude  # Should show ~/.local/bin/claude or /usr/local/bin/claude
 FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
 ```
 
-**Why symlink instead of PATH export?**
+**Why copy instead of PATH export?**
 - PATH export only affects current shell and direct children
 - VS Code launches as new process tree
 - System PATH (~/.local/bin, /usr/local/bin) is inherited everywhere
 
-**Cleanup:** Remove symlink in Phase 6 (see Cleanup section).
+**Cleanup:** Remove copied files in Phase 6:
+```bash
+rm -f ~/.local/bin/claude
+rm -rf ~/.local/bin/lib
+```
 
 ### Scenario Reference
 
@@ -1074,13 +1079,55 @@ FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" code --extensionDevelopmentPath="$WORKTREE_PA
 | `read_only` | 0 | Read + Grep only | UI when no file modifications occur |
 | `custom` | 0 | Reads `$FAKE_CLAUDE_DIR/custom_output` | Ad-hoc testing of specific outputs |
 
+### Scenario Selection by Test Goal
+
+| Goal | Scenario | Config changes |
+|------|----------|----------------|
+| Full lifecycle → completed | `success` | `VERIFY_PHASES=false` in `.claudeloop.conf` |
+| Self-improvement trigger | `success` | `VERIFY_PHASES=false`, write LESSONS.md after EDH launch |
+| AI-parse output only | `ai_parse` | — |
+| Verification UX (pass/fail) | `verify_pass` / `verify_fail` | — |
+| Multiple tool activity | `success_multi` | — |
+| Long-running / elapsed timer | `slow` | set `FAKE_CLAUDE_SLEEP` |
+
+### Self-Improvement Flow: LESSONS.md Timing
+
+`activateSidebar.ts:164` calls `refreshLessonsAvailable()` at extension activation when `oxveil.selfImprovement: true`. If LESSONS.md exists at that point, `lessonsAvailable` is set to `true` before any session runs — **false positive**.
+
+**Correct order:**
+1. Launch EDH (no LESSONS.md present)
+2. Wait for MCP bridge
+3. Pre-flight: assert `lessonsAvailable === false`
+4. Write LESSONS.md (startup check already ran — won't fire again)
+5. Start session → session completion handler finds LESSONS.md → sets `lessonsAvailable = true`
+
+```bash
+# Pre-flight assertion
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state | \
+  python3 -c "import sys,json; s=json.load(sys.stdin); v=s.get('selfImprovement',{}).get('lessonsAvailable'); assert v != True, f'FAIL: lessonsAvailable already true — LESSONS.md present at launch?'"
+
+# Write LESSONS.md after assertion passes
+mkdir -p "$WORKTREE_PATH/.claudeloop"
+cat > "$WORKTREE_PATH/.claudeloop/LESSONS.md" << 'EOF'
+# Lessons Learned
+
+## Session: test
+- Lesson: Test content
+EOF
+```
+
 ### Known Limitation: Verification Prompt Detection
 
 The `success*` scenarios auto-detect verification prompts via `is_phase_verify_prompt()`. When claudeloop runs phase verification (prompt contains "verification"), fake_claude emits `VERIFICATION_PASSED` without file changes. claudeloop then treats the phase as failed (`no_write_actions`).
 
-**Impact:** Cannot test features requiring successful session completion (e.g., self-improvement auto-start) with fake_claude "success" scenarios.
+**Impact:** Cannot test features requiring successful session completion (e.g., self-improvement auto-start) with default `VERIFY_PHASES=true`.
 
-**Workaround:** Use `success_verbose` which writes multiple files, or create a custom scenario:
+**Fix:** Set `VERIFY_PHASES=false` in `.claudeloop.conf` before clicking Start:
+```bash
+sed -i '' 's/VERIFY_PHASES=true/VERIFY_PHASES=false/' "$WORKTREE_PATH/.claudeloop/.claudeloop.conf"
+```
+
+**Alternative:** Use `success_verbose` which writes multiple files, or create a custom scenario:
 ```bash
 cat > "$FAKE_CLAUDE_DIR/custom_output" << 'EOF'
 {"type":"system","subtype":"init","model":"fake-claude-v1"}
