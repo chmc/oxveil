@@ -33,7 +33,7 @@ import {
   createTestAnnotationCommand,
   setupSessionChangeHandler,
 } from "./activateSessionHandlers";
-import { checkForUpdate } from "./core/updateChecker";
+import { activateUpdateCheck } from "./activateUpdateCheck";
 
 const disposables: vscode.Disposable[] = [];
 
@@ -181,21 +181,7 @@ export async function activate(
   // Detection notifications
   showDetectionNotifications(notifications, result.status, result.version, MINIMUM_VERSION);
 
-  // Auto-check for updates (non-blocking)
-  const autoCheck = config.get<boolean>("autoCheckForUpdates", true);
-  if (autoCheck && result.status === "detected" && result.version) {
-    checkForUpdate({
-      fetch: globalThis.fetch,
-      currentVersion: result.version,
-      globalState: context.globalState,
-    })
-      .then((r) => {
-        if (r?.updateAvailable) {
-          notifications.onUpdateAvailable(r.currentVersion, r.latestVersion, r.releaseUrl);
-        }
-      })
-      .catch((err) => console.warn("[Oxveil] Update check failed:", err));
-  }
+  disposables.push(activateUpdateCheck({ config, result, notifications, globalState: context.globalState }));
 
   // Per-folder file watchers
   if (workspaceFolders && workspaceFolders.length > 0) {
@@ -289,34 +275,6 @@ export async function activate(
       setActivePlanChatSession: (session) => { activePlanChatSession = session; },
       getActiveSelfImprovementSession: () => activeSelfImprovementSession,
       setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
-    }),
-  );
-
-  // Manual update check command
-  disposables.push(
-    vscode.commands.registerCommand("oxveil.checkForUpdates", async () => {
-      if (result.status !== "detected" || !result.version) {
-        vscode.window.showWarningMessage("claudeloop not detected. Cannot check for updates.");
-        return;
-      }
-      try {
-        const updateResult = await checkForUpdate({
-          fetch: globalThis.fetch,
-          currentVersion: result.version,
-          globalState: context.globalState,
-        });
-        if (updateResult?.updateAvailable) {
-          notifications.onUpdateAvailable(
-            updateResult.currentVersion,
-            updateResult.latestVersion,
-            updateResult.releaseUrl,
-          );
-        } else {
-          vscode.window.showInformationMessage("claudeloop is up to date");
-        }
-      } catch (err) {
-        vscode.window.showErrorMessage(`Failed to check for updates: ${err}`);
-      }
     }),
   );
 
