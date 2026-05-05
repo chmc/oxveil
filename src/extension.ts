@@ -275,6 +275,7 @@ export async function activate(
       setActivePlanChatSession: (session) => { activePlanChatSession = session; },
       getActiveSelfImprovementSession: () => activeSelfImprovementSession,
       setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
+      refreshSidebar: () => sidebar.refreshSidebar(),
     }),
   );
 

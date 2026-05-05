@@ -56,6 +56,7 @@ export interface ActivateCommandsDeps {
   setActiveSelfImprovementSession: (
     session: SelfImprovementSession | undefined,
   ) => void;
+  refreshSidebar: () => Promise<void>;
 }
 
 /**
@@ -111,8 +112,19 @@ export function activateCommands(deps: ActivateCommandsDeps): vscode.Disposable[
     onSelfImprovementSessionCreated: deps.setActiveSelfImprovementSession,
   };
 
+  let refreshInFlight = false;
+
   return [
     ...registerCommands(commandDeps),
     ...registerSelfImprovementCommands(selfImprovementDeps),
+    vscode.commands.registerCommand("oxveil.refreshSidebar", async () => {
+      if (refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        await deps.refreshSidebar();
+      } finally {
+        refreshInFlight = false;
+      }
+    }),
   ];
 }
