@@ -138,6 +138,12 @@ export class ProcessManager implements IProcessManager {
     if (settings.refactor) args.push("--refactor");
     if (settings.dryRun) args.push("--dry-run");
     if (settings.aiParse) args.push("--ai-parse");
+    if (settings.provider === "opencode") {
+      args.push("--provider", "opencode");
+      if (settings.opencodePath) {
+        args.push("--provider-path", settings.opencodePath);
+      }
+    }
     return args;
   }
 
