@@ -105,6 +105,35 @@ export function createTestAnnotationCommand(
   );
 }
 
+export interface TerminalHandlerActivationDeps {
+  getActivePlanChatSession: () => PlanChatSession | undefined;
+  setActivePlanChatSession: (session: PlanChatSession | undefined) => void;
+  planPreviewPanel: PlanPreviewPanel;
+  onPlanChatEnded: () => void;
+  getActiveSelfImprovementSession: () => SelfImprovementSession | undefined;
+  setActiveSelfImprovementSession: (session: SelfImprovementSession | undefined) => void;
+  setSelfImprovementActive: (active: boolean) => void;
+  refreshSidebar: () => void;
+}
+
+export function activateTerminalHandlers(deps: TerminalHandlerActivationDeps): vscode.Disposable[] {
+  return [
+    createTerminalCloseHandler({
+      getActivePlanChatSession: deps.getActivePlanChatSession,
+      setActivePlanChatSession: deps.setActivePlanChatSession,
+      planPreviewPanel: deps.planPreviewPanel,
+      onPlanChatEnded: deps.onPlanChatEnded,
+    }),
+    createSelfImprovementTerminalCloseHandler({
+      getActiveSelfImprovementSession: deps.getActiveSelfImprovementSession,
+      setActiveSelfImprovementSession: deps.setActiveSelfImprovementSession,
+      setSelfImprovementActive: deps.setSelfImprovementActive,
+      refreshSidebar: deps.refreshSidebar,
+    }),
+    createTestAnnotationCommand(deps.getActivePlanChatSession),
+  ];
+}
+
 export interface SessionChangeHandlerDeps {
   sidebarPanel: SidebarPanel;
   buildFullState: () => SidebarState;

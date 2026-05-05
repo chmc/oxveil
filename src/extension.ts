@@ -28,9 +28,7 @@ import { createConfigWatcher } from "./activateConfigWatcher";
 import { createNotificationManager, showDetectionNotifications } from "./activateNotifications";
 import {
   createElapsedTimer,
-  createTerminalCloseHandler,
-  createSelfImprovementTerminalCloseHandler,
-  createTestAnnotationCommand,
+  activateTerminalHandlers,
   setupSessionChangeHandler,
 } from "./activateSessionHandlers";
 import { activateUpdateCheck } from "./activateUpdateCheck";
@@ -223,24 +221,16 @@ export async function activate(
     platform: process.platform,
   });
 
-  // Terminal close listener — detect when plan chat terminal is closed
-  disposables.push(createTerminalCloseHandler({
+  disposables.push(...activateTerminalHandlers({
     getActivePlanChatSession: () => activePlanChatSession,
     setActivePlanChatSession: (session) => { activePlanChatSession = session; },
     planPreviewPanel,
     onPlanChatEnded: sidebar.onPlanChatEnded,
-  }));
-
-  // Terminal close listener — detect when self-improvement terminal is closed
-  disposables.push(createSelfImprovementTerminalCloseHandler({
     getActiveSelfImprovementSession: () => activeSelfImprovementSession,
     setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
     setSelfImprovementActive: (active) => { sidebarState.selfImprovementActive = active; },
     refreshSidebar: () => sidebarPanel.updateState(buildFullState()),
   }));
-
-  // Test command for visual verification — triggers annotation flow
-  disposables.push(createTestAnnotationCommand(() => activePlanChatSession));
 
   // Register commands
   disposables.push(
