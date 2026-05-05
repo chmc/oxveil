@@ -184,6 +184,11 @@
         "icon": "$(trash)"
       },
       {
+        "command": "oxveil.refreshSidebar",
+        "title": "Oxveil: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "oxveil.selfImprovement.start",
         "title": "Oxveil: Start Self-Improvement Session"
       },
@@ -289,6 +294,10 @@
         {
           "command": "oxveil.checkForUpdates",
           "when": "oxveil.detected"
+        },
+        {
+          "command": "oxveil.refreshSidebar",
+          "when": "oxveil.detected"
         }
       ],
       "view/title": [
@@ -301,6 +310,11 @@
           "command": "oxveil.fullReset",
           "when": "view == oxveil.sidebar",
           "group": "navigation@2"
+        },
+        {
+          "command": "oxveil.refreshSidebar",
+          "when": "view == oxveil.sidebar && oxveil.detected",
+          "group": "navigation@3"
         }
       ]
     },
