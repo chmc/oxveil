@@ -51,6 +51,7 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 
 - Always use conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`. No exceptions.
 - Never add yourself as co-author. Include `Closes #N` for issue fixes. No auto-push.
+- NEVER include sequence markers in commit messages (`phase-N`, `step-N`, `part-N`). Describe WHAT changed, not WHEN in a process. Exception: when the marker IS the feature name (e.g., `fix: phase-2 migration null handling`).
 - NEVER commit without completing Quality Gates (lint, tests, visual verification if UI, Codex if available). "Only docs/skills" not exempt.
 
 ## GitHub Issues
