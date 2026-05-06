@@ -518,5 +518,23 @@ describe("activateSidebar", () => {
       await result.refreshSidebar();
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Refreshed");
     });
+
+    it("calls showErrorMessage when refresh throws", async () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+        throw new Error("disk failure");
+      });
+      await result.refreshSidebar();
+      expect(vscode.window.showErrorMessage).toHaveBeenCalled();
+    });
+
+    it("error message format matches 'Oxveil: Failed to refresh — {msg}'", async () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+        throw new Error("disk failure");
+      });
+      await result.refreshSidebar();
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+        "Oxveil: Failed to refresh — disk failure",
+      );
+    });
   });
 });
