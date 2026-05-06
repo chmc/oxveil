@@ -14,6 +14,8 @@ export interface PlanChatSessionDeps {
   claudePath: string;
   claudeModel?: string;
   allowSkipPermissions?: boolean;
+  provider?: "claude" | "opencode";
+  opencodePath?: string;
 }
 
 export class PlanChatSession {
@@ -26,17 +28,31 @@ export class PlanChatSession {
   }
 
   start(systemPrompt: string): void {
+    const isOpenCode = this._deps.provider === "opencode";
     const args: string[] = [];
+
     if (this._deps.claudeModel) {
       args.push("--model", this._deps.claudeModel);
     }
-    args.push("--append-system-prompt", systemPrompt, "--permission-mode", "plan");
-    if (this._deps.allowSkipPermissions) {
-      args.push("--allow-dangerously-skip-permissions");
+
+    let shellPath: string;
+    let terminalName: string;
+    if (isOpenCode) {
+      shellPath = this._deps.opencodePath ?? "";
+      terminalName = "Plan Chat (OpenCode)";
+      args.push("--prompt", systemPrompt);
+    } else {
+      shellPath = this._deps.claudePath;
+      terminalName = "Plan Chat (Claude)";
+      args.push("--append-system-prompt", systemPrompt, "--permission-mode", "plan");
+      if (this._deps.allowSkipPermissions) {
+        args.push("--allow-dangerously-skip-permissions");
+      }
     }
+
     this._terminal = this._deps.createTerminal({
-      name: "Plan Chat",
-      shellPath: this._deps.claudePath,
+      name: terminalName,
+      shellPath,
       shellArgs: args,
       location: { viewColumn: 1 },
     });

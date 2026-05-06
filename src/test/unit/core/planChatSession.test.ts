@@ -29,7 +29,7 @@ describe("PlanChatSession", () => {
       session.start("Test prompt");
 
       expect(deps.createTerminal).toHaveBeenCalledWith({
-        name: "Plan Chat",
+        name: "Plan Chat (Claude)",
         shellPath: "/usr/bin/claude",
         shellArgs: [
           "--append-system-prompt", "Test prompt",
@@ -88,6 +88,65 @@ describe("PlanChatSession", () => {
 
       const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
       expect(args).not.toContain("--allow-dangerously-skip-permissions");
+    });
+
+    describe("OpenCode provider", () => {
+      let opencodeDeps: PlanChatSessionDeps;
+
+      beforeEach(() => {
+        opencodeDeps = {
+          ...deps,
+          provider: "opencode",
+          opencodePath: "/usr/local/bin/opencode",
+        };
+      });
+
+      it("creates terminal with opencode path and --prompt", () => {
+        const session = new PlanChatSession(opencodeDeps);
+        session.start("Test prompt");
+
+        expect(opencodeDeps.createTerminal).toHaveBeenCalledWith({
+          name: "Plan Chat (OpenCode)",
+          shellPath: "/usr/local/bin/opencode",
+          shellArgs: ["--prompt", "Test prompt"],
+          location: { viewColumn: 1 },
+        });
+      });
+
+      it("includes --model when claudeModel is set", () => {
+        const session = new PlanChatSession({ ...opencodeDeps, claudeModel: "gpt-4" });
+        session.start("Test prompt");
+
+        const args = (opencodeDeps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+        expect(args).toContain("--model");
+        expect(args).toContain("gpt-4");
+      });
+
+      it("omits --append-system-prompt and --permission-mode", () => {
+        const session = new PlanChatSession(opencodeDeps);
+        session.start("Test prompt");
+
+        const args = (opencodeDeps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+        expect(args).not.toContain("--append-system-prompt");
+        expect(args).not.toContain("--permission-mode");
+      });
+
+      it("omits --allow-dangerously-skip-permissions even when allowSkipPermissions is true", () => {
+        const session = new PlanChatSession({ ...opencodeDeps, allowSkipPermissions: true });
+        session.start("Test prompt");
+
+        const args = (opencodeDeps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+        expect(args).not.toContain("--allow-dangerously-skip-permissions");
+      });
+
+      it("falls back to empty string when opencodePath is undefined", () => {
+        const session = new PlanChatSession({ ...opencodeDeps, opencodePath: undefined });
+        session.start("Test prompt");
+
+        expect(opencodeDeps.createTerminal).toHaveBeenCalledWith(
+          expect.objectContaining({ shellPath: "" }),
+        );
+      });
     });
 
     it("shows the terminal", () => {

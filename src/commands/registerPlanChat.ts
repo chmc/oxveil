@@ -35,11 +35,15 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
     );
     const config = vscode.workspace.getConfiguration("oxveil");
     const allowSkipPermissions = config.get<boolean>("planChat.allowSkipPermissions", false);
+    const provider = config.get<"claude" | "opencode">("provider", "claude");
+    const opencodePath = config.get<string>("opencodePath", "");
     const session = new PlanChatSession({
       createTerminal: (opts) => vscode.window.createTerminal(opts as any),
       claudePath: deps.claudePath,
       claudeModel,
       allowSkipPermissions,
+      provider,
+      opencodePath,
     });
     deps.planPreviewPanel?.beginSession();
     session.start(buildSystemPrompt());
