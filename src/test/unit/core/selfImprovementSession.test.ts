@@ -112,7 +112,7 @@ describe("SelfImprovementSession", () => {
       session.start(lessons);
 
       expect(deps.createTerminal).toHaveBeenCalledWith({
-        name: "Self-Improvement",
+        name: "Self-Improvement (Claude)",
         shellPath: "/usr/bin/claude",
         shellArgs: expect.arrayContaining([
           "--append-system-prompt",
@@ -120,6 +120,54 @@ describe("SelfImprovementSession", () => {
         ]),
         location: { viewColumn: 1 },
       });
+    });
+
+    it("uses opencode path and --prompt when provider is opencode", () => {
+      const session = new SelfImprovementSession({
+        ...deps,
+        provider: "opencode",
+        opencodePath: "/usr/bin/opencode",
+      });
+      const lessons: Lesson[] = [
+        { phase: 1, title: "Test", retries: 0, duration: 10, exit: "success" },
+      ];
+
+      session.start(lessons);
+
+      expect(deps.createTerminal).toHaveBeenCalledWith({
+        name: "Self-Improvement (OpenCode)",
+        shellPath: "/usr/bin/opencode",
+        shellArgs: expect.arrayContaining([
+          "--prompt",
+          expect.stringContaining("Phase 1: Test"),
+        ]),
+        location: { viewColumn: 1 },
+      });
+    });
+
+    it("opencode includes initial question as positional argument", () => {
+      const session = new SelfImprovementSession({
+        ...deps,
+        provider: "opencode",
+        opencodePath: "/usr/bin/opencode",
+      });
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).toContain(INITIAL_QUESTION);
+    });
+
+    it("opencode does not include --allow-dangerously-skip-permissions", () => {
+      const session = new SelfImprovementSession({
+        ...deps,
+        provider: "opencode",
+        opencodePath: "/usr/bin/opencode",
+        allowSkipPermissions: true,
+      });
+      session.start([]);
+
+      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+      expect(args).not.toContain("--allow-dangerously-skip-permissions");
     });
 
     it("includes initial question as positional argument", () => {

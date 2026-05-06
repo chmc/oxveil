@@ -16,6 +16,8 @@ export interface SelfImprovementSessionDeps {
   claudePath: string;
   claudeModel?: string;
   allowSkipPermissions?: boolean;
+  provider?: "claude" | "opencode";
+  opencodePath?: string;
 }
 
 // ExtensionMode.Development = 2 in VS Code API
@@ -60,18 +62,32 @@ export class SelfImprovementSession {
 
   start(lessons: Lesson[]): void {
     const lessonsContent = formatLessons(lessons);
+    const isOpenCode = this._deps.provider === "opencode";
     const args: string[] = [];
+
     if (this._deps.claudeModel) {
       args.push("--model", this._deps.claudeModel);
     }
-    args.push("--append-system-prompt", lessonsContent, "--permission-mode", "plan");
-    if (this._deps.allowSkipPermissions) {
-      args.push("--allow-dangerously-skip-permissions");
+
+    let shellPath: string;
+    let terminalName: string;
+    if (isOpenCode) {
+      shellPath = this._deps.opencodePath ?? "";
+      terminalName = "Self-Improvement (OpenCode)";
+      args.push("--prompt", lessonsContent);
+    } else {
+      shellPath = this._deps.claudePath;
+      terminalName = "Self-Improvement (Claude)";
+      args.push("--append-system-prompt", lessonsContent, "--permission-mode", "plan");
+      if (this._deps.allowSkipPermissions) {
+        args.push("--allow-dangerously-skip-permissions");
+      }
     }
+
     args.push(INITIAL_QUESTION);
     this._terminal = this._deps.createTerminal({
-      name: "Self-Improvement",
-      shellPath: this._deps.claudePath,
+      name: terminalName,
+      shellPath,
       shellArgs: args,
       location: { viewColumn: 1 },
     });
