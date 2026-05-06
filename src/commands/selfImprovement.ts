@@ -6,6 +6,8 @@ import type { Lesson } from "../types";
 
 export interface SelfImprovementCommandDeps {
   claudePath: string | null | undefined;
+  provider?: "claude" | "opencode";
+  opencodePath?: string | null;
   extensionMode?: number;
   getSelfImprovementPanel: () => SelfImprovementPanel | undefined;
   getMutableState: () => SidebarMutableState | undefined;
@@ -19,11 +21,20 @@ export function registerSelfImprovementCommands(
 ): vscode.Disposable[] {
   return [
     vscode.commands.registerCommand("oxveil.selfImprovement.start", (lessonsArg?: Lesson[]) => {
-      if (!deps.claudePath) {
-        vscode.window.showErrorMessage(
-          "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
-        );
-        return;
+      if (deps.provider === "opencode") {
+        if (!deps.opencodePath) {
+          vscode.window.showErrorMessage(
+            "Oxveil: OpenCode path not configured. Set oxveil.opencodePath in settings.",
+          );
+          return;
+        }
+      } else {
+        if (!deps.claudePath) {
+          vscode.window.showErrorMessage(
+            "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
+          );
+          return;
+        }
       }
 
       // Prevent duplicate sessions
@@ -55,9 +66,11 @@ export function registerSelfImprovementCommands(
       const allowSkipPermissions = config.get<boolean>("selfImprovement.allowSkipPermissions", false);
       const session = new SelfImprovementSession({
         createTerminal: (opts) => vscode.window.createTerminal(opts as vscode.TerminalOptions),
-        claudePath: deps.claudePath,
+        claudePath: deps.claudePath ?? "",
         claudeModel,
         allowSkipPermissions,
+        provider: deps.provider,
+        opencodePath: deps.opencodePath ?? undefined,
       });
       session.start(lessons);
 
