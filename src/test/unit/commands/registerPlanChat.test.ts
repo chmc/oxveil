@@ -138,5 +138,73 @@ describe("registerPlanChatCommand", () => {
         expect.objectContaining({ shellPath: "/usr/local/bin/opencode" }),
       );
     });
+
+    it("uses 'Plan Chat (OpenCode)' as terminal name", async () => {
+      configValues["opencodePath"] = "/usr/local/bin/opencode";
+      const deps = makeDeps({ claudePath: null });
+      registerPlanChatCommand(deps);
+      await mockRegisterCommand();
+
+      expect(mockCreateTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Plan Chat (OpenCode)" }),
+      );
+    });
+  });
+
+  describe("switching providers starts new session", () => {
+    it("creates new opencode session when previous claude session is inactive", async () => {
+      configValues["provider"] = "opencode";
+      configValues["opencodePath"] = "/usr/local/bin/opencode";
+      const inactiveSession = { isActive: vi.fn(() => false), focusTerminal: vi.fn() };
+      const deps = makeDeps({
+        claudePath: "/usr/bin/claude",
+        getActivePlanChatSession: vi.fn(() => inactiveSession as any),
+      });
+      registerPlanChatCommand(deps);
+      await mockRegisterCommand();
+
+      expect(mockCreateTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({ shellPath: "/usr/local/bin/opencode" }),
+      );
+    });
+
+    it("creates new claude session when previous opencode session is inactive", async () => {
+      const inactiveSession = { isActive: vi.fn(() => false), focusTerminal: vi.fn() };
+      const deps = makeDeps({
+        claudePath: "/usr/bin/claude",
+        getActivePlanChatSession: vi.fn(() => inactiveSession as any),
+      });
+      registerPlanChatCommand(deps);
+      await mockRegisterCommand();
+
+      expect(mockCreateTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({ shellPath: "/usr/bin/claude" }),
+      );
+    });
+
+    it("reuses active session instead of creating a new one", async () => {
+      const activeSession = { isActive: vi.fn(() => true), focusTerminal: vi.fn() };
+      const deps = makeDeps({
+        claudePath: "/usr/bin/claude",
+        getActivePlanChatSession: vi.fn(() => activeSession as any),
+      });
+      registerPlanChatCommand(deps);
+      await mockRegisterCommand();
+
+      expect(mockCreateTerminal).not.toHaveBeenCalled();
+      expect(activeSession.focusTerminal).toHaveBeenCalled();
+    });
+  });
+
+  describe("terminal name includes provider indicator", () => {
+    it("uses 'Plan Chat (Claude)' for claude provider", async () => {
+      const deps = makeDeps({ claudePath: "/usr/bin/claude" });
+      registerPlanChatCommand(deps);
+      await mockRegisterCommand();
+
+      expect(mockCreateTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Plan Chat (Claude)" }),
+      );
+    });
   });
 });
