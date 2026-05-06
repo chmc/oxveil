@@ -14,11 +14,24 @@ export interface PlanChatCommandDeps {
 
 export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Disposable {
   return vscode.commands.registerCommand("oxveil.openPlanChat", async () => {
-    if (!deps.claudePath) {
-      vscode.window.showErrorMessage(
-        "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
-      );
-      return;
+    const config = vscode.workspace.getConfiguration("oxveil");
+    const provider = config.get<"claude" | "opencode">("provider", "claude");
+    const opencodePath = config.get<string>("opencodePath", "");
+
+    if (provider === "opencode") {
+      if (!opencodePath) {
+        vscode.window.showErrorMessage(
+          "Oxveil: OpenCode path not configured. Set oxveil.opencodePath in settings.",
+        );
+        return;
+      }
+    } else {
+      if (!deps.claudePath) {
+        vscode.window.showErrorMessage(
+          "Oxveil: Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-cli",
+        );
+        return;
+      }
     }
 
     // Prevent duplicate sessions
@@ -33,13 +46,10 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
       process.env.OXVEIL_CLAUDE_MODEL,
       deps.extensionMode,
     );
-    const config = vscode.workspace.getConfiguration("oxveil");
     const allowSkipPermissions = config.get<boolean>("planChat.allowSkipPermissions", false);
-    const provider = config.get<"claude" | "opencode">("provider", "claude");
-    const opencodePath = config.get<string>("opencodePath", "");
     const session = new PlanChatSession({
       createTerminal: (opts) => vscode.window.createTerminal(opts as any),
-      claudePath: deps.claudePath,
+      claudePath: deps.claudePath ?? "",
       claudeModel,
       allowSkipPermissions,
       provider,
