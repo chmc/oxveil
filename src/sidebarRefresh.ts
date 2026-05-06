@@ -143,15 +143,20 @@ export async function refreshSidebar(ctx: SidebarRefreshContext): Promise<void> 
     return;
   }
 
-  const inconsistent = await detectInconsistencies(ctx);
+  try {
+    const inconsistent = await detectInconsistencies(ctx);
 
-  if (inconsistent) {
-    await fullReInit(ctx);
-    vscode.window.showInformationMessage("Oxveil: Full refresh completed");
-  } else {
-    await loadPlanPhases();
-    await refreshLessonsAvailable();
-    sidebarPanel.updateState(buildFullState());
-    vscode.window.showInformationMessage("Oxveil: Refreshed");
+    if (inconsistent) {
+      await fullReInit(ctx);
+      vscode.window.showInformationMessage("Oxveil: Full refresh completed");
+    } else {
+      await loadPlanPhases();
+      await refreshLessonsAvailable();
+      sidebarPanel.updateState(buildFullState());
+      vscode.window.showInformationMessage("Oxveil: Refreshed");
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    vscode.window.showErrorMessage(`Oxveil: Failed to refresh — ${msg}`);
   }
 }
