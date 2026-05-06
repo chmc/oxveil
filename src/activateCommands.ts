@@ -102,9 +102,13 @@ export function activateCommands(deps: ActivateCommandsDeps): vscode.Disposable[
     isAiParsing: deps.sidebar.isAiParsing,
   };
 
+  const config = vscode.workspace.getConfiguration("oxveil");
+
   const selfImprovementDeps: SelfImprovementCommandDeps = {
     claudePath: deps.claudePath,
     extensionMode: deps.extensionMode,
+    provider: config.get<"claude" | "opencode">("provider", "claude"),
+    opencodePath: config.get<string>("opencodePath", ""),
     getSelfImprovementPanel: () => deps.selfImprovementPanel,
     getMutableState: () => deps.sidebarState,
     refreshSidebar: () => deps.sidebarPanel.updateState(deps.buildFullState()),
