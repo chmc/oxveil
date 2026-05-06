@@ -1,67 +1,95 @@
-# Fix: Sidebar refresh button error dialog (Issue #92)
+# Self-Improvement Dual-CLI Support
+
+GitHub: chmc/claudeloop#40
 
 ## Context
 
-When pressing the sidebar refresh button, users see a VS Code error dialog instead of a graceful error message. This happens because the `refreshSidebar` function lacks error handling — exceptions propagate to VS Code's generic error handler.
+Self-Improvement tab currently hardcodes Claude CLI spawning. Plan Chat already supports dual-CLI (Claude/OpenCode) via provider setting. This task ports the same pattern to Self-Improvement, enabling users to analyze session lessons with either CLI.
 
-## Root Cause
+## Phase 1: Update SelfImprovementSession
 
-**Primary:** `src/sidebarRefresh.ts:139-157` — `refreshSidebar()` has no try/catch. Unprotected calls:
-- `detectInconsistencies()` — filesystem operations with partial error handling
-- `fullReInit()` — calls `loadPlanPhases()`, `refreshLessonsAvailable()` unprotected
-- `sidebarPanel.updateState(buildFullState())` — could throw
+**File:** `src/core/selfImprovementSession.ts`
 
-**Secondary:** `src/activateCommands.ts:120-128` — command handler uses try/finally without catch (defense-in-depth).
+1. Add to `SelfImprovementSessionDeps` interface (line 9):
+   ```typescript
+   provider?: "claude" | "opencode";
+   opencodePath?: string;
+   ```
 
-## Phase 1: Add error handling to sidebarRefresh.ts
+2. Rewrite `start()` method (lines 61-79) with provider branching:
+   - OpenCode: `--prompt` for lessons, positional arg for initial question, terminal name `"Self-Improvement (OpenCode)"`
+   - Claude: existing `--append-system-prompt`, `--permission-mode plan`, `--allow-dangerously-skip-permissions`, terminal name `"Self-Improvement (Claude)"`
+   - Note: `--allow-dangerously-skip-permissions` only applies to Claude
 
-**File:** `src/sidebarRefresh.ts`
+**Reference:** `src/core/planChatSession.ts:30-51`
 
-Wrap the refresh logic in try/catch with context-aware error message:
+## Phase 2: Update Command Registration
 
-```typescript
-export async function refreshSidebar(ctx: SidebarRefreshContext): Promise<void> {
-  const { deps, sidebarPanel, loadPlanPhases, refreshLessonsAvailable, buildFullState } = ctx;
-  if (!deps.workspaceRoot) {
-    vscode.window.showWarningMessage("Oxveil: No workspace folder");
-    return;
-  }
+**File:** `src/commands/selfImprovement.ts`
 
-  try {
-    const inconsistent = await detectInconsistencies(ctx);
+1. Add to `SelfImprovementCommandDeps` interface (after line 8):
+   ```typescript
+   provider?: "claude" | "opencode";
+   opencodePath?: string | null;
+   ```
 
-    if (inconsistent) {
-      await fullReInit(ctx);
-      vscode.window.showInformationMessage("Oxveil: Full refresh completed");
-    } else {
-      await loadPlanPhases();
-      await refreshLessonsAvailable();
-      sidebarPanel.updateState(buildFullState());
-      vscode.window.showInformationMessage("Oxveil: Refreshed");
-    }
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    vscode.window.showErrorMessage(`Oxveil: Failed to refresh — ${msg}`);
-  }
-}
-```
+2. Replace single validation (lines 22-27) with provider-aware logic:
+   - If `provider === "opencode"`: check `opencodePath`, error if empty
+   - Else: check `claudePath`, error if missing
 
-## Phase 2: Add unit tests
+3. Pass `provider` and `opencodePath` to session constructor (lines 56-61)
 
-**File:** `src/test/unit/activateSidebar.test.ts`
+**Reference:** `src/commands/registerPlanChat.ts:17-35`
 
-Add tests:
-1. Error handling — verify `showErrorMessage` called when refresh throws
-2. Error message format — matches "Oxveil: Failed to refresh — {msg}"
+## Phase 3: Wire Provider Config
 
-## Verification
+**File:** `src/activateCommands.ts`
 
-1. `npm run lint`
-2. `npm test`
-3. `/visual-verification` — trigger refresh error, verify friendly error message appears in VS Code notification (not generic error dialog)
+1. In `selfImprovementDeps` object, add:
+   ```typescript
+   provider: config.get<"claude" | "opencode">("provider", "claude"),
+   opencodePath: config.get<string>("opencodePath", ""),
+   ```
 
-## Close Issue
+2. Ensure `config` is read from `vscode.workspace.getConfiguration("oxveil")` before use
 
-```bash
-gh issue close 92 --comment "Fixed — added error handling to refreshSidebar"
-```
+## Phase 4: Unit Tests
+
+**File:** `src/test/unit/core/selfImprovementSession.test.ts`
+
+Add `describe("OpenCode provider")` block:
+- Uses `--prompt` for lessons, not `--append-system-prompt`
+- Initial question as positional arg
+- Terminal name includes "(OpenCode)"
+- No `--allow-dangerously-skip-permissions`
+
+**File:** `src/test/unit/commands/selfImprovement.test.ts`
+
+Add provider validation tests:
+- OpenCode provider with missing path shows error
+- OpenCode provider with path proceeds
+- Claude provider with missing path shows error
+
+## Phase 5: Verification
+
+1. `npm run lint` — fix all
+2. `npm test` — fix all
+3. `/visual-verification` with acceptance criteria:
+   - Provider setting "claude" → terminal named "Self-Improvement (Claude)"
+   - Provider setting "opencode" + path configured → terminal named "Self-Improvement (OpenCode)"
+4. Close issue: `gh issue close 40 --repo chmc/claudeloop`
+
+## Critical Files
+
+| File | Change |
+|------|--------|
+| `src/core/selfImprovementSession.ts` | Provider branching in deps and start() |
+| `src/commands/selfImprovement.ts` | Provider validation and passthrough |
+| `src/activateCommands.ts` | Wire provider config to deps |
+| `src/test/unit/core/selfImprovementSession.test.ts` | OpenCode provider tests |
+| `src/test/unit/commands/selfImprovement.test.ts` | Provider validation tests |
+
+## Reusable Patterns
+
+- `src/core/planChatSession.ts:30-51` — provider branching pattern
+- `src/commands/registerPlanChat.ts:17-35` — provider validation pattern
