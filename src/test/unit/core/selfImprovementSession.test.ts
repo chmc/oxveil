@@ -122,52 +122,51 @@ describe("SelfImprovementSession", () => {
       });
     });
 
-    it("uses opencode path and --prompt when provider is opencode", () => {
-      const session = new SelfImprovementSession({
+    describe("OpenCode provider", () => {
+      const opencodeDeps = () => ({
         ...deps,
-        provider: "opencode",
+        provider: "opencode" as const,
         opencodePath: "/usr/bin/opencode",
       });
-      const lessons: Lesson[] = [
-        { phase: 1, title: "Test", retries: 0, duration: 10, exit: "success" },
-      ];
 
-      session.start(lessons);
+      it("uses --prompt for lessons, not --append-system-prompt", () => {
+        const session = new SelfImprovementSession(opencodeDeps());
+        const lessons: Lesson[] = [
+          { phase: 1, title: "Test", retries: 0, duration: 10, exit: "success" },
+        ];
 
-      expect(deps.createTerminal).toHaveBeenCalledWith({
-        name: "Self-Improvement (OpenCode)",
-        shellPath: "/usr/bin/opencode",
-        shellArgs: expect.arrayContaining([
-          "--prompt",
-          expect.stringContaining("Phase 1: Test"),
-        ]),
-        location: { viewColumn: 1 },
+        session.start(lessons);
+
+        const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+        expect(args).toContain("--prompt");
+        expect(args).not.toContain("--append-system-prompt");
+        expect(args.some((a) => a.includes("Phase 1: Test"))).toBe(true);
       });
-    });
 
-    it("opencode includes initial question as positional argument", () => {
-      const session = new SelfImprovementSession({
-        ...deps,
-        provider: "opencode",
-        opencodePath: "/usr/bin/opencode",
+      it("terminal name includes (OpenCode)", () => {
+        const session = new SelfImprovementSession(opencodeDeps());
+        session.start([]);
+
+        expect(deps.createTerminal).toHaveBeenCalledWith(
+          expect.objectContaining({ name: "Self-Improvement (OpenCode)" }),
+        );
       });
-      session.start([]);
 
-      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
-      expect(args).toContain(INITIAL_QUESTION);
-    });
+      it("includes initial question as positional argument", () => {
+        const session = new SelfImprovementSession(opencodeDeps());
+        session.start([]);
 
-    it("opencode does not include --allow-dangerously-skip-permissions", () => {
-      const session = new SelfImprovementSession({
-        ...deps,
-        provider: "opencode",
-        opencodePath: "/usr/bin/opencode",
-        allowSkipPermissions: true,
+        const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+        expect(args).toContain(INITIAL_QUESTION);
       });
-      session.start([]);
 
-      const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
-      expect(args).not.toContain("--allow-dangerously-skip-permissions");
+      it("does not include --allow-dangerously-skip-permissions even when allowSkipPermissions is true", () => {
+        const session = new SelfImprovementSession({ ...opencodeDeps(), allowSkipPermissions: true });
+        session.start([]);
+
+        const args = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0].shellArgs as string[];
+        expect(args).not.toContain("--allow-dangerously-skip-permissions");
+      });
     });
 
     it("includes initial question as positional argument", () => {

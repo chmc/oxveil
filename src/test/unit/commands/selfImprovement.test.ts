@@ -106,6 +106,46 @@ describe("registerSelfImprovementCommands", () => {
       );
     });
 
+    it("shows error when opencode provider is set but opencodePath is missing", async () => {
+      const vscode = await import("vscode");
+      deps.provider = "opencode";
+      deps.opencodePath = null;
+      registerSelfImprovementCommands(deps);
+
+      const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
+      );
+      startCall[1]();
+
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+        expect.stringContaining("OpenCode path not configured"),
+      );
+    });
+
+    it("proceeds when opencode provider is set and opencodePath is provided", async () => {
+      const vscode = await import("vscode");
+      (vscode.window.createTerminal as any).mockReturnValue({
+        show: vi.fn(),
+        dispose: vi.fn(),
+        sendText: vi.fn(),
+      });
+      deps.provider = "opencode";
+      deps.opencodePath = "/usr/bin/opencode";
+      mockPanel.currentLessons = [
+        { phase: 1, title: "Test", retries: 0, duration: 5, exit: "success" as const },
+      ];
+
+      registerSelfImprovementCommands(deps);
+
+      const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
+      );
+      startCall[1]();
+
+      expect(vscode.window.showErrorMessage).not.toHaveBeenCalled();
+      expect(deps.onSelfImprovementSessionCreated).toHaveBeenCalled();
+    });
+
     it("shows warning when no lessons are captured", async () => {
       const vscode = await import("vscode");
       mockPanel.currentLessons = [];
