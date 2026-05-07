@@ -68,6 +68,7 @@ export class PlanPreviewPanel {
   private _watchers: FileSystemWatcher[] = [];
   private _watcherSubscriptions: { dispose: () => void }[] = [];
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private _pollTimer: ReturnType<typeof setInterval> | undefined;
   private _lastRawContent: string | undefined;
 
   constructor(deps: PlanPreviewPanelDeps) {
@@ -93,6 +94,8 @@ export class PlanPreviewPanel {
       this._panel.webview.html = renderPlanPreviewShell(nonce, this._panel.webview.cspSource);
       this._panel.onDidDispose(() => {
         this._panel = undefined;
+        clearInterval(this._pollTimer);
+        this._pollTimer = undefined;
       });
       this._panel.webview.onDidReceiveMessage((msg: any) => {
         if (msg.type === "ready") {
@@ -110,6 +113,12 @@ export class PlanPreviewPanel {
     } else {
       this._panel.reveal();
     }
+    this._startPolling();
+  }
+
+  private _startPolling(): void {
+    if (this._pollTimer) return;
+    this._pollTimer = setInterval(() => { this.onFileChanged(); }, 5000);
   }
 
   beginSession(): void {
@@ -129,15 +138,15 @@ export class PlanPreviewPanel {
 
   async onFileChanged(): Promise<void> {
     const candidates = await this._deps.findAllPlanFiles();
+    console.log("[PlanPreview] onFileChanged candidates:", candidates.length, "hasPanel:", !!this._panel);
     const tracked = await this._resolver.resolve(candidates);
-
-    if (!this._panel) return;
+    console.log("[PlanPreview] resolved:", tracked?.path ?? "none");
 
     if (!tracked) {
       this._lastPhases = [];
       this._lastValid = false;
       this._lastRawContent = undefined;
-      this._sendUpdate();
+      if (this._panel) this._sendUpdate();
       return;
     }
 
@@ -194,7 +203,7 @@ export class PlanPreviewPanel {
       this._lastRawContent = content;
     }
 
-    this._sendUpdate();
+    if (this._panel) this._sendUpdate();
   }
 
   setSessionActive(active: boolean): void {
@@ -254,6 +263,8 @@ export class PlanPreviewPanel {
 
   dispose(): void {
     this.stopWatching();
+    clearInterval(this._pollTimer);
+    this._pollTimer = undefined;
     this._panel?.dispose();
     this._panel = undefined;
   }

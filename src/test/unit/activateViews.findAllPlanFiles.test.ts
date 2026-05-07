@@ -11,6 +11,7 @@ vi.mock("../../views/planPreviewPanel", () => ({
     return {
       startWatching: vi.fn(),
       onFileChanged: vi.fn(),
+      endSession: vi.fn(),
       dispose: vi.fn(),
     };
   }),

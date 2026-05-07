@@ -218,6 +218,8 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
   planPreviewPanel.startWatching(watchers as any);
 
+  planPreviewPanel.endSession();
+
   // Load any existing plan files on activation (survives VS Code reload)
   planPreviewPanel.onFileChanged();
 

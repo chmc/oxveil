@@ -80,6 +80,7 @@ export class PlanFileResolver {
    */
   async resolve(candidates: FileCandidate[]): Promise<TrackedFile | undefined> {
     let newCategoryAdded: PlanFileCategory | undefined;
+    console.log("[PlanResolver] resolve candidates:", candidates.length, "sessionStartTime:", this._sessionStartTime);
 
     if (this._sessionStartTime) {
       newCategoryAdded = await this._resolveWithSession(candidates);
@@ -119,6 +120,7 @@ export class PlanFileResolver {
       if (!stats) continue;
       const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
       const aiParsedInCandidates = candidates.some(c => c.category === "ai-parsed");
+      console.log("[PlanResolver] candidate:", { path: candidate.path, birthtimeMs: stats.birthtimeMs, mtimeMs: stats.mtimeMs, sessionStartTime: this._sessionStartTime, isStale });
       if (isStale && !aiParsedInCandidates) continue;
 
       const existing = this._trackedFiles.get(candidate.category);

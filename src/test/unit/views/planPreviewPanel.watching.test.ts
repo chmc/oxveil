@@ -112,4 +112,39 @@ describe("PlanPreviewPanel > file watching", () => {
     panel.startWatching([w2.watcher]);
     expect(w1.watcher.dispose).toHaveBeenCalled();
   });
+
+  it("reveal starts poll timer that calls onFileChanged every 5s", async () => {
+    const deps = makeDeps();
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    vi.mocked(deps.findAllPlanFiles).mockClear();
+
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(deps.findAllPlanFiles).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(deps.findAllPlanFiles).toHaveBeenCalledTimes(2);
+  });
+
+  it("reveal does not start duplicate poll timers", async () => {
+    const deps = makeDeps();
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    panel.reveal(); // second call should not add another timer
+    vi.mocked(deps.findAllPlanFiles).mockClear();
+
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(deps.findAllPlanFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispose clears poll timer", async () => {
+    const deps = makeDeps();
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    panel.dispose();
+    vi.mocked(deps.findAllPlanFiles).mockClear();
+
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(deps.findAllPlanFiles).not.toHaveBeenCalled();
+  });
 });
