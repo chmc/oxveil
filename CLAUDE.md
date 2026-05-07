@@ -170,6 +170,12 @@ AI files: imperative, flat bullets, one rule per line. YAML frontmatter for skil
 
 No summaries, preamble, filler. Bullets for status. Completion: result + next step.
 
+## Task Hygiene
+
+- NEVER claim "done" or "complete" while tasks remain in_progress
+- If hook blocks TaskUpdate: fix the blocker, then complete the task
+- Before ending turn: `TaskList` to verify no orphaned in_progress tasks
+
 ## Oxveil Testing Patterns
 
 See `.claude/skills/oxveil-testing/SKILL.md`. Use alongside `superpowers:test-driven-development`.
