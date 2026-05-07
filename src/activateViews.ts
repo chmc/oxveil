@@ -106,6 +106,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
       if (deps.workspaceRoot) {
         sources.push(
+          { dir: path.join(deps.workspaceRoot, ".claude", "plans"), category: "plan" },
           { dir: path.join(deps.workspaceRoot, "docs", "superpowers", "specs"), category: "design" },
           { dir: path.join(deps.workspaceRoot, "docs", "superpowers", "plans"), category: "implementation" },
         );
@@ -204,6 +205,9 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
       ));
       watchers.push(vscode.workspace.createFileSystemWatcher(
         new vscode.RelativePattern(folder, "docs/superpowers/plans/*.md"),
+      ));
+      watchers.push(vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(folder, ".claude/plans/*.md"),
       ));
       // Watch for ai-parsed-plan.md changes
       watchers.push(vscode.workspace.createFileSystemWatcher(
