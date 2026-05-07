@@ -135,36 +135,50 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     if (state.planDetected) {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
     }
-    const folder = vscode.workspace.workspaceFolders?.[0];
-    const planWatcher = folder
-      ? vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, ".claudeloop/PLAN.md"))
-      : vscode.workspace.createFileSystemWatcher("**/PLAN.md");
-    planWatcher.onDidCreate(async () => {
+
+    async function onPlanCreated(): Promise<void> {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
       state.planDetected = true;
       if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss" && state.planUserChoice !== "planning") {
         state.planUserChoice = "none";
       }
       sidebarPanel.updateState(buildFullState());
-      // Clear stale AI-parsed plan before loading — PLAN.md is authoritative
       await clearStaleParsedPlan();
       await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
-    });
-    planWatcher.onDidDelete(() => {
+    }
+
+    function onPlanDeleted(): void {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
       state.planDetected = false;
       state.planUserChoice = "none";
       state.cachedPlanPhases = [];
       sidebarPanel.updateState(buildFullState());
-    });
-    planWatcher.onDidChange(async () => {
-      // Clear stale AI-parsed plan before loading — PLAN.md is authoritative
+    }
+
+    async function onPlanChanged(): Promise<void> {
       await clearStaleParsedPlan();
       await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
-    });
-    disposables.push(planWatcher);
+    }
+
+    const folder = vscode.workspace.workspaceFolders?.[0];
+
+    const legacyWatcher = folder
+      ? vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, ".claudeloop/PLAN.md"))
+      : vscode.workspace.createFileSystemWatcher("**/PLAN.md");
+    legacyWatcher.onDidCreate(onPlanCreated);
+    legacyWatcher.onDidDelete(onPlanDeleted);
+    legacyWatcher.onDidChange(onPlanChanged);
+    disposables.push(legacyWatcher);
+
+    const claudePlansWatcher = folder
+      ? vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, ".claude/plans/*.md"))
+      : vscode.workspace.createFileSystemWatcher("**/.claude/plans/*.md");
+    claudePlansWatcher.onDidCreate(onPlanCreated);
+    claudePlansWatcher.onDidDelete(onPlanDeleted);
+    claudePlansWatcher.onDidChange(onPlanChanged);
+    disposables.push(claudePlansWatcher);
 
     return disposables;
   }
@@ -181,7 +195,11 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       try {
         content = await fs.readFile(parsedPlanPath, "utf-8");
       } catch {
-        content = await fs.readFile(planMdPath, "utf-8");
+        try {
+          content = await fs.readFile(planMdPath, "utf-8");
+        } catch {
+          content = await readNewestClaudePlan(deps.workspaceRoot);
+        }
       }
       const { parsePlan } = await import("./parsers/plan");
       const parsed = parsePlan(content);
@@ -193,6 +211,18 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     } catch {
       state.cachedPlanPhases = [];
     }
+  }
+
+  async function readNewestClaudePlan(workspaceRoot: string): Promise<string> {
+    const plansDir = path.join(workspaceRoot, ".claude", "plans");
+    const entries = await fs.readdir(plansDir);
+    const mdFiles = entries.filter((f) => f.endsWith(".md"));
+    if (mdFiles.length === 0) throw new Error("No plan files");
+    const withMtimes = await Promise.all(
+      mdFiles.map(async (f) => ({ name: f, mtime: (await fs.stat(path.join(plansDir, f))).mtimeMs }))
+    );
+    withMtimes.sort((a, b) => b.mtime - a.mtime);
+    return fs.readFile(path.join(plansDir, withMtimes[0].name), "utf-8");
   }
 
   async function refreshLessonsAvailable(): Promise<void> {

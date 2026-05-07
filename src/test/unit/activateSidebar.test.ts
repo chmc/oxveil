@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Capture file watcher callbacks so tests can simulate file events
-let watcherCallbacks: {
+type WatcherCallbacks = {
   onCreate?: () => void | Promise<void>;
   onDelete?: () => void;
   onChange?: () => void | Promise<void>;
-} = {};
+};
+let allWatcherCallbacks: WatcherCallbacks[] = [];
+// Legacy alias: first watcher (.claudeloop/PLAN.md) for backward compat
+let watcherCallbacks: WatcherCallbacks = {};
 
 // Capture the onPlanChoice callback passed to SidebarPanel
 let capturedOnPlanChoice: ((choice: "resume" | "dismiss") => void) | undefined;
@@ -22,12 +25,17 @@ vi.mock("../../views/sidebarPanel", () => ({
 
 vi.mock("vscode", () => ({
   workspace: {
-    createFileSystemWatcher: vi.fn(() => ({
-      onDidCreate: vi.fn((cb: () => void | Promise<void>) => { watcherCallbacks.onCreate = cb; }),
-      onDidDelete: vi.fn((cb: () => void) => { watcherCallbacks.onDelete = cb; }),
-      onDidChange: vi.fn((cb: () => void | Promise<void>) => { watcherCallbacks.onChange = cb; }),
-      dispose: vi.fn(),
-    })),
+    createFileSystemWatcher: vi.fn(() => {
+      const callbacks: WatcherCallbacks = {};
+      allWatcherCallbacks.push(callbacks);
+      if (allWatcherCallbacks.length === 1) watcherCallbacks = callbacks;
+      return {
+        onDidCreate: vi.fn((cb: () => void | Promise<void>) => { callbacks.onCreate = cb; }),
+        onDidDelete: vi.fn((cb: () => void) => { callbacks.onDelete = cb; }),
+        onDidChange: vi.fn((cb: () => void | Promise<void>) => { callbacks.onChange = cb; }),
+        dispose: vi.fn(),
+      };
+    }),
     getConfiguration: vi.fn(() => ({ get: vi.fn(() => false) })),
   },
   commands: { executeCommand: vi.fn() },
@@ -44,6 +52,7 @@ vi.mock("node:fs/promises", () => ({
   access: vi.fn(),
   readdir: vi.fn(),
   unlink: vi.fn(),
+  stat: vi.fn(),
 }));
 
 import { activateSidebar } from "../../activateSidebar";
@@ -52,7 +61,7 @@ import type {
   SidebarActivationResult,
 } from "../../activateSidebar";
 import * as vscode from "vscode";
-import { readFile, access, readdir } from "node:fs/promises";
+import { readFile, access, readdir, stat } from "node:fs/promises";
 
 function makeDeps(overrides: Partial<SidebarActivationDeps> = {}): SidebarActivationDeps {
   return {
@@ -74,6 +83,7 @@ describe("activateSidebar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    allWatcherCallbacks = [];
     watcherCallbacks = {};
     capturedOnPlanChoice = undefined;
     capturedUpdateState = undefined;
@@ -472,6 +482,73 @@ describe("activateSidebar", () => {
       result.state.aiParsing = true;
       result.onAiParseEnded();
       expect(result.buildFullState().aiParsing).toBe(false);
+    });
+  });
+
+  describe("registerPlanWatcher - .claude/plans support", () => {
+    it("creates a watcher for .claude/plans/*.md", () => {
+      result.registerPlanWatcher();
+      const mockCreateWatcher = vi.mocked(vscode.workspace.createFileSystemWatcher);
+      expect(mockCreateWatcher).toHaveBeenCalledTimes(2);
+      const patterns = mockCreateWatcher.mock.calls.map((c) => JSON.stringify(c[0]));
+      expect(patterns.some((p) => p.includes(".claude/plans"))).toBe(true);
+    });
+
+    it("plan file created in .claude/plans/ sets planDetected=true", async () => {
+      result.registerPlanWatcher();
+      expect(result.state.planDetected).toBe(false);
+      await allWatcherCallbacks[1]?.onCreate?.();
+      expect(result.state.planDetected).toBe(true);
+    });
+
+    it("plan file deleted from .claude/plans/ sets planDetected=false", () => {
+      result.state.planDetected = true;
+      result.registerPlanWatcher();
+      allWatcherCallbacks[1]?.onDelete?.();
+      expect(result.state.planDetected).toBe(false);
+    });
+
+    it("plan file changed in .claude/plans/ re-parses phases", async () => {
+      vi.mocked(readFile)
+        .mockRejectedValueOnce(new Error("ENOENT"))
+        .mockResolvedValueOnce("# Plan\n## Phase 1: NewPhase\n" as any);
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({ phases: [{ number: 1, title: "NewPhase" }] })),
+      }));
+      result.registerPlanWatcher();
+      await allWatcherCallbacks[1]?.onChange?.();
+      expect(result.state.cachedPlanPhases).toEqual([
+        { number: 1, title: "NewPhase", status: "pending" },
+      ]);
+    });
+  });
+
+  describe("loadPlanPhases - .claude/plans fallback", () => {
+    it("reads plan from .claude/plans/ when .claudeloop/PLAN.md missing", async () => {
+      vi.mocked(readFile)
+        .mockRejectedValueOnce(new Error("ENOENT")) // ai-parsed-plan.md
+        .mockRejectedValueOnce(new Error("ENOENT")) // .claudeloop/PLAN.md
+        .mockResolvedValueOnce("# Plan\n## Phase 1: Alpha\n" as any); // .claude/plans/foo.md
+      vi.mocked(readdir).mockResolvedValueOnce(["foo.md"] as any);
+      vi.mocked(stat).mockResolvedValueOnce({ mtimeMs: 1000 } as any);
+      vi.doMock("../../parsers/plan", () => ({
+        parsePlan: vi.fn(() => ({ phases: [{ number: 1, title: "Alpha" }] })),
+      }));
+
+      await result.onPlanFormed();
+
+      expect(result.state.cachedPlanPhases).toEqual([
+        { number: 1, title: "Alpha", status: "pending" },
+      ]);
+    });
+
+    it("falls back to empty phases when neither location has a plan", async () => {
+      vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
+      vi.mocked(readdir).mockRejectedValue(new Error("ENOENT"));
+
+      await result.onPlanFormed();
+
+      expect(result.state.cachedPlanPhases).toEqual([]);
     });
   });
 
