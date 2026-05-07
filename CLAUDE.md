@@ -66,6 +66,14 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 
 Trunk-based. See `.claude/skills/dev-workflow/SKILL.md`. Not published yet — no feature flags.
 
+## Branch Completion Cleanup
+
+After merge or discard in `finishing-a-development-branch`, run:
+```bash
+bash .claude/scripts/cleanup-workflow-state.sh
+```
+Clears `workflow-state/*` (keeps `claudeloop-features-hash`) and `review-sessions/*`.
+
 ## Adding Settings
 
 When adding a new VS Code setting:
