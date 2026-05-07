@@ -88,7 +88,7 @@ export async function activate(
 
   // Create one session per workspace folder
   if (workspaceFolders && result.status === "detected") {
-    initFolderSessions({
+    await initFolderSessions({
       manager,
       folders: workspaceFolders,
       claudeloopPath,
@@ -107,7 +107,7 @@ export async function activate(
   let activeSelfImprovementSession: SelfImprovementSession | undefined;
 
   // Check initial plan state
-  const initialPlanDetected = await checkInitialPlanState(workspaceRoot);
+  const initialPlanDetected = await checkInitialPlanState(workspaceRoot, manager.getActiveSession()?.planFileOverride);
 
   // Webview panels, CodeLens, and diff provider
   const activeSession = manager.getActiveSession();
@@ -301,7 +301,7 @@ export async function activate(
   };
   disposables.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
-      handleWorkspaceFolderChange(e, folderChangeOpts);
+      handleWorkspaceFolderChange(e, folderChangeOpts).catch((err) => console.warn("[Oxveil] Folder change failed:", err));
     }),
   );
 

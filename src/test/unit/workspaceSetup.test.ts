@@ -140,7 +140,7 @@ describe("wireAllSessions archive guard", () => {
 });
 
 describe("handleWorkspaceFolderChange archive guard", () => {
-  it("dynamically added session completing as background calls only refreshArchive", () => {
+  it("dynamically added session completing as background calls only refreshArchive", async () => {
     const activeFolderUri = "file:///folderA";
     const manager = new WorkspaceSessionManager({
       getActiveFolderUri: () => activeFolderUri,
@@ -148,7 +148,7 @@ describe("handleWorkspaceFolderChange archive guard", () => {
     manager.createSession({ folderUri: "file:///folderA", workspaceRoot: "/folderA" });
 
     const callbacks = makeCallbacks();
-    handleWorkspaceFolderChange(
+    await handleWorkspaceFolderChange(
       {
         added: [{ uri: { toString: () => "file:///folderB", fsPath: "/folderB" } }],
         removed: [],

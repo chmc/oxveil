@@ -276,12 +276,17 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 }
 
 /**
- * Checks if PLAN.md exists in the workspace root.
+ * Checks if the plan file exists (respects planFileOverride from .claudeloop.conf).
  */
-export async function checkInitialPlanState(workspaceRoot: string | undefined): Promise<boolean> {
+export async function checkInitialPlanState(
+  workspaceRoot: string | undefined,
+  planFileOverride?: string,
+): Promise<boolean> {
   if (!workspaceRoot) return false;
+  const { getPlanPath } = await import("./core/paths");
+  const planPath = getPlanPath(workspaceRoot, planFileOverride);
   try {
-    await fs.access(path.join(workspaceRoot, "PLAN.md"));
+    await fs.access(planPath);
     return true;
   } catch {
     return false;

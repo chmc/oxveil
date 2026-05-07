@@ -5,11 +5,13 @@ import type { GitExecDeps } from "./gitIntegration";
 export interface WorkspaceSessionInit {
   folderUri: string;
   workspaceRoot: string;
+  planFileOverride?: string;
 }
 
 export class WorkspaceSession {
   readonly folderUri: string;
   readonly workspaceRoot: string;
+  readonly planFileOverride: string | undefined;
   readonly sessionState: SessionState;
   processManager: ProcessManager | undefined;
   gitExec: GitExecDeps | undefined;
@@ -17,6 +19,7 @@ export class WorkspaceSession {
   constructor(init: WorkspaceSessionInit) {
     this.folderUri = init.folderUri;
     this.workspaceRoot = init.workspaceRoot;
+    this.planFileOverride = init.planFileOverride;
     this.sessionState = new SessionState();
   }
 

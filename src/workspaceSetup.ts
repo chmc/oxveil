@@ -6,6 +6,7 @@ import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import type { WorkspaceSession } from "./core/workspaceSession";
 import { createProcessManager } from "./processManagerFactory";
 import { wireSessionEvents, type SessionWiringDeps } from "./sessionWiring";
+import { loadPlanFileOverride } from "./core/paths";
 
 const execFileAsync = promisify(execFile);
 
@@ -31,10 +32,11 @@ export interface InitFolderSessionsOpts {
 /**
  * Creates a WorkspaceSession (with processManager + gitExec) for each folder.
  */
-export function initFolderSessions(opts: InitFolderSessionsOpts): void {
+export async function initFolderSessions(opts: InitFolderSessionsOpts): Promise<void> {
   for (const folder of opts.folders) {
     const root = folder.uri.fsPath;
-    const ws = opts.manager.createSession({ folderUri: folder.uri.toString(), workspaceRoot: root });
+    const planFileOverride = await loadPlanFileOverride(root);
+    const ws = opts.manager.createSession({ folderUri: folder.uri.toString(), workspaceRoot: root, planFileOverride });
     ws.processManager = createProcessManager({
       claudeloopPath: opts.claudeloopPath,
       resolvedPath: opts.resolvedPath,
@@ -135,14 +137,16 @@ export interface FolderChangeOpts {
 /**
  * Handles workspace folder add/remove events.
  */
-export function handleWorkspaceFolderChange(
+export async function handleWorkspaceFolderChange(
   e: { added: ReadonlyArray<{ uri: { toString(): string; fsPath: string } }>; removed: ReadonlyArray<{ uri: { toString(): string } }> },
   opts: FolderChangeOpts,
-): void {
+): Promise<void> {
   for (const added of e.added) {
+    const planFileOverride = await loadPlanFileOverride(added.uri.fsPath);
     const ws = opts.manager.createSession({
       folderUri: added.uri.toString(),
       workspaceRoot: added.uri.fsPath,
+      planFileOverride,
     });
     if (opts.detected) {
       ws.processManager = createProcessManager({
