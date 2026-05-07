@@ -15,13 +15,18 @@ fi
 # To unblock: run `touch "$STATE_DIR/branch-confirmed"` after user confirms branch.
 # The permissions.allow in settings.json grants this Bash command automatically.
 BRANCH=$(git -C "${CLAUDE_PROJECT_DIR:-.}" branch --show-current 2>/dev/null || echo "unknown")
+CHANGES=$(git -C "${CLAUDE_PROJECT_DIR:-.}" status --short 2>/dev/null || echo "")
+CHANGES_MSG=""
+if [ -n "$CHANGES" ]; then
+    CHANGES_MSG=" Pending changes: $(echo "$CHANGES" | wc -l | tr -d ' ') file(s) modified/untracked."
+fi
 
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "Branch confirmation required. Current branch: $BRANCH. Please confirm this is correct for your task, then I will set the confirmation state.",
+    "permissionDecisionReason": "Branch confirmation required. Current branch: $BRANCH.$CHANGES_MSG Please confirm this is correct for your task, then I will set the confirmation state.",
     "additionalContext": "To proceed, acknowledge the branch is correct. The workflow will then allow edits."
   }
 }
