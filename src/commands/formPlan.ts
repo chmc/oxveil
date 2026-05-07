@@ -107,7 +107,7 @@ export function registerFormPlanCommand(
       };
 
       let outcome: AiParseLoopResult["outcome"];
-      let planFormedWillBeCalled = false;
+      let planFormedCompleted = false;
       deps.onAiParseStarted?.();
       try {
         try {
@@ -149,8 +149,8 @@ export function registerFormPlanCommand(
             "OK",
           );
           // Still signal plan formed so sidebar transitions to Ready
-          planFormedWillBeCalled = true;
-          deps.onPlanFormed?.();
+          await deps.onPlanFormed?.();
+          planFormedCompleted = true;
         } else {
           // Ensure ai-parsed-plan.md exists for claudeloop execution
           if (resultPath === planPath) {
@@ -159,8 +159,8 @@ export function registerFormPlanCommand(
             await fs.writeFile(parsedPlanPath, resultContent, "utf-8");
           }
           // Signal success — sidebar transitions to Ready with phases
-          planFormedWillBeCalled = true;
-          deps.onPlanFormed?.();
+          await deps.onPlanFormed?.();
+          planFormedCompleted = true;
         }
 
         // Open result in editor
@@ -169,7 +169,7 @@ export function registerFormPlanCommand(
         );
         await vscode.window.showTextDocument(doc);
       } finally {
-        deps.onAiParseEnded?.(planFormedWillBeCalled);
+        deps.onAiParseEnded?.(planFormedCompleted);
       }
     },
   );
