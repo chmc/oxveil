@@ -24,6 +24,8 @@ Find:
 - **Dead refs** — backtick paths/functions that don't exist in codebase (`stat`, `grep -r`)
 - **Redundancy** — rules expressing the same constraint in multiple files or sections
 - **Verbosity** — rules that can be compressed without losing meaning or precision
+- **Consolidation** — skills with significant overlap (>30% shared concepts) that could merge or extract common base
+- **Behavioral gaps** — pitfalls from recent sessions not yet codified (check git log for CLAUDE.md/skill changes, infer what triggered them)
 
 ## Phase 3: Report
 

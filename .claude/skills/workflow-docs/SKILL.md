@@ -9,14 +9,14 @@ When modifying any of the following files, update `docs/workflow/states.md`:
 
 | File Changed | Spec Section to Update |
 |---|---|
-| `sidebarState.ts` | B. Sidebar View Projection (decision table, output states) |
-| `sessionState.ts` | A. Session State Machine (statechart, transition matrix) |
-| `statusBar.ts` | C. Status Bar Projection (state mapping table) |
-| `planPreviewPanel.ts` | D. Plan Preview States (state table, transition table) |
-| `types.ts` | Appendix: Type Definitions + check all sections for type changes |
-| `sidebarMessages.ts` | F. Message Schemas (command tables) |
-| `sessionWiring.ts` | E. Cross-Machine Wiring (event → update matrix, context keys) |
-| `sidebarRenderers.ts` | B. Sidebar View Projection (renderer table) |
+| `src/views/sidebarState.ts` | B. Sidebar View Projection (decision table, output states) |
+| `src/core/sessionState.ts` | A. Session State Machine (statechart, transition matrix) |
+| `src/views/statusBar.ts` | C. Status Bar Projection (state mapping table) |
+| `src/views/planPreviewPanel.ts` | D. Plan Preview States (state table, transition table) |
+| `src/types.ts` | Appendix: Type Definitions + check all sections for type changes |
+| `src/views/sidebarMessages.ts` | F. Message Schemas (command tables) |
+| `src/sessionWiring.ts` | E. Cross-Machine Wiring (event → update matrix, context keys) |
+| `src/views/sidebarRenderers.ts` | B. Sidebar View Projection (renderer table) |
 
 - Update the Appendix type definitions if union members change.
 - If behavior changes affect user journeys, also update `docs/workflow/user-stories.md`.
