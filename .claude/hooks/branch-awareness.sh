@@ -26,8 +26,8 @@ cat <<EOF
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "Branch confirmation required. Current branch: $BRANCH.$CHANGES_MSG Please confirm this is correct for your task, then I will set the confirmation state.",
-    "additionalContext": "To proceed, acknowledge the branch is correct. The workflow will then allow edits."
+    "permissionDecisionReason": "Branch confirmation required. Current branch: $BRANCH.$CHANGES_MSG",
+    "additionalContext": "After user confirms branch is correct, run: touch $STATE_DIR/branch-confirmed"
   }
 }
 EOF

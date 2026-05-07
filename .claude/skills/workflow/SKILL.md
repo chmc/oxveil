@@ -7,6 +7,8 @@ description: Show current workflow gate status for oxveil. Use when checking wha
 
 Check and display current workflow state.
 
+**Before modifying gates or hooks:** Read `docs/WORKFLOW.md` for the full system spec (gates, file patterns, state files, bypass options).
+
 Run this bash command and report results:
 
 ```bash
