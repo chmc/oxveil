@@ -20,6 +20,14 @@
     ]
   },
   "hooks": {
+    "Stop": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/task-hygiene-stop.sh"
+        }]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "TaskCreate",
