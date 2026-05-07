@@ -29,9 +29,11 @@
 - NEVER `rm -rf .claudeloop`. Remove only individual mock-created files (newer than `.MOCK_SESSION`).
 - NEVER `keystroke` via osascript for destructive ops (Cmd+W/Q). `keystroke` targets frontmost app, not `tell process` target. Use `click menu item`.
 - Non-destructive keystrokes: `set frontmost to true` + `AXRaise` first.
+- osascript: Escape does NOT dismiss VS Code AXSheets — click Cancel/Don't Save button directly.
+- osascript: merge related operations into single osascript call — separate bash calls introduce timing gaps.
 - NEVER edit non-plan files in plan mode. Write to plan file, call ExitPlanMode.
 - NEVER `await` external process in `activate()` without timeout. Use `Promise.race` 5s. Hanging CLI = stuck spinner.
-- NEVER call ExitPlanMode without 2-3 critic agents. Exception: trivial (config/docs only, no source) → say "Skipping critics — trivial: [reason]."
+- NEVER call ExitPlanMode without 2-3 critic agents. Exception: trivial (config only, no source or executable skill code) → say "Skipping critics — trivial: [reason]."
 - After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.

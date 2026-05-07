@@ -331,21 +331,8 @@ cleanup_worktree() {
     local WORKTREE_PATH="$1"
     local STASH_MSG="$2"
     
-    # Close EDH first (see osascript recipes for process-scoped close)
-    osascript -e '
-    tell application "System Events"
-        tell process "Code"
-            set edh to (every window whose name contains "[Extension Development Host]")
-            repeat with w in edh
-                perform action "AXRaise" of w
-                delay 0.3
-                click menu item "Close Window" of menu "File" of menu bar 1
-                delay 0.5
-            end repeat
-        end tell
-    end tell' 2>/dev/null
-    
-    sleep 1
+    # Close EDH first
+    close_edh_window "$MCP_PORT"
     
     # Remove worktree
     if [[ -d "$WORKTREE_PATH" ]]; then
@@ -835,21 +822,9 @@ tell application "System Events"
     end tell
 end tell'
 
-# Close EDH window (process-scoped menu click)
-osascript -e '
-tell application "System Events"
-    tell process "Code"
-        set edh to (every window whose name contains "[Extension Development Host]")
-        if (count of edh) > 0 then
-            repeat with w in edh
-                perform action "AXRaise" of w
-                delay 0.3
-                click menu item "Close Window" of menu "File" of menu bar 1
-                delay 0.5
-            end repeat
-        end if
-    end tell
-end tell'
+# Close EDH window — use close_edh_window() function (handles sheets, verifies closure)
+# See "close_edh_window function" section below for definition and usage.
+close_edh_window "$MCP_PORT"
 
 # Close active editor tab (process-scoped menu click)
 osascript -e '
@@ -860,6 +835,93 @@ tell application "System Events"
         click menu item "Close Editor" of menu "File" of menu bar 1
     end tell
 end tell'
+```
+
+## close_edh_window function
+
+Handles modal sheets, verifies closure. Use this instead of inline osascript everywhere.
+
+```bash
+# Close EDH window with sheet dismissal and verified closure
+# Usage: close_edh_window [MCP_PORT]
+close_edh_window() {
+    local MCP_PORT="${1:-}"
+
+    # 1. Discard unsaved changes via MCP to avoid "Save changes?" sheet
+    if [[ -n "$MCP_PORT" ]]; then
+        curl -s -X POST "http://localhost:$MCP_PORT/command" \
+            -H "Content-Type: application/json" \
+            -d '{"command":"workbench.action.revertAndCloseActiveEditor"}' >/dev/null 2>&1 || true
+        curl -s -X POST "http://localhost:$MCP_PORT/command" \
+            -H "Content-Type: application/json" \
+            -d '{"command":"workbench.action.closeAllEditors"}' >/dev/null 2>&1 || true
+        sleep 0.5
+    fi
+
+    # 2+3. Dismiss sheets then close — single osascript to avoid timing gap between calls
+    # Sheet dismissal: Escape does NOT work on VS Code sheets; must click button directly
+    # Priority: Cancel > Don't Save > fail loudly (no blind fallback)
+    osascript -e '
+    tell application "System Events"
+        tell process "Code"
+            set edh to (every window whose name contains "[Extension Development Host]")
+            repeat with w in edh
+                -- Dismiss pre-existing sheet first
+                try
+                    set s to (first sheet of w)
+                    set frontmost to true
+                    perform action "AXRaise" of w
+                    delay 0.2
+                    set btns to every button of s
+                    set clicked to false
+                    repeat with b in btns
+                        if name of b is "Cancel" then
+                            click b
+                            set clicked to true
+                            exit repeat
+                        end if
+                    end repeat
+                    if not clicked then
+                        repeat with b in btns
+                            if name of b is "Don'"'"'t Save" then
+                                click b
+                                set clicked to true
+                                exit repeat
+                            end if
+                        end repeat
+                    end if
+                    if not clicked then
+                        error "Unknown sheet buttons: " & (name of every button of s as string)
+                    end if
+                    delay 0.3
+                end try
+                -- Close window via AXPress (works without menu access)
+                perform action "AXRaise" of w
+                delay 0.2
+                perform action "AXPress" of (first button of w whose subrole is "AXCloseButton")
+                delay 0.5
+            end repeat
+        end tell
+    end tell' 2>/dev/null || true
+
+    # 4. Verify closed
+    sleep 0.5
+    local remaining
+    remaining=$(osascript -e '
+    tell application "System Events"
+        tell process "Code"
+            count of (every window whose name contains "[Extension Development Host]")
+        end tell
+    end tell' 2>/dev/null || echo "0")
+
+    if [[ "$remaining" -gt 0 ]]; then
+        echo "ERROR: EDH window still open after close attempts"
+        return 1
+    fi
+
+    echo "EDH window closed successfully"
+    return 0
+}
 ```
 
 ## Maximize Viewport
