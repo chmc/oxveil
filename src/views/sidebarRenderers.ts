@@ -1,5 +1,5 @@
 import { escapeHtml } from "../utils/html";
-import type { SidebarState, ArchiveView } from "./sidebarState";
+import type { SidebarState, ArchiveView, SidebarView } from "./sidebarState";
 import type { Provider } from "../types";
 import { renderPhaseList } from "./sidebarPhaseHelpers";
 
@@ -66,7 +66,7 @@ function renderReady(state: SidebarState): string {
   const plan = state.plan!;
   const filename = escapeHtml(plan.filename);
   const archivesHtml = renderArchives(state.archives);
-  const selfImprovementHtml = renderSelfImprovementStatus(state);
+  const selfImprovementHtml = renderSelfImprovementStatus(state, "ready");
   return `<div class="card">
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
@@ -208,7 +208,7 @@ function renderCompleted(state: SidebarState): string {
   const elapsed = session?.elapsed ? escapeHtml(session.elapsed) : "";
   const cost = session?.cost ? escapeHtml(session.cost) : "";
   const archivesHtml = renderArchives(state.archives);
-  const selfImprovementHtml = renderSelfImprovementStatus(state);
+  const selfImprovementHtml = renderSelfImprovementStatus(state, "completed");
 
   return `<div class="card">
   <div class="card-header">
@@ -283,15 +283,15 @@ function renderSelfImprovement(state: SidebarState): string {
 ${archivesHtml}`;
 }
 
-function renderSelfImprovementStatus(state: SidebarState): string {
+function renderSelfImprovementStatus(state: SidebarState, view: SidebarView): string {
   if (state.selfImprovement?.enabled) {
-    const lessonsInfo = state.selfImprovement.lessonsAvailable
-      ? "💡 Lessons captured"
-      : "📝 No lessons available";
+    const lessonsHtml = (view === "completed" || view === "self-improvement")
+      ? `<div class="lessons-info">${state.selfImprovement.lessonsAvailable ? "💡 Lessons captured" : "📝 No lessons available"}</div>`
+      : "";
     return `<div class="self-improvement-status">
   <span class="label">Self-improvement:</span>
   <span class="badge on">On</span>
-  <div class="lessons-info">${lessonsInfo}</div>
+  ${lessonsHtml}
 </div>`;
   }
   return `<div class="self-improvement-status">

@@ -42,7 +42,7 @@ describe("renderBody self-improvement status", () => {
     expect(html).not.toContain("Enable");
   });
 
-  it("ready view: shows 'Lessons captured' when enabled + lessons exist", () => {
+  it("ready view: does NOT show lessons info when enabled + lessons exist", () => {
     const html = renderBody({
       view: "ready",
       plan: {
@@ -52,11 +52,12 @@ describe("renderBody self-improvement status", () => {
       archives: [],
       selfImprovement: { enabled: true, lessonsAvailable: true },
     });
-    expect(html).toContain("Lessons captured");
+    expect(html).not.toContain("Lessons captured");
+    expect(html).not.toContain("No lessons available");
     expect(html).toContain('<span class="badge on">On</span>');
   });
 
-  it("ready view: shows 'No lessons available' when enabled + no lessons", () => {
+  it("ready view: does NOT show lessons info when enabled + no lessons", () => {
     const html = renderBody({
       view: "ready",
       plan: {
@@ -66,7 +67,8 @@ describe("renderBody self-improvement status", () => {
       archives: [],
       selfImprovement: { enabled: true, lessonsAvailable: false },
     });
-    expect(html).toContain("No lessons available");
+    expect(html).not.toContain("No lessons available");
+    expect(html).not.toContain("Lessons captured");
     expect(html).toContain('<span class="badge on">On</span>');
   });
 
