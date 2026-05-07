@@ -1,0 +1,301 @@
+#!/bin/sh
+# Gate 2: Planning Checklist
+# Blocks ExitPlanMode unless plan has all 9 required sections
+set -eu
+
+if [ "${OXVEIL_SKIP_GATES:-0}" = "1" ]; then exit 0; fi
+
+STATE_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/workflow-state"
+PLANS_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/plans"
+FEATURES_MD="${CLAUDE_PROJECT_DIR:-.}/docs/FEATURES.md"
+
+# Read stdin (hook input, not used but must consume)
+cat > /dev/null
+
+# Find plan file
+if [ -n "${PLAN_FILE:-}" ] && [ -f "$PLAN_FILE" ]; then
+    plan_file="$PLAN_FILE"
+else
+    plan_file=""
+    if [ -d "$PLANS_DIR" ]; then
+        # shellcheck disable=SC2012
+        plan_file=$(ls -t "$PLANS_DIR"/*.md 2>/dev/null | head -1) || true
+    fi
+fi
+
+if [ -z "$plan_file" ] || [ ! -f "$plan_file" ]; then
+    cat <<'EOF'
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "No plan file found. Create a plan in .claude/plans/ before exiting plan mode.",
+    "additionalContext": "Plans must be stored in .claude/plans/ directory."
+  }
+}
+EOF
+    exit 0
+fi
+
+# Read plan content (lowercase for case-insensitive matching)
+plan_content=$(tr '[:upper:]' '[:lower:]' < "$plan_file")
+
+# Ensure state directory exists
+mkdir -p "$STATE_DIR"
+
+# Helper: extract first non-empty line of a section's content
+# Usage: get_section_content "SectionName"
+# Returns empty string if section not found
+get_section_content() {
+    section_name="$1"
+    section_start=$(grep -in "^## $section_name" "$plan_file" | head -1 | cut -d: -f1) || true
+    if [ -z "$section_start" ]; then
+        echo ""; return 0
+    fi
+    tail_start="$((section_start + 1))"
+    content=$(tail -n +"$tail_start" "$plan_file" | head -20)
+    next_section=$(echo "$content" | grep -n '^## ' | head -1 | cut -d: -f1)
+    if [ -n "$next_section" ]; then
+        last_line="$((next_section - 1))"
+        [ "$last_line" -gt 0 ] && content=$(echo "$content" | head -"$last_line") || content=""
+    fi
+    echo "$content" | grep -v '^$' | head -1
+}
+
+# Helper: check if section is empty (no content after heading, before next section heading)
+# Returns 0 (true) if section is EMPTY
+# Returns 1 (false) if section has content
+is_empty_section() {
+    first=$(get_section_content "$1")
+    [ -z "$first" ]
+}
+
+# Helper: check if section starts with N/A
+# Returns 0 (true) if section starts with N/A
+# Returns 1 (false) otherwise
+is_na_section() {
+    first=$(get_section_content "$1" | tr '[:upper:]' '[:lower:]')
+    echo "$first" | grep -qE '^n/?a[[:space:]]|^n/?a$|^n/?a[[:space:]]*-'
+}
+
+# Helper: extract section content text (first non-empty lines, up to 5)
+get_section_first_line() {
+    section_name="$1"
+    section_start=$(grep -in "^## $section_name" "$plan_file" | head -1 | cut -d: -f1) || return 0
+    if [ -z "$section_start" ]; then
+        return 0
+    fi
+    tail_start="$((section_start + 1))"
+    content=$(tail -n +"$tail_start" "$plan_file" | head -20)
+    next_section=$(echo "$content" | grep -n '^## ' | head -1 | cut -d: -f1)
+    if [ -n "$next_section" ]; then
+        last_line="$((next_section - 1))"
+        if [ "$last_line" -gt 0 ]; then
+            content=$(echo "$content" | head -"$last_line")
+        else
+            content=""
+        fi
+    fi
+    echo "$content" | grep -v '^$' | head -5
+}
+
+# Check all 9 required sections
+missing=""
+
+# 1. Feature
+if ! echo "$plan_content" | grep -q "^## feature"; then
+    missing="$missing Feature (missing),"
+elif is_empty_section "Feature"; then
+    missing="$missing Feature (empty),"
+fi
+
+# 2. Architecture Impact
+if ! echo "$plan_content" | grep -q "^## architecture impact"; then
+    missing="$missing Architecture Impact (missing),"
+elif is_empty_section "Architecture Impact"; then
+    missing="$missing Architecture Impact (empty),"
+fi
+
+# 3. ADR
+if ! echo "$plan_content" | grep -q "^## adr"; then
+    missing="$missing ADR (missing),"
+elif is_empty_section "ADR"; then
+    missing="$missing ADR (empty),"
+fi
+
+# 4. State Machine / Sync (prefix match: ^## state)
+if ! echo "$plan_content" | grep -qE "^## state"; then
+    missing="$missing State Machine / Sync (missing),"
+elif is_empty_section "State Machine" || is_empty_section "State"; then
+    missing="$missing State Machine / Sync (empty),"
+fi
+
+# 5. Tests
+if ! echo "$plan_content" | grep -qE "^## tests"; then
+    missing="$missing Tests (missing),"
+elif is_empty_section "Tests"; then
+    missing="$missing Tests (empty),"
+fi
+
+# 6. Documentation
+if ! echo "$plan_content" | grep -q "^## documentation"; then
+    missing="$missing Documentation (missing),"
+elif is_empty_section "Documentation"; then
+    missing="$missing Documentation (empty),"
+fi
+
+# 7. package.json / contributes (prefix match: ^## package)
+if ! echo "$plan_content" | grep -qE "^## package"; then
+    missing="$missing package.json / contributes (missing),"
+elif is_empty_section "package"; then
+    missing="$missing package.json / contributes (empty),"
+fi
+
+# 8. CHANGELOG
+if ! echo "$plan_content" | grep -q "^## changelog"; then
+    missing="$missing CHANGELOG (missing),"
+elif is_empty_section "CHANGELOG"; then
+    missing="$missing CHANGELOG (empty),"
+fi
+
+# 9. README
+if ! echo "$plan_content" | grep -q "^## readme"; then
+    missing="$missing README (missing),"
+elif is_empty_section "README"; then
+    missing="$missing README (empty),"
+fi
+
+# If any missing or empty, deny
+if [ -n "$missing" ]; then
+    missing=$(echo "$missing" | sed 's/,$//')
+    cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Plan missing or empty sections:$missing",
+    "additionalContext": "All 9 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README."
+  }
+}
+EOF
+    exit 0
+fi
+
+# All sections present — validate Feature section against FEATURES.md
+feature_content=$(get_section_first_line "Feature" || get_section_first_line "feature")
+
+if [ -f "$FEATURES_MD" ]; then
+    # Extract feature name(s): look for words/identifiers in feature section
+    # Check each word-like token (non-whitespace, skip markdown formatting) against FEATURES.md
+    feature_found=0
+    # Try to find a | featurename | style entry in FEATURES.md for any word in feature section
+    while IFS= read -r word; do
+        # Skip empty, short tokens, and markdown chars
+        len=$(printf '%s' "$word" | wc -c | tr -d ' ')
+        if [ "$len" -lt 3 ]; then
+            continue
+        fi
+        word_lower=$(printf '%s' "$word" | tr '[:upper:]' '[:lower:]' | tr -d '`*_#|')
+        if [ -z "$word_lower" ]; then
+            continue
+        fi
+        if grep -qi "| *$word_lower *|" "$FEATURES_MD" 2>/dev/null; then
+            feature_found=1
+            break
+        fi
+    done <<EOF
+$(echo "$feature_content" | tr ' \t' '\n' | grep -v '^$')
+EOF
+
+    if [ "$feature_found" = "0" ]; then
+        # Extract a clean feature name for the message
+        feature_name=$(echo "$feature_content" | head -1 | tr '[:upper:]' '[:lower:]' | sed 's/[#*`|]//g' | xargs)
+        cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Feature '$feature_name' not found in docs/FEATURES.md. Add it as '| featurename |' before exiting plan mode.",
+    "additionalContext": "docs/FEATURES.md must list every feature being planned. Add the feature row, then retry ExitPlanMode."
+  }
+}
+EOF
+        exit 0
+    fi
+else
+    # FEATURES.md doesn't exist — warn but allow
+    cat <<'WARN'
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Warning: docs/FEATURES.md not found. Create it with your feature list to enable feature validation."}}
+WARN
+fi
+
+# Build requirements JSON
+arch_req="false"
+if ! is_na_section "Architecture Impact"; then
+    arch_req="true"
+fi
+
+adr_req="false"
+if ! is_na_section "ADR"; then
+    adr_req="true"
+fi
+
+state_machine_req="false"
+if ! is_na_section "State Machine" && ! is_na_section "State"; then
+    state_machine_req="true"
+fi
+
+tests_req="false"
+if ! is_na_section "Tests"; then
+    tests_req="true"
+fi
+
+docs_req="false"
+if ! is_na_section "Documentation"; then
+    docs_req="true"
+fi
+
+package_json_req="false"
+if ! is_na_section "package"; then
+    package_json_req="true"
+fi
+
+changelog_req="false"
+if ! is_na_section "CHANGELOG"; then
+    changelog_req="true"
+fi
+
+readme_req="false"
+if ! is_na_section "README"; then
+    readme_req="true"
+fi
+
+# Write requirements file
+plan_file_escaped=$(printf '%s' "$plan_file" | sed 's/\\/\\\\/g; s/"/\\"/g')
+cat > "$STATE_DIR/plan-requirements.json" <<EOF
+{
+  "architecture": $arch_req,
+  "adr": $adr_req,
+  "state_machine": $state_machine_req,
+  "tests": $tests_req,
+  "documentation": $docs_req,
+  "package_json": $package_json_req,
+  "changelog": $changelog_req,
+  "readme": $readme_req,
+  "plan_file": "$plan_file_escaped"
+}
+EOF
+
+# Touch plan-exited state file
+touch "$STATE_DIR/plan-exited"
+
+# Clean up state for fresh workflow cycle
+rm -f "$STATE_DIR/tasks-created"
+rm -f "$STATE_DIR/edit-order"
+rm -f "$STATE_DIR/simplify-complete"
+rm -f "$STATE_DIR/review-complete"
+rm -f "$STATE_DIR/visual-verified"
+rm -f "$STATE_DIR/visual-skip-reason"
+
+# Allow
+exit 0

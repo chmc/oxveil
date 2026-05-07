@@ -25,6 +25,10 @@ docs/qa-sessions/*/screenshots/
 # Graphify (knowledge graph)
 graphify-out/
 
+# Claude Code workflow state (session-local, not committed)
+.claude/workflow-state/*
+!.claude/workflow-state/.gitkeep
+
 # macOS
 .DS_Store
 ._*
