@@ -68,6 +68,8 @@ Trunk-based. See `.claude/skills/dev-workflow/SKILL.md`. Not published yet — n
 
 When adding a new VS Code setting:
 
+**Warning:** `vscode.workspace.getConfiguration("oxveil")` must be called inside function bodies, not at module level — otherwise it won't reflect active workspace config at registration time.
+
 1. `package.json` → `contributes.configuration.properties` with default
 2. `src/processManagerSettings.ts` → add to interface
 3. `src/processManagerFactory.ts:getSettings()` → add with same default as `package.json`
