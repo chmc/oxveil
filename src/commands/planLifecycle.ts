@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import type { ProcessManager } from "../core/processManager";
 import type { WorkspaceSessionManager } from "../core/workspaceSessionManager";
+import { getPlanPath } from "../core/paths";
 
 export interface PlanLifecycleDeps {
   sessionManager: WorkspaceSessionManager;
@@ -30,7 +31,8 @@ export function registerPlanLifecycleCommands(deps: PlanLifecycleDeps): vscode.D
         const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(parsedPath));
         await vscode.window.showTextDocument(doc);
       } catch {
-        const planPath = path.join(workspaceRoot, "PLAN.md");
+        const session = sessionManager.getActiveSession();
+        const planPath = getPlanPath(workspaceRoot, session?.planFileOverride);
         try {
           const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(planPath));
           await vscode.window.showTextDocument(doc);
@@ -54,7 +56,8 @@ export function registerPlanLifecycleCommands(deps: PlanLifecycleDeps): vscode.D
       );
       if (confirm !== "Delete") return;
 
-      const planPath = path.join(workspaceRoot, "PLAN.md");
+      const session = sessionManager.getActiveSession();
+      const planPath = getPlanPath(workspaceRoot, session?.planFileOverride);
       await fs.unlink(planPath);
       try {
         await fs.unlink(path.join(workspaceRoot, ".claudeloop", "ai-parsed-plan.md"));
@@ -82,8 +85,9 @@ export function registerPlanLifecycleCommands(deps: PlanLifecycleDeps): vscode.D
         await active.processManager.stop();
       }
 
+      const session = sessionManager.getActiveSession();
       try {
-        await fs.unlink(path.join(workspaceRoot, "PLAN.md"));
+        await fs.unlink(getPlanPath(workspaceRoot, session?.planFileOverride));
       } catch {
         // May not exist
       }

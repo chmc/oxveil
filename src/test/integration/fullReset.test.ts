@@ -166,7 +166,7 @@ describe("fullReset command", () => {
     const handler = registeredCommands.get("oxveil.fullReset");
     await handler!();
 
-    expect(fs.unlink).toHaveBeenCalledWith("/workspace/PLAN.md");
+    expect(fs.unlink).toHaveBeenCalledWith("/workspace/.claudeloop/PLAN.md");
     expect(fs.unlink).toHaveBeenCalledWith("/workspace/.claudeloop/ai-parsed-plan.md");
   });
 
