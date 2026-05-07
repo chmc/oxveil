@@ -7,10 +7,11 @@ import type { IProcessManager } from "../core/interfaces";
 import type { LiveRunPanel } from "../views/liveRunPanel";
 import type { NotificationManager } from "../views/notifications";
 import { aiParseLoop, type AiParseLoopResult } from "./aiParseLoop";
+import { getPlanPath } from "../core/paths";
 
 export interface FormPlanCommandDeps {
   resolveFolder: () => Promise<
-    | { workspaceRoot: string; processManager: IProcessManager; liveRunPanel?: LiveRunPanel }
+    | { workspaceRoot: string; processManager: IProcessManager; liveRunPanel?: LiveRunPanel; planFileOverride?: string }
     | undefined
   >;
   getActivePreviewFile: () => string | undefined;
@@ -43,7 +44,7 @@ export function registerFormPlanCommand(
         return;
       }
 
-      const { workspaceRoot, processManager, liveRunPanel } = resolved;
+      const { workspaceRoot, processManager, liveRunPanel, planFileOverride } = resolved;
       if (!liveRunPanel) return;
 
       // Guard against concurrent AI parse calls
@@ -64,8 +65,8 @@ export function registerFormPlanCommand(
         return;
       }
 
-      // 4. Check for existing PLAN.md
-      const planPath = path.join(workspaceRoot, "PLAN.md");
+      // 4. Check for existing plan file
+      const planPath = getPlanPath(workspaceRoot, planFileOverride);
       try {
         await fs.access(planPath);
         const confirm = await vscode.window.showWarningMessage(

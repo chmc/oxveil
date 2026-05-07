@@ -195,7 +195,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     }),
     registerAiParsePlanCommand(sessionManager, liveRunPanel, notificationManager),
     registerCreatePlanCommand(),
-    registerWritePlanCommand(() => getActive()?.workspaceRoot),
+    registerWritePlanCommand(sessionManager),
     vscode.commands.registerCommand("oxveil.welcome", () =>
       vscode.commands.executeCommand(
         "workbench.action.openWalkthrough",
@@ -227,10 +227,12 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       resolveFolder: async () => {
         const resolved = await resolveFolder();
         if (!resolved?.processManager) return undefined;
+        const active = sessionManager.getActiveSession();
         return {
           workspaceRoot: resolved.workspaceRoot,
           processManager: resolved.processManager,
           liveRunPanel,
+          planFileOverride: active?.planFileOverride,
         };
       },
       getActivePreviewFile: () => planPreviewPanel?.getActiveFilePath(),

@@ -31,6 +31,7 @@ vi.mock("vscode", () => ({
 vi.mock("node:fs/promises", () => ({
   access: vi.fn(),
   writeFile: vi.fn(),
+  mkdir: vi.fn().mockResolvedValue(undefined),
 }));
 
 import * as vscode from "vscode";

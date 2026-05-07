@@ -7,6 +7,7 @@ import type { LiveRunPanel } from "../views/liveRunPanel";
 import { pickGranularity } from "./granularityPicker";
 import { aiParseLoop } from "./aiParseLoop";
 import type { NotificationManager } from "../views/notifications";
+import { getPlanPath } from "../core/paths";
 
 export function registerAiParsePlanCommand(
   sessionManager: WorkspaceSessionManager,
@@ -21,7 +22,7 @@ export function registerAiParsePlanCommand(
 
     if (!liveRunPanel) return;
 
-    const planPath = path.join(workspaceRoot, "PLAN.md");
+    const planPath = getPlanPath(workspaceRoot, active.planFileOverride);
     if (!fs.existsSync(planPath)) {
       vscode.window.showErrorMessage(
         "No plan file found. Create a PLAN.md first.",
