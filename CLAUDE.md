@@ -73,10 +73,10 @@ When adding a new VS Code setting:
 **Warning:** `vscode.workspace.getConfiguration("oxveil")` must be called inside function bodies, not at module level — otherwise it won't reflect active workspace config at registration time.
 
 1. `package.json` → `contributes.configuration.properties` with default
-2. `src/processManagerSettings.ts` → add to interface
+2. `src/core/processManager.ts` → add to `ProcessManagerSettings` interface
 3. `src/processManagerFactory.ts:getSettings()` → add with same default as `package.json`
-4. `src/processManager.ts:_settingsToArgs()` → map to CLI flag
-5. `test/processManager.test.ts` → add to mock's default return value in `beforeEach`
+4. `src/core/processManager.ts:_settingsToArgs()` → map to CLI flag
+5. `src/test/unit/core/processManager.*.test.ts` → add to mock's default return value in `beforeEach`
 6. Verify: `npm test` passes, setting appears in VS Code settings UI
 
 ## Import Conventions
@@ -187,3 +187,10 @@ Rules:
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+
+## Self-Optimization
+
+After editing `.claude/` files, suggest `/self-optimize` if:
+- Added >50 tokens to instruction surface
+- Session involved multiple skill/rule edits
+- User mentions instruction bloat or redundancy
