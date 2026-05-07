@@ -253,9 +253,12 @@ sequenceDiagram
     SidebarState->>SidebarState: aiParsing = true
     SidebarState->>Sidebar: updateState() → button disabled with spinner
     FormPlan->>FormPlan: aiParseLoop() runs
-    FormPlan->>SidebarState: onAiParseEnded() (in finally)
+    FormPlan->>SidebarState: onAiParseEnded(skipRefresh) (in finally)
     SidebarState->>SidebarState: aiParsing = false
-    SidebarState->>Sidebar: updateState() → button re-enabled
+    alt skipRefresh = false
+        SidebarState->>Sidebar: updateState() → button re-enabled
+    end
+    Note over FormPlan,SidebarState: skipRefresh=true when onPlanFormed() will be called,<br/>avoiding an intermediate "planning" view flash before "ready"
 ```
 
 #### UI Behavior

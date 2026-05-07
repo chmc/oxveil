@@ -39,7 +39,7 @@ export interface SidebarActivationResult {
   /** Called when AI parsing of plan starts */
   onAiParseStarted: () => void;
   /** Called when AI parsing of plan ends */
-  onAiParseEnded: () => void;
+  onAiParseEnded: (skipRefresh?: boolean) => void;
   /** Manual refresh — quick re-read, full re-init if inconsistent */
   refreshSidebar: () => Promise<void>;
 }

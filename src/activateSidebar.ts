@@ -304,9 +304,11 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     sidebarPanel.updateState(buildFullState());
   }
 
-  function onAiParseEnded(): void {
+  function onAiParseEnded(skipRefresh = false): void {
     state.aiParsing = false;
-    sidebarPanel.updateState(buildFullState());
+    if (!skipRefresh) {
+      sidebarPanel.updateState(buildFullState());
+    }
   }
 
   return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable, onAiParseStarted, onAiParseEnded, refreshSidebar: () => doRefreshSidebar(refreshCtx) };

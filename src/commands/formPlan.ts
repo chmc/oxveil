@@ -18,7 +18,7 @@ export interface FormPlanCommandDeps {
   onPlanFormed?: () => void | Promise<void>;
   notificationManager?: NotificationManager;
   onAiParseStarted?: () => void;
-  onAiParseEnded?: () => void;
+  onAiParseEnded?: (skipRefresh?: boolean) => void;
   isAiParsing?: () => boolean;
 }
 
@@ -107,6 +107,7 @@ export function registerFormPlanCommand(
       };
 
       let outcome: AiParseLoopResult["outcome"];
+      let planFormedWillBeCalled = false;
       deps.onAiParseStarted?.();
       try {
         try {
@@ -128,46 +129,48 @@ export function registerFormPlanCommand(
         }
 
         if (outcome === "aborted") return;
-      } finally {
-        deps.onAiParseEnded?.();
-      }
 
-      // 8. Validate result
-      let resultPath = planPath;
-      let resultContent: string;
-      try {
-        resultContent = await fs.readFile(parsedPlanPath, "utf-8");
-        resultPath = parsedPlanPath;
-      } catch {
-        // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode or error)
-        resultContent = await fs.readFile(planPath, "utf-8");
-      }
-
-      const parsed = parsePlan(resultContent);
-
-      if (parsed.phases.length === 0) {
-        await vscode.window.showWarningMessage(
-          "Plan formed but no valid phases detected. Claudeloop will re-parse on start.",
-          "OK",
-        );
-        // Still signal plan formed so sidebar transitions to Ready
-        deps.onPlanFormed?.();
-      } else {
-        // Ensure ai-parsed-plan.md exists for claudeloop execution
-        if (resultPath === planPath) {
-          const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
-          await fs.mkdir(claudeloopDir, { recursive: true });
-          await fs.writeFile(parsedPlanPath, resultContent, "utf-8");
+        // 8. Validate result
+        let resultPath = planPath;
+        let resultContent: string;
+        try {
+          resultContent = await fs.readFile(parsedPlanPath, "utf-8");
+          resultPath = parsedPlanPath;
+        } catch {
+          // Fallback to PLAN.md if ai-parsed-plan.md doesn't exist (dry-run mode or error)
+          resultContent = await fs.readFile(planPath, "utf-8");
         }
-        // Signal success — sidebar transitions to Ready with phases
-        deps.onPlanFormed?.();
-      }
 
-      // Open result in editor
-      const doc = await vscode.workspace.openTextDocument(
-        vscode.Uri.file(resultPath),
-      );
-      await vscode.window.showTextDocument(doc);
+        const parsed = parsePlan(resultContent);
+
+        if (parsed.phases.length === 0) {
+          await vscode.window.showWarningMessage(
+            "Plan formed but no valid phases detected. Claudeloop will re-parse on start.",
+            "OK",
+          );
+          // Still signal plan formed so sidebar transitions to Ready
+          planFormedWillBeCalled = true;
+          deps.onPlanFormed?.();
+        } else {
+          // Ensure ai-parsed-plan.md exists for claudeloop execution
+          if (resultPath === planPath) {
+            const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+            await fs.mkdir(claudeloopDir, { recursive: true });
+            await fs.writeFile(parsedPlanPath, resultContent, "utf-8");
+          }
+          // Signal success — sidebar transitions to Ready with phases
+          planFormedWillBeCalled = true;
+          deps.onPlanFormed?.();
+        }
+
+        // Open result in editor
+        const doc = await vscode.workspace.openTextDocument(
+          vscode.Uri.file(resultPath),
+        );
+        await vscode.window.showTextDocument(doc);
+      } finally {
+        deps.onAiParseEnded?.(planFormedWillBeCalled);
+      }
     },
   );
 }
