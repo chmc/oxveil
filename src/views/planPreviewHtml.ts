@@ -202,6 +202,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .start-btn { flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
     .start-btn:hover { background: #2d5a8a; }
     .start-btn.primary { background: #0e639c; border-color: #1177bb; }
+    .start-btn.primary:hover { background: #1177bb; }
 
     /* Tab strip */
     .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
