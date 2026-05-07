@@ -151,6 +151,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
       }
     },
     onFormPlan: () => vscode.commands.executeCommand("oxveil.formPlan"),
+    onStart: () => vscode.commands.executeCommand("oxveil.start"),
     persistPlanPath: (state: PersistedPlanState | undefined) => {
       deps.context?.workspaceState.update("oxveil.activePlan", state);
     },

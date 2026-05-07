@@ -114,8 +114,10 @@ export function renderPhaseCardsHtml(options: PhaseCardsOptions): string {
   const header = renderHeader(options);
   let formBtn = "";
   if (options.showFormButton) {
-    if (options.planFormed) {
-      formBtn = '<button class="form-plan-btn" disabled title="Plan already formed. Start from sidebar.">Form Claudeloop Plan</button>';
+    if (options.planFormed && !options.sessionActive) {
+      formBtn = '<button class="start-btn primary">Start</button>';
+    } else if (options.planFormed) {
+      formBtn = '<button class="start-btn primary" disabled>Start</button>';
     } else {
       formBtn = '<button class="form-plan-btn">Form Claudeloop Plan</button>';
     }
@@ -197,6 +199,9 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .form-plan-btn { flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
     .form-plan-btn:hover:not(:disabled) { background: #2d5a8a; }
     .form-plan-btn:disabled { background: #3c3c3c; border-color: #555; color: #888; cursor: not-allowed; }
+    .start-btn { flex-shrink: 0; background: #264f78; border: 1px solid #569cd6; color: #e0e0e0; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+    .start-btn:hover { background: #2d5a8a; }
+    .start-btn.primary { background: #0e639c; border-color: #1177bb; }
 
     /* Tab strip */
     .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
@@ -296,6 +301,12 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         if (btn) {
           btn.addEventListener("click", function() {
             vscode.postMessage({ type: "formPlan" });
+          });
+        }
+        var startBtn = document.querySelector(".start-btn");
+        if (startBtn) {
+          startBtn.addEventListener("click", function() {
+            vscode.postMessage({ type: "start" });
           });
         }
       }

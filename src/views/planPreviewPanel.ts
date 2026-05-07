@@ -33,6 +33,7 @@ export interface PlanPreviewPanelDeps {
   createFileSystemWatcher?: (glob: string) => FileSystemWatcher;
   statFile?: (filePath: string) => Promise<{ birthtimeMs: number; mtimeMs: number } | undefined>;
   onFormPlan?: () => void;
+  onStart?: () => void;
   persistPlanPath?: (state: PersistedPlanState | undefined) => void;
   loadPersistedPlanPath?: () => PersistedPlanState | undefined;
   resolveFromSessionData?: () => Promise<{ planPath: string } | undefined>;
@@ -102,6 +103,8 @@ export class PlanPreviewPanel {
           this._onTabSwitch(msg.category as PlanFileCategory);
         } else if (msg.type === "formPlan") {
           this._deps.onFormPlan?.();
+        } else if (msg.type === "start") {
+          this._deps.onStart?.();
         }
       });
     } else {

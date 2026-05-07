@@ -180,7 +180,7 @@ describe("PlanPreviewPanel", () => {
   });
 
   describe("setPlanFormed", () => {
-    it("setPlanFormed(true) renders disabled Form button with tooltip", async () => {
+    it("setPlanFormed(true) renders Start button", async () => {
       const deps = makeDeps();
       const panel = new PlanPreviewPanel(deps);
       panel.reveal();
@@ -193,8 +193,47 @@ describe("PlanPreviewPanel", () => {
 
       const call = deps._panel.webview.postMessage.mock.calls[0][0];
       expect(call.type).toBe("update");
-      expect(call.html).toContain("disabled");
-      expect(call.html).toContain("Plan already formed");
+      expect(call.html).toContain("start-btn");
+      expect(call.html).toContain("Start</button>");
+      expect(call.html).not.toMatch(/button[^>]*disabled/);
+    });
+
+    it("setPlanFormed(true) with sessionActive renders disabled Start button", async () => {
+      const deps = makeDeps();
+      const onStart = vi.fn();
+      deps.onStart = onStart;
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+      panel.setSessionActive(true);
+
+      await panel.onFileChanged();
+      deps._panel.webview.postMessage.mockClear();
+
+      panel.setPlanFormed(true);
+
+      const call = deps._panel.webview.postMessage.mock.calls[0][0];
+      expect(call.type).toBe("update");
+      expect(call.html).toContain("start-btn");
+      const buttonMatch = call.html.match(/<button[^>]*class="start-btn[^"]*"[^>]*>/);
+      expect(buttonMatch).toBeTruthy();
+      expect(buttonMatch[0]).toContain("disabled");
+    });
+
+    it("start message from webview calls onStart callback", async () => {
+      const deps = makeDeps();
+      const onStart = vi.fn();
+      deps.onStart = onStart;
+      const panel = new PlanPreviewPanel(deps);
+      panel.reveal();
+      panel.beginSession();
+
+      await panel.onFileChanged();
+      panel.setPlanFormed(true);
+
+      deps._panel._simulateMessage({ type: "start" });
+
+      expect(onStart).toHaveBeenCalled();
     });
 
     it("setPlanFormed(false) renders enabled Form button", async () => {

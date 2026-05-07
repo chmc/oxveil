@@ -196,7 +196,7 @@ describe("PlanPreviewPanel > session pinning", () => {
     expect(call?.html).not.toContain("Waiting for Claude to write a plan");
   });
 
-  it("setPlanFormed(true) disables the Form Plan button", async () => {
+  it("setPlanFormed(true) renders Start button", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
@@ -208,8 +208,9 @@ describe("PlanPreviewPanel > session pinning", () => {
 
     const calls = deps._panel.webview.postMessage.mock.calls;
     const lastCall = calls[calls.length - 1][0];
-    expect(lastCall.html).toContain("disabled");
-    expect(lastCall.html).toContain('title="Plan already formed. Start from sidebar."');
+    expect(lastCall.html).toContain("start-btn");
+    expect(lastCall.html).toContain("Start</button>");
+    expect(lastCall.html).not.toMatch(/button[^>]*disabled/);
   });
 
   it("setPlanFormed(false) enables the Form Plan button", async () => {
