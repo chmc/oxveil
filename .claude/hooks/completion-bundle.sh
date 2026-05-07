@@ -52,6 +52,13 @@ has_view_files() {
     [ -f "$EDIT_ORDER_FILE" ] && grep -qE 'src/views/' "$EDIT_ORDER_FILE" 2>/dev/null
 }
 
+# Helper: Returns true if ALL edited files are internal tooling (.claude/ or docs/)
+is_internal_tooling_only() {
+    [ -f "$EDIT_ORDER_FILE" ] || return 0
+    # Fail if any file is NOT .claude/ or docs/
+    ! grep -qvE '^(\.claude/|docs/)' "$EDIT_ORDER_FILE" 2>/dev/null
+}
+
 # Read plan requirements (if exists)
 if [ -f "$REQUIREMENTS_FILE" ]; then
     # Gate 6: Documentation
@@ -95,24 +102,26 @@ if [ -f "$REQUIREMENTS_FILE" ]; then
     fi
 fi
 
-# Gate 9: Simplify (if impl files were edited)
-if has_impl_files; then
+# Gate 9: Simplify (if impl files were edited, skip for internal tooling)
+if has_impl_files && ! is_internal_tooling_only; then
     if [ ! -f "$STATE_DIR/simplify-complete" ]; then
         add_missing "/simplify not run"
     fi
 fi
 
-# Gate 10: Code review (check for session artifact OR touch file)
-_review_pass=false
-for _session in "${CLAUDE_PROJECT_DIR:-.}/.claude/review-sessions/*/README.md"; do
-    [ -f "$_session" ] || continue
-    if grep -q "^result: PASS" "$_session"; then
-        _review_pass=true
-        break
+# Gate 10: Code review (skip for internal tooling)
+if ! is_internal_tooling_only; then
+    _review_pass=false
+    for _session in "${CLAUDE_PROJECT_DIR:-.}/.claude/review-sessions/*/README.md"; do
+        [ -f "$_session" ] || continue
+        if grep -q "^result: PASS" "$_session"; then
+            _review_pass=true
+            break
+        fi
+    done
+    if [ "$_review_pass" = false ] && [ ! -f "$STATE_DIR/review-complete" ]; then
+        add_missing "code review not completed"
     fi
-done
-if [ "$_review_pass" = false ] && [ ! -f "$STATE_DIR/review-complete" ]; then
-    add_missing "code review not completed"
 fi
 
 # Gate 11: Visual verification (only if view files were edited)
