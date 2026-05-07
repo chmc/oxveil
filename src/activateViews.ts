@@ -16,6 +16,7 @@ import { PlanPreviewPanel, type PlanFileCategory, type PersistedPlanState } from
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
 import { resolveFromSessionData } from "./core/planResolver";
+import { getPlanPath } from "./core/paths";
 import type { SessionState } from "./core/sessionState";
 import type { GitExecDeps } from "./core/gitIntegration";
 
@@ -25,6 +26,7 @@ export interface WebviewPanelsDeps {
   gitExec: GitExecDeps | undefined;
   onAnnotation?: (phase: string, text: string) => void;
   context?: { workspaceState: { get: (key: string) => any; update: (key: string, value: any) => void } };
+  planFileOverride?: string;
 }
 
 export interface WebviewPanelsResult {
@@ -228,12 +230,12 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
         if (uri.fsPath === lastSuggestedPath) return;
         lastSuggestedPath = uri.fsPath;
 
-        // Don't suggest if PLAN.md already exists
+        // Don't suggest if plan file already exists
         try {
-          await fs.access(path.join(wsRoot, "PLAN.md"));
+          await fs.access(getPlanPath(wsRoot, deps.planFileOverride));
           return;
         } catch {
-          // No PLAN.md — proceed with suggestion
+          // No plan file — proceed with suggestion
         }
 
         const action = await vscode.window.showInformationMessage(

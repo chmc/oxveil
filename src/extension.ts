@@ -117,6 +117,7 @@ export async function activate(
     session: activeState,
     workspaceRoot,
     gitExec,
+    planFileOverride: manager.getActiveSession()?.planFileOverride,
     onAnnotation: (phase, text) => {
       if (!activePlanChatSession) {
         vscode.window.showWarningMessage("No active Plan Chat session. Start Plan Chat first.");

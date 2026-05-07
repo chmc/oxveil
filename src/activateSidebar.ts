@@ -6,6 +6,7 @@ import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarS
 import type { ArchiveView, SidebarState, SidebarView } from "./views/sidebarState";
 import { computeDuration } from "./parsers/archive";
 import { findLessonsContent } from "./sessionWiring";
+import { getPlanPath } from "./core/paths";
 import { refreshSidebar as doRefreshSidebar } from "./sidebarRefresh";
 import type { SidebarRefreshContext } from "./sidebarRefresh";
 
@@ -66,7 +67,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     return {
       view: viewState,
       plan: (state.planDetected || progress) ? {
-        filename: "PLAN.md",
+        filename: deps.workspaceRoot
+        ? path.basename(getPlanPath(deps.workspaceRoot, manager.getActiveSession()?.planFileOverride))
+        : "PLAN.md",
         phases: progress?.phases.length ? mapPhases(progress.phases) : state.cachedPlanPhases,
       } : undefined,
       session: sessionStatus === "running" || sessionStatus === "done" || sessionStatus === "failed" ? {
@@ -131,7 +134,10 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     if (state.planDetected) {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
     }
-    const planWatcher = vscode.workspace.createFileSystemWatcher("**/PLAN.md");
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const planWatcher = folder
+      ? vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, ".claudeloop/PLAN.md"))
+      : vscode.workspace.createFileSystemWatcher("**/PLAN.md");
     planWatcher.onDidCreate(async () => {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
       state.planDetected = true;
@@ -169,7 +175,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
     try {
       const parsedPlanPath = path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
-      const planMdPath = path.join(deps.workspaceRoot, "PLAN.md");
+      const planMdPath = getPlanPath(deps.workspaceRoot, manager.getActiveSession()?.planFileOverride);
       let content: string;
       try {
         content = await fs.readFile(parsedPlanPath, "utf-8");

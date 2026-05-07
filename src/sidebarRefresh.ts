@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parseProgress } from "./parsers/progress";
+import { getPlanPath } from "./core/paths";
 import type { SidebarMutableState, SidebarActivationDeps } from "./sidebarActivationTypes";
 import type { SidebarPanel } from "./views/sidebarPanel";
 import type { SidebarState } from "./views/sidebarState";
@@ -39,8 +40,8 @@ async function detectInconsistencies(ctx: SidebarRefreshContext): Promise<boolea
   const isRunning = sessionState?.status === "running";
   if (isRunning !== lockExists) return true;
 
-  // 2. planDetected vs PLAN.md existence
-  const planMdPath = path.join(workspaceRoot, "PLAN.md");
+  // 2. planDetected vs plan file existence
+  const planMdPath = getPlanPath(workspaceRoot, session?.planFileOverride);
   let planMdExists = false;
   try {
     await fs.access(planMdPath);
@@ -105,7 +106,7 @@ async function fullReInit(ctx: SidebarRefreshContext): Promise<void> {
   state.planUserChoice = "none";
 
   // 3. Re-detect plan
-  const planMdPath = path.join(workspaceRoot, "PLAN.md");
+  const planMdPath = getPlanPath(workspaceRoot, session?.planFileOverride);
   try {
     await fs.access(planMdPath);
     state.planDetected = true;
