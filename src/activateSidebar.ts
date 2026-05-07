@@ -328,8 +328,8 @@ export async function checkInitialPlanState(
   } catch {
     try {
       const plansDir = path.join(workspaceRoot, ".claude", "plans");
-      const entries = await fs.readdir(plansDir);
-      return entries.some((f) => f.endsWith(".md"));
+      const entries = await fs.readdir(plansDir, { withFileTypes: true });
+      return entries.some((e) => e.isFile() && e.name.endsWith(".md"));
     } catch {
       return false;
     }
