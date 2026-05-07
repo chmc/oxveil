@@ -75,6 +75,8 @@ stateDiagram-v2
 
 On activation, `checkInitialState()` reads existing lock and progress files. If a lock exists (extension restarted while claudeloop was running), it transitions directly to `running`. Progress is restored from the filesystem.
 
+**Plan Detection at Startup:** `checkInitialPlanState()` detects plan files on extension activation. It checks in order: (1) legacy `.claudeloop/PLAN.md` (respecting `planFileOverride`), (2) fallback to `.claude/plans/` directory for any `.md` files. This enables detection of plans created via Claude Code workflows when the legacy path is absent.
+
 ### Lock File Polling Fallback
 
 VS Code's `FileSystemWatcher.onDidDelete` is unreliable on macOS. `WatcherManager` polls the lock file every 5 seconds as a fallback. The poll calls the same `_handleFile()` path as watcher events — on ENOENT it triggers `onLockChange("")`, which drives the `running → done/failed` transition. `SessionState.onLockChanged()` is idempotent, so concurrent watcher + poll events are safe.

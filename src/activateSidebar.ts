@@ -326,6 +326,12 @@ export async function checkInitialPlanState(
     await fs.access(planPath);
     return true;
   } catch {
-    return false;
+    try {
+      const plansDir = path.join(workspaceRoot, ".claude", "plans");
+      const entries = await fs.readdir(plansDir);
+      return entries.some((f) => f.endsWith(".md"));
+    } catch {
+      return false;
+    }
   }
 }
