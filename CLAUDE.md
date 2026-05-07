@@ -79,6 +79,22 @@ When adding a new VS Code setting:
 5. `test/processManager.test.ts` → add to mock's default return value in `beforeEach`
 6. Verify: `npm test` passes, setting appears in VS Code settings UI
 
+## Import Conventions
+
+- `src/core/` files: use `node:` prefixed imports (`node:path`, `node:fs/promises`)
+
+## Async Migration Checklist
+
+When converting sync → async:
+1. Update ALL call sites, including fire-and-forget event handlers
+2. Add `.catch()` to fire-and-forget calls for unhandled rejection
+3. Update tests to `await` async calls — state won't be ready otherwise
+
+## VS Code Language Contributions
+
+- `filenames` matches basename only — won't scope to subdirectory
+- Use `filenamePatterns` with globs for path-specific matching (e.g., `**/.claudeloop/PLAN.md`)
+
 ## Cost Control
 
 Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL_<SERVICE>_<PARAM>` env var overrides. Prefer fake_claude over real API.

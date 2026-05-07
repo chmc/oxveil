@@ -18,6 +18,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 
 </BLOCKING-GATE>
 
+- Black screenshots from `screencapture -x` with valid file size = display asleep, not rendering bug. Fallback to MCP bridge state + filesystem assertions for headless/display-asleep contexts.
 - macOS only. Requires osascript (Accessibility permission) and screencapture (Screen Recording permission).
 - **ALWAYS capture videos for state transitions and workflows.** Screenshots show static states; videos capture timing, animations, and transitions. Use `screencapture -v -l <CGWindowID>` for video (30s default, or `-V <seconds>` for custom duration). Save to `videos/NN-description.mov`.
 - Do not invoke during TDD cycles. This is a standalone verification activity.
