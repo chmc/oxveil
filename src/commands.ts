@@ -256,5 +256,18 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       getActive,
       onFullReset: deps.onFullReset,
     }),
+    vscode.commands.registerCommand("oxveil.switchProvider", async () => {
+      const current = vscode.workspace.getConfiguration("oxveil").get<string>("provider", "claude");
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: "Claude", description: current === "claude" ? "(current)" : "", value: "claude" },
+          { label: "OpenCode", description: current === "opencode" ? "(current)" : "", value: "opencode" },
+        ],
+        { placeHolder: "Select AI provider" }
+      );
+      if (choice && choice.value !== current) {
+        await vscode.workspace.getConfiguration("oxveil").update("provider", choice.value, vscode.ConfigurationTarget.Workspace);
+      }
+    }),
   ];
 }

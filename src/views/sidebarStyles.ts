@@ -48,6 +48,8 @@ export function sidebarCss(): string {
     .badge.failed { background: var(--vscode-errorForeground, #f44747); color: #fff; }
     .badge.completed { background: var(--vscode-testing-iconPassed, #4ec9b0); color: #fff; }
     .badge.stale { background: var(--vscode-editorWarning-foreground, #cca700); color: #000; }
+    .badge.provider { background: var(--vscode-badge-background, #2d5a8a); color: var(--vscode-badge-foreground, #fff); }
+    .badge.provider.opencode { background: var(--vscode-textLink-foreground, #5a2d8a); color: #fff; }
 
     /* Progress bar */
     .progress-bar {

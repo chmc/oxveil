@@ -1,6 +1,14 @@
 import { escapeHtml } from "../utils/html";
 import type { SidebarState, ArchiveView } from "./sidebarState";
+import type { Provider } from "../types";
 import { renderPhaseList } from "./sidebarPhaseHelpers";
+
+function renderProviderBadge(provider: Provider | undefined): string {
+  if (!provider) return "";
+  const label = provider === "opencode" ? "OpenCode" : "Claude";
+  const cls = provider === "opencode" ? "badge provider opencode" : "badge provider";
+  return `<span class="${cls}" title="Provider: ${label}" aria-label="Provider: ${label}">${label}</span>`;
+}
 
 function renderActionBar(buttons: Array<{ label: string; command: string; primary?: boolean; phase?: number; archive?: string }>): string {
   const btns = buttons.map((b) => {
@@ -63,6 +71,7 @@ function renderReady(state: SidebarState): string {
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
     <span class="badge ready">Ready</span>
+    ${renderProviderBadge(state.provider)}
   </div>
   ${renderPhaseList(plan.phases)}
   ${renderActionBar([
@@ -116,6 +125,7 @@ function renderRunning(state: SidebarState): string {
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
     <span class="badge running">Running</span>
+    ${renderProviderBadge(state.provider)}
   </div>
   <div id="progress-bar" class="progress-bar"><div class="progress-fill running" style="width: ${pct}%;"></div></div>
   <div id="info-bar" class="info-bar">
@@ -146,6 +156,7 @@ function renderStopped(state: SidebarState): string {
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
     <span class="badge stopped">Stopped</span>
+    ${renderProviderBadge(state.provider)}
   </div>
   <div class="progress-bar"><div class="progress-fill stopped" style="width: ${pct}%;"></div></div>
   ${renderPhaseList(plan.phases, "stopped")}
@@ -176,6 +187,7 @@ function renderFailed(state: SidebarState): string {
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
     <span class="badge failed">Failed</span>
+    ${renderProviderBadge(state.provider)}
   </div>
   <div class="progress-bar"><div class="progress-fill failed" style="width: ${pct}%;"></div></div>
   ${errorHtml}
@@ -202,6 +214,7 @@ function renderCompleted(state: SidebarState): string {
   <div class="card-header">
     <span class="plan-filename">${filename}</span>
     <span class="badge completed">Completed</span>
+    ${renderProviderBadge(state.provider)}
   </div>
   <div class="success-banner">
     <span class="codicon codicon-check"></span>

@@ -197,6 +197,9 @@ export async function activate(
     statusBar.update(deriveStatusBarFromView(
       postInitState.view,
       manager.getActiveSession()?.sessionState.progress,
+      undefined,
+      undefined,
+      postInitState.provider,
     ));
   }
 

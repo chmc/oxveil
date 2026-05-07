@@ -203,6 +203,10 @@
       {
         "command": "oxveil.checkForUpdates",
         "title": "Oxveil: Check for claudeloop Updates"
+      },
+      {
+        "command": "oxveil.switchProvider",
+        "title": "Oxveil: Switch Provider"
       }
     ],
     "menus": {

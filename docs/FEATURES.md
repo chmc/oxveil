@@ -24,6 +24,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | dependency-graph | beta | 0.7.0 | src/commands/ | Phase dependency visualization |
 | installer | stable | 0.1.0 | src/core/installer.ts | claudeloop detection and installation |
 | claudeloop-awareness-gate | planned | - | .claude/hooks/claudeloop-awareness.sh | Workflow gate: blocks edits when claudeloop FEATURES.md changes |
+| provider-ui | planned | - | src/views/statusBar.ts, src/views/sidebarRenderers.ts | Provider indicator in status bar and sidebar with quick-switch |
 
 ## Adding a New Feature
 

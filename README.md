@@ -169,6 +169,33 @@ claudeloop is a runtime dependency — Oxveil detects it automatically and offer
 | `oxveil.aiParse` | boolean | `true` | Auto-parse plan into phases (`--ai-parse`) |
 | `oxveil.liveRunAutoOpen` | boolean | `true` | Automatically open the Live Run Panel when a session starts or when AI parse begins |
 | `oxveil.selfImprovement` | boolean | `false` | Enable self-improvement mode to capture lessons and propose CLAUDE.md updates after sessions |
+| `oxveil.provider` | string | `"claude"` | AI provider for Plan Chat and Self-Improvement: `"claude"` or `"opencode"` |
+| `oxveil.claudePath` | string | `"claude"` | Path to Claude CLI executable |
+| `oxveil.opencodePath` | string | `""` | Path to OpenCode CLI executable (required when `oxveil.provider` is `"opencode"`) |
+
+## Providers
+
+Oxveil supports Claude CLI (default) and OpenCode CLI for Plan Chat and Self-Improvement sessions.
+
+### Claude CLI (default)
+
+No extra setup — Oxveil detects the `claude` binary automatically. Set `oxveil.claudePath` only if the binary is in a non-standard location.
+
+### OpenCode CLI
+
+1. Set `oxveil.provider` to `"opencode"` in VS Code settings
+2. Set `oxveil.opencodePath` to the full path of your `opencode` binary
+
+The active provider is shown in the status bar. Run **Oxveil: Switch Provider** from the Command Palette to switch without opening settings.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Plan Chat fails to open (Claude) | Ensure `claude` is in PATH or set `oxveil.claudePath` |
+| Plan Chat fails to open (OpenCode) | Set `oxveil.opencodePath` to a valid binary path |
+| Provider indicator missing | Confirm `oxveil.provider` is set in workspace or user settings |
+| Switching provider mid-session | Changing provider ends the current session; start a new one |
 
 ## Commands
 

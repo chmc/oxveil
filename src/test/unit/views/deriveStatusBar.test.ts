@@ -89,4 +89,22 @@ describe("deriveStatusBarFromView", () => {
     const result = deriveStatusBarFromView("running", undefined);
     expect(result).toEqual({ kind: "idle" });
   });
+
+  describe("provider passthrough", () => {
+    it("passes provider through for ready", () => {
+      const result = deriveStatusBarFromView("ready", undefined, undefined, undefined, "opencode");
+      expect(result).toEqual({ kind: "ready", provider: "opencode" });
+    });
+
+    it("passes provider through for stopped", () => {
+      const progress = makeProgress([{ number: 1, title: "S", status: "in_progress" }]);
+      const result = deriveStatusBarFromView("stopped", progress, "api", undefined, "claude");
+      expect(result).toEqual({ kind: "stopped", folderName: "api", provider: "claude" });
+    });
+
+    it("omits provider when undefined", () => {
+      const result = deriveStatusBarFromView("ready", undefined);
+      expect(result).not.toHaveProperty("provider");
+    });
+  });
 });

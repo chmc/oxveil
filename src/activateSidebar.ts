@@ -84,6 +84,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
         lessonsAvailable: selfImprovementEnabled ? state.lessonsAvailable : undefined,
       },
       aiParsing: state.aiParsing,
+      provider: vscode.workspace.getConfiguration?.("oxveil")?.get<"claude" | "opencode">("provider") ?? "claude",
     };
   }
 

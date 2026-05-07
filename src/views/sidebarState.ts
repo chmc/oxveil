@@ -5,6 +5,7 @@ import type {
   ProgressState,
   PhaseState,
   SubStepState,
+  Provider,
 } from "../types";
 
 export type SidebarView =
@@ -47,6 +48,7 @@ export interface SidebarState {
     lessonsAvailable?: boolean; // only relevant when enabled
   };
   aiParsing?: boolean;
+  provider?: Provider;
 }
 
 export interface SubStepView {

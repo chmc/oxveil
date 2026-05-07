@@ -157,6 +157,9 @@ export function createRefreshDetection(deps: RefreshDetectionDeps): () => Promis
       deps.statusBar.update(deriveStatusBarFromView(
         fullState.view,
         deps.manager.getActiveSession()?.sessionState.progress,
+        undefined,
+        undefined,
+        fullState.provider,
       ));
     });
 }

@@ -2,15 +2,17 @@ export type DetectionStatus = "detected" | "not-found" | "version-incompatible";
 
 export type SessionStatus = "idle" | "running" | "done" | "failed";
 
+export type Provider = "claude" | "opencode";
+
 export type StatusBarState =
   | { kind: "not-found" }
   | { kind: "installing" }
-  | { kind: "ready" }
-  | { kind: "idle" }
-  | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string }
-  | { kind: "stopped"; folderName?: string; otherRootsSummary?: string }
-  | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string }
-  | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string };
+  | { kind: "ready"; provider?: Provider }
+  | { kind: "idle"; provider?: Provider }
+  | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string; provider?: Provider }
+  | { kind: "stopped"; folderName?: string; otherRootsSummary?: string; provider?: Provider }
+  | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string; provider?: Provider }
+  | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string; provider?: Provider };
 
 export type PhaseStatus = "pending" | "completed" | "in_progress" | "failed";
 

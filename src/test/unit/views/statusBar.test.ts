@@ -226,4 +226,69 @@ describe("StatusBarManager", () => {
 
     expect(disposed).toBe(true);
   });
+
+  describe("provider icon", () => {
+    it("shows cloud icon for claude provider in ready state", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "ready", provider: "claude" });
+
+      expect(item.text).toBe("$(cloud) Oxveil: ready");
+    });
+
+    it("shows terminal icon for opencode provider in ready state", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "ready", provider: "opencode" });
+
+      expect(item.text).toBe("$(terminal) Oxveil: ready");
+    });
+
+    it("shows terminal icon for opencode in running state", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "running", currentPhase: 2, totalPhases: 5, elapsed: "3m", provider: "opencode" });
+
+      expect(item.text).toBe("$(terminal) Oxveil: Phase 2/5 | 3m");
+    });
+
+    it("shows terminal icon for opencode in failed state", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "failed", failedPhase: 2, provider: "opencode" });
+
+      expect(item.text).toBe("$(terminal) $(error) Oxveil: Phase 2 failed");
+    });
+
+    it("includes provider name in tooltip when provider set", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "ready", provider: "opencode" });
+
+      expect(item.tooltip).toContain("OpenCode");
+    });
+
+    it("includes claude in tooltip when provider is claude", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "ready", provider: "claude" });
+
+      expect(item.tooltip).toContain("Claude");
+    });
+
+    it("does not change icon when provider is undefined (backward compat)", () => {
+      const item = makeStatusBarItem();
+      const manager = new StatusBarManager(item);
+
+      manager.update({ kind: "ready" });
+
+      expect(item.text).toBe("$(symbol-event) Oxveil: ready");
+    });
+  });
 });

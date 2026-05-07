@@ -200,6 +200,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
             session.progress,
             deps.folderName,
             deps.getOtherRootsSummary?.(),
+            sidebarState.provider,
           ));
         } else {
           statusBar.update({ kind: "idle" });

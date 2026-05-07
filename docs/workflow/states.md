@@ -290,8 +290,8 @@ When transitioning to `idle` or on startup, the status bar state is derived from
 |------|------|------|------------|---------|--------|
 | `not-found` | "Oxveil: claudeloop not found" | `$(warning)` | warningBackground | "claudeloop not found — click to install" | `extension.ts` activation (detection failed), `deriveStatusBarFromView` |
 | `installing` | "Oxveil: installing claudeloop..." | `$(sync~spin)` | none | "Installing claudeloop..." | Installer callback |
-| `ready` | "Oxveil: ready" | `$(symbol-event)` | none | "claudeloop detected — ready to run" | `extension.ts` post-init via `deriveStatusBarFromView` |
-| `idle` | "Oxveil: idle" | `$(symbol-event)` | none | "No active session" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (when sidebar view is empty/stale) |
+| `ready` | "Oxveil: ready" | `$(cloud)`/`$(terminal)`/`$(symbol-event)` | none | "Provider: Claude/OpenCode …" or "claudeloop detected — ready to run" | `extension.ts` post-init via `deriveStatusBarFromView` |
+| `idle` | "Oxveil: idle" | `$(cloud)`/`$(terminal)`/`$(symbol-event)` | none | "No active session" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (when sidebar view is empty/stale) |
 | `stopped` | "Oxveil: stopped" | `$(debug-pause)` | none | "Execution stopped — click to resume" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (orphan partial progress) |
 | `running` | "Oxveil: Phase N/M \| elapsed" | `$(sync~spin)` | none | "Running — Phase N of M (elapsed)" | `wireSessionEvents()` on state→running + phases-changed + elapsedTimer tick |
 | `failed` | "Oxveil: Phase N failed" | `$(error)` | errorBackground | "Phase N failed — click for details" | `wireSessionEvents()` on state→failed, or via `deriveStatusBarFromView` (orphan failed progress) |
@@ -598,18 +598,27 @@ type DetectionStatus = "detected" | "not-found" | "version-incompatible";
 type SidebarView = "not-found" | "empty" | "planning" | "ready" | "stale" | "running" | "stopped" | "failed" | "completed" | "self-improvement";
 ```
 
+### Provider
+```typescript
+type Provider = "claude" | "opencode";
+```
+
+Active AI provider for Plan Chat and Self-Improvement sessions. Controlled by `oxveil.provider` VS Code setting. When `undefined`, defaults to Claude behaviour (no indicator shown).
+
 ### StatusBarState
 ```typescript
 type StatusBarState =
   | { kind: "not-found" }
   | { kind: "installing" }
-  | { kind: "ready" }
-  | { kind: "idle" }
-  | { kind: "stopped"; folderName?: string; otherRootsSummary?: string }
-  | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string }
-  | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string }
-  | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string };
+  | { kind: "ready"; provider?: Provider }
+  | { kind: "idle"; provider?: Provider }
+  | { kind: "stopped"; folderName?: string; otherRootsSummary?: string; provider?: Provider }
+  | { kind: "running"; currentPhase: number; totalPhases: number; elapsed: string; folderName?: string; otherRootsSummary?: string; provider?: Provider }
+  | { kind: "failed"; failedPhase: number; folderName?: string; otherRootsSummary?: string; provider?: Provider }
+  | { kind: "done"; elapsed: string; folderName?: string; otherRootsSummary?: string; provider?: Provider };
 ```
+
+When `provider` is set, `StatusBarManager` replaces the default codicon with `$(cloud)` (Claude) or `$(terminal)` (OpenCode) and includes the provider name in the tooltip.
 
 ### PhaseStatus
 ```typescript

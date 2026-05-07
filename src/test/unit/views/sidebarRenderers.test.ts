@@ -333,3 +333,58 @@ describe("renderBody dispatch", () => {
   });
 });
 
+describe("provider badge", () => {
+  it("shows OpenCode badge in ready state", () => {
+    const html = renderBody({
+      view: "ready",
+      provider: "opencode",
+      plan: { filename: "PLAN.md", phases: makePhases({ num: 1, title: "Setup", status: "pending" }) },
+      archives: [],
+    });
+    expect(html).toContain("OpenCode");
+    expect(html).toContain("badge provider");
+  });
+
+  it("shows Claude badge in ready state", () => {
+    const html = renderBody({
+      view: "ready",
+      provider: "claude",
+      plan: { filename: "PLAN.md", phases: makePhases({ num: 1, title: "Setup", status: "pending" }) },
+      archives: [],
+    });
+    expect(html).toContain("Claude");
+    expect(html).toContain("badge provider");
+  });
+
+  it("shows provider badge in running state", () => {
+    const html = renderBody({
+      view: "running",
+      provider: "opencode",
+      plan: { filename: "PLAN.md", phases: makePhases({ num: 1, title: "Setup", status: "in_progress" }) },
+      session: { elapsed: "1m" },
+      archives: [],
+    });
+    expect(html).toContain("OpenCode");
+  });
+
+  it("shows provider badge in failed state", () => {
+    const html = renderBody({
+      view: "failed",
+      provider: "opencode",
+      plan: { filename: "PLAN.md", phases: makePhases({ num: 1, title: "S", status: "failed" }) },
+      session: { elapsed: "1m" },
+      archives: [],
+    });
+    expect(html).toContain("OpenCode");
+  });
+
+  it("omits badge when provider is undefined", () => {
+    const html = renderBody({
+      view: "ready",
+      plan: { filename: "PLAN.md", phases: makePhases({ num: 1, title: "Setup", status: "pending" }) },
+      archives: [],
+    });
+    expect(html).not.toContain("badge provider");
+  });
+});
+
