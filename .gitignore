@@ -28,6 +28,7 @@ graphify-out/
 # Claude Code workflow state (session-local, not committed)
 .claude/workflow-state/*
 !.claude/workflow-state/.gitkeep
+.claude/plans/
 
 # macOS
 .DS_Store
