@@ -617,7 +617,7 @@ generate_plan() {
     done
 }
 
-rm -f PLAN.md
+rm -f .claudeloop/PLAN.md
 wait_for_view "empty" 10
 
 VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
@@ -625,9 +625,9 @@ VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
 [[ "$VIEW" == "empty" ]] || { echo "FAIL: expected empty, got $VIEW"; exit 1; }
 # Screenshot: 01-empty
 
-generate_plan > PLAN.md
+generate_plan > .claudeloop/PLAN.md
 echo "Generated plan:"
-grep "^## Phase" PLAN.md
+grep "^## Phase" .claudeloop/PLAN.md
 
 wait_for_view "stale" 10
 # Screenshot: 02-stale
@@ -635,7 +635,7 @@ wait_for_view "stale" 10
 click_and_verify "resumePlan" "ready"
 # Screenshot: 03-ready
 
-EXPECTED_PHASES=$(grep -c "^## Phase" PLAN.md)
+EXPECTED_PHASES=$(grep -c "^## Phase" .claudeloop/PLAN.md)
 ACTUAL_PHASES=$(curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/state \
   | python3 -c "import sys, json; s=json.load(sys.stdin); print(len(s.get('plan',{}).get('phases',[])))")
 if [[ "$EXPECTED_PHASES" == "$ACTUAL_PHASES" ]]; then
@@ -650,7 +650,7 @@ click_and_verify "start" "running"
 wait_for_view "completed" 45
 # Screenshot: 05-completed
 
-rm -f PLAN.md
+rm -f .claudeloop/PLAN.md
 ```
 
 ### Form Plan button path (automatable via cliclick)
@@ -693,7 +693,7 @@ sleep 0.3
 cliclick kp:return
 ```
 
-3. `wait_for_view "ready" 15`. Continue with `start` → `running`. Cleanup: `rm -f source-plan.md PLAN.md`.
+3. `wait_for_view "ready" 15`. Continue with `start` → `running`. Cleanup: `rm -f source-plan.md .claudeloop/PLAN.md`.
 
 **Why cliclick?** osascript `keystroke` sends keys to the system frontmost app but QuickPick input fields don't reliably receive them. cliclick's coordinate-based click + type bypasses this issue.
 
@@ -701,7 +701,7 @@ cliclick kp:return
 
 | Command | Args | Notes |
 |---------|------|-------|
-| `oxveil.formPlan` | `[{"filePath":"..."}]` | Writes PLAN.md + AI parse. Triggers QuickPick |
+| `oxveil.formPlan` | `[{"filePath":"..."}]` | Writes `.claudeloop/PLAN.md` + AI parse. Triggers QuickPick |
 | `oxveil.discardPlan` | none | Removes PLAN.md, resets to empty |
 
 ## Swift CGWindowID Script

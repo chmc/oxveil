@@ -102,7 +102,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 |-------|------|--------|
 | `detection` | `DetectionStatus` (`"detected" \| "not-found" \| "version-incompatible"`) | `activateDetection()` |
 | `sessionStatus` | `SessionStatus` (`"idle" \| "running" \| "done" \| "failed"`) | `SessionState.status` |
-| `planDetected` | `boolean` | PLAN.md file watcher in `activateSidebar.registerPlanWatcher()` |
+| `planDetected` | `boolean` | `.claudeloop/PLAN.md` file watcher in `activateSidebar.registerPlanWatcher()` |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
 | `planUserChoice` | `PlanUserChoice` (`"none" \| "resume" \| "dismiss" \| "planning"`) | User interaction in stale view; `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
 | `selfImprovementActive` | `boolean` | Whether self-improvement mode is active after session completion. Set to `true` by `sessionWiring` when session completes and lessons are captured. Reset by `skipSelfImprovement` command or `onFullReset()`. |
@@ -410,7 +410,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | `oxveil.processRunning` | `wireSessionEvents()` state-changed handler | `true`/`false` | Session actively running |
 | `oxveil.claudeDetected` | `activateDetection()` | `true`/`false` | Claude CLI available |
 | `oxveil.planChatActive` | `extension.ts` terminal close/create handlers | `true`/`false` | Plan chat terminal is open |
-| `oxveil.walkthrough.hasPlan` | `activateSidebar.registerPlanWatcher()` | `true`/`false` | PLAN.md exists |
+| `oxveil.walkthrough.hasPlan` | `activateSidebar.registerPlanWatcher()` | `true`/`false` | `.claudeloop/PLAN.md` exists |
 | `oxveil.walkthrough.hasRun` | `wireSessionEvents()` on done | `true`/`false` | At least one session completed |
 | `oxveil.walkthrough.configured` | Config wizard command | `true`/`false` | Config wizard opened |
 
@@ -421,7 +421,7 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 1. **Command handler** (`commands.ts`):
    - Shows modal confirmation dialog
    - Stops running process if any (`processManager.stop()`)
-   - Deletes `PLAN.md`
+   - Deletes `.claudeloop/PLAN.md`
    - Deletes `.claudeloop/ai-parsed-plan.md`
    - Deletes `.claudeloop/` contents except `archive/` directory
    - Calls `onFullReset()` callback

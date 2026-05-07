@@ -27,8 +27,8 @@
         "aliases": [
           "Claudeloop Plan"
         ],
-        "filenames": [
-          "PLAN.md"
+        "filenamePatterns": [
+          "**/.claudeloop/PLAN.md"
         ],
         "configuration": "./language-configuration.json"
       }
