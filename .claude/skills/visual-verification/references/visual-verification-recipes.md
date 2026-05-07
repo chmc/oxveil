@@ -473,6 +473,20 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
   -d '{"command":"oxveil.start"}' http://127.0.0.1:$PORT/command
 ```
 
+### Click Body Format
+
+The `/click` endpoint expects `{"command": "resumePlan"}`, NOT a raw selector:
+
+```bash
+# Wrong — will click nothing
+curl -X POST -d '{"selector":"button[data-command=resumePlan]"}' ...
+
+# Correct
+curl -X POST -d '{"command":"resumePlan"}' ...
+```
+
+The bridge runs `commandToSelector(msg)` which reads `msg.command` to build the selector.
+
 ### Click-and-verify pattern
 
 ```bash
@@ -987,6 +1001,16 @@ Applies to any webview button/toggle needing verification. Commands serve double
 
 ## Mock .claudeloop/ State Scripts
 
+### Triggering Webview Updates
+
+| File Changed | Event | Updates Webview? |
+|--------------|-------|------------------|
+| PLAN.md | Full rebuild | ✅ Yes (`updateState`) |
+| PROGRESS.md | `phases-changed` | ❌ Partial only (`sendProgressUpdate`) |
+| lock | `lock-changed` | Depends on session state |
+
+To force full webview refresh: touch PLAN.md or restart EDH.
+
 Prefer fake CLI for dynamic verification. Use manual mocking only for fast static checks or hard-to-trigger states (stale lock after crash). **NEVER delete `.claudeloop/` directory — only remove files via `.MOCK_SESSION` marker.**
 
 ```bash
@@ -1259,6 +1283,17 @@ Plan chat auto-defaults to haiku in EDH. Override: `OXVEIL_CLAUDE_MODEL=sonnet c
 - MCP bridge not starting (check `oxveil.mcpBridge` setting, `.oxveil-mcp` file)
 - Sidebar button click dispatched but state unchanged (check `/state` before and after)
 - Bridge auth rejected (stale discovery file — reload EDH)
+
+### MCP says "ready" but webview shows "stale"
+
+MCP `/state` calls `buildFullState()` on-demand — returns computed state.
+Webview only updates when `sidebarPanel.updateState()` is explicitly called.
+
+These can diverge when:
+- File watcher updated in-memory state but no trigger called `updateState()`
+- `phases-changed` event fired (triggers `sendProgressUpdate`, NOT full `updateState`)
+
+**Fix:** Restart EDH for clean init state. Don't fight stale webview.
 
 ## v0.1 Verification Targets
 <!-- TODO: verify if still current -->
