@@ -1,6 +1,6 @@
 ---
 title: Oxveil Workflow State Specification
-version: 1.0.0
+version: 1.0.1
 source_of_truth: true
 machines: [session]
 projections: [sidebar, statusbar, plan-preview]

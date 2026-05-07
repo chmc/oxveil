@@ -10,6 +10,7 @@ export interface SidebarPanelDeps {
   onPlanChoice?: (choice: "resume" | "dismiss") => void;
   buildState?: () => SidebarState;
   showError?: (message: string) => void;
+  getCodiconsUri?: (webview: Webview) => string | undefined;
 }
 
 interface Webview {
@@ -18,6 +19,7 @@ interface Webview {
   options: { enableScripts?: boolean };
   postMessage: (msg: any) => void;
   onDidReceiveMessage: (cb: (msg: any) => void) => void;
+  asWebviewUri?: (localResource: any) => { toString: () => string };
 }
 
 interface WebviewView {
@@ -60,10 +62,15 @@ export class SidebarPanel {
     }
 
     const nonce = randomBytes(16).toString("hex");
+    let codiconsUri: string | undefined;
+    if (this._deps.getCodiconsUri) {
+      codiconsUri = this._deps.getCodiconsUri(webviewView.webview);
+    }
     webviewView.webview.html = renderSidebar(
       nonce,
       webviewView.webview.cspSource,
       initialState,
+      codiconsUri,
     );
 
     webviewView.webview.onDidReceiveMessage((msg: any) => {

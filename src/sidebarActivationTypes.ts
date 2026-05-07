@@ -15,6 +15,7 @@ export interface SidebarActivationDeps {
   initialDetectionStatus: DetectionStatus;
   initialPlanDetected: boolean;
   planPreviewPanel?: PlanPreviewPanel;
+  extensionUri?: vscode.Uri;
 }
 
 export interface SidebarActivationResult {

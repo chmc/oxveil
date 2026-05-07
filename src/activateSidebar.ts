@@ -88,8 +88,17 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     };
   }
 
+  const getCodiconsUri = deps.extensionUri
+    ? (webview: any) => {
+        if (!webview.asWebviewUri) return undefined;
+        const codiconsPath = vscode.Uri.joinPath(deps.extensionUri!, "node_modules", "@vscode/codicons", "dist", "codicon.css");
+        return webview.asWebviewUri(codiconsPath).toString();
+      }
+    : undefined;
+
   const sidebarPanel = new SidebarPanel({
     executeCommand: vscode.commands.executeCommand,
+    getCodiconsUri,
     onPlanChoice: (choice) => {
       state.planUserChoice = choice;
       // Always update immediately after choice

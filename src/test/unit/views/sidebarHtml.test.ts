@@ -5,6 +5,7 @@ import type { SidebarState } from "../../../views/sidebarState";
 
 const nonce = "test-nonce";
 const csp = "https://mock.csp";
+const mockCodiconsUri = "vscode-resource://codicon.css";
 
 describe("renderSidebar", () => {
   it("renders loading state when no state provided", () => {
@@ -12,6 +13,17 @@ describe("renderSidebar", () => {
     expect(html).toContain("Initializing");
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain(`nonce-${nonce}`);
+  });
+
+  it("includes codicon stylesheet link when codiconsUri provided", () => {
+    const html = renderSidebar(nonce, csp, undefined, mockCodiconsUri);
+    expect(html).toContain(`href="${mockCodiconsUri}"`);
+    expect(html).toContain('<link rel="stylesheet"');
+  });
+
+  it("omits codicon link when codiconsUri not provided", () => {
+    const html = renderSidebar(nonce, csp);
+    expect(html).not.toContain("codicon.css");
   });
 
   it("renders not-found state", () => {
