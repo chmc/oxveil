@@ -23,6 +23,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | self-improvement | beta | 0.6.0 | src/selfImprovement/ | Post-session lessons capture |
 | dependency-graph | beta | 0.7.0 | src/commands/ | Phase dependency visualization |
 | installer | stable | 0.1.0 | src/core/installer.ts | claudeloop detection and installation |
+| claudeloop-awareness-gate | planned | - | .claude/hooks/claudeloop-awareness.sh | Workflow gate: blocks edits when claudeloop FEATURES.md changes |
 
 ## Adding a New Feature
 

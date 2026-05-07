@@ -4,12 +4,13 @@ This project uses Claude Code hooks to enforce a development workflow. These hoo
 
 ## Workflow Overview
 
-Branch confirm → Plan (9 sections) → Tasks → TDD → Updates → Simplify → Review → Verify
+Claudeloop check → Branch confirm → Plan (9 sections) → Tasks → TDD → Updates → Simplify → Review → Verify
 
 ## Gates
 
 | # | Gate | Trigger | Purpose |
 |---|------|---------|---------|
+| 0 | Claudeloop awareness | First Edit/Write | Block if claudeloop FEATURES.md changed |
 | 1 | Branch awareness | First Edit/Write | Confirm branch before work |
 | 2 | Planning checklist | ExitPlanMode | 9 sections required |
 | 3 | Plan-to-tasks | Edit/Write (post-plan) | Tasks must exist |
@@ -62,6 +63,8 @@ Located in `.claude/workflow-state/` (gitignored):
 
 | File | Purpose | Set by |
 |------|---------|--------|
+| `claudeloop-features-hash` | SHA256 of last reviewed claudeloop FEATURES.md | claudeloop-awareness.sh |
+| `claudeloop-confirmed` | Session acknowledgment of changed FEATURES.md | Manual touch |
 | `branch-confirmed` | Branch acknowledged | User confirmation |
 | `plan-exited` | ExitPlanMode called | Gate 2 |
 | `plan-requirements.json` | Which sections need updates | Gate 2 |
