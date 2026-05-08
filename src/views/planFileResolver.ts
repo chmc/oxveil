@@ -175,17 +175,16 @@ export class PlanFileResolver {
   private async _resolveSessionless(
     candidates: FileCandidate[],
   ): Promise<FileCandidate | undefined> {
-    // Layer 1: workspaceState cache
+    // Layer 1: workspaceState cache - only use if it points to the newest candidate
     const cached = this._deps.loadPersistedPlanPath?.();
-    if (cached) {
-      const exists = this._deps.fileExists
-        ? await this._deps.fileExists(cached.planPath)
-        : candidates.some((c) => c.path === cached.planPath);
-      if (exists) {
-        const match = candidates.find((c) => c.path === cached.planPath);
-        if (match) return match;
-        return { path: cached.planPath, category: "plan", mtimeMs: cached.resolvedAt };
+    if (cached && candidates.length > 0) {
+      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const newest = candidates[0];
+      if (cached.planPath === newest.path) {
+        return newest;
       }
+      // Cache is stale (e.g. points to a file from a previous session) — clear it
+      this._deps.persistPlanPath?.(undefined);
     }
 
     // Layer 2: Session JSONL lookup (runs once per activation)

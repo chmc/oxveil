@@ -26,6 +26,31 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
   });
 
+  it("sessionless: cache cleared when newer candidate exists (stale session pointer)", async () => {
+    const newerPath = "/workspace/.claude/plans/newer-plan.md";
+    const deps = makeDeps();
+    const now = Date.now();
+    deps.loadPersistedPlanPath = vi.fn(() => ({
+      planPath: ACTIVE_PLAN_PATH,
+      resolvedAt: now - 10000,
+    }));
+    deps.persistPlanPath = vi.fn();
+    deps.resolveFromSessionData = vi.fn(async () => undefined);
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: now - 5000 },
+      { path: newerPath, category: "plan" as PlanFileCategory, mtimeMs: now },
+    ]);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    await panel.onFileChanged();
+
+    // Cache should be cleared and newest candidate used
+    expect(deps.persistPlanPath).toHaveBeenCalledWith(undefined);
+    expect(deps.readFile).toHaveBeenCalledWith(newerPath);
+  });
+
   it("sessionless: falls through to JSONL when cache is stale (file deleted)", async () => {
     const resolvedPath = "/resolved-from-jsonl.md";
     const deps = makeDeps();
