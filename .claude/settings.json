@@ -7,16 +7,18 @@
     "allow": [
       "Edit(.claude/plans/**)",
       "Write(.claude/plans/**)",
-      "Bash(touch *.claude/workflow-state/*)",
-      "Bash(rm *.claude/workflow-state/*)",
-      "Bash(rm -f *.claude/workflow-state/*)",
-      "Bash(mv *.claude/workflow-state/* *.claude/workflow-state/*)",
-      "Bash(mkdir -p *.claude/workflow-state*)",
-      "Bash(echo * > *.claude/workflow-state/*)",
-      "Bash(cat *.claude/workflow-state/*)",
-      "Bash(ls *.claude/workflow-state*)",
+      "Bash(touch .claude/workflow-state/*)",
+      "Bash(rm .claude/workflow-state/*)",
+      "Bash(rm -f .claude/workflow-state/*)",
+      "Bash(mv .claude/workflow-state/* .claude/workflow-state/*)",
+      "Bash(mkdir -p .claude/workflow-state*)",
+      "Bash(echo * > .claude/workflow-state/*)",
+      "Bash(cat .claude/workflow-state/*)",
+      "Bash(ls .claude/workflow-state*)",
       "Bash(mkdir -p .claude/plans*)",
-      "Bash(rm .claude/plans/*)"
+      "Bash(rm .claude/plans/*)",
+      "Bash(set -o pipefail; { cat *)",
+      "Bash(set -o pipefail; { grep *)"
     ]
   },
   "hooks": {

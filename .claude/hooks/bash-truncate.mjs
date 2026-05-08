@@ -15,6 +15,8 @@ const ALLOWLIST = [
   /^(npx|npm)\s+--version\b/,
   /^npm\s+version\b/,
   /^(export|source|cd|kill|set|true|false)\b/,
+  /^cat\s+\S+\s*$/,
+  /^grep\b/,
 ];
 
 // Pipe targets that already bound output
