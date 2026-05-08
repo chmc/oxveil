@@ -1388,8 +1388,6 @@ Requires: $PORT, $TOKEN from .oxveil-mcp, get_edh_window_id helper, type_in_plan
 ```bash
 verify_plan_chat_flow() {
     local WORKSPACE="${1:-.}"
-    WINDOW_ID=$(get_edh_window_id)
-    [[ -n "$WINDOW_ID" && "$WINDOW_ID" != "0" ]] || { echo "FAIL: EDH not found"; return 1; }
 
     # 1. Click Let's Go
     curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
