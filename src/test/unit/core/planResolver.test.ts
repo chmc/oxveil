@@ -99,6 +99,11 @@ describe("extractLastPlanFilePath", () => {
   it("returns undefined for empty content", () => {
     expect(extractLastPlanFilePath("")).toBeUndefined();
   });
+
+  it("extracts planFilePath from attachment format", () => {
+    const content = '{"attachment":{"type":"plan_mode","planFilePath":"/path/to/plan.md"}}';
+    expect(extractLastPlanFilePath(content)).toBe("/path/to/plan.md");
+  });
 });
 
 describe("resolveFromSessionData", () => {

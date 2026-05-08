@@ -95,6 +95,9 @@ export function extractLastPlanFilePath(content: string): string | undefined {
           }
         }
       }
+      if (parsed?.attachment?.planFilePath) {
+        return parsed.attachment.planFilePath;
+      }
     } catch {
       // Not valid JSON — skip
     }
