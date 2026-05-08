@@ -116,6 +116,7 @@ Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL
 - Skill terminal action governs. Don't substitute ExitPlanMode for skill exit.
 - Plan-spec code inserted → run `npm run lint` immediately. Catches phantom API references before they compound.
 - Before implementing plan phase → check git history. Work may have been co-committed in earlier phases.
+- TodoWrite does not satisfy workflow gates. Use TaskCreate — only TaskCreate triggers `tasks-created.sh` marker.
 
 ## Automation Discipline
 

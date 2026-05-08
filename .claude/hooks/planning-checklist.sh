@@ -184,7 +184,9 @@ fi
 # All sections present — validate Feature section against FEATURES.md
 feature_content=$(get_section_first_line "Feature" || get_section_first_line "feature")
 
-if [ -f "$FEATURES_MD" ]; then
+if is_na_section "Feature"; then
+    : # N/A — skip FEATURES.md check
+elif [ -f "$FEATURES_MD" ]; then
     # Extract feature name(s): look for words/identifiers in feature section
     # Check each word-like token (non-whitespace, skip markdown formatting) against FEATURES.md
     feature_found=0
