@@ -1379,3 +1379,43 @@ PLAN_FILE=$(wait_for_plan_file "$WORKSPACE" 120)
 [[ "$PLAN_FILE" != "TIMEOUT" ]] || { echo "FAIL: No plan file created"; exit 1; }
 echo "Plan file: $PLAN_FILE"
 ```
+
+## End-to-End: Plan Chat → Plan Preview Verification
+
+Full workflow: click Let's Go → type in Plan Chat → wait for plan file → verify Plan Preview via /state.
+Requires: $PORT, $TOKEN from .oxveil-mcp, get_edh_window_id helper, type_in_plan_chat, wait_for_plan_file.
+
+```bash
+verify_plan_chat_flow() {
+    local WORKSPACE="${1:-.}"
+    WINDOW_ID=$(get_edh_window_id)
+    [[ -n "$WINDOW_ID" && "$WINDOW_ID" != "0" ]] || { echo "FAIL: EDH not found"; return 1; }
+
+    # 1. Click Let's Go
+    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d '{"command":"createPlan"}' "http://127.0.0.1:$PORT/click"
+    sleep 2
+
+    # 2. Mark time, type prompt
+    mkdir -p "$WORKSPACE/.claude"
+    touch "$WORKSPACE/.claude/.plan-marker"
+    type_in_plan_chat "plan how to add a button\n"
+
+    # 3. Wait for plan file (120s timeout — Claude responses can be slow)
+    PLAN_FILE=$(wait_for_plan_file "$WORKSPACE" 120)
+    [[ "$PLAN_FILE" != "TIMEOUT" ]] || { echo "FAIL: No plan file created"; return 1; }
+    echo "Plan file: $PLAN_FILE"
+
+    # 4. Wait for Plan Preview to update
+    sleep 3
+
+    # 5. Verify via /state (no vision needed)
+    STATE=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state")
+    VISIBLE=$(echo "$STATE" | jq -r '.planPreview.visible // false')
+    FORMED=$(echo "$STATE" | jq -r '.planPreview.planFormed // false')
+    PHASES=$(echo "$STATE" | jq '.planPreview.phases | length // 0')
+
+    echo "planPreview.visible=$VISIBLE planFormed=$FORMED phases=$PHASES"
+    [[ "$VISIBLE" == "true" && "$FORMED" == "true" ]] && echo "PASS" || { echo "FAIL: planPreview not ready"; return 1; }
+}
+```
