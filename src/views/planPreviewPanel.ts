@@ -5,6 +5,7 @@ import { parsePlan } from "../parsers/plan";
 import { parseSections } from "../parsers/planSections";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
 import { PlanFileResolver } from "./planFileResolver";
+import { PlanPreviewState } from "./sidebarState";
 
 export type PlanFileCategory = "design" | "implementation" | "plan" | "ai-parsed";
 
@@ -255,6 +256,23 @@ export class PlanPreviewPanel {
 
   getActiveFilePath(): string | undefined {
     return this._resolver.getActiveFilePath();
+  }
+
+  public getPlanPreviewState(): PlanPreviewState {
+    return {
+      visible: this._panel !== undefined,
+      sessionActive: this._sessionActive,
+      planFormed: this._planFormed,
+      valid: this._lastValid,
+      format: this._lastFormat,
+      title: this._lastTitle,
+      phases: this._lastPhases.map(p => ({
+        number: p.number,
+        title: p.title,
+        description: p.description,
+      })),
+      activeFilePath: this.getActiveFilePath(),
+    };
   }
 
   refresh(): void {
