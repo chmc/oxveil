@@ -5,7 +5,7 @@ import { parsePlan } from "../parsers/plan";
 import { parseSections } from "../parsers/planSections";
 import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
 import { PlanFileResolver } from "./planFileResolver";
-import { PlanPreviewState } from "./sidebarState";
+import type { PlanPreviewState } from "./sidebarState";
 
 export type PlanFileCategory = "design" | "implementation" | "plan" | "ai-parsed";
 

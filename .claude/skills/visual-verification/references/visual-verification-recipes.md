@@ -1331,7 +1331,7 @@ type_in_plan_chat() {
       -d '{"command":"oxveil.focusPlanChat"}' "http://127.0.0.1:$PORT/command"
     sleep 0.3
 
-    # Send text (append \n to submit)
+    # Caller must append \n to text to submit (sendSequence interprets \n as Enter)
     local ESCAPED=$(printf '%s' "$TEXT" | jq -Rs .)
     curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
       -d "{\"command\":\"workbench.action.terminal.sendSequence\",\"args\":[{\"text\":$ESCAPED}]}" \
@@ -1376,14 +1376,14 @@ touch "$WORKSPACE/.claude/.plan-marker"
 type_in_plan_chat "plan how to add a button\n"
 # 3. Wait for file
 PLAN_FILE=$(wait_for_plan_file "$WORKSPACE" 120)
-[[ "$PLAN_FILE" != "TIMEOUT" ]] || { echo "FAIL: No plan file created"; exit 1; }
+[[ "$PLAN_FILE" != "TIMEOUT" ]] || { echo "FAIL: No plan file created"; return 1; }
 echo "Plan file: $PLAN_FILE"
 ```
 
 ## End-to-End: Plan Chat → Plan Preview Verification
 
 Full workflow: click Let's Go → type in Plan Chat → wait for plan file → verify Plan Preview via /state.
-Requires: $PORT, $TOKEN from .oxveil-mcp, get_edh_window_id helper, type_in_plan_chat, wait_for_plan_file.
+Requires: $PORT, $TOKEN from .oxveil-mcp, type_in_plan_chat, wait_for_plan_file.
 
 ```bash
 verify_plan_chat_flow() {
@@ -1414,6 +1414,6 @@ verify_plan_chat_flow() {
     PHASES=$(echo "$STATE" | jq '.planPreview.phases | length // 0')
 
     echo "planPreview.visible=$VISIBLE planFormed=$FORMED phases=$PHASES"
-    [[ "$VISIBLE" == "true" && "$FORMED" == "true" ]] && echo "PASS" || { echo "FAIL: planPreview not ready"; return 1; }
+    [[ "$VISIBLE" == "true" && "$PHASES" -gt 0 ]] && echo "PASS" || { echo "FAIL: planPreview not ready (visible=$VISIBLE phases=$PHASES)"; return 1; }
 }
 ```
