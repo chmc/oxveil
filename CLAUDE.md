@@ -174,7 +174,7 @@ No summaries, preamble, filler. Bullets for status. Completion: result + next st
 ## Task Hygiene
 
 - NEVER claim "done" or "complete" while tasks remain in_progress
-- If hook blocks TaskUpdate: fix the blocker, then complete the task
+- If hook blocks TaskUpdate: fix the blocker, IMMEDIATELY RETRY the same TaskUpdate. Don't move to next task until current task status change succeeds.
 - Before ending turn: `TaskList` to verify no orphaned in_progress tasks
 
 ## Oxveil Testing Patterns
