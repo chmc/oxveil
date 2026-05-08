@@ -1313,3 +1313,68 @@ These can diverge when:
 - **Screenshot failure:** Blocking. Retry once. If still fails, stop and tell user.
 - **osascript failure:** Menu clicks for destructive ops, `set frontmost` + AXRaise for keystrokes. Retry once.
 - **Vision inconclusive:** Log "analysis inconclusive" and continue.
+
+## Terminal Input via MCP Bridge
+
+Use `oxveil.focusPlanChat` + `workbench.action.terminal.sendSequence` to type into Plan Chat terminal.
+Requires: `$PORT`, `$TOKEN` from `.oxveil-mcp` discovery (see MCP Bridge Discovery section).
+
+```bash
+# Type text into Plan Chat terminal via MCP bridge
+# jq -Rs handles all special chars: $, \, ", backticks
+# For prompts > 4KB, split into multiple calls
+type_in_plan_chat() {
+    local TEXT="$1"
+
+    # Focus Plan Chat terminal
+    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d '{"command":"oxveil.focusPlanChat"}' "http://127.0.0.1:$PORT/command"
+    sleep 0.3
+
+    # Send text (append \n to submit)
+    local ESCAPED=$(printf '%s' "$TEXT" | jq -Rs .)
+    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d "{\"command\":\"workbench.action.terminal.sendSequence\",\"args\":[{\"text\":$ESCAPED}]}" \
+      "http://127.0.0.1:$PORT/command"
+}
+
+# Example: send prompt with Enter
+type_in_plan_chat "plan how to add a button\n"
+```
+
+## Waiting for Plan Files
+
+Poll for new plan files created by Claude after typing in Plan Chat.
+Uses workspace-local marker to avoid /tmp collisions across workspaces.
+
+```bash
+# Wait for a plan file newer than marker, up to TIMEOUT seconds
+# Returns the path of the newest matching file, or "TIMEOUT" on failure
+wait_for_plan_file() {
+    local WORKSPACE="${1:-.}"
+    local TIMEOUT="${2:-120}"
+    local MARKER="$WORKSPACE/.claude/.plan-marker"
+    local END=$((SECONDS + TIMEOUT))
+
+    while [[ $SECONDS -lt $END ]]; do
+        # Find newest .md file created after marker (sort by mtime)
+        local PLAN
+        PLAN=$(find "$WORKSPACE/.claude/plans" -name "*.md" -newer "$MARKER" 2>/dev/null \
+          | xargs ls -t 2>/dev/null | head -1)
+        [[ -n "$PLAN" ]] && { echo "$PLAN"; return 0; }
+        sleep 2
+    done
+    echo "TIMEOUT"
+    return 1
+}
+
+# Usage pattern:
+# 1. Touch marker BEFORE triggering Claude
+touch "$WORKSPACE/.claude/.plan-marker"
+# 2. Type in Plan Chat
+type_in_plan_chat "plan how to add a button\n"
+# 3. Wait for file
+PLAN_FILE=$(wait_for_plan_file "$WORKSPACE" 120)
+[[ "$PLAN_FILE" != "TIMEOUT" ]] || { echo "FAIL: No plan file created"; exit 1; }
+echo "Plan file: $PLAN_FILE"
+```
