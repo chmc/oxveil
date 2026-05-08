@@ -133,6 +133,9 @@ fi
 
 # If any missing, deny completion
 if [ -n "$missing" ]; then
+    # Write marker so taskupdate-reminder hook catches forgotten retries
+    _taskId=$(printf '%s' "$input" | jq -r '.tool_input.taskId // empty' 2>/dev/null) || _taskId=""
+    [ -n "$_taskId" ] && touch "$STATE_DIR/pending-taskupdate-$_taskId"
     cat <<EOF
 {
   "hookSpecificOutput": {
