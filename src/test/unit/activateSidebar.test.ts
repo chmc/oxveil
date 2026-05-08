@@ -471,6 +471,34 @@ describe("activateSidebar", () => {
     });
   });
 
+  describe("buildFullState - planPreview", () => {
+    it("includes planPreview when planPreviewPanel is provided", () => {
+      const mockPlanPreviewState = {
+        visible: true,
+        sessionActive: false,
+        planFormed: false,
+        valid: true,
+        format: "phase" as const,
+        title: "My Plan",
+        phases: [{ number: 1, title: "Setup" }],
+        activeFilePath: "/fake/root/PLAN.md",
+      };
+      const depsWithPanel = makeDeps({
+        planPreviewPanel: {
+          getPlanPreviewState: vi.fn(() => mockPlanPreviewState),
+        } as any,
+      });
+      const res = activateSidebar(depsWithPanel);
+      const state = res.buildFullState();
+      expect(state.planPreview).toEqual(mockPlanPreviewState);
+    });
+
+    it("planPreview is undefined when planPreviewPanel is not provided", () => {
+      const state = result.buildFullState();
+      expect(state.planPreview).toBeUndefined();
+    });
+  });
+
   describe("onAiParseEnded", () => {
     it("sets aiParsing to false", () => {
       result.state.aiParsing = true;

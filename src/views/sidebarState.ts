@@ -49,6 +49,18 @@ export interface SidebarState {
   };
   aiParsing?: boolean;
   provider?: Provider;
+  planPreview?: PlanPreviewState;
+}
+
+export interface PlanPreviewState {
+  visible: boolean;
+  sessionActive: boolean;
+  planFormed: boolean;
+  valid: boolean;
+  format?: "phase" | "keyword" | "numbered";
+  title?: string;
+  phases: Array<{ number: number | string; title: string; description?: string }>;
+  activeFilePath?: string;
 }
 
 export interface SubStepView {

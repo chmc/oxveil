@@ -675,9 +675,27 @@ type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
 
 ### PlanPreviewState
 ```typescript
-// Inline in planPreviewPanel.ts _sendUpdate() — not a named export
+// Internal render state used by planPreviewPanel.ts _sendUpdate() — not a named export
 type PlanPreviewState = "active" | "empty" | "session-ended" | "raw-markdown";
 ```
+
+### PlanPreviewSnapshot (MCP projection)
+```typescript
+// Exported as PlanPreviewState from sidebarState.ts — included in SidebarState.planPreview
+// for MCP /state endpoint. Named PlanPreviewSnapshot here to distinguish from render state above.
+interface PlanPreviewSnapshot {
+  visible: boolean;           // Whether the panel webview is open
+  sessionActive: boolean;     // _sessionActive field from PlanPreviewPanel
+  planFormed: boolean;        // _planFormed field from PlanPreviewPanel
+  valid: boolean;             // _lastValid — whether last parsed plan passed validation
+  format?: "phase" | "keyword" | "numbered";  // _lastFormat — detected plan structure
+  title?: string;             // _lastTitle — first H1 heading from plan file
+  phases: Array<{ number: number | string; title: string; description?: string }>;  // _lastPhases snapshot
+  activeFilePath?: string;    // resolver.getActiveFilePath()
+}
+```
+
+Populated by `PlanPreviewPanel.getPlanPreviewState()` and included in `buildFullState()` via `deps.planPreviewPanel?.getPlanPreviewState()`. Returns `undefined` when `planPreviewPanel` is not wired into `SidebarActivationDeps`.
 
 ### Lesson
 ```typescript
