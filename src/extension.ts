@@ -143,6 +143,7 @@ export async function activate(
     initialDetectionStatus: result.status,
     initialPlanDetected,
     extensionUri: context.extensionUri,
+    planPreviewPanel,
   });
   const { sidebarPanel, buildFullState, getArchives, state: sidebarState } = sidebar;
 
