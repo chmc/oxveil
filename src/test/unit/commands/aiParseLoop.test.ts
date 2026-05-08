@@ -91,7 +91,7 @@ describe("aiParseLoop", () => {
     panel._triggerAction("ai-parse-retry");
     const result = await promise;
     expect(result.outcome).toBe("pass");
-    expect(pm.aiParseFeedback).toHaveBeenCalledWith("tasks");
+    expect(pm.aiParseFeedback).toHaveBeenCalledWith("tasks", { planFile: undefined });
   });
 
   it("returns continued on continue action", async () => {

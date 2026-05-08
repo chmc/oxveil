@@ -13,7 +13,7 @@ export interface AiParseLoopDeps {
   liveRunPanel: LiveRunPanel;
   granularity: string;
   readVerifyReason: () => Promise<string>;
-  options?: { dryRun?: boolean };
+  options?: { dryRun?: boolean; planFile?: string };
   notificationManager?: NotificationManager;
   parsedPlanPath?: string;
 }
@@ -65,7 +65,7 @@ export async function aiParseLoop(deps: AiParseLoopDeps): Promise<AiParseLoopRes
       return { outcome: "aborted" };
     }
 
-    result = await processManager.aiParseFeedback(granularity);
+    result = await processManager.aiParseFeedback(granularity, { planFile: options?.planFile });
   }
 }
 

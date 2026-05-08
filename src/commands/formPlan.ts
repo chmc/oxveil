@@ -116,7 +116,7 @@ export function registerFormPlanCommand(
             liveRunPanel,
             granularity,
             readVerifyReason,
-            options: { dryRun: true },
+            options: { dryRun: true, planFile: planPath },
             notificationManager: deps.notificationManager,
             parsedPlanPath,
           });

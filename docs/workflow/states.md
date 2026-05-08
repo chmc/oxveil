@@ -253,7 +253,7 @@ sequenceDiagram
     FormPlan->>SidebarState: onAiParseStarted()
     SidebarState->>SidebarState: aiParsing = true
     SidebarState->>Sidebar: updateState() → button disabled with spinner
-    FormPlan->>FormPlan: aiParseLoop() runs
+    FormPlan->>FormPlan: aiParseLoop() runs (planFile=planPath passed to claudeloop --plan)
     FormPlan->>SidebarState: onAiParseEnded(skipRefresh) (in finally)
     SidebarState->>SidebarState: aiParsing = false
     alt skipRefresh = false

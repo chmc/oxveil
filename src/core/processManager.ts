@@ -93,7 +93,7 @@ export class ProcessManager implements IProcessManager {
     return this._exitPromise!;
   }
 
-  async aiParse(granularity: string, options?: { dryRun?: boolean }): Promise<AiParseResult> {
+  async aiParse(granularity: string, options?: { dryRun?: boolean; planFile?: string }): Promise<AiParseResult> {
     if (await this._deps.lockExists()) {
       throw new Error("lock file exists — claudeloop is already running");
     }
@@ -102,15 +102,21 @@ export class ProcessManager implements IProcessManager {
     if (options?.dryRun) {
       args.push("--dry-run");
     }
+    if (options?.planFile) {
+      args.push("--plan", options.planFile);
+    }
     return this._spawnChildWithExitCode(args, new Set([2]));
   }
 
-  async aiParseFeedback(granularity: string): Promise<AiParseResult> {
+  async aiParseFeedback(granularity: string, options?: { planFile?: string }): Promise<AiParseResult> {
     if (await this._deps.lockExists()) {
       throw new Error("lock file exists — claudeloop is already running");
     }
 
     const args = ["--ai-parse-feedback", "--granularity", granularity];
+    if (options?.planFile) {
+      args.push("--plan", options.planFile);
+    }
     return this._spawnChildWithExitCode(args, new Set([2]));
   }
 
