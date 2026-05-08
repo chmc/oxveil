@@ -14,6 +14,7 @@ related_files:
   - src/sessionWiring.ts
   - src/views/sidebarMessages.ts
   - src/views/sidebarRenderers.ts
+  - src/views/sidebarRendererHelpers.ts
   - src/activateSidebar.ts
   - src/activateDetection.ts
   - src/extension.ts
