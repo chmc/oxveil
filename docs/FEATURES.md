@@ -25,6 +25,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | installer | stable | 0.1.0 | src/core/installer.ts | claudeloop detection and installation |
 | claudeloop-awareness-gate | planned | - | .claude/hooks/claudeloop-awareness.sh | Workflow gate: blocks edits when claudeloop FEATURES.md changes |
 | provider-ui | planned | - | src/views/statusBar.ts, src/views/sidebarRenderers.ts | Provider indicator in status bar and sidebar with quick-switch |
+| visual-verification | stable | 0.5.0 | .claude/skills/visual-verification/ | Automated UI testing skill for VS Code EDH |
 
 ## Adding a New Feature
 
