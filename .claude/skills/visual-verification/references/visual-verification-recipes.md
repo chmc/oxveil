@@ -1359,8 +1359,8 @@ wait_for_plan_file() {
     while [[ $SECONDS -lt $END ]]; do
         # Find newest .md file created after marker (sort by mtime)
         local PLAN
-        PLAN=$(find "$WORKSPACE/.claude/plans" -name "*.md" -newer "$MARKER" 2>/dev/null \
-          | xargs ls -t 2>/dev/null | head -1)
+        PLAN=$(find "$WORKSPACE/.claude/plans" -name "*.md" -newer "$MARKER" -print0 2>/dev/null \
+          | xargs -0 ls -t 2>/dev/null | head -1)
         [[ -n "$PLAN" ]] && { echo "$PLAN"; return 0; }
         sleep 2
     done
@@ -1370,6 +1370,7 @@ wait_for_plan_file() {
 
 # Usage pattern:
 # 1. Touch marker BEFORE triggering Claude
+mkdir -p "$WORKSPACE/.claude"
 touch "$WORKSPACE/.claude/.plan-marker"
 # 2. Type in Plan Chat
 type_in_plan_chat "plan how to add a button\n"
