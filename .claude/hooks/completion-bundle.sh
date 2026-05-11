@@ -89,7 +89,13 @@ if [ -f "$REQUIREMENTS_FILE" ]; then
     changelog_required=$(jq -r '.changelog // false' "$REQUIREMENTS_FILE")
     if [ "$changelog_required" = "true" ]; then
         if [ ! -f "$STATE_DIR/changelog-complete" ]; then
-            add_missing "changelog not updated"
+            _has_changelog=false
+            git -C "${CLAUDE_PROJECT_DIR:-.}" diff --cached --name-only 2>/dev/null | grep -q "CHANGELOG.md" && _has_changelog=true
+            git -C "${CLAUDE_PROJECT_DIR:-.}" diff --name-only 2>/dev/null | grep -q "CHANGELOG.md" && _has_changelog=true
+            if [ "$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-list --count HEAD 2>/dev/null || echo 0)" -gt 1 ]; then
+                git -C "${CLAUDE_PROJECT_DIR:-.}" diff --name-only HEAD~1 2>/dev/null | grep -q "CHANGELOG.md" && _has_changelog=true
+            fi
+            [ "$_has_changelog" = false ] && add_missing "CHANGELOG.md not modified"
         fi
     fi
 
@@ -126,7 +132,14 @@ fi
 
 # Gate 11: Visual verification (only if view files were edited)
 if has_view_files; then
-    if [ ! -f "$STATE_DIR/visual-verified" ] && [ ! -f "$STATE_DIR/visual-skip-reason" ]; then
+    if [ -f "$STATE_DIR/visual-verified" ]; then
+        _session_path=$(tr -d '[:space:]' < "$STATE_DIR/visual-verified")
+        if [ -z "$_session_path" ] || [ ! -d "$_session_path" ]; then
+            add_missing "visual verification session not found: $_session_path"
+        elif [ ! -f "$_session_path/SESSION.md" ]; then
+            add_missing "visual verification session missing SESSION.md"
+        fi
+    elif [ ! -f "$STATE_DIR/visual-skip-reason" ]; then
         add_missing "visual verification not done (or no skip reason provided)"
     fi
 fi
