@@ -259,7 +259,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .phase-desc a, .raw-markdown a { color: var(--vscode-textLink-foreground, #569cd6); text-decoration: none; }
     .phase-desc a:hover, .raw-markdown a:hover { text-decoration: underline; }
     .phase-desc blockquote, .raw-markdown blockquote { border-left: 3px solid #444; padding-left: 12px; margin: 8px 0; color: #888; }
-    .phase-desc pre, .raw-markdown pre { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 8px 12px; border-radius: 4px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; line-height: 1.4; overflow-x: auto; color: #ccc; white-space: pre; margin: 4px 0; }
+    .phase-desc pre, .raw-markdown pre { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 12px 16px; border-radius: 4px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; line-height: 1.4; overflow-x: auto; color: #ccc; white-space: pre; margin: 8px 0 8px 16px; }
     .phase-desc code, .raw-markdown code { background: var(--vscode-textCodeBlock-background, #2d2d2d); padding: 1px 4px; border-radius: 3px; font-family: var(--vscode-editor-font-family, 'Menlo', 'Consolas', monospace); font-size: 11px; }
     .phase-desc pre code, .raw-markdown pre code { background: none; padding: 0; }
     .phase-desc ul, .raw-markdown ul, .phase-desc ol, .raw-markdown ol { margin: 4px 0 4px 20px; font-size: 12px; line-height: 1.6; color: #999; }
