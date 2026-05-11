@@ -37,6 +37,7 @@
 - After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
+- NEVER leave fake_claude installed after visual verification. Cleanup: `rm -f ~/.local/bin/claude ~/.local/bin/lib`. Verify: `which claude` should return `/opt/homebrew/bin/claude`, not `~/.local/bin/claude`.
 - NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md`.
 
 ## Project
