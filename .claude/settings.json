@@ -22,7 +22,8 @@
       "Bash(mkdir -p .claude/plans*)",
       "Bash(rm .claude/plans/*)",
       "Bash(set -o pipefail; { cat *)",
-      "Bash(set -o pipefail; { grep *)"
+      "Bash(set -o pipefail; { grep *)",
+      "Bash(set -o pipefail; { find *)"
     ]
   },
   "hooks": {

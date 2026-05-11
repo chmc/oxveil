@@ -62,6 +62,7 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - NEVER write a plan for a GitHub issue task without a final step: "Close GitHub issue #N with `gh issue close`".
 - NEVER claim GitHub issue work complete without closing the issue first.
 - Confirming work is done = close the issue. Don't ask, close it.
+- Prefer `Closes #N` in commit message when committing the fix. Use `gh issue close` for multi-phase plans or when no commit is involved. Either way, check `gh issue view #N --json state -q .state` first — issue may already be closed by a prior phase.
 
 ## Development Process
 
@@ -117,7 +118,7 @@ Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL
 - Skill terminal action governs. Don't substitute ExitPlanMode for skill exit.
 - Plan-spec code inserted → run `npm run lint` immediately. Catches phantom API references before they compound.
 - Before implementing plan phase → check git history. Work may have been co-committed in earlier phases.
-- TodoWrite does not satisfy workflow gates. Use TaskCreate — only TaskCreate triggers `tasks-created.sh` marker.
+- TodoWrite does not satisfy workflow gates. Use TaskCreate — only TaskCreate triggers `tasks-created.sh` marker. Subagents without TaskCreate: `touch .claude/workflow-state/tasks-created` after plan approval.
 
 ## Automation Discipline
 
