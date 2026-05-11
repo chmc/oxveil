@@ -59,6 +59,8 @@ export class PlanFileResolver {
   endSession(): void {
     this._sessionStartTime = undefined;
     this._sessionDataResolved = false;
+    this._trackedFiles.clear();
+    this._activeCategory = undefined;
   }
 
   switchTab(category: PlanFileCategory): TrackedFile | undefined {

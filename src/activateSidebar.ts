@@ -139,6 +139,20 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
   }
 
+  async function clearSessionPlanFiles(): Promise<void> {
+    const planPath = deps.planPreviewPanel?.getActiveFilePath();
+    const isSessionPlan = planPath && planPath.split(path.sep).join("/").includes(".claude/plans/");
+    await Promise.all([
+      isSessionPlan ? fs.unlink(planPath!).catch(() => {}) : Promise.resolve(),
+      clearStaleParsedPlan(),
+    ]);
+    vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
+    state.planDetected = false;
+    state.cachedPlanPhases = [];
+    state.planUserChoice = "none";
+    sidebarPanel.updateState(buildFullState());
+  }
+
   function registerPlanWatcher(): vscode.Disposable[] {
     const disposables: vscode.Disposable[] = [];
 
@@ -321,7 +335,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
   }
 
-  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable, onAiParseStarted, onAiParseEnded, refreshSidebar: () => doRefreshSidebar(refreshCtx) };
+  return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable, onAiParseStarted, onAiParseEnded, refreshSidebar: () => doRefreshSidebar(refreshCtx), clearSessionPlanFiles };
 }
 
 /**

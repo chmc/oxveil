@@ -257,6 +257,59 @@ describe("Session wiring happy path (issue #46)", () => {
     expect(lastStateCall.view).toBe("completed");
   });
 
+  it("calls clearSessionPlanFiles on full completion", () => {
+    const { session, deps } = setup();
+    const clearSessionPlanFiles = vi.fn(async () => {});
+    deps.clearSessionPlanFiles = clearSessionPlanFiles;
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "in_progress" }],
+      totalPhases: 1,
+      currentPhaseIndex: 0,
+    });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+
+    expect(clearSessionPlanFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call clearSessionPlanFiles when session stopped (partial progress)", () => {
+    const { session, deps } = setup();
+    const clearSessionPlanFiles = vi.fn(async () => {});
+    deps.clearSessionPlanFiles = clearSessionPlanFiles;
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [
+        { number: 1, title: "Setup", status: "completed" },
+        { number: 2, title: "Build", status: "pending" },
+      ],
+      totalPhases: 2,
+    });
+    session.onLockChanged({ locked: false });
+
+    expect(clearSessionPlanFiles).not.toHaveBeenCalled();
+  });
+
+  it("does not call clearSessionPlanFiles when session failed", () => {
+    const { session, deps } = setup();
+    const clearSessionPlanFiles = vi.fn(async () => {});
+    deps.clearSessionPlanFiles = clearSessionPlanFiles;
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "failed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+
+    expect(clearSessionPlanFiles).not.toHaveBeenCalled();
+  });
+
   it("elapsed timer starts on lock acquired, stops on lock removed", () => {
     const { session, deps } = setup();
 

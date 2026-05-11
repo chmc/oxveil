@@ -75,6 +75,7 @@ export interface SessionWiringDeps {
   buildSidebarState?: () => SidebarState;
   sidebarMutableState?: SidebarMutableState;
   selfImprovementPanel?: SelfImprovementPanel;
+  clearSessionPlanFiles?: () => Promise<void>;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -181,6 +182,12 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
               }
             }
           }
+        }
+        // Prevent stale plans from surfacing as "Resume" on next session start
+        if (view === "completed") {
+          deps.clearSessionPlanFiles?.().catch((err) => {
+            console.error("[oxveil] clearSessionPlanFiles failed:", err);
+          });
         }
         break;
       }

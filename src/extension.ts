@@ -170,6 +170,7 @@ export async function activate(
     buildSidebarState: buildFullState,
     sidebarMutableState: sidebarState,
     selfImprovementPanel,
+    clearSessionPlanFiles: () => sidebar.clearSessionPlanFiles(),
   };
 
   const onArchiveDone = async () => {

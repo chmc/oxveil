@@ -43,6 +43,8 @@ export interface SidebarActivationResult {
   onAiParseEnded: (skipRefresh?: boolean) => void;
   /** Manual refresh — quick re-read, full re-init if inconsistent */
   refreshSidebar: () => Promise<void>;
+  /** Called on full session completion — deletes .claude/plans/ file, clears ai-parsed-plan.md, resets plan state */
+  clearSessionPlanFiles: () => Promise<void>;
 }
 
 export interface SidebarMutableState {

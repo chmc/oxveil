@@ -109,7 +109,7 @@ describe("PlanPreviewPanel > session pinning", () => {
     expect(call.html).toContain("Phase 1");
   });
 
-  it("endSession clears session but preserves tracked files", async () => {
+  it("endSession clears tracked files — sessionless fallback re-resolves from disk", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
@@ -117,17 +117,34 @@ describe("PlanPreviewPanel > session pinning", () => {
     panel.beginSession();
     (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
 
-    // Track the file
+    // Track the file during session
     await panel.onFileChanged();
+    expect(panel.getActiveFilePath()).toBe(ACTIVE_PLAN_PATH);
 
-    // End session
+    // End session — tracked files are cleared
     panel.endSession();
+    expect(panel.getActiveFilePath()).toBeUndefined();
+
     deps._panel.webview.postMessage.mockClear();
     (deps.readFile as any).mockClear();
 
-    // onFileChanged still renders tracked content
+    // onFileChanged re-resolves via sessionless fallback (newest mtime)
     await panel.onFileChanged();
     expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+  });
+
+  it("endSession clears activeFilePath", async () => {
+    const deps = makeDeps();
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    panel.beginSession();
+    (deps.statFile as any).mockResolvedValue({ birthtimeMs: Date.now() + 1000, mtimeMs: Date.now() + 1000 });
+    await panel.onFileChanged();
+    expect(panel.getActiveFilePath()).toBe(ACTIVE_PLAN_PATH);
+
+    panel.endSession();
+    expect(panel.getActiveFilePath()).toBeUndefined();
   });
 
   it("tracking works when _panel is undefined (no early return)", async () => {
