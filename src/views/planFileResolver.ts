@@ -1,5 +1,7 @@
 import type { PlanFileCategory, PersistedPlanState } from "./planPreviewPanel";
 
+const SESSIONLESS_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+
 export interface TrackedFile {
   path: string;
   category: PlanFileCategory;
@@ -175,10 +177,17 @@ export class PlanFileResolver {
   private async _resolveSessionless(
     candidates: FileCandidate[],
   ): Promise<FileCandidate | undefined> {
+    if (candidates.length > 0) {
+      candidates = [...candidates].sort((a, b) => b.mtimeMs - a.mtimeMs);
+      if (Date.now() - candidates[0].mtimeMs > SESSIONLESS_MAX_AGE_MS) {
+        this._deps.persistPlanPath?.(undefined);
+        return undefined;
+      }
+    }
+
     // Layer 1: workspaceState cache - only use if it points to the newest candidate
     const cached = this._deps.loadPersistedPlanPath?.();
     if (cached && candidates.length > 0) {
-      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
       const newest = candidates[0];
       if (cached.planPath === newest.path) {
         return newest;
@@ -205,7 +214,6 @@ export class PlanFileResolver {
 
     // Layer 3: mtimeMs fallback
     if (candidates.length > 0) {
-      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
       return candidates[0];
     }
 

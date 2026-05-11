@@ -91,6 +91,47 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.resolveFromSessionData).toHaveBeenCalledTimes(1);
   });
 
+  it("sessionless: rejects candidates older than 4 hours when no session active", async () => {
+    const staleTime = Date.now() - 5 * 60 * 60 * 1000; // 5 hours ago
+    const deps = makeDeps();
+    deps.loadPersistedPlanPath = vi.fn(() => ({
+      planPath: ACTIVE_PLAN_PATH,
+      resolvedAt: staleTime,
+    }));
+    deps.persistPlanPath = vi.fn();
+    deps.resolveFromSessionData = vi.fn(async () => undefined);
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: staleTime },
+    ]);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    await panel.onFileChanged();
+
+    expect(deps.persistPlanPath).toHaveBeenCalledWith(undefined);
+    expect(deps.readFile).not.toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+  });
+
+  it("sessionless: rejects stale candidates via Layer 3 when no cache exists", async () => {
+    const staleTime = Date.now() - 5 * 60 * 60 * 1000;
+    const deps = makeDeps();
+    deps.loadPersistedPlanPath = vi.fn(() => undefined);
+    deps.persistPlanPath = vi.fn();
+    deps.resolveFromSessionData = vi.fn(async () => undefined);
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: staleTime },
+    ]);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    await panel.onFileChanged();
+
+    expect(deps.persistPlanPath).toHaveBeenCalledWith(undefined);
+    expect(deps.readFile).not.toHaveBeenCalled();
+  });
+
   it("sessionless: falls through to mtimeMs when cache and JSONL both miss", async () => {
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => undefined);
