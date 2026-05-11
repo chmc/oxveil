@@ -160,17 +160,24 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         // Self-improvement trigger
         const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
+        console.log("[oxveil] Self-improvement check:", { selfImprovementEnabled, view, sessionStatus: session.status });
         if (selfImprovementEnabled && view === "completed") {
           const folderPath = vscode.Uri.parse(deps.folderUri).fsPath;
           const lessonsContent = await findLessonsContent(folderPath);
+          console.log("[oxveil] Lessons content:", { found: !!lessonsContent, sessionStatus: session.status });
           if (lessonsContent) {
             const lessons = parseLessons(lessonsContent);
+            console.log("[oxveil] Parsed lessons:", { count: lessons.length, sessionStatus: session.status });
             if (lessons.length > 0 && session.status === "done") {
-              vscode.commands.executeCommand("oxveil.selfImprovement.start", lessons);
-              if (ms) {
-                ms.selfImprovementActive = true;
-                ms.lessonsAvailable = true;
-                buildAndSendSidebarState();
+              try {
+                await vscode.commands.executeCommand("oxveil.selfImprovement.start", lessons);
+                if (ms) {
+                  ms.selfImprovementActive = true;
+                  ms.lessonsAvailable = true;
+                  buildAndSendSidebarState();
+                }
+              } catch (err) {
+                console.error("[oxveil] Self-improvement command failed:", err);
               }
             }
           }

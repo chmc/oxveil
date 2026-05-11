@@ -221,14 +221,16 @@ The `lessonsAvailable` field is derived from the presence of `lessons.md` in the
 
 When a session completes with `selfImprovement` enabled and lessons captured:
 
-1. **Auto-start:** A Claude CLI terminal auto-starts with lessons context in the system prompt (no user click required)
+1. **Auto-trigger:** `sessionWiring` calls `oxveil.selfImprovement.start` with parsed lessons. Errors from this command are caught and logged to console — they do not affect sidebar state.
 2. **Sidebar view:** Transitions to `self-improvement` view showing "Self-improvement session active"
 3. **Terminal close:** When user closes the terminal, `selfImprovementActive` resets to `false`, transitioning sidebar back to `completed` view
 4. **Manual skip:** User can click "End Session" to close the terminal and return to `completed` view
 
+**Diagnostic logging:** `[oxveil]`-prefixed console logs are emitted at each check point (selfImprovementEnabled, view, lessons found, lessons count) to aid debugging when the trigger fails silently.
+
 ```mermaid
 stateDiagram-v2
-    completed --> self_improvement: lessons found + config ON (auto-start terminal)
+    completed --> self_improvement: lessons found + config ON (auto-trigger)
     self_improvement --> completed: terminal closed / End Session clicked
 ```
 

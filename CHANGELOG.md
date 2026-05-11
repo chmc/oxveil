@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Self-improvement command errors are now caught and logged instead of silently failing (#103)
 - Plan preview detects plans written by Claude Code: clears stale session state on activation, polls every 5s when visible, tracks state before panel opens
 
 ### Added

@@ -285,6 +285,69 @@ describe("Self-improvement trigger on session completion", () => {
     expect(mutableState.selfImprovementActive).toBe(false);
   });
 
+  it("logs error when executeCommand rejects", async () => {
+    const session = new SessionState();
+    const mutableState = makeMutableState();
+    const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() };
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    function buildFullState(): SidebarState {
+      const view = deriveViewState(
+        mutableState.detectionStatus,
+        session.status,
+        mutableState.planDetected,
+        session.progress,
+        mutableState.planUserChoice,
+        mutableState.selfImprovementActive,
+      );
+      return { view, archives: [] };
+    }
+
+    const deps: SessionWiringDeps = {
+      session,
+      statusBar: { update: vi.fn(), dispose: vi.fn() },
+      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+      isActiveSession: () => true,
+      folderUri: "file:///test",
+      buildSidebarState: buildFullState,
+      sidebarMutableState: mutableState,
+      sidebarPanel: sidebarPanel as any,
+      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+    };
+    wireSessionEvents(deps);
+
+    vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
+
+    const vscode = await import("vscode");
+    const commandError = new Error("command failed");
+    vi.mocked(vscode.commands.executeCommand).mockImplementation(async (cmd: string) => {
+      if (cmd === "oxveil.selfImprovement.start") throw commandError;
+    });
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+
+    try {
+      await vi.waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("[oxveil]"),
+          commandError,
+        );
+      });
+
+      expect(mutableState.selfImprovementActive).toBe(false);
+      expect(mutableState.lessonsAvailable).toBeUndefined();
+    } finally {
+      vi.mocked(vscode.commands.executeCommand).mockReset();
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("resets selfImprovementActive on new run and loads fresh lessons", async () => {
     const session = new SessionState();
     const mutableState = makeMutableState();
