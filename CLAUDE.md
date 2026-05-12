@@ -64,6 +64,12 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - NEVER include sequence markers in commit messages (`phase-N`, `step-N`, `part-N`). Describe WHAT changed, not WHEN in a process. Exception: when the marker IS the feature name (e.g., `fix: phase-2 migration null handling`).
 - NEVER commit without completing Quality Gates (lint, tests, visual verification if UI, Codex if available). "Only docs/skills" not exempt.
 
+## CHANGELOG
+
+- Entries go under existing section (`### Fixed`, `### Added`) within `## Unreleased`
+- Prepend new bullet to the section — don't create duplicate headers
+- One line per change: `- Brief description (#PR or issue)`
+
 ## GitHub Issues
 
 - NEVER write a plan for a GitHub issue task without a final step: "Close GitHub issue #N with `gh issue close`".

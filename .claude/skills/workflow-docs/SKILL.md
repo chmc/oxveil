@@ -18,6 +18,8 @@ When modifying any of the following files, update `docs/workflow/states.md`:
 | `src/sessionWiring.ts` | E. Cross-Machine Wiring (event → update matrix, context keys) |
 | `src/views/sidebarRenderers.ts` | B. Sidebar View Projection (renderer table) |
 
+**BLOCKING:** When changing any file in `related_files`, edit `docs/workflow/states.md` FIRST — spec is source of truth, code follows.
+
 - Update the Appendix type definitions if union members change.
 - If behavior changes affect user journeys, also update `docs/workflow/user-stories.md`.
 - Run `npm test` — the `workflowStatesSync.test.ts` test validates state enumerations match the spec.

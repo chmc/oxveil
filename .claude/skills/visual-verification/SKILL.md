@@ -89,6 +89,8 @@ The MCP bridge is the primary method for interacting with sidebar webview button
 
 **Webview input fields:** MCP `/click` handles buttons but cannot type into input fields inside webviews. When verification requires form input (text fields, submit), create a test command (e.g., `oxveil._testAnnotation`) that accepts parameters and exercises the same code path. Invoke via MCP `/command`. This bypasses the UI while still exercising the underlying logic.
 
+**Webview scroll limitation:** VS Code webview iframes reject external synthetic scroll events (CGEvent, cliclick, osascript). `scrollTop` behavior only testable via injected JS within the webview or unit tests mocking DOM — MCP `/click` and `/scroll` cannot interact with webview scroll position.
+
 See `references/visual-verification-recipes.md` for discovery file parsing, full command reference, and click-and-verify scripts.
 
 ## Perception-Reasoning-Action Loop (Mandatory)
