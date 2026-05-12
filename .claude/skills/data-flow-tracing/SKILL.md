@@ -20,3 +20,4 @@ Bug symptoms appear in a derived/projection layer (sidebar view, status bar, ren
 2. **Instrument boundaries** — For each boundary, check what value crosses it. Read tests or add logging to verify the value is correct at each handoff point.
 3. **Narrow the fault** — Identify the first boundary where the value goes wrong. That component owns the fix.
 4. **Document the trace** — Before writing the fix, note in the plan/commit which component was suspected vs. which actually owns the bug, and why.
+5. **Check bypass routes** — If your fix filters one layer, verify other layers can't independently produce the same bad output. Each layer that can return a result is a potential bypass.
