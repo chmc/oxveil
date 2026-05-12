@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Plan files not tracked by preview panel are now cleaned up on session end (#111)
 - Self-improvement command now finds lessons from archive when panel state is empty (#113)
 - Fix plan preview showing unrelated global plans (#112)
 - Plan Preview scroll position no longer resets on content updates (#107)

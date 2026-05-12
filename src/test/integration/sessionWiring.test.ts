@@ -1,20 +1,26 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("vscode", () => ({
   commands: {
     executeCommand: vi.fn(),
+  },
+  workspace: {
+    getConfiguration: vi.fn(() => ({ get: vi.fn(() => undefined) })),
   },
   Uri: {
     parse: (uri: string) => ({ fsPath: uri.replace("file://", "") }),
   },
 }));
 
+vi.mock("node:fs/promises");
+
 import { SessionState } from "../../core/sessionState";
 import { wireSessionEvents, type SessionWiringDeps } from "../../sessionWiring";
-import type { SidebarMutableState } from "../../activateSidebar";
+import { activateSidebar, type SidebarMutableState } from "../../activateSidebar";
 import type { SidebarState } from "../../views/sidebarState";
 import { deriveViewState, mapPhases } from "../../views/sidebarState";
 import { makeMutableState } from "./sessionWiring.testHelpers";
+import * as fs from "node:fs/promises";
 
 function setup() {
   const session = new SessionState();
@@ -370,5 +376,59 @@ describe("Rapid progress updates (issue #46)", () => {
     expect(lastCall.phases[9].status).toBe("in_progress");
     expect(lastCall.phases[0].status).toBe("completed");
     expect(lastCall.phases[8].status).toBe("completed");
+  });
+});
+
+describe("clearSessionPlanFiles file deletion (issue #111)", () => {
+  function setupClear(trackedPaths: string[]) {
+    const { clearSessionPlanFiles } = activateSidebar({
+      manager: { getActiveSession: vi.fn(() => null) } as any,
+      archiveTree: { getEntries: vi.fn(() => []) } as any,
+      elapsedTimer: { elapsed: "0m", start: vi.fn(), stop: vi.fn() } as any,
+      initialDetectionStatus: "detected",
+      initialPlanDetected: false,
+      workspaceRoot: undefined,
+      planPreviewPanel: {
+        getTrackedPaths: vi.fn(() => trackedPaths),
+        getPlanPreviewState: vi.fn(() => undefined),
+      } as any,
+    });
+    return clearSessionPlanFiles;
+  }
+
+  beforeEach(() => {
+    vi.mocked(fs.unlink).mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("deletes all tracked files on session clear", async () => {
+    const paths = ["/tmp/a.md", "/tmp/b.md", "/tmp/c.md"];
+    const clearSessionPlanFiles = setupClear(paths);
+
+    await clearSessionPlanFiles();
+
+    expect(vi.mocked(fs.unlink)).toHaveBeenCalledTimes(paths.length);
+    for (const p of paths) {
+      expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith(p);
+    }
+  });
+
+  it("does not delete untracked files", async () => {
+    const clearSessionPlanFiles = setupClear(["/tmp/tracked.md"]);
+
+    await clearSessionPlanFiles();
+
+    expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith("/tmp/tracked.md");
+    expect(vi.mocked(fs.unlink)).not.toHaveBeenCalledWith("/tmp/untracked.md");
+  });
+
+  it("handles empty tracked list without error", async () => {
+    const clearSessionPlanFiles = setupClear([]);
+
+    await expect(clearSessionPlanFiles()).resolves.not.toThrow();
+    expect(vi.mocked(fs.unlink)).not.toHaveBeenCalled();
   });
 });
