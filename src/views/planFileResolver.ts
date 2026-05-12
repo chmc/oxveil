@@ -1,3 +1,5 @@
+import * as os from "node:os";
+import * as path from "node:path";
 import type { PlanFileCategory, PersistedPlanState } from "./planPreviewPanel";
 
 const SESSIONLESS_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -179,6 +181,10 @@ export class PlanFileResolver {
   private async _resolveSessionless(
     candidates: FileCandidate[],
   ): Promise<FileCandidate | undefined> {
+    // In sessionless mode, exclude global plans — they may be from other projects
+    const homePlansDir = path.join(os.homedir(), ".claude", "plans");
+    candidates = candidates.filter(c => !c.path.startsWith(homePlansDir));
+
     if (candidates.length > 0) {
       candidates = [...candidates].sort((a, b) => b.mtimeMs - a.mtimeMs);
       if (Date.now() - candidates[0].mtimeMs > SESSIONLESS_MAX_AGE_MS) {
