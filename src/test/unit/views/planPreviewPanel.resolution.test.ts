@@ -1,3 +1,5 @@
+import * as os from "node:os";
+import * as path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { PlanPreviewPanel, type PlanFileCategory } from "../../../views/planPreviewPanel";
@@ -170,6 +172,28 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.persistPlanPath).toHaveBeenCalledWith(
       expect.objectContaining({ planPath: ACTIVE_PLAN_PATH }),
     );
+  });
+
+  it("sessionless mode excludes global plans from candidates", async () => {
+    const globalPlanPath = path.join(os.homedir(), ".claude", "plans", "other-project-plan.md");
+    const workspacePlanPath = ACTIVE_PLAN_PATH;
+    const now = Date.now();
+
+    const deps = makeDeps();
+    deps.loadPersistedPlanPath = vi.fn(() => undefined);
+    deps.resolveFromSessionData = vi.fn(async () => undefined);
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: globalPlanPath, category: "plan" as PlanFileCategory, mtimeMs: now },
+      { path: workspacePlanPath, category: "plan" as PlanFileCategory, mtimeMs: now - 1000 },
+    ]);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    await panel.onFileChanged();
+
+    expect(deps.readFile).not.toHaveBeenCalledWith(globalPlanPath);
+    expect(deps.readFile).toHaveBeenCalledWith(workspacePlanPath);
   });
 
   it("sessionless: handles resolveFromSessionData errors gracefully", async () => {
