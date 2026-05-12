@@ -3,7 +3,8 @@ import { parsePlanWithDescriptions } from "../parsers/planDescription";
 import { validatePlan } from "../parsers/planValidator";
 import { parsePlan } from "../parsers/plan";
 import { parseSections } from "../parsers/planSections";
-import { renderPhaseCardsHtml, renderPlanPreviewShell, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
+import { renderPhaseCardsHtml, type PhaseCardData, type PhaseCardsOptions } from "./planPreviewHtml";
+import { renderPlanPreviewShell } from "./planPreviewShell";
 import { PlanFileResolver } from "./planFileResolver";
 import type { PlanPreviewState } from "./sidebarState";
 

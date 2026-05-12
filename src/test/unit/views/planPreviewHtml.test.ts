@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  renderPlanPreviewShell,
-  renderPhaseCardsHtml,
-} from "../../../views/planPreviewHtml";
+import { renderPhaseCardsHtml } from "../../../views/planPreviewHtml";
+import { renderPlanPreviewShell } from "../../../views/planPreviewShell";
 import type { PhaseCardsOptions } from "../../../views/planPreviewHtml";
 
 const nonce = "abc123";
