@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Fix plan preview showing unrelated global plans (#112)
 - Plan Preview scroll position no longer resets on content updates (#107)
 - Plan Preview no longer shows stale content from previous sessions when opened without an active Plan Chat session
 - Self-improvement command errors are now caught and logged instead of silently failing (#103)

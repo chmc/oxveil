@@ -196,6 +196,50 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).toHaveBeenCalledWith(workspacePlanPath);
   });
 
+  it("sessionless: Layer 2 skips global plan paths from resolveFromSessionData", async () => {
+    const globalPlanPath = path.join(os.homedir(), ".claude", "plans", "other-project-plan.md");
+    const deps = makeDeps();
+    deps.loadPersistedPlanPath = vi.fn(() => undefined);
+    deps.resolveFromSessionData = vi.fn(async () => ({ planPath: globalPlanPath }));
+    deps.findAllPlanFiles = vi.fn(async () => []);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    await panel.onFileChanged();
+
+    expect(deps.readFile).not.toHaveBeenCalled();
+  });
+
+  it("sessionless: prunes previously tracked global plans on each resolve cycle", async () => {
+    const globalPlanPath = path.join(os.homedir(), ".claude", "plans", "stale-plan.md");
+    const workspacePlanPath = ACTIVE_PLAN_PATH;
+    const now = Date.now();
+
+    const deps = makeDeps();
+    deps.loadPersistedPlanPath = vi.fn(() => undefined);
+    // First call: session data returns global plan (simulates previously persisted state)
+    deps.resolveFromSessionData = vi.fn(async () => ({ planPath: globalPlanPath }));
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: globalPlanPath, category: "plan" as PlanFileCategory, mtimeMs: now },
+    ]);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    // First call: global plan should be excluded
+    await panel.onFileChanged();
+    expect(deps.readFile).not.toHaveBeenCalled();
+
+    // Second call: workspace plan now appears — global plan must NOT persist in trackedFiles
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: workspacePlanPath, category: "plan" as PlanFileCategory, mtimeMs: now },
+    ]);
+    await panel.onFileChanged();
+    expect(deps.readFile).toHaveBeenCalledWith(workspacePlanPath);
+    expect(deps.readFile).not.toHaveBeenCalledWith(globalPlanPath);
+  });
+
   it("sessionless: handles resolveFromSessionData errors gracefully", async () => {
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => undefined);

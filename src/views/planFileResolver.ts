@@ -160,8 +160,20 @@ export class PlanFileResolver {
   }
 
   private async _resolveWithoutSession(candidates: FileCandidate[]): Promise<PlanFileCategory | undefined> {
+    const homePlansDir = path.join(os.homedir(), ".claude", "plans");
+
+    // Prune tracked global plans — they must not persist across resolve cycles
+    for (const [category, tracked] of this._trackedFiles) {
+      if (tracked.path.startsWith(homePlansDir)) {
+        this._trackedFiles.delete(category);
+        if (this._activeCategory === category) {
+          this._activeCategory = undefined;
+        }
+      }
+    }
+
     // Sessionless resolution: 3-layer pipeline
-    const resolved = await this._resolveSessionless(candidates);
+    const resolved = await this._resolveSessionless(candidates, homePlansDir);
     if (!resolved) return undefined;
 
     const existing = this._trackedFiles.get(resolved.category);
@@ -180,9 +192,9 @@ export class PlanFileResolver {
 
   private async _resolveSessionless(
     candidates: FileCandidate[],
+    homePlansDir = path.join(os.homedir(), ".claude", "plans"),
   ): Promise<FileCandidate | undefined> {
     // In sessionless mode, exclude global plans — they may be from other projects
-    const homePlansDir = path.join(os.homedir(), ".claude", "plans");
     candidates = candidates.filter(c => !c.path.startsWith(homePlansDir));
 
     if (candidates.length > 0) {
@@ -209,7 +221,7 @@ export class PlanFileResolver {
       this._sessionDataResolved = true;
       try {
         const result = await this._deps.resolveFromSessionData();
-        if (result) {
+        if (result && !result.planPath.startsWith(homePlansDir)) {
           this._deps.persistPlanPath?.({ planPath: result.planPath, resolvedAt: Date.now() });
           const match = candidates.find((c) => c.path === result.planPath);
           if (match) return match;
