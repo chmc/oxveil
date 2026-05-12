@@ -358,7 +358,7 @@ When the panel is visible, a 5-second poll timer runs as a fallback for file sys
 
 ### Scroll Preservation
 
-On `update` messages, the webview saves `content.scrollTop` before replacing `innerHTML` and restores it after, clamped to `content.scrollHeight - content.clientHeight` to handle content shrinking.
+On `update` messages, the webview saves `.preview-content` scroll position before replacing `innerHTML` and restores it after (re-querying the element since `innerHTML` replacement destroys the old DOM node), clamped to `scrollHeight - clientHeight` to handle content shrinking. The scrollable element is `.preview-content` inside `#plan-content`, not `#plan-content` itself.
 
 ### Code Block Styling
 
