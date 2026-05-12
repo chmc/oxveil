@@ -258,6 +258,10 @@ export class PlanPreviewPanel {
     return this._resolver.getActiveFilePath();
   }
 
+  getTrackedPaths(): string[] {
+    return this._resolver?.getTrackedPaths() ?? [];
+  }
+
   public getPlanPreviewState(): PlanPreviewState {
     return {
       visible: this._panel !== undefined,

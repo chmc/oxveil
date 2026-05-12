@@ -368,6 +368,8 @@ Pre/code blocks in `planPreviewHtml.ts` use `padding: 12px 16px` and `margin: 8p
 
 When multiple plan files exist (design, implementation, plan), the resolver tracks them and provides tab navigation. Tabs are available when 2+ categories are tracked. Categories: `"design" | "implementation" | "plan"`.
 
+`getTrackedPaths()` proxies `PlanFileResolver.getTrackedPaths()` and returns the file paths of all currently tracked plan files (empty array when resolver has no tracked files).
+
 ### Form Plan Button State
 
 **Source:** `src/views/planPreviewPanel.ts` — `_planFormed`, `setPlanFormed()`
