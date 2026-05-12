@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Plan Preview scroll position no longer resets on content updates (#107)
 - Plan Preview no longer shows stale content from previous sessions when opened without an active Plan Chat session
 - Self-improvement command errors are now caught and logged instead of silently failing (#103)
 - Plan preview detects plans written by Claude Code: clears stale session state on activation, polls every 5s when visible, tracks state before panel opens
