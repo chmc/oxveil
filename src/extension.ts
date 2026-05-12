@@ -21,6 +21,8 @@ import type { PlanChatSession } from "./core/planChatSession";
 import type { SelfImprovementSession } from "./core/selfImprovementSession";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { activateSidebar, checkInitialPlanState } from "./activateSidebar";
+import { disposables, setSessionManager } from "./extensionLifecycle";
+export { deactivate } from "./extensionLifecycle";
 import { activateMcpBridge } from "./activateMcpBridge";
 import { activateCommands } from "./activateCommands";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
@@ -33,7 +35,6 @@ import {
 } from "./activateSessionHandlers";
 import { activateUpdateCheck } from "./activateUpdateCheck";
 
-const disposables: vscode.Disposable[] = [];
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -216,7 +217,7 @@ export async function activate(
     manager,
   });
 
-  _sessionManager = manager;
+  setSessionManager(manager);
 
   // Installer
   const installer = new Installer({
@@ -332,20 +333,3 @@ export async function activate(
   context.subscriptions.push(...disposables);
 }
 
-// Expose for deactivate access
-let _sessionManager: WorkspaceSessionManager | undefined;
-
-export async function deactivate(): Promise<void> {
-  if (_sessionManager) {
-    for (const ws of _sessionManager.getAllSessions()) {
-      if (ws.processManager?.isRunning) {
-        await ws.processManager.deactivate();
-      }
-    }
-    _sessionManager.dispose();
-  }
-
-  for (const d of disposables) {
-    d.dispose();
-  }
-}

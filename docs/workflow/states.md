@@ -16,8 +16,10 @@ related_files:
   - src/views/sidebarRenderers.ts
   - src/views/sidebarRendererHelpers.ts
   - src/activateSidebar.ts
+  - src/core/planFiles.ts
   - src/activateDetection.ts
   - src/extension.ts
+  - src/extensionLifecycle.ts
   - src/commands/formPlan.ts
 ---
 

@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { readNewestClaudePlan } from "./core/planFiles";
+export { checkInitialPlanState } from "./core/planFiles";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarState";
 import type { ArchiveView, SidebarState, SidebarView } from "./views/sidebarState";
@@ -237,18 +239,6 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
   }
 
-  async function readNewestClaudePlan(workspaceRoot: string): Promise<string> {
-    const plansDir = path.join(workspaceRoot, ".claude", "plans");
-    const entries = await fs.readdir(plansDir);
-    const mdFiles = entries.filter((f) => f.endsWith(".md"));
-    if (mdFiles.length === 0) throw new Error("No plan files");
-    const withMtimes = await Promise.all(
-      mdFiles.map(async (f) => ({ name: f, mtime: (await fs.stat(path.join(plansDir, f))).mtimeMs }))
-    );
-    withMtimes.sort((a, b) => b.mtime - a.mtime);
-    return fs.readFile(path.join(plansDir, withMtimes[0].name), "utf-8");
-  }
-
   async function refreshLessonsAvailable(): Promise<void> {
     if (!deps.workspaceRoot) {
       state.lessonsAvailable = false;
@@ -338,26 +328,3 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   return { sidebarPanel, buildFullState, getArchives, state, registerPlanWatcher, onPlanFormed, onPlanReset, onPlanChatStarted, onPlanChatEnded, onFullReset, refreshLessonsAvailable, onAiParseStarted, onAiParseEnded, refreshSidebar: () => doRefreshSidebar(refreshCtx), clearSessionPlanFiles };
 }
 
-/**
- * Checks if the plan file exists (respects planFileOverride from .claudeloop.conf).
- */
-export async function checkInitialPlanState(
-  workspaceRoot: string | undefined,
-  planFileOverride?: string,
-): Promise<boolean> {
-  if (!workspaceRoot) return false;
-  const { getPlanPath } = await import("./core/paths");
-  const planPath = getPlanPath(workspaceRoot, planFileOverride);
-  try {
-    await fs.access(planPath);
-    return true;
-  } catch {
-    try {
-      const plansDir = path.join(workspaceRoot, ".claude", "plans");
-      const entries = await fs.readdir(plansDir, { withFileTypes: true });
-      return entries.some((e) => e.isFile() && e.name.endsWith(".md"));
-    } catch {
-      return false;
-    }
-  }
-}
