@@ -354,6 +354,10 @@ flowchart TD
 
 When the panel is visible, a 5-second poll timer runs as a fallback for file system watcher events that may be missed (e.g. files written by external processes like Claude Code). The `_pollTimer` starts in `reveal()` and is cleared in `dispose()`. Each tick calls `onFileChanged()`. State is also tracked even when the panel is not open so that when the panel is revealed it immediately shows any already-detected plan.
 
+### Scroll Preservation
+
+On `update` messages, the webview saves `content.scrollTop` before replacing `innerHTML` and restores it after, clamped to `content.scrollHeight - content.clientHeight` to handle content shrinking.
+
 ### Code Block Styling
 
 Pre/code blocks in `planPreviewHtml.ts` use `padding: 12px 16px` and `margin: 8px 0 8px 16px` for left-indented visual separation from surrounding text.

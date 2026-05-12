@@ -279,7 +279,9 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
       window.addEventListener("message", function(event) {
         var msg = event.data;
         if (msg.type === "update") {
+          var scrollTop = content.scrollTop;
           content.innerHTML = msg.html;
+          content.scrollTop = Math.min(scrollTop, content.scrollHeight - content.clientHeight);
           bindAnnotationButtons();
           bindTabButtons();
           bindFormPlanButton();
