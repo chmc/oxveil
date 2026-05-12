@@ -22,3 +22,4 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - Variables inside `vi.mock()` factories must use `vi.hoisted()` — vitest hoists mocks above imports, so outer-scope `const`s are undefined at factory call time.
 - Hoisted `const` objects: mutate in-place (`delete obj.key`) in `beforeEach`, don't reassign — reassignment breaks the reference captured by the factory.
 - Adding new utility calls (e.g., `ensureClaudeloopDir()`): mock must include all functions the utility calls (`mkdir`, etc.) even if test doesn't assert on them — vitest throws 'No X export defined on mock' otherwise.
+- Async command handlers: always `await` in tests. Adding mock state (e.g., `workspaceFolders`) can cause existing non-awaited handlers to race with assertions — failures appear unrelated to the change.
