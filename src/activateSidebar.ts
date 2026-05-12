@@ -142,10 +142,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   }
 
   async function clearSessionPlanFiles(): Promise<void> {
-    const planPath = deps.planPreviewPanel?.getActiveFilePath();
-    const isSessionPlan = planPath && planPath.split(path.sep).join("/").includes(".claude/plans/");
+    const paths = deps.planPreviewPanel?.getTrackedPaths() ?? [];
     await Promise.all([
-      isSessionPlan ? fs.unlink(planPath!).catch(() => {}) : Promise.resolve(),
+      ...paths.map(p => fs.unlink(p).catch(() => {})),
       clearStaleParsedPlan(),
     ]);
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
