@@ -3,6 +3,8 @@ import { SelfImprovementSession, resolveClaudeModel } from "../core/selfImprovem
 import type { SelfImprovementPanel } from "../views/selfImprovementPanel";
 import type { SidebarMutableState } from "../activateSidebar";
 import type { Lesson } from "../types";
+import { findLessonsContent } from "../sessionWiring";
+import { parseLessons } from "../parsers/lessons";
 
 export interface SelfImprovementCommandDeps {
   claudePath: string | null | undefined;
@@ -20,7 +22,7 @@ export function registerSelfImprovementCommands(
   deps: SelfImprovementCommandDeps,
 ): vscode.Disposable[] {
   return [
-    vscode.commands.registerCommand("oxveil.selfImprovement.start", (lessonsArg?: Lesson[]) => {
+    vscode.commands.registerCommand("oxveil.selfImprovement.start", async (lessonsArg?: Lesson[]) => {
       if (deps.provider === "opencode") {
         if (!deps.opencodePath) {
           vscode.window.showErrorMessage(
@@ -46,14 +48,25 @@ export function registerSelfImprovementCommands(
       }
 
       const panel = deps.getSelfImprovementPanel();
-      const lessons = lessonsArg ?? panel?.currentLessons ?? [];
+      let lessons = lessonsArg ?? panel?.currentLessons ?? [];
+      let fromDisk = false;
+      if (lessons.length === 0) {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (workspaceRoot) {
+          const foundContent = await findLessonsContent(workspaceRoot);
+          if (foundContent) {
+            lessons = parseLessons(foundContent);
+            fromDisk = true;
+          }
+        }
+      }
       if (lessons.length === 0) {
         vscode.window.showWarningMessage("Oxveil: No lessons captured for this session");
         return;
       }
 
-      // If called with lessons (external trigger), reveal panel and wait for user action
-      if (lessonsArg && panel) {
+      // If called with lessons (external trigger) or loaded from disk, reveal panel and wait for user action
+      if ((lessonsArg || fromDisk) && panel) {
         panel.reveal(lessons);
         return; // User clicks Start/Skip in panel
       }
