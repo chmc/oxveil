@@ -9,19 +9,13 @@
 
 | Thought | Reality |
 |---------|---------|
-| "This case is different" | The rule still applies |
-| "I can do this after" | Do it now or it won't happen |
-| "The user won't mind" | Follow the rule |
 | "It's obvious this works" | Run verification anyway |
 | "Tests passed earlier" | Run them now — state changes |
-| "This is trivial" | Trivial changes break too. Full checklist. |
 | "I can verify after" | Verify before claiming done |
 | "We can verify X instead" | Run the specified test |
 | "Prerequisite isn't critical" | It gates the verification |
-| "Documentation doesn't apply" | Check all 4 categories |
 | "Verify manually" / "manual testing" | `/visual-verification` automates UI testing. Never write "manually". |
 | "User asked for it" / "User said yes" | Plan mode exit wasn't granted. Request ExitPlanMode again. |
-| "I'll close the issue later" | Include `gh issue close` in plan. Close before claiming done. |
 | "Let me explore the codebase" | Read `graphify-out/GRAPH_REPORT.md` first. Use `graphify query/path/explain`. |
 
 ## Index
@@ -45,7 +39,7 @@
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
 - NEVER leave fake_claude installed after visual verification. Cleanup: `rm -f ~/.local/bin/claude ~/.local/bin/lib`. Verify: `which claude` should return `/opt/homebrew/bin/claude`, not `~/.local/bin/claude`.
-- NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md`.
+- NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md` (see `workflow-docs` skill).
 
 ## Project
 
@@ -91,32 +85,7 @@ Clears `workflow-state/*` (keeps `claudeloop-features-hash`) and `review-session
 
 ## Adding Settings
 
-When adding a new VS Code setting:
-
-**Warning:** `vscode.workspace.getConfiguration("oxveil")` must be called inside function bodies, not at module level — otherwise it won't reflect active workspace config at registration time.
-
-1. `package.json` → `contributes.configuration.properties` with default
-2. `src/core/processManager.ts` → add to `ProcessManagerSettings` interface
-3. `src/processManagerFactory.ts:getSettings()` → add with same default as `package.json`
-4. `src/core/processManager.ts:_settingsToArgs()` → map to CLI flag
-5. `src/test/unit/core/processManager.*.test.ts` → add to mock's default return value in `beforeEach`
-6. Verify: `npm test` passes, setting appears in VS Code settings UI
-
-## Import Conventions
-
-- `src/core/` files: use `node:` prefixed imports (`node:path`, `node:fs/promises`)
-
-## Async Migration Checklist
-
-When converting sync → async:
-1. Update ALL call sites, including fire-and-forget event handlers
-2. Add `.catch()` to fire-and-forget calls for unhandled rejection
-3. Update tests to `await` async calls — state won't be ready otherwise
-
-## VS Code Language Contributions
-
-- `filenames` matches basename only — won't scope to subdirectory
-- Use `filenamePatterns` with globs for path-specific matching (e.g., `**/.claudeloop/PLAN.md`)
+See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, and language contribution patterns.
 
 ## Cost Control
 
@@ -143,40 +112,26 @@ Clear plan file when done. No stale plans.
 
 ## Quality Gates
 
-**Plans:** Include docs (README, ARCHITECTURE, states.md), test coverage. UI tasks → `/visual-verification` with acceptance criteria. GitHub issue tasks → final step closes issue.
-
-**Executing:** UI task not done until `/visual-verification` passes. No stash for uncommitted changes. Read screenshots, describe concretely.
-
 **Debug:** Wrong sidebar phases → check stale `.claudeloop/ai-parsed-plan.md`.
 
 ### Completion Checklist (execute in order before claiming done)
 
-Execute in order. Do not skip.
-
-0. GitHub issue task? → plan MUST end with `gh issue close #N`
+0. GitHub issue task? → plan MUST end with `gh issue close #N`. See [GitHub Issues](#github-issues).
 1. `npm run lint` — fix all
 2. `npm test` — fix all
-3. Doc scan: state files → `docs/workflow/states.md`, user-facing → README, architecture → ADR
+3. Doc scan: state files → `docs/workflow/states.md` (see `workflow-docs` skill), user-facing → README, architecture → ADR
 4. UI changes → `/visual-verification`
-5. Codex review if available
-6. After 1-5: state result + next step
+5. Codex review: run `/codex:review --wait` or spawn `codex:codex-rescue`. Auto-fix. Loop until clean or 3 cycles.
+6. State result + next step
 
-**Codex review:** After checklist passes, run `/codex:review --wait` or spawn `codex:codex-rescue`. Auto-fix findings. Loop until clean or 3 cycles. `/codex:adversarial-review` only when requested.
-
-**Critic agents (before ExitPlanMode):** Run 2-3 in parallel covering: (1) root cause, (2) scope/mock sites, (3) alternatives/UX. Each must verify:
-- `/visual-verification` included for UI-visible changes (trace call chain to UI)
-- No manual verification when automation exists
-- `docs/workflow/states.md` updated when touching state files
-- GitHub issue tasks include `gh issue close #N` as final step
+**Critic agents (before ExitPlanMode):** Run 2-3 in parallel covering: (1) root cause, (2) scope/mock sites, (3) alternatives/UX. Verify: `/visual-verification` for UI changes, `gh issue close` in plan, no manual verification.
 
 ## Verification Integrity
 
-- NEVER claim verification passed if prerequisites missing. Missing prerequisite = FAILED, not "passed with caveats."
-- NEVER substitute weaker test. "File isolation" ≠ "UI state bleeding." Run specified test.
-- NEVER rationalize blocked paths. Prerequisite fails → fix or report failure.
-- Check prerequisites FIRST. If any fail, stop and report which.
-- Results must match what was tested. "X: PASS. Y: NOT TESTED (prerequisite failed)."
-- Mutable state interfaces: check for stale snapshots. Prefer getters over copied values.
+- Missing prerequisite = FAILED, not "passed with caveats." Check prerequisites FIRST.
+- NEVER substitute weaker test or rationalize blocked paths. Fix or report.
+- Results must match what was tested: "X: PASS. Y: NOT TESTED (prerequisite failed)."
+- Mutable state interfaces: prefer getters over copied values — snapshots go stale.
 
 ## Writing Style
 
