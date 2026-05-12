@@ -44,6 +44,10 @@ export class PlanFileResolver {
     return this._trackedFiles;
   }
 
+  getTrackedPaths(): string[] {
+    return Array.from(this._trackedFiles.values()).map(f => f.path);
+  }
+
   getActiveFilePath(): string | undefined {
     if (!this._activeCategory) return undefined;
     return this._trackedFiles.get(this._activeCategory)?.path;
