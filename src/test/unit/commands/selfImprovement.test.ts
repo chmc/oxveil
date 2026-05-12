@@ -4,6 +4,16 @@ import type { SelfImprovementPanel } from "../../../views/selfImprovementPanel";
 import type { SidebarMutableState } from "../../../activateSidebar";
 import type { SelfImprovementSession } from "../../../core/selfImprovementSession";
 import type { Lesson } from "../../../types";
+import { findLessonsContent } from "../../../sessionWiring";
+import { parseLessons } from "../../../parsers/lessons";
+
+vi.mock("../../../sessionWiring", () => ({
+  findLessonsContent: vi.fn(),
+}));
+
+vi.mock("../../../parsers/lessons", () => ({
+  parseLessons: vi.fn(),
+}));
 
 // Mock VS Code
 const mockGetConfig = vi.fn().mockReturnValue(false);
@@ -25,6 +35,7 @@ vi.mock("vscode", () => ({
     getConfiguration: vi.fn(() => ({
       get: mockGetConfig,
     })),
+    workspaceFolders: [{ uri: { fsPath: "/workspace" } }],
   },
   TerminalOptions: {},
 }));
@@ -154,11 +165,32 @@ describe("registerSelfImprovementCommands", () => {
       const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
         (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
       );
-      startCall[1](); // Execute the handler
+      await startCall[1]();
 
       expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
         expect.stringContaining("No lessons captured"),
       );
+    });
+
+    it("falls back to disk lessons and reveals panel when currentLessons is empty but lessons.md exists", async () => {
+      const vscode = await import("vscode");
+      const diskLessons: Lesson[] = [
+        { phase: 1, title: "Disk lesson", retries: 0, duration: 8, exit: "success" as const },
+      ];
+      vi.mocked(findLessonsContent).mockResolvedValue("raw lessons content");
+      vi.mocked(parseLessons).mockReturnValue(diskLessons);
+      mockPanel.currentLessons = [];
+
+      registerSelfImprovementCommands(deps);
+
+      const startCall = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: [string, Function]) => call[0] === "oxveil.selfImprovement.start"
+      );
+      await startCall[1]();
+
+      expect(vscode.window.showWarningMessage).not.toHaveBeenCalled();
+      expect(mockPanel.reveal).toHaveBeenCalledWith(diskLessons);
+      expect(deps.onSelfImprovementSessionCreated).not.toHaveBeenCalled();
     });
 
     it("focuses existing session if already active", async () => {
