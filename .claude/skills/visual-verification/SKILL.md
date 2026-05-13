@@ -61,6 +61,12 @@ When visual verification runs on Oxveil itself, the main VS Code and EDH share t
    1. Write to SESSION.md: **Fix description** (one sentence), **Observable behavior** (exact UI state/transition that proves the fix), **Trigger action** (user action or mock sequence that produces it).
    2. **Feasibility check:** Can the trigger action be executed in EDH? If NO → stop, report "FAILED: [criteria] not exercisable. Blocker: [reason]." Do not proceed.
    3. `TaskCreate` with subject `"Verify: [observable behavior]"` — mark completed only when behavior is observed.
+      **After TaskCreate:** write session path to workflow-state marker:
+      ```bash
+      echo "$SESSION_DIR" > "${CLAUDE_PROJECT_DIR:-.}/.claude/workflow-state/verify-session-$TASK_ID"
+      ```
+      Replace `$TASK_ID` with the numeric ID returned by TaskCreate (e.g. `12`).
+      Copy acceptance criteria checkboxes from plan's `## Acceptance Criteria` verbatim into SESSION.md.
 
    Then: Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). **Detect self-implementation:** read `package.json` in workspace root — if `"name": "oxveil"`, set `SELF_IMPL=true` and stash uncommitted changes. Verify `oxveil.mcpBridge` is enabled in workspace settings (`.vscode/settings.json`). Create session folder: `verification-sessions/YYYYMMDD-HHMMSS-{title}/screenshots/`. Initialize SESSION.md.
 1. **Build & Launch** — **If self-implementation mode:** Create worktree at `../oxveil-verify-{timestamp}` via `git worktree add`, run `npm install && npm run build` in worktree. Launch EDH via `code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"`. **Otherwise:** `npm run build` in current workspace. Launch EDH via `code --extensionDevelopmentPath="$(pwd)" --disable-extension GitHub.copilot-chat`. Check `mcp__ide__getDiagnostics`. Plan chat automatically uses haiku in EDH (override with `OXVEIL_CLAUDE_MODEL=<model>` if needed). Poll for EDH window (1s intervals, 15s timeout). Wait for `.oxveil-mcp` discovery file to appear (in worktree if self-implementation mode). **Maximize viewport (BLOCKING GATE):** Run the maximize recipe from `references/visual-verification-recipes.md` — close bottom panel, secondary sidebar, and unwanted editor tabs (Welcome, Settings). Keep primary sidebar visible (Oxveil tree view). This step MUST succeed before proceeding to Phase 2. Screenshot on success.

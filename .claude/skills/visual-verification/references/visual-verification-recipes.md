@@ -1249,7 +1249,14 @@ echo "done" > "$WORKTREE_PATH/output.txt"
 Started: {YYYY-MM-DD HH:MM:SS}
 Platform: macOS (System Events: "Code", CGWindowList: "Visual Studio Code")
 
-## Log
+## Fix description
+{One sentence describing what was fixed}
+
+## Acceptance Criteria
+- [ ] {Copy verbatim from plan ## Acceptance Criteria — check off as verified}
+- [ ] {Second criterion}
+
+## Actions log
 {HH:MM:SS} {ACTION} {description} — {result}
 
 ## Changes Made
@@ -1261,10 +1268,16 @@ Platform: macOS (System Events: "Code", CGWindowList: "Visual Studio Code")
 - [ ] Fake CLI temp dirs removed (if created)
 - [ ] No orphan processes
 
-Result: {PASS|FAIL}
+result: {PASS|FAIL}
 Completed: {YYYY-MM-DD HH:MM:SS}
 Iterations: {N}
 ```
+
+**Acceptance Criteria rules:**
+- Copy checkboxes verbatim from plan's `## Acceptance Criteria` section
+- Check off (`- [x]`) each criterion as it is observed during verification
+- All must be `- [x]` before marking the Verify task complete
+- Gate 12 in completion-bundle.sh blocks TaskUpdate if any `- [ ]` remain
 
 ## Cost Control for Real Claude Instances
 

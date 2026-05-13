@@ -144,6 +144,23 @@ if has_view_files; then
     fi
 fi
 
+# Gate 12: Verify task criteria (only for tasks with verify-session marker)
+_taskId=$(printf '%s' "$input" | jq -r '.tool_input.taskId // empty' 2>/dev/null) || _taskId=""
+if [ -n "$_taskId" ]; then
+    _verify_session="$STATE_DIR/verify-session-$_taskId"
+    if [ -f "$_verify_session" ]; then
+        _session_dir=$(tr -d '[:space:]' < "$_verify_session")
+        _session_md="$_session_dir/SESSION.md"
+        if [ -f "$_session_md" ]; then
+            if grep -qE "^- \[ \]" "$_session_md"; then
+                add_missing "verification criteria unchecked in SESSION.md"
+            fi
+        else
+            add_missing "verify-session marker found but SESSION.md missing: $_session_md"
+        fi
+    fi
+fi
+
 # If any missing, deny completion
 if [ -n "$missing" ]; then
     # Write marker so taskupdate-reminder hook catches forgotten retries

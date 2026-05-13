@@ -165,6 +165,17 @@ elif is_empty_section "README"; then
     missing="$missing README (empty),"
 fi
 
+# 10. Acceptance Criteria
+if ! echo "$plan_content" | grep -q "^## acceptance criteria"; then
+    missing="$missing Acceptance Criteria (missing),"
+else
+    # Extract content between ## Acceptance Criteria and next ## header
+    ac_content=$(sed -n '/^## [Aa]cceptance [Cc]riteria/,/^## /p' "$plan_file" | grep -v '^## ')
+    if ! echo "$ac_content" | grep -qE "^- \[ \]"; then
+        missing="$missing Acceptance Criteria (no checkboxes),"
+    fi
+fi
+
 # If any missing or empty, deny
 if [ -n "$missing" ]; then
     missing=$(echo "$missing" | sed 's/,$//')
