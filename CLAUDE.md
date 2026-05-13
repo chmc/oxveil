@@ -68,10 +68,10 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 
 ## GitHub Issues
 
-- NEVER write a plan for a GitHub issue task without a final step: "Close GitHub issue #N with `gh issue close`".
-- NEVER claim GitHub issue work complete without closing the issue first.
-- Confirming work is done = close the issue. Don't ask, close it.
-- Prefer `Closes #N` in commit message when committing the fix. Use `gh issue close` for multi-phase plans or when no commit is involved. Either way, check `gh issue view #N --json state -q .state` first — issue may already be closed by a prior phase.
+- NEVER write a plan for a GitHub issue task without a final step that verifies the issue is closed.
+- NEVER claim GitHub issue work complete without verifying the issue is closed first.
+- Confirming work is done = verify closed state. Don't ask, verify.
+- Prefer `Closes #N` in commit message — auto-closes on push. Use `gh issue close` only when no commit is involved. Final step: `gh issue view #N --json state -q .state` to verify closed. If already closed, phase succeeds.
 
 ## Development Process
 
@@ -118,7 +118,7 @@ Clear plan file when done. No stale plans.
 
 ### Completion Checklist (execute in order before claiming done)
 
-0. GitHub issue task? → plan MUST end with `gh issue close #N`. See [GitHub Issues](#github-issues).
+0. GitHub issue task? → plan MUST verify issue closed (`gh issue view #N --json state -q .state`). See [GitHub Issues](#github-issues).
 1. `npm run lint` — fix all
 2. `npm test` — fix all
 3. Doc scan: state files → `docs/workflow/states.md` (see `workflow-docs` skill), user-facing → README, architecture → ADR
