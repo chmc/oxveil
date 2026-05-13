@@ -61,9 +61,9 @@ export async function activateMcpBridge(deps: McpBridgeDeps): Promise<vscode.Dis
       const bridge = await startBridge({
         workspaceRoot: wsRoot,
         buildFullState,
-        dispatchClick: (msg) => {
+        dispatchClick: async (msg) => {
           const selector = commandToSelector(msg);
-          sidebarPanel.triggerClick(selector);
+          return sidebarPanel.triggerClick(selector);
         },
         executeCommand: vscode.commands.executeCommand,
       });

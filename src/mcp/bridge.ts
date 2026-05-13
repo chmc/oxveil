@@ -12,7 +12,7 @@ const PROTOCOL_VERSION = 1;
 export interface BridgeDeps {
   workspaceRoot: string;
   buildFullState: () => SidebarState;
-  dispatchClick: (msg: SidebarCommand) => void;
+  dispatchClick: (msg: SidebarCommand) => Promise<boolean>;
   executeCommand: (cmd: string, ...args: any[]) => Thenable<any>;
 }
 
@@ -73,8 +73,8 @@ export async function startBridge(deps: BridgeDeps): Promise<BridgeHandle> {
 
       if (method === "POST" && url === "/click") {
         const body = JSON.parse(await readBody(req));
-        deps.dispatchClick(body as SidebarCommand);
-        json(res, 200, { ok: true });
+        const found = await deps.dispatchClick(body as SidebarCommand);
+        json(res, 200, { ok: true, found });
         return;
       }
 
@@ -94,7 +94,7 @@ export async function startBridge(deps: BridgeDeps): Promise<BridgeHandle> {
   });
 
   // Set request timeout
-  server.timeout = 5000;
+  server.timeout = 8000;
 
   await new Promise<void>((resolve, reject) => {
     server.on("error", reject);

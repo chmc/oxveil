@@ -35,6 +35,7 @@ export class SidebarPanel {
   private _lastState: SidebarState | undefined;
   private _webviewReady = false;
   private _pendingMessages: any[] = [];
+  private _pendingClicks = new Map<string, { resolve: (found: boolean) => void; timeout: ReturnType<typeof setTimeout> }>();
   private readonly _deps: SidebarPanelDeps;
 
   constructor(deps: SidebarPanelDeps) {
@@ -89,6 +90,15 @@ export class SidebarPanel {
         }
         return;
       }
+      if (msg.type === "clickResult") {
+        const pending = this._pendingClicks.get(msg.requestId);
+        if (pending) {
+          clearTimeout(pending.timeout);
+          this._pendingClicks.delete(msg.requestId);
+          pending.resolve(!!msg.found);
+        }
+        return;
+      }
       console.log("[Oxveil] webview message received:", msg.command);
       if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
         this._deps.onPlanChoice?.(msg.command === "resumePlan" ? "resume" : "dismiss");
@@ -100,7 +110,12 @@ export class SidebarPanel {
     webviewView.onDidDispose(() => {
       this._view = undefined;
       this._webviewReady = false;
-      this._pendingMessages = []; // Clear queue on dispose
+      this._pendingMessages = [];
+      for (const pending of this._pendingClicks.values()) {
+        clearTimeout(pending.timeout);
+        pending.resolve(false);
+      }
+      this._pendingClicks.clear();
     });
 
     // If state was buffered before view resolved, it was already rendered
@@ -129,9 +144,17 @@ export class SidebarPanel {
     this._postMessage({ type: "progressUpdate", update });
   }
 
-  /** Trigger a real DOM click in the webview for testing. */
-  triggerClick(selector: string): void {
-    this._postMessage({ type: "triggerClick", selector });
+  /** Trigger a real DOM click in the webview. Returns whether element was found and clicked. */
+  triggerClick(selector: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const requestId = Math.random().toString(36).slice(2);
+      const timeout = setTimeout(() => {
+        this._pendingClicks.delete(requestId);
+        resolve(false);
+      }, 5000);
+      this._pendingClicks.set(requestId, { resolve, timeout });
+      this._postMessage({ type: "triggerClick", selector, requestId });
+    });
   }
 
   private _postMessage(msg: any): void {

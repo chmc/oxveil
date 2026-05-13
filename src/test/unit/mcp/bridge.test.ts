@@ -56,7 +56,7 @@ describe("MCP Bridge", () => {
     const deps: BridgeDeps = {
       workspaceRoot: tmpDir,
       buildFullState: () => ({ view: "ready", archives: [] }) as any,
-      dispatchClick: vi.fn(),
+      dispatchClick: vi.fn(async () => true),
       executeCommand: vi.fn(async () => {}),
       ...overrides,
     };
@@ -98,12 +98,23 @@ describe("MCP Bridge", () => {
     expect(res.body.view).toBe("ready");
   });
 
-  it("POST /click dispatches sidebar command", async () => {
-    const dispatchClick = vi.fn();
+  it("POST /click dispatches sidebar command and returns found=true", async () => {
+    const dispatchClick = vi.fn(async () => true);
     await start({ dispatchClick });
     const res = await request(handle!.port, "POST", "/click", token, { command: "start" });
     expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.found).toBe(true);
     expect(dispatchClick).toHaveBeenCalledWith({ command: "start" });
+  });
+
+  it("POST /click returns found=false when element not found", async () => {
+    const dispatchClick = vi.fn(async () => false);
+    await start({ dispatchClick });
+    const res = await request(handle!.port, "POST", "/click", token, { command: "missingButton" });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.found).toBe(false);
   });
 
   it("POST /command executes VS Code command", async () => {

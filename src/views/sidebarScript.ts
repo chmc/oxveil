@@ -47,14 +47,14 @@ export function sidebarJs(): string {
         var msg = event.data;
         console.log("[Oxveil sidebar] message received:", msg.type);
         if (msg.type === "triggerClick") {
-          // Trigger click for testing - uses same path as user clicks
           var el = document.querySelector(msg.selector);
-          if (el) {
-            console.log("[Oxveil sidebar] triggering click on:", msg.selector);
+          var found = !!el && !el.hasAttribute("disabled");
+          if (found) {
             el.click();
           } else {
             console.warn("[Oxveil sidebar] triggerClick: element not found:", msg.selector);
           }
+          vscode.postMessage({ type: "clickResult", requestId: msg.requestId, found: found });
           return;
         }
         if (msg.type === "fullState") {

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- MCP bridge `/click` now returns `found` field indicating whether the target element was clicked
 - Self-improvement panel now opens after session completion even when sidebar state lags progress
 - Live run header now stays visible when scrolling log content (#114)
 - Stale plan dialog no longer appears after successful completion when untracked `.claude/plans/` files exist

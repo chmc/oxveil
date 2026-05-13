@@ -123,6 +123,53 @@ describe("SidebarPanel", () => {
     expect(deps.executeCommand).not.toHaveBeenCalled();
   });
 
+  it("triggerClick resolves true when webview reports element found", async () => {
+    const view = makeMockWebviewView();
+    panel.resolveWebviewView(view as any);
+    view._simulateMessage({ command: "__ready" });
+
+    const clickPromise = panel.triggerClick("[data-command='start']");
+    // Capture the requestId from the posted message
+    const posted = view.webview.postMessage.mock.calls.find(
+      (c: any[]) => c[0].type === "triggerClick"
+    );
+    const requestId = posted![0].requestId;
+    view._simulateMessage({ type: "clickResult", requestId, found: true });
+
+    expect(await clickPromise).toBe(true);
+  });
+
+  it("triggerClick resolves false when webview reports element not found", async () => {
+    const view = makeMockWebviewView();
+    panel.resolveWebviewView(view as any);
+    view._simulateMessage({ command: "__ready" });
+
+    const clickPromise = panel.triggerClick("[data-command='missing']");
+    const posted = view.webview.postMessage.mock.calls.find(
+      (c: any[]) => c[0].type === "triggerClick"
+    );
+    const requestId = posted![0].requestId;
+    view._simulateMessage({ type: "clickResult", requestId, found: false });
+
+    expect(await clickPromise).toBe(false);
+  });
+
+  it("triggerClick resolves false on dispose before response", async () => {
+    const view = makeMockWebviewView();
+    let disposeHandler: (() => void) | undefined;
+    const viewWithDispose = {
+      ...view,
+      onDidDispose: vi.fn((cb: () => void) => { disposeHandler = cb; return { dispose: vi.fn() }; }),
+    };
+    panel.resolveWebviewView(viewWithDispose as any);
+    viewWithDispose._simulateMessage({ command: "__ready" });
+
+    const clickPromise = panel.triggerClick("[data-command='start']");
+    disposeHandler!();
+
+    expect(await clickPromise).toBe(false);
+  });
+
   it("sends progressUpdate to webview", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
