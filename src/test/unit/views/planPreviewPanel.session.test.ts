@@ -184,6 +184,20 @@ describe("PlanPreviewPanel > session pinning", () => {
     expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
   });
 
+  it("beginSession clears _lastTitle from previous session", async () => {
+    const deps = makeDeps();
+    (deps.readFile as any).mockResolvedValue("# Old Title\nContent");
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+
+    await panel.onFileChanged();
+    expect(panel.getPlanPreviewState().title).toBe("Old Title");
+
+    panel.beginSession();
+
+    expect(panel.getPlanPreviewState().title).toBeUndefined();
+  });
+
   it("beginSession resets sessionless tracked files", async () => {
     const deps = makeDeps();
     const panel = new PlanPreviewPanel(deps);
