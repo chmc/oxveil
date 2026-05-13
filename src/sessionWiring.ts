@@ -105,9 +105,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     // Reset cost/todo/notification tracking on new run
     if (to === "running") {
       if (ms) {
-        ms.setCost(0);
-        ms.setTodos(0, 0);
-        ms.setSelfImprovementActive(false);
+        ms.resetForNewRun();
       }
       notifications.reset();
       lastProgress = undefined;
