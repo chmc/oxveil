@@ -29,6 +29,7 @@ graphify-out/
 .claude/workflow-state/*
 !.claude/workflow-state/.gitkeep
 .claude/plans/
+docs/superpowers/plans/
 .claude/review-sessions/
 
 # macOS
