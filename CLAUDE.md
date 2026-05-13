@@ -58,7 +58,7 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - Always use conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`. No exceptions.
 - Never add yourself as co-author. Include `Closes #N` for issue fixes. No auto-push.
 - NEVER include sequence markers in commit messages (`phase-N`, `step-N`, `part-N`). Describe WHAT changed, not WHEN in a process. Exception: when the marker IS the feature name (e.g., `fix: phase-2 migration null handling`).
-- NEVER commit without completing Quality Gates (lint, tests, visual verification if UI, Codex if available). "Only docs/skills" not exempt.
+- NEVER commit without completing Quality Gates (lint, tests, visual verification if UI). "Only docs/skills" not exempt.
 
 ## CHANGELOG
 
@@ -123,8 +123,7 @@ Clear plan file when done. No stale plans.
 2. `npm test` — fix all
 3. Doc scan: state files → `docs/workflow/states.md` (see `workflow-docs` skill), user-facing → README, architecture → ADR
 4. UI changes → `/visual-verification`
-5. Codex review: run `/codex:review --wait` or spawn `codex:codex-rescue`. Auto-fix. Loop until clean or 3 cycles.
-6. State result + next step
+5. State result + next step
 
 **Critic agents (before ExitPlanMode):** Run 2-3 in parallel covering: (1) root cause, (2) scope/mock sites, (3) alternatives/UX. Verify: `/visual-verification` for UI changes, `gh issue close` in plan, no manual verification.
 
