@@ -40,7 +40,7 @@
 - If critics widen scope (new files, additional fixes), update plan before ExitPlanMode.
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
-- NEVER leave fake_claude installed after visual verification. Cleanup: `rm -f ~/.local/bin/claude ~/.local/bin/lib`. Verify: `which claude` should return `/opt/homebrew/bin/claude`, not `~/.local/bin/claude`.
+- NEVER install fake_claude to `~/.local/bin`. Use temp dir + scoped PATH: `FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX); cp fake_claude "$FAKE_CLAUDE_DIR/claude"; chmod +x "$FAKE_CLAUDE_DIR/claude"; trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT; PATH="$FAKE_CLAUDE_DIR:$PATH" code ...`. Temp dir propagates to EDH → claudeloop → claude.
 - NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md` (see `workflow-docs` skill).
 
 ## Project

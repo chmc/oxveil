@@ -1099,47 +1099,30 @@ fi
 
 ### Setup
 
-1. Create temp dir: `FAKE_BIN=$(mktemp -d)`
-2. Copy fake CLI as `claude`: `cp /Users/aleksi/source/claudeloop/tests/fake_claude "$FAKE_BIN/claude" && chmod +x "$FAKE_BIN/claude"`
-3. Create config dir: `export FAKE_CLAUDE_DIR=$(mktemp -d)`
-4. Set scenario: `echo "success" > "$FAKE_CLAUDE_DIR/scenario"`
-5. Prepend to PATH: `export PATH="$FAKE_BIN:$PATH"`
-6. Launch Oxveil normally. It spawns claudeloop, which finds the fake `claude` in PATH.
-
-### System PATH Setup (VS Code Child Processes)
-
-VS Code child processes don't inherit terminal PATH modifications. For fake_claude to work inside EDH terminals and claudeloop spawns, copy to a system PATH location:
+Use a single temp dir for both the binary and FAKE_CLAUDE_DIR. PATH scoped to the `code` launch propagates to EDH → Extension Host → claudeloop → claude (verified by spike test 2026-05-13).
 
 ```bash
-# Copy binary AND lib dir — symlinks break $0 path resolution
-# fake_claude uses $(dirname "$0")/lib/ to load helpers; symlink makes $0 resolve
-# to the symlink location, not the source, so lib/ is not found there.
-mkdir -p ~/.local/bin
-cp /Users/aleksi/source/claudeloop/tests/fake_claude ~/.local/bin/claude
-cp -r /Users/aleksi/source/claudeloop/tests/lib ~/.local/bin/
-chmod +x ~/.local/bin/claude
+# Create temp dir — binary + config in same dir
+FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX)
+export FAKE_CLAUDE_DIR
 
-# Verify
-FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" ~/.local/bin/claude --version  # Should print: fake-claude 0.0.0
+# Install binary (copy lib alongside — fake_claude uses $(dirname $0)/lib/)
+cp /Users/aleksi/source/claudeloop/tests/fake_claude "$FAKE_CLAUDE_DIR/claude"
+cp -r /Users/aleksi/source/claudeloop/tests/lib "$FAKE_CLAUDE_DIR/"
+chmod +x "$FAKE_CLAUDE_DIR/claude"
+
+# Set scenario
+echo "success_verbose" > "$FAKE_CLAUDE_DIR/scenario"
+
+# Ensure cleanup on any exit (SIGINT, SIGTERM, set -e)
+trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT
+
+# Launch EDH with scoped PATH — modification propagates to all child processes
+PATH="$FAKE_CLAUDE_DIR:$PATH" code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
 ```
 
-**Environment variables:** FAKE_CLAUDE_DIR must also be available. Launch EDH with the variable:
-
-```bash
-# Launch EDH with FAKE_CLAUDE_DIR inherited
-FAKE_CLAUDE_DIR="$FAKE_CLAUDE_DIR" code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
-```
-
-**Why copy instead of PATH export?**
-- PATH export only affects current shell and direct children
-- VS Code launches as new process tree
-- System PATH (~/.local/bin, /usr/local/bin) is inherited everywhere
-
-**Cleanup:** Remove copied files in Phase 6:
-```bash
-rm -f ~/.local/bin/claude
-rm -rf ~/.local/bin/lib
-```
+**Cleanup:** Handled automatically by `trap EXIT`. No manual cleanup needed.
+If EDH is kept open after script exits, temp dir may already be gone — relaunch if needed.
 
 ### Scenario Reference
 
