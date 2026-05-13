@@ -5,10 +5,14 @@ export function getLiveRunStyles(): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); background: var(--vscode-editor-background); color: var(--vscode-foreground, #ccc); padding: 0; }
 
+    /* Sticky headers */
+    #ai-parse-status-header { position: sticky; top: 0; z-index: 11; }
+    #dashboard { position: sticky; top: 0; z-index: 10; background: var(--vscode-sideBar-background, #252526); }
+
     /* Dashboard */
     .dashboard { padding: 16px 20px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
     .dashboard-toggle { font-size: 11px; color: #569cd6; cursor: pointer; margin-bottom: 10px; user-select: none; }
-    .dashboard-empty { padding: 16px 20px; color: #888; font-size: 13px; }
+    .dashboard-empty { padding: 16px 20px; color: #888; font-size: 13px; background: var(--vscode-sideBar-background, #252526); }
     .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
     .cost { font-size: 12px; color: #888; }
 
