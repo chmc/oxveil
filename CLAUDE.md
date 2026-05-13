@@ -142,6 +142,15 @@ AI files: imperative, flat bullets, one rule per line. YAML frontmatter for skil
 
 No summaries, preamble, filler. Bullets for status. Completion: result + next step.
 
+## Task Tracking
+
+After ExitPlanMode approval, create tasks for each plan step **before writing code**:
+1. One task per implementation step
+2. "Lint and typecheck" task (blockedBy all impl tasks)
+3. "End session and cleanup" task (blockedBy lint task)
+
+Mark `in_progress` before starting, `completed` when done.
+
 ## Task Hygiene
 
 - NEVER claim "done" or "complete" while tasks remain in_progress
