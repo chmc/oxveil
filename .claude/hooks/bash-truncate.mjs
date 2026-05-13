@@ -64,7 +64,7 @@ function wrapCommand(cmd) {
     `print "--- truncated (showing last ${TAIL_LINES} lines) ---";`,
     `s=t-${TAIL_LINES - 1};for(i=s;i<=t;i++)print buf[i%${TAIL_LINES}]}}`,
   ].join('');
-  return `set -o pipefail; { ${cmd}; } 2>&1 | awk '${awkScript}'`;
+  return `set -o pipefail; ( ${cmd} ) 2>&1 | awk '${awkScript}'`;
 }
 
 async function main() {

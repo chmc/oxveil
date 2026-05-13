@@ -21,9 +21,9 @@
       "Bash(rm -rf .claude/review-sessions/*)",
       "Bash(mkdir -p .claude/plans*)",
       "Bash(rm .claude/plans/*)",
-      "Bash(set -o pipefail; { cat *}*)",
-      "Bash(set -o pipefail; { grep *}*)",
-      "Bash(set -o pipefail; { find *}*)"
+      "Bash(set -o pipefail; ( cat * ) 2>&1 | awk *)",
+      "Bash(set -o pipefail; ( grep * ) 2>&1 | awk *)",
+      "Bash(set -o pipefail; ( find * ) 2>&1 | awk *)"
     ]
   },
   "hooks": {
