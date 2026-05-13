@@ -24,3 +24,4 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - Hoisted `const` objects: mutate in-place (`delete obj.key`) in `beforeEach`, don't reassign — reassignment breaks the reference captured by the factory.
 - Adding new utility calls (e.g., `ensureClaudeloopDir()`): mock must include all functions the utility calls (`mkdir`, etc.) even if test doesn't assert on them — vitest throws 'No X export defined on mock' otherwise.
 - Async command handlers: always `await` in tests. Adding mock state (e.g., `workspaceFolders`) can cause existing non-awaited handlers to race with assertions — failures appear unrelated to the change.
+- Race condition tests: use deferred promise (`new Promise` + external `resolve`) for mocked async calls. Resolve AFTER triggering the state change to verify guards fire correctly—the guard must re-check state after the await returns (`if (session.status !== "done")`).
