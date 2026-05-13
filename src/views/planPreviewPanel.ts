@@ -155,6 +155,9 @@ export class PlanPreviewPanel {
       this._lastPhases = [];
       this._lastValid = false;
       this._lastRawContent = undefined;
+      this._lastTitle = undefined;
+      this._lastFormat = undefined;
+      this._lastKeyword = undefined;
       if (this._panel) this._sendUpdate();
       return;
     }
