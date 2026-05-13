@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Panel visible getter now tracks webview ready state to prevent silent postMessage failures (#119)
 - ProcessManager race conditions in spawn methods (#117)
 - Fix async race condition in self-improvement trigger (#116)
 - MCP bridge `/click` now returns `found` field indicating whether the target element was clicked

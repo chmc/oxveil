@@ -72,6 +72,8 @@ export class PlanPreviewPanel {
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private _pollTimer: ReturnType<typeof setInterval> | undefined;
   private _lastRawContent: string | undefined;
+  private _webviewReady = false;
+  private _pendingMessages: unknown[] = [];
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
@@ -96,11 +98,18 @@ export class PlanPreviewPanel {
       this._panel.webview.html = renderPlanPreviewShell(nonce, this._panel.webview.cspSource);
       this._panel.onDidDispose(() => {
         this._panel = undefined;
+        this._webviewReady = false;
+        this._pendingMessages = [];
         clearInterval(this._pollTimer);
         this._pollTimer = undefined;
       });
       this._panel.webview.onDidReceiveMessage((msg: any) => {
         if (msg.type === "ready") {
+          this._webviewReady = true;
+          for (const pending of this._pendingMessages) {
+            this._panel?.webview.postMessage(pending);
+          }
+          this._pendingMessages = [];
           this._sendUpdate();
         } else if (msg.type === "annotation" && msg.phase && msg.text) {
           this._deps.onAnnotation(msg.phase, msg.text);
@@ -275,7 +284,7 @@ export class PlanPreviewPanel {
 
   public getPlanPreviewState(): PlanPreviewState {
     return {
-      visible: this._panel !== undefined,
+      visible: this._panel !== undefined && this._webviewReady,
       sessionActive: this._sessionActive,
       planFormed: this._planFormed,
       valid: this._lastValid,
@@ -300,6 +309,19 @@ export class PlanPreviewPanel {
     this._pollTimer = undefined;
     this._panel?.dispose();
     this._panel = undefined;
+    this._webviewReady = false;
+    this._pendingMessages = [];
+  }
+
+  private _postMessage(msg: unknown): void {
+    if (!this._panel) return;
+    if (!this._webviewReady) {
+      if (this._pendingMessages.length < 100) {
+        this._pendingMessages.push(msg);
+      }
+      return;
+    }
+    this._panel.webview.postMessage(msg);
   }
 
   private async _onTabSwitch(category: PlanFileCategory): Promise<void> {
@@ -336,6 +358,6 @@ export class PlanPreviewPanel {
       planFormed: this._planFormed,
     };
     const html = renderPhaseCardsHtml(options);
-    this._panel.webview.postMessage({ type: "update", html });
+    this._postMessage({ type: "update", html });
   }
 }

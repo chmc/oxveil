@@ -303,6 +303,8 @@ export function renderLiveRunShell(nonce: string, cspSource: string): string {
         var seconds = totalSeconds % 60;
         el.textContent = minutes + "m " + (seconds < 10 ? "0" : "") + seconds + "s";
       }, 1000);
+
+      vscode.postMessage({ type: "ready" });
     })();
   </script>
 </body>

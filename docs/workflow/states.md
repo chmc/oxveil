@@ -701,7 +701,7 @@ type PlanPreviewState = "active" | "empty" | "session-ended" | "raw-markdown";
 // Exported as PlanPreviewState from sidebarState.ts — included in SidebarState.planPreview
 // for MCP /state endpoint. Named PlanPreviewSnapshot here to distinguish from render state above.
 interface PlanPreviewSnapshot {
-  visible: boolean;           // Whether the panel webview is open
+  visible: boolean;           // Whether the panel webview is open and ready (webview has sent "ready" message)
   sessionActive: boolean;     // _sessionActive field from PlanPreviewPanel
   planFormed: boolean;        // _planFormed field from PlanPreviewPanel
   valid: boolean;             // _lastValid — whether last parsed plan passed validation

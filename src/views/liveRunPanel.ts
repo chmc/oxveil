@@ -45,6 +45,8 @@ export class LiveRunPanel {
   private _runStartedAt: number | undefined;
   private _aiParseActionListeners: Array<(action: string) => void> = [];
   private _aiParseStatus: "idle" | "parsing" | "complete" | "needs-input" = "idle";
+  private _webviewReady = false;
+  private _pendingMessages: unknown[] = [];
 
   constructor(deps: LiveRunPanelDeps) {
     this._deps = deps;
@@ -52,7 +54,7 @@ export class LiveRunPanel {
   }
 
   get visible(): boolean {
-    return this._panel !== undefined;
+    return this._panel !== undefined && this._webviewReady;
   }
 
   get currentFolderUri(): string | undefined {
@@ -66,9 +68,9 @@ export class LiveRunPanel {
   clearAiParseStatus(): void {
     if (this._aiParseStatus !== "idle") {
       this._aiParseStatus = "idle";
-      this._panel?.webview.postMessage({ type: "ai-parse-status", status: "idle" });
+      this._postMessage({ type: "ai-parse-status", status: "idle" });
       // Also clear any verify banner that might be showing
-      this._panel?.webview.postMessage({ type: "clear-verify-banner" });
+      this._postMessage({ type: "clear-verify-banner" });
     }
   }
 
@@ -91,7 +93,7 @@ export class LiveRunPanel {
     this._aiParseStatus = "parsing";
     this.clear();
     this._ensurePanel();
-    this._panel!.webview.postMessage({ type: "ai-parse-status", status: "parsing" });
+    this._postMessage({ type: "ai-parse-status", status: "parsing" });
   }
 
   onProgressChanged(progress: ProgressState): void {
@@ -151,29 +153,29 @@ export class LiveRunPanel {
 
     if (this._panel) {
       const lines = newLines.map((l) => formatLogLine(l));
-      this._panel.webview.postMessage({ type: "log-append", lines });
+      this._postMessage({ type: "log-append", lines });
     }
   }
 
   onVerifyFailed(options: VerifyFailedOptions): void {
     this._ensurePanel();
     this._aiParseStatus = "needs-input";
-    this._panel!.webview.postMessage({ type: "ai-parse-status", status: "needs-input" });
+    this._postMessage({ type: "ai-parse-status", status: "needs-input" });
     const html = renderVerifyFailedBannerHtml(options);
-    this._panel!.webview.postMessage({ type: "verify-failed", html });
+    this._postMessage({ type: "verify-failed", html });
   }
 
   onVerifyPassed(options: VerifyPassedOptions): void {
     if (!this._panel) return;
     this.onAiParseComplete();
     const html = renderVerifyPassedBannerHtml(options);
-    this._panel.webview.postMessage({ type: "verify-passed", html });
+    this._postMessage({ type: "verify-passed", html });
   }
 
   onAiParseComplete(): void {
     if (!this._panel) return;
     this._aiParseStatus = "complete";
-    this._panel.webview.postMessage({ type: "ai-parse-status", status: "complete" });
+    this._postMessage({ type: "ai-parse-status", status: "complete" });
   }
 
   onAiParseAction(listener: (action: string) => void): () => void {
@@ -198,7 +200,7 @@ export class LiveRunPanel {
       totalPhases: this._lastProgress?.totalPhases,
       durationMs,
     });
-    this._panel.webview.postMessage({ type: "run-finished", html });
+    this._postMessage({ type: "run-finished", html });
   }
 
   clear(): void {
@@ -211,6 +213,19 @@ export class LiveRunPanel {
   dispose(): void {
     this._panel?.dispose();
     this._panel = undefined;
+    this._webviewReady = false;
+    this._pendingMessages = [];
+  }
+
+  private _postMessage(msg: unknown): void {
+    if (!this._panel) return;
+    if (!this._webviewReady) {
+      if (this._pendingMessages.length < 100) {
+        this._pendingMessages.push(msg);
+      }
+      return;
+    }
+    this._panel.webview.postMessage(msg);
   }
 
   private _ensurePanel(): void {
@@ -225,8 +240,18 @@ export class LiveRunPanel {
       this._panel.webview.html = renderLiveRunShell(nonce, this._panel.webview.cspSource);
       this._panel.onDidDispose(() => {
         this._panel = undefined;
+        this._webviewReady = false;
+        this._pendingMessages = [];
       });
       this._panel.webview.onDidReceiveMessage((msg: any) => {
+        if (msg.type === "ready") {
+          this._webviewReady = true;
+          for (const pending of this._pendingMessages) {
+            this._panel?.webview.postMessage(pending);
+          }
+          this._pendingMessages = [];
+          return;
+        }
         if (msg.type === "toggle-dashboard") {
           this._collapsed = !this._collapsed;
           if (this._lastProgress) {
@@ -261,13 +286,13 @@ export class LiveRunPanel {
       todoCurrentItem: this._todoCurrentItem,
     };
     const html = renderDashboardHtml(progress, options);
-    this._panel!.webview.postMessage({ type: "dashboard", html });
+    this._postMessage({ type: "dashboard", html });
   }
 
   private _flushBuffer(): void {
     if (this._logBuffer.length > 0 && this._panel) {
       const lines = this._logBuffer.map((l) => formatLogLine(l));
-      this._panel.webview.postMessage({ type: "log-append", lines });
+      this._postMessage({ type: "log-append", lines });
     }
   }
 

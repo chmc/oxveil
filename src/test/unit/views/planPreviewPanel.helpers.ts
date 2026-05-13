@@ -58,7 +58,7 @@ export function makeMockPanel() {
       html: "",
       cspSource: "https://mock.csp",
       postMessage: vi.fn(),
-      onDidReceiveMessage: vi.fn((cb) => { messageHandler = cb; }),
+      onDidReceiveMessage: vi.fn((cb) => { messageHandler = cb; cb({ type: "ready" }); }),
     },
     reveal: vi.fn(),
     onDidDispose: vi.fn(),
