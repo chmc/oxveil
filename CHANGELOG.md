@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Fix async race condition in self-improvement trigger (#116)
 - MCP bridge `/click` now returns `found` field indicating whether the target element was clicked
 - Self-improvement panel now opens after session completion even when sidebar state lags progress
 - Live run header now stays visible when scrolling log content (#114)
