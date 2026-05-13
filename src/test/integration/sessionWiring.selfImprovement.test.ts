@@ -16,10 +16,8 @@ vi.mock("node:fs/promises", () => ({
 import { readFile } from "node:fs/promises";
 
 import { SessionState } from "../../core/sessionState";
-import { wireSessionEvents, type SessionWiringDeps } from "../../sessionWiring";
-import type { SidebarState } from "../../views/sidebarState";
-import { deriveViewState } from "../../views/sidebarState";
-import { makeMutableState } from "./sessionWiring.testHelpers";
+import { wireSessionEvents } from "../../sessionWiring";
+import { makeMutableState, makeSessionDeps } from "./sessionWiring.testHelpers";
 
 describe("Self-improvement trigger on session completion", () => {
   const LESSONS_MD = `## Phase 1: Setup
@@ -43,32 +41,10 @@ describe("Self-improvement trigger on session completion", () => {
     const selfImprovementPanel = { reveal: vi.fn() };
     const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       sidebarPanel,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
 
@@ -103,32 +79,10 @@ describe("Self-improvement trigger on session completion", () => {
     const selfImprovementPanel = { reveal: vi.fn() };
     const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() };
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       sidebarPanel: sidebarPanel as any,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
 
@@ -153,31 +107,9 @@ describe("Self-improvement trigger on session completion", () => {
     const mutableState = makeMutableState();
     const selfImprovementPanel = { reveal: vi.fn() };
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     vi.mocked(readFile).mockResolvedValueOnce("");
 
@@ -199,31 +131,10 @@ describe("Self-improvement trigger on session completion", () => {
     const mutableState = makeMutableState();
     const selfImprovementPanel = { reveal: vi.fn() };
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       getConfig: () => false,
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     session.onLockChanged({ locked: true, pid: 42 });
     session.onProgressChanged({
@@ -244,31 +155,9 @@ describe("Self-improvement trigger on session completion", () => {
     const mutableState = makeMutableState();
     const selfImprovementPanel = { reveal: vi.fn() };
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT: no such file"));
 
@@ -291,31 +180,9 @@ describe("Self-improvement trigger on session completion", () => {
     const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() };
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       sidebarPanel: sidebarPanel as any,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
-    };
-    wireSessionEvents(deps);
+    }));
 
     vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
 
@@ -354,31 +221,9 @@ describe("Self-improvement trigger on session completion", () => {
     mutableState.selfImprovementActive = true;
 
     const selfImprovementPanel = { reveal: vi.fn() };
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     session.onLockChanged({ locked: true, pid: 42 });
     expect(mutableState.selfImprovementActive).toBe(false);
@@ -410,25 +255,11 @@ describe("Self-improvement trigger on session completion", () => {
     const selfImprovementPanel = { reveal: vi.fn() };
     const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
 
-    // Simulate stale sidebar state returning "stopped" despite all phases completed
-    function buildFullState(): SidebarState {
-      return { view: "stopped", archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
+      buildSidebarState: () => ({ view: "stopped", archives: [] }),
       sidebarPanel,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
 
@@ -458,32 +289,10 @@ describe("Self-improvement trigger on session completion", () => {
     const selfImprovementPanel = { reveal: vi.fn() };
     const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
 
-    function buildFullState(): SidebarState {
-      const view = deriveViewState(
-        mutableState.detectionStatus,
-        session.status,
-        mutableState.planDetected,
-        session.progress,
-        mutableState.planUserChoice,
-        mutableState.selfImprovementActive,
-      );
-      return { view, archives: [] };
-    }
-
-    const deps: SessionWiringDeps = {
-      session,
-      statusBar: { update: vi.fn(), dispose: vi.fn() },
-      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
-      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
-      isActiveSession: () => true,
-      folderUri: "file:///test",
-      buildSidebarState: buildFullState,
-      sidebarMutableState: mutableState,
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
       sidebarPanel,
-      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
       selfImprovementPanel: selfImprovementPanel as any,
-    };
-    wireSessionEvents(deps);
+    }));
 
     // Deferred readFile: resolves only after we transition session to idle
     let resolveReadFile!: (value: string) => void;
