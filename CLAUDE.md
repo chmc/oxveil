@@ -4,6 +4,7 @@
 - Simplicity first. Write the minimum code that solves the problem. No speculative abstractions. No flexibility nobody asked for. The test: would a senior engineer call this overcomplicated.
 - Surgical changes. Touch only what the task requires. Do not improve neighboring code. Do not refactor what is not broken. Every changed line should trace back to the request.
 - Goal-driven execution. Turn vague instructions into verifiable targets before writing a line. “Add validation” becomes “write tests for invalid inputs, then make them pass.”
+- Bug fix plans: verify actual behavior first. Reading code shows intent, not behavior. Run/trace before writing fix.
 
 ## STOP if Thinking
 
@@ -34,8 +35,9 @@
 - osascript: merge related operations into single osascript call — separate bash calls introduce timing gaps.
 - NEVER edit non-plan files in plan mode. Write to plan file, call ExitPlanMode.
 - NEVER `await` external process in `activate()` without timeout. Use `Promise.race` 5s. Hanging CLI = stuck spinner.
-- NEVER call ExitPlanMode without 2-3 critic agents. Exception: trivial (config only, no source or executable skill code) → say "Skipping critics — trivial: [reason]."
+- NEVER call ExitPlanMode without 2-3 critic agents. Exception: config/docs-only changes with zero source or skill code → "Skipping critics — no source: [files changed]."
 - After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
+- If critics widen scope (new files, additional fixes), update plan before ExitPlanMode.
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
 - NEVER leave fake_claude installed after visual verification. Cleanup: `rm -f ~/.local/bin/claude ~/.local/bin/lib`. Verify: `which claude` should return `/opt/homebrew/bin/claude`, not `~/.local/bin/claude`.
