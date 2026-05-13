@@ -451,4 +451,66 @@ describe("Self-improvement trigger on session completion", () => {
 
     expect(mutableState.selfImprovementActive).toBe(true);
   });
+
+  it("does not mutate selfImprovementActive when session transitions to idle during findLessonsContent", async () => {
+    const session = new SessionState();
+    const mutableState = makeMutableState();
+    const selfImprovementPanel = { reveal: vi.fn() };
+    const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
+
+    function buildFullState(): SidebarState {
+      const view = deriveViewState(
+        mutableState.detectionStatus,
+        session.status,
+        mutableState.planDetected,
+        session.progress,
+        mutableState.planUserChoice,
+        mutableState.selfImprovementActive,
+      );
+      return { view, archives: [] };
+    }
+
+    const deps: SessionWiringDeps = {
+      session,
+      statusBar: { update: vi.fn(), dispose: vi.fn() },
+      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+      isActiveSession: () => true,
+      folderUri: "file:///test",
+      buildSidebarState: buildFullState,
+      sidebarMutableState: mutableState,
+      sidebarPanel,
+      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+      selfImprovementPanel: selfImprovementPanel as any,
+    };
+    wireSessionEvents(deps);
+
+    // Deferred readFile: resolves only after we transition session to idle
+    let resolveReadFile!: (value: string) => void;
+    const readFilePromise = new Promise<string>((resolve) => {
+      resolveReadFile = resolve;
+    });
+    vi.mocked(readFile).mockReturnValueOnce(readFilePromise as any);
+
+    // Trigger done state
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+    expect(session.status).toBe("done");
+
+    // Transition to idle while findLessonsContent is still awaiting readFile
+    session.reset();
+    expect(session.status).toBe("idle");
+
+    // Now resolve readFile — guard should abort before mutating state
+    resolveReadFile(LESSONS_MD);
+
+    // Allow microtasks to flush
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mutableState.selfImprovementActive).toBe(false);
+  });
 });
