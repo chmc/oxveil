@@ -17,6 +17,7 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - `deps.folderUri` is URI string (`file:///path`), not path. Use `vscode.Uri.parse(deps.folderUri).fsPath` with `join()`.
 - Claudeloop files: uppercase (`PROGRESS.md`, `PLAN.md`). Watchers case-sensitive.
 - Adding `SidebarMutableState` fields: check if reset needed in `to === "running"` block of `sessionWiring.ts`. Session-scoped (cost, todos, selfImprovementActive) resets; persistent (detectionStatus, planDetected) doesn't.
+- State reset methods: reset ALL related fields together. Partial resets leave stale values visible (e.g., clearing `_lastTitle` but not `_lastFormat`).
 - Testing `activateSidebar.ts` functions that delegate to `sidebarRefresh.ts`: mock `node:fs/promises` (`access`/`readdir`/`unlink`) and add `isRunning`/`start`/`stop` to `elapsedTimer` mock — otherwise `detectInconsistencies` and `fullReInit` throw at runtime.
 - fs helpers catch internally → mock upstream dependency (e.g., `manager.getActiveSession()`) to trigger outer error boundary.
 - Variables inside `vi.mock()` factories must use `vi.hoisted()` — vitest hoists mocks above imports, so outer-scope `const`s are undefined at factory call time.
