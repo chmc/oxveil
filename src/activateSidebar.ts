@@ -265,8 +265,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       activeSession.sessionState.reset();
     }
     // Reset mutable state counters for clean slate
-    state.setCost(0);
-    state.setTodos(0, 0);
+    state.resetForNewRun();
     state.setPlanUserChoice("resume");
     await loadPlanPhases();
     sidebarPanel.updateState(buildFullState());
@@ -289,15 +288,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   }
 
   function onFullReset(): void {
-    // Reset all SidebarMutableState fields
-    state.setCost(0);
-    state.setTodos(0, 0);
-    state.setCachedPlanPhases([]);
-    state.setPlanUserChoice("none");
-    state.setPlanDetected(false);
-    state.setSelfImprovementActive(false);
-    state.setLessonsAvailable(false);
-    state.setAiParsing(false);
+    state.resetAll();
 
     // Reset active session state
     const activeSession = manager.getActiveSession();

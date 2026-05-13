@@ -7,6 +7,7 @@ vi.mock("vscode", () => ({
 import { WorkspaceSessionManager } from "../../core/workspaceSessionManager";
 import { wireAllSessions, handleWorkspaceFolderChange, type ArchiveCallbacks } from "../../workspaceSetup";
 import type { SessionWiringContext } from "../../workspaceSetup";
+import { SidebarMutableState } from "../../core/sidebarMutableState";
 
 function makeWiringCtx(): SessionWiringContext {
   return {
@@ -15,16 +16,7 @@ function makeWiringCtx(): SessionWiringContext {
     elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
     sidebarPanel: { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any,
     buildSidebarState: () => ({ view: "empty" as const, archives: [] }),
-    sidebarMutableState: {
-      detectionStatus: "detected" as const,
-      planDetected: false,
-      planUserChoice: "none" as const,
-      cachedPlanPhases: [],
-      cost: 0,
-      todoDone: 0,
-      todoTotal: 0,
-      selfImprovementActive: false,
-    },
+    sidebarMutableState: new SidebarMutableState({ detectionStatus: "detected" }),
   };
 }
 
