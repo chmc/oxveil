@@ -71,7 +71,7 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - NEVER write a plan for a GitHub issue task without a final step that verifies the issue is closed.
 - NEVER claim GitHub issue work complete without verifying the issue is closed first.
 - Confirming work is done = verify closed state. Don't ask, verify.
-- Prefer `Closes #N` in commit message — auto-closes on push. Use `gh issue close` only when no commit is involved. Final step: `gh issue view #N --json state -q .state` to verify closed. If already closed, phase succeeds.
+- Prefer `Closes #N` in commit message — auto-closes on push. Parenthetical `(#N)` does NOT auto-close. Use `gh issue close` only when no commit is involved. Final step: `gh issue view #N --json state -q .state` to verify closed. If already closed, phase succeeds.
 
 ## Development Process
 
