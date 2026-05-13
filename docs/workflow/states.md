@@ -223,7 +223,7 @@ The `lessonsAvailable` field is derived from the presence of `lessons.md` in the
 
 When a session completes with `selfImprovement` enabled and lessons captured:
 
-1. **Auto-trigger:** `sessionWiring` calls `oxveil.selfImprovement.start` with parsed lessons. Errors from this command are caught and logged to console — they do not affect sidebar state.
+1. **Auto-trigger:** `sessionWiring` detects completion by checking `session.progress.phases.every(p => p.status === "completed")` directly (not via sidebar view state, which may lag). Calls `oxveil.selfImprovement.start` with parsed lessons. Errors are caught and logged — they do not affect sidebar state.
 2. **Sidebar view:** Transitions to `self-improvement` view showing "Self-improvement session active"
 3. **Terminal close:** When user closes the terminal, `selfImprovementActive` resets to `false`, transitioning sidebar back to `completed` view
 4. **Manual skip:** User can click "End Session" to close the terminal and return to `completed` view

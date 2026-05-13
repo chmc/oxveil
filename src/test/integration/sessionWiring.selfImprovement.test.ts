@@ -403,4 +403,52 @@ describe("Self-improvement trigger on session completion", () => {
     );
     expect(mutableState.selfImprovementActive).toBe(true);
   });
+
+  it("triggers even when buildSidebarState returns 'stopped' (race condition regression)", async () => {
+    const session = new SessionState();
+    const mutableState = makeMutableState();
+    const selfImprovementPanel = { reveal: vi.fn() };
+    const sidebarPanel = { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any;
+
+    // Simulate stale sidebar state returning "stopped" despite all phases completed
+    function buildFullState(): SidebarState {
+      return { view: "stopped", archives: [] };
+    }
+
+    const deps: SessionWiringDeps = {
+      session,
+      statusBar: { update: vi.fn(), dispose: vi.fn() },
+      notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+      elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
+      isActiveSession: () => true,
+      folderUri: "file:///test",
+      buildSidebarState: buildFullState,
+      sidebarMutableState: mutableState,
+      sidebarPanel,
+      getConfig: (key: string) => key === "selfImprovement" ? true : undefined,
+      selfImprovementPanel: selfImprovementPanel as any,
+    };
+    wireSessionEvents(deps);
+
+    vi.mocked(readFile).mockResolvedValueOnce(LESSONS_MD);
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+
+    const vscode = await import("vscode");
+    await vi.waitFor(() => {
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        "oxveil.selfImprovement.start",
+        expect.arrayContaining([
+          expect.objectContaining({ phase: 1, title: "Setup" }),
+        ]),
+      );
+    });
+
+    expect(mutableState.selfImprovementActive).toBe(true);
+  });
 });

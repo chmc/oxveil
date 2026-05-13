@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Self-improvement panel now opens after session completion even when sidebar state lags progress
 - Live run header now stays visible when scrolling log content (#114)
 - Stale plan dialog no longer appears after successful completion when untracked `.claude/plans/` files exist
 - Plan Preview no longer shows stale title from previous session on new plan chat

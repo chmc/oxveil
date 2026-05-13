@@ -161,15 +161,17 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         // Self-improvement trigger
         const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
-        console.log("[oxveil] Self-improvement check:", { selfImprovementEnabled, view, sessionStatus: session.status });
-        if (selfImprovementEnabled && view === "completed") {
+        const allCompleted = !!session.progress?.phases.length &&
+          session.progress.phases.every((p) => p.status === "completed");
+        console.log("[oxveil] Self-improvement check:", { selfImprovementEnabled, allCompleted, sessionStatus: session.status });
+        if (selfImprovementEnabled && allCompleted) {
           const folderPath = vscode.Uri.parse(deps.folderUri).fsPath;
           const lessonsContent = await findLessonsContent(folderPath);
           console.log("[oxveil] Lessons content:", { found: !!lessonsContent, sessionStatus: session.status });
           if (lessonsContent) {
             const lessons = parseLessons(lessonsContent);
             console.log("[oxveil] Parsed lessons:", { count: lessons.length, sessionStatus: session.status });
-            if (lessons.length > 0 && session.status === "done") {
+            if (lessons.length > 0) {
               try {
                 await vscode.commands.executeCommand("oxveil.selfImprovement.start", lessons);
                 if (ms) {
@@ -184,7 +186,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           }
         }
         // Prevent stale plans from surfacing as "Resume" on next session start
-        if (view === "completed") {
+        if (allCompleted) {
           deps.clearSessionPlanFiles?.().catch((err) => {
             console.error("[oxveil] clearSessionPlanFiles failed:", err);
           });
