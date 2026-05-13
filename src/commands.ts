@@ -98,6 +98,10 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
           vscode.window.showErrorMessage("Oxveil: claudeloop not detected. Install it or check the oxveil.claudeloopPath setting.");
           return;
         }
+        if (resolved.processManager.isRunning) {
+          vscode.window.showInformationMessage("Oxveil: claudeloop is already running.");
+          return;
+        }
         await resolved.processManager.spawn();
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
