@@ -125,6 +125,13 @@ export class PlanPreviewPanel {
 
   beginSession(): void {
     this._resolver.beginSession();
+    this._lastTitle = undefined;
+    this._lastPhases = [];
+    this._lastValid = false;
+    this._lastFormat = undefined;
+    this._lastKeyword = undefined;
+    this._lastRawContent = undefined;
+    if (this._panel) this._sendUpdate();
   }
 
   endSession(): void {

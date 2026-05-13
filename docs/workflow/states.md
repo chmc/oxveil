@@ -345,7 +345,7 @@ flowchart TD
 
 | From | To | Trigger | Method |
 |------|----|---------|--------|
-| any | `empty` | `beginSession()` called, no plan file yet | `beginSession()` |
+| any | `empty` | `beginSession()` called — clears `_lastTitle`, `_lastPhases`, `_lastValid`, `_lastFormat`, `_lastKeyword`, `_lastRawContent`, then calls `_sendUpdate()` | `beginSession()` |
 | any | `raw-markdown` | File changed, content doesn't parse to phases | `onFileChanged()` → `_parseAndRender()` |
 | `raw-markdown` | `active`/`session-ended` | File changed, phases now parseable | `onFileChanged()` → `_parseAndRender()` |
 | `active` | `session-ended` | Terminal closed | `setSessionActive(false)` |

@@ -67,7 +67,8 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     // Single file = no tab strip, but content should be from ai-parsed
     expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
-    const call = deps._panel.webview.postMessage.mock.calls[0][0];
+    const calls = deps._panel.webview.postMessage.mock.calls;
+    const call = calls[calls.length - 1][0];
     expect(call.html).toContain("AI Parsed Plan");
   });
 
@@ -89,7 +90,8 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
-    const call = deps._panel.webview.postMessage.mock.calls[0][0];
+    const calls2 = deps._panel.webview.postMessage.mock.calls;
+    const call = calls2[calls2.length - 1][0];
     expect(call.html).toContain('data-category="ai-parsed"');
     expect(call.html).toContain("AI Parsed");
   });

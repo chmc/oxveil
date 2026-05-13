@@ -33,7 +33,8 @@ describe("PlanPreviewPanel > multi-file tab switching", () => {
     await panel.onFileChanged();
 
     // Should render the last new category (implementation)
-    const call = deps._panel.webview.postMessage.mock.calls[0][0];
+    const calls = deps._panel.webview.postMessage.mock.calls;
+    const call = calls[calls.length - 1][0];
     expect(call.html).toContain("Phase 1");
     expect(call.html).toContain("Setup");
   });
@@ -56,7 +57,8 @@ describe("PlanPreviewPanel > multi-file tab switching", () => {
 
     await panel.onFileChanged();
 
-    const call = deps._panel.webview.postMessage.mock.calls[0][0];
+    const calls2 = deps._panel.webview.postMessage.mock.calls;
+    const call = calls2[calls2.length - 1][0];
     expect(call.html).toContain("tab-strip");
     expect(call.html).toContain("Design");
     expect(call.html).toContain("Implementation");
