@@ -30,6 +30,7 @@ export class ProcessManager implements IProcessManager {
   private _exitPromise: Promise<void> | null = null;
   private _exitResolve: (() => void) | null = null;
   private _stopping = false;
+  private _spawning = false;
 
   constructor(deps: ProcessManagerDeps) {
     this._deps = deps;
@@ -39,14 +40,25 @@ export class ProcessManager implements IProcessManager {
     return this._process !== null;
   }
 
-  async spawn(): Promise<void> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
-    }
+  private _assertCanSpawn(): void {
+    if (this._stopping) throw new Error("process is shutting down");
+    if (this._spawning) throw new Error("spawn already in progress");
+    if (this._process) throw new Error("already running");
+  }
 
-    const args = this._buildArgs();
-    this._spawnChild(args);
-    return this._exitPromise!;
+  async spawn(): Promise<void> {
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      const args = this._buildArgs();
+      this._spawnChild(args);
+      return this._exitPromise!;
+    } finally {
+      this._spawning = false;
+    }
   }
 
   async stop(): Promise<void> {
@@ -58,75 +70,106 @@ export class ProcessManager implements IProcessManager {
   }
 
   async reset(): Promise<void> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      const settings = this._deps.getSettings();
+      const args = ["--reset", ...this._settingsToArgs(settings)];
+      this._spawnChild(args);
+      return this._exitPromise!;
+    } finally {
+      this._spawning = false;
     }
-
-    const settings = this._deps.getSettings();
-    const args = ["--reset", ...this._settingsToArgs(settings)];
-    this._spawnChild(args);
-    return this._exitPromise!;
   }
 
   async spawnFromPhase(phase: number | string): Promise<void> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      const settings = this._deps.getSettings();
+      const args = [
+        "--phase",
+        String(phase),
+        "--continue",
+        ...this._settingsToArgs(settings),
+      ];
+      this._spawnChild(args);
+      return this._exitPromise!;
+    } finally {
+      this._spawning = false;
     }
-
-    const settings = this._deps.getSettings();
-    const args = [
-      "--phase",
-      String(phase),
-      "--continue",
-      ...this._settingsToArgs(settings),
-    ];
-    this._spawnChild(args);
-    return this._exitPromise!;
   }
 
   async markComplete(phase: number | string): Promise<void> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      const args = ["--mark-complete", String(phase)];
+      this._spawnChild(args);
+      return this._exitPromise!;
+    } finally {
+      this._spawning = false;
     }
-    const args = ["--mark-complete", String(phase)];
-    this._spawnChild(args);
-    return this._exitPromise!;
   }
 
   async aiParse(granularity: string, options?: { dryRun?: boolean; planFile?: string }): Promise<AiParseResult> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      const args = ["--ai-parse", "--no-retry", "--granularity", granularity];
+      if (options?.dryRun) {
+        args.push("--dry-run");
+      }
+      if (options?.planFile) {
+        args.push("--plan", options.planFile);
+      }
+      return this._spawnChildWithExitCode(args, new Set([2]));
+    } finally {
+      this._spawning = false;
     }
-
-    const args = ["--ai-parse", "--no-retry", "--granularity", granularity];
-    if (options?.dryRun) {
-      args.push("--dry-run");
-    }
-    if (options?.planFile) {
-      args.push("--plan", options.planFile);
-    }
-    return this._spawnChildWithExitCode(args, new Set([2]));
   }
 
   async aiParseFeedback(granularity: string, options?: { planFile?: string }): Promise<AiParseResult> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      const args = ["--ai-parse-feedback", "--granularity", granularity];
+      if (options?.planFile) {
+        args.push("--plan", options.planFile);
+      }
+      return this._spawnChildWithExitCode(args, new Set([2]));
+    } finally {
+      this._spawning = false;
     }
-
-    const args = ["--ai-parse-feedback", "--granularity", granularity];
-    if (options?.planFile) {
-      args.push("--plan", options.planFile);
-    }
-    return this._spawnChildWithExitCode(args, new Set([2]));
   }
 
   async restore(archiveName: string): Promise<void> {
-    if (await this._deps.lockExists()) {
-      throw new Error("lock file exists — claudeloop is already running");
+    this._assertCanSpawn();
+    this._spawning = true;
+    try {
+      if (await this._deps.lockExists()) {
+        throw new Error("lock file exists — claudeloop is already running");
+      }
+      this._spawnChild(["--restore", archiveName]);
+      return this._exitPromise!;
+    } finally {
+      this._spawning = false;
     }
-
-    this._spawnChild(["--restore", archiveName]);
-    return this._exitPromise!;
   }
 
   async forceUnlock(): Promise<void> {
@@ -154,6 +197,7 @@ export class ProcessManager implements IProcessManager {
   }
 
   private _spawnChild(args: string[]): void {
+    if (this._process) throw new Error("already running");
     const child = this._deps.spawn(this._deps.claudeloopPath, args, {
       cwd: this._deps.workspaceRoot,
       stdio: ["ignore", "ignore", "pipe"],
@@ -193,6 +237,7 @@ export class ProcessManager implements IProcessManager {
   }
 
   private _spawnChildWithExitCode(args: string[], expectedCodes: Set<number>): Promise<AiParseResult> {
+    if (this._process) throw new Error("already running");
     const child = this._deps.spawn(this._deps.claudeloopPath, args, {
       cwd: this._deps.workspaceRoot,
       stdio: ["ignore", "ignore", "pipe"],
