@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ProcessManager } from "../../../core/processManager";
+import { ProcessManager, ProcessManagerDeps } from "../../../core/processManager";
 import {
   MockChildProcess,
   SpawnCall,
@@ -231,5 +231,88 @@ describe("ProcessManager", () => {
         closeCallback?.(0);
       });
     });
+  });
+});
+
+describe("concurrent spawn protection", () => {
+  function createProcessManager(overrides?: Partial<ProcessManagerDeps>) {
+    let closeCallback: ((code: number | null) => void) | undefined;
+    const mockChild = createMockChild();
+    mockChild.on.mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
+      if (event === "close") closeCallback = cb;
+      return mockChild;
+    });
+    const pm = new ProcessManager({
+      claudeloopPath: "/usr/local/bin/claudeloop",
+      workspaceRoot: "/home/user/project",
+      spawn: vi.fn().mockReturnValue(mockChild),
+      lockExists: vi.fn().mockResolvedValue(false),
+      deleteLock: vi.fn().mockResolvedValue(undefined),
+      getSettings: vi.fn().mockReturnValue({
+        verify: false,
+        refactor: false,
+        dryRun: false,
+        aiParse: false,
+        provider: "claude",
+        opencodePath: "",
+      }),
+      platform: "darwin",
+      ...overrides,
+    });
+    return { pm, close: (code = 0) => closeCallback?.(code) };
+  }
+
+  it("rejects concurrent spawn attempts", async () => {
+    const { pm, close } = createProcessManager();
+    const first = pm.spawn();
+    const second = pm.spawn();
+    await expect(second).rejects.toThrow("spawn already in progress");
+    await flushMicrotasks(); // let lockExists resolve so closeCallback is registered
+    close();
+    await first;
+  });
+
+  it("clears _spawning flag when lockExists throws", async () => {
+    const { pm } = createProcessManager({
+      lockExists: vi.fn().mockRejectedValue(new Error("fs error")),
+    });
+    await expect(pm.spawn()).rejects.toThrow("fs error");
+    await expect(pm.spawn()).rejects.toThrow("fs error"); // not "spawn already in progress"
+  });
+
+  it("clears _spawning flag when lock exists", async () => {
+    const { pm } = createProcessManager({
+      lockExists: vi.fn().mockResolvedValue(true),
+    });
+    await expect(pm.spawn()).rejects.toThrow("lock file exists");
+    await expect(pm.spawn()).rejects.toThrow("lock file exists"); // allows retry
+  });
+
+  it("rejects spawn during stop", async () => {
+    const { pm, close } = createProcessManager();
+    pm.spawn(); // start but don't await — process must remain running
+    await flushMicrotasks(); // let lockExists resolve so _process is set
+    const stopPromise = pm.stop(); // sets _stopping = true synchronously
+    await expect(pm.spawn()).rejects.toThrow("shutting down");
+    close();
+    await stopPromise;
+  });
+
+  it("rejects spawn when already running", async () => {
+    const { pm, close } = createProcessManager();
+    pm.spawn(); // start but don't await — _process stays set
+    await flushMicrotasks(); // let lockExists resolve so _process is set
+    await expect(pm.spawn()).rejects.toThrow("already running");
+    close(); // cleanup
+  });
+
+  it("rejects concurrent aiParse attempts", async () => {
+    const { pm, close } = createProcessManager();
+    const first = pm.aiParse("phase");
+    const second = pm.aiParse("phase");
+    await expect(second).rejects.toThrow("spawn already in progress");
+    await flushMicrotasks(); // let lockExists resolve so closeCallback is registered
+    close();
+    await first;
   });
 });
