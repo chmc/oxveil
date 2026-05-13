@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { readNewestClaudePlan } from "./core/planFiles";
+import { readNewestClaudePlan, listPlanFiles } from "./core/planFiles";
 export { checkInitialPlanState } from "./core/planFiles";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarState";
@@ -142,9 +142,15 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   }
 
   async function clearSessionPlanFiles(): Promise<void> {
-    const paths = deps.planPreviewPanel?.getTrackedPaths() ?? [];
+    const trackedPaths = deps.planPreviewPanel?.getTrackedPaths() ?? [];
+
+    const workspacePlanFiles = deps.workspaceRoot
+      ? await listPlanFiles(deps.workspaceRoot)
+      : [];
+
+    const allPaths = [...new Set([...trackedPaths, ...workspacePlanFiles])];
     await Promise.all([
-      ...paths.map(p => fs.unlink(p).catch(() => {})),
+      ...allPaths.map(p => fs.unlink(p).catch(() => {})),
       clearStaleParsedPlan(),
     ]);
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);

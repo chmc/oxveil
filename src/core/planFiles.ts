@@ -2,6 +2,18 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getPlanPath } from "./paths";
 
+export async function listPlanFiles(workspaceRoot: string): Promise<string[]> {
+  const plansDir = path.join(workspaceRoot, ".claude", "plans");
+  try {
+    const entries = await fs.readdir(plansDir, { withFileTypes: true });
+    return entries
+      .filter(e => e.isFile() && e.name.endsWith(".md"))
+      .map(e => path.join(plansDir, e.name));
+  } catch {
+    return [];
+  }
+}
+
 export async function readNewestClaudePlan(workspaceRoot: string): Promise<string> {
   const plansDir = path.join(workspaceRoot, ".claude", "plans");
   const entries = await fs.readdir(plansDir);
@@ -24,12 +36,6 @@ export async function checkInitialPlanState(
     await fs.access(planPath);
     return true;
   } catch {
-    try {
-      const plansDir = path.join(workspaceRoot, ".claude", "plans");
-      const entries = await fs.readdir(plansDir, { withFileTypes: true });
-      return entries.some((e) => e.isFile() && e.name.endsWith(".md"));
-    } catch {
-      return false;
-    }
+    return (await listPlanFiles(workspaceRoot)).length > 0;
   }
 }

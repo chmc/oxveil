@@ -380,14 +380,14 @@ describe("Rapid progress updates (issue #46)", () => {
 });
 
 describe("clearSessionPlanFiles file deletion (issue #111)", () => {
-  function setupClear(trackedPaths: string[]) {
+  function setupClear(trackedPaths: string[], workspaceRoot?: string) {
     const { clearSessionPlanFiles } = activateSidebar({
       manager: { getActiveSession: vi.fn(() => null) } as any,
       archiveTree: { getEntries: vi.fn(() => []) } as any,
       elapsedTimer: { elapsed: "0m", start: vi.fn(), stop: vi.fn() } as any,
       initialDetectionStatus: "detected",
       initialPlanDetected: false,
-      workspaceRoot: undefined,
+      workspaceRoot,
       planPreviewPanel: {
         getTrackedPaths: vi.fn(() => trackedPaths),
         getPlanPreviewState: vi.fn(() => undefined),
@@ -398,6 +398,7 @@ describe("clearSessionPlanFiles file deletion (issue #111)", () => {
 
   beforeEach(() => {
     vi.mocked(fs.unlink).mockResolvedValue(undefined);
+    vi.mocked(fs.readdir).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -416,19 +417,45 @@ describe("clearSessionPlanFiles file deletion (issue #111)", () => {
     }
   });
 
-  it("does not delete untracked files", async () => {
-    const clearSessionPlanFiles = setupClear(["/tmp/tracked.md"]);
-
-    await clearSessionPlanFiles();
-
-    expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith("/tmp/tracked.md");
-    expect(vi.mocked(fs.unlink)).not.toHaveBeenCalledWith("/tmp/untracked.md");
-  });
-
   it("handles empty tracked list without error", async () => {
     const clearSessionPlanFiles = setupClear([]);
 
     await expect(clearSessionPlanFiles()).resolves.not.toThrow();
     expect(vi.mocked(fs.unlink)).not.toHaveBeenCalled();
+  });
+
+  it("deletes untracked workspace .claude/plans/*.md files on completion", async () => {
+    const workspaceRoot = "/workspace";
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: "stale-plan.md", isFile: () => true } as any,
+      { name: "another.md", isFile: () => true } as any,
+    ]);
+    const clearSessionPlanFiles = setupClear([], workspaceRoot);
+
+    await clearSessionPlanFiles();
+
+    expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith("/workspace/.claude/plans/stale-plan.md");
+    expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith("/workspace/.claude/plans/another.md");
+  });
+
+  it("handles missing .claude/plans/ directory gracefully", async () => {
+    vi.mocked(fs.readdir).mockRejectedValue(Object.assign(new Error(), { code: "ENOENT" }));
+    const clearSessionPlanFiles = setupClear([], "/workspace");
+
+    await expect(clearSessionPlanFiles()).resolves.not.toThrow();
+  });
+
+  it("deduplicates tracked and workspace plan paths", async () => {
+    const workspaceRoot = "/workspace";
+    const sharedPath = "/workspace/.claude/plans/shared.md";
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: "shared.md", isFile: () => true } as any,
+    ]);
+    const clearSessionPlanFiles = setupClear([sharedPath], workspaceRoot);
+
+    await clearSessionPlanFiles();
+
+    const calls = vi.mocked(fs.unlink).mock.calls.filter(([p]) => p === sharedPath);
+    expect(calls).toHaveLength(1);
   });
 });
