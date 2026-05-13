@@ -228,6 +228,8 @@ When a session completes with `selfImprovement` enabled and lessons captured:
 3. **Terminal close:** When user closes the terminal, `selfImprovementActive` resets to `false`, transitioning sidebar back to `completed` view
 4. **Manual skip:** User can click "End Session" to close the terminal and return to `completed` view
 
+**Race condition guards:** After each `await` in the self-improvement trigger (`findLessonsContent`, `executeCommand`), `sessionWiring` re-checks `session.status === "done"` before proceeding. If the session has moved out of `done` (e.g. reset), it `break`s out of the switch case without mutating `ms.selfImprovementActive` or calling `buildAndSendSidebarState()`.
+
 **Diagnostic logging:** `[oxveil]`-prefixed console logs are emitted at each check point (selfImprovementEnabled, view, lessons found, lessons count) to aid debugging when the trigger fails silently.
 
 ```mermaid
