@@ -236,7 +236,7 @@ export async function activate(
     onPlanChatEnded: sidebar.onPlanChatEnded,
     getActiveSelfImprovementSession: () => activeSelfImprovementSession,
     setActiveSelfImprovementSession: (session) => { activeSelfImprovementSession = session; },
-    setSelfImprovementActive: (active) => { sidebarState.selfImprovementActive = active; },
+    setSelfImprovementActive: (active) => { sidebarState.setSelfImprovementActive(active); },
     refreshSidebar: () => sidebarPanel.updateState(buildFullState()),
   }));
 

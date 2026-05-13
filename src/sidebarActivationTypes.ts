@@ -7,6 +7,9 @@ import type { ElapsedTimer } from "./views/elapsedTimer";
 import type { PlanPreviewPanel } from "./views/planPreviewPanel";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 
+import { SidebarMutableState } from "./core/sidebarMutableState";
+export { SidebarMutableState };
+
 export interface SidebarActivationDeps {
   manager: WorkspaceSessionManager;
   workspaceRoot: string | undefined;
@@ -45,21 +48,4 @@ export interface SidebarActivationResult {
   refreshSidebar: () => Promise<void>;
   /** Called on full session completion — deletes .claude/plans/ file, clears ai-parsed-plan.md, resets plan state */
   clearSessionPlanFiles: () => Promise<void>;
-}
-
-export interface SidebarMutableState {
-  detectionStatus: DetectionStatus;
-  planDetected: boolean;
-  planUserChoice: PlanUserChoice;
-  cachedPlanPhases: PhaseView[];
-  /** Accumulated cost from log-appended events (written by sessionWiring) */
-  cost: number;
-  todoDone: number;
-  todoTotal: number;
-  /** Whether self-improvement mode is active after session completion */
-  selfImprovementActive: boolean;
-  /** Whether lessons.md exists (checked asynchronously) */
-  lessonsAvailable: boolean;
-  /** Whether AI is currently parsing the plan */
-  aiParsing: boolean;
 }

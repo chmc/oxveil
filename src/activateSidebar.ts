@@ -13,23 +13,16 @@ import { refreshSidebar as doRefreshSidebar } from "./sidebarRefresh";
 import type { SidebarRefreshContext } from "./sidebarRefresh";
 
 export type { SidebarActivationDeps, SidebarActivationResult, SidebarMutableState } from "./sidebarActivationTypes";
-import type { SidebarActivationDeps, SidebarActivationResult, SidebarMutableState } from "./sidebarActivationTypes";
+import type { SidebarActivationDeps, SidebarActivationResult } from "./sidebarActivationTypes";
+import { SidebarMutableState } from "./core/sidebarMutableState";
 
 export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationResult {
   const { manager, archiveTree, elapsedTimer } = deps;
 
-  const state: SidebarMutableState = {
+  const state = new SidebarMutableState({
     detectionStatus: deps.initialDetectionStatus,
     planDetected: deps.initialPlanDetected,
-    planUserChoice: "none",
-    cachedPlanPhases: [],
-    cost: 0,
-    todoDone: 0,
-    todoTotal: 0,
-    selfImprovementActive: false,
-    lessonsAvailable: false,
-    aiParsing: false,
-  };
+  });
 
   function getArchives(): ArchiveView[] {
     return archiveTree.getEntries().map((entry) => ({
@@ -103,7 +96,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     executeCommand: vscode.commands.executeCommand,
     getCodiconsUri,
     onPlanChoice: (choice) => {
-      state.planUserChoice = choice;
+      state.setPlanUserChoice(choice);
       // Always update immediately after choice
       sidebarPanel.updateState(buildFullState());
       // If phases need loading, update again when ready
@@ -154,9 +147,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       clearStaleParsedPlan(),
     ]);
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
-    state.planDetected = false;
-    state.cachedPlanPhases = [];
-    state.planUserChoice = "none";
+    state.setPlanDetected(false);
+    state.setCachedPlanPhases([]);
+    state.setPlanUserChoice("none");
     sidebarPanel.updateState(buildFullState());
   }
 
@@ -169,9 +162,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
     async function onPlanCreated(): Promise<void> {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
-      state.planDetected = true;
+      state.setPlanDetected(true);
       if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss" && state.planUserChoice !== "planning") {
-        state.planUserChoice = "none";
+        state.setPlanUserChoice("none");
       }
       sidebarPanel.updateState(buildFullState());
       await clearStaleParsedPlan();
@@ -181,9 +174,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
     function onPlanDeleted(): void {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
-      state.planDetected = false;
-      state.planUserChoice = "none";
-      state.cachedPlanPhases = [];
+      state.setPlanDetected(false);
+      state.setPlanUserChoice("none");
+      state.setCachedPlanPhases([]);
       sidebarPanel.updateState(buildFullState());
     }
 
@@ -216,7 +209,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
   async function loadPlanPhases(): Promise<void> {
     if (!deps.workspaceRoot) {
-      state.cachedPlanPhases = [];
+      state.setCachedPlanPhases([]);
       return;
     }
     try {
@@ -234,23 +227,23 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       }
       const { parsePlan } = await import("./parsers/plan");
       const parsed = parsePlan(content);
-      state.cachedPlanPhases = parsed.phases.map((p) => ({
+      state.setCachedPlanPhases(parsed.phases.map((p) => ({
         number: p.number,
         title: p.title,
         status: "pending" as const,
-      }));
+      })));
     } catch {
-      state.cachedPlanPhases = [];
+      state.setCachedPlanPhases([]);
     }
   }
 
   async function refreshLessonsAvailable(): Promise<void> {
     if (!deps.workspaceRoot) {
-      state.lessonsAvailable = false;
+      state.setLessonsAvailable(false);
       return;
     }
     const lessonsContent = await findLessonsContent(deps.workspaceRoot);
-    state.lessonsAvailable = lessonsContent !== null;
+    state.setLessonsAvailable(lessonsContent !== null);
   }
 
   const refreshCtx: SidebarRefreshContext = {
@@ -272,41 +265,39 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       activeSession.sessionState.reset();
     }
     // Reset mutable state counters for clean slate
-    state.cost = 0;
-    state.todoDone = 0;
-    state.todoTotal = 0;
-    state.planUserChoice = "resume";
+    state.setCost(0);
+    state.setTodos(0, 0);
+    state.setPlanUserChoice("resume");
     await loadPlanPhases();
     sidebarPanel.updateState(buildFullState());
   }
 
   function onPlanReset(): void {
-    state.cachedPlanPhases = [];
-    state.planUserChoice = "dismiss";
+    state.setCachedPlanPhases([]);
+    state.setPlanUserChoice("dismiss");
     sidebarPanel.updateState(buildFullState());
   }
 
   function onPlanChatStarted(): void {
-    state.planUserChoice = "planning";
+    state.setPlanUserChoice("planning");
     sidebarPanel.updateState(buildFullState());
   }
 
   function onPlanChatEnded(): void {
-    state.planUserChoice = "none";
+    state.setPlanUserChoice("none");
     sidebarPanel.updateState(buildFullState());
   }
 
   function onFullReset(): void {
     // Reset all SidebarMutableState fields
-    state.cost = 0;
-    state.todoDone = 0;
-    state.todoTotal = 0;
-    state.cachedPlanPhases = [];
-    state.planUserChoice = "none";
-    state.planDetected = false;
-    state.selfImprovementActive = false;
-    state.lessonsAvailable = false;
-    state.aiParsing = false;
+    state.setCost(0);
+    state.setTodos(0, 0);
+    state.setCachedPlanPhases([]);
+    state.setPlanUserChoice("none");
+    state.setPlanDetected(false);
+    state.setSelfImprovementActive(false);
+    state.setLessonsAvailable(false);
+    state.setAiParsing(false);
 
     // Reset active session state
     const activeSession = manager.getActiveSession();
@@ -319,12 +310,12 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   }
 
   function onAiParseStarted(): void {
-    state.aiParsing = true;
+    state.setAiParsing(true);
     sidebarPanel.updateState(buildFullState());
   }
 
   function onAiParseEnded(skipRefresh = false): void {
-    state.aiParsing = false;
+    state.setAiParsing(false);
     if (!skipRefresh) {
       sidebarPanel.updateState(buildFullState());
     }

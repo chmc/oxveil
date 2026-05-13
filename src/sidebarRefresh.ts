@@ -98,20 +98,19 @@ async function fullReInit(ctx: SidebarRefreshContext): Promise<void> {
   }
 
   // 2. Reset mutable state
-  state.cost = 0;
-  state.todoDone = 0;
-  state.todoTotal = 0;
-  state.aiParsing = false;
-  state.selfImprovementActive = false;
-  state.planUserChoice = "none";
+  state.setCost(0);
+  state.setTodos(0, 0);
+  state.setAiParsing(false);
+  state.setSelfImprovementActive(false);
+  state.setPlanUserChoice("none");
 
   // 3. Re-detect plan
   const planMdPath = getPlanPath(workspaceRoot, session?.planFileOverride);
   try {
     await fs.access(planMdPath);
-    state.planDetected = true;
+    state.setPlanDetected(true);
   } catch {
-    state.planDetected = false;
+    state.setPlanDetected(false);
   }
 
   // 4. Reload cached state from disk

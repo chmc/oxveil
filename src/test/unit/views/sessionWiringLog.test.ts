@@ -8,19 +8,10 @@ vi.mock("vscode", () => ({
 
 import { SessionState } from "../../../core/sessionState";
 import { wireSessionEvents, type SessionWiringDeps } from "../../../sessionWiring";
-import type { SidebarMutableState } from "../../../activateSidebar";
+import { SidebarMutableState } from "../../../core/sidebarMutableState";
 
 function makeMutableState(): SidebarMutableState {
-  return {
-    detectionStatus: "detected",
-    planDetected: false,
-    planUserChoice: "none",
-    cachedPlanPhases: [],
-    cost: 0,
-    todoDone: 0,
-    todoTotal: 0,
-    selfImprovementActive: false,
-  };
+  return new SidebarMutableState({ detectionStatus: "detected" });
 }
 
 describe("wireSessionEvents — uses buildSidebarState for sidebar updates", () => {

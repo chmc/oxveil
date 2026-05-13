@@ -98,8 +98,8 @@ describe("activateSidebar", () => {
     });
 
     it("returns view='stale' when detected + idle + plan detected + planUserChoice='none'", () => {
-      result.state.planDetected = true;
-      result.state.planUserChoice = "none";
+      result.state.setPlanDetected(true);
+      result.state.setPlanUserChoice("none");
       const state = result.buildFullState();
       expect(state.view).toBe("stale");
     });
@@ -133,7 +133,7 @@ describe("activateSidebar", () => {
         expect(res.state.cachedPlanPhases.length).toBe(2);
       });
 
-      res.state.planUserChoice = "resume";
+      res.state.setPlanUserChoice("resume");
       const state = res.buildFullState();
       expect(state.view).toBe("ready");
       expect(state.plan!.phases).toEqual([
@@ -145,20 +145,20 @@ describe("activateSidebar", () => {
 
   describe("onPlanChoice via state mutation", () => {
     it("'resume' transitions stale -> ready", () => {
-      result.state.planDetected = true;
-      result.state.planUserChoice = "none";
+      result.state.setPlanDetected(true);
+      result.state.setPlanUserChoice("none");
       expect(result.buildFullState().view).toBe("stale");
 
-      result.state.planUserChoice = "resume";
+      result.state.setPlanUserChoice("resume");
       expect(result.buildFullState().view).toBe("ready");
     });
 
     it("'dismiss' transitions stale -> empty", () => {
-      result.state.planDetected = true;
-      result.state.planUserChoice = "none";
+      result.state.setPlanDetected(true);
+      result.state.setPlanUserChoice("none");
       expect(result.buildFullState().view).toBe("stale");
 
-      result.state.planUserChoice = "dismiss";
+      result.state.setPlanUserChoice("dismiss");
       expect(result.buildFullState().view).toBe("empty");
     });
 
@@ -176,7 +176,7 @@ describe("activateSidebar", () => {
       }));
 
       // Simulate: planDetected but phases not yet loaded
-      result.state.planDetected = true;
+      result.state.setPlanDetected(true);
       expect(result.state.cachedPlanPhases).toEqual([]);
 
       // Trigger resume via captured callback
@@ -272,9 +272,8 @@ describe("activateSidebar", () => {
     });
 
     it("resets mutable state counters (cost, todoDone, todoTotal)", async () => {
-      result.state.cost = 1.5;
-      result.state.todoDone = 3;
-      result.state.todoTotal = 5;
+      result.state.setCost(1.5);
+      result.state.setTodos(3, 5);
       await result.onPlanFormed();
       expect(result.state.cost).toBe(0);
       expect(result.state.todoDone).toBe(0);
@@ -294,7 +293,7 @@ describe("activateSidebar", () => {
     });
 
     it("onDidDelete sets planDetected=false and view becomes 'empty'", () => {
-      result.state.planDetected = true;
+      result.state.setPlanDetected(true);
       result.registerPlanWatcher();
       expect(result.buildFullState().view).toBe("stale");
 
@@ -347,10 +346,10 @@ describe("activateSidebar", () => {
 
     it("onDidChange re-parses PLAN.md and updates cachedPlanPhases", async () => {
       // Pre-populate with initial phases
-      result.state.cachedPlanPhases = [
+      result.state.setCachedPlanPhases([
         { number: 1, title: "Old", status: "pending" },
-      ];
-      result.state.planDetected = true;
+      ]);
+      result.state.setPlanDetected(true);
 
       // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
       vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
@@ -408,21 +407,21 @@ describe("activateSidebar", () => {
 
   describe("onPlanReset", () => {
     it("clears cachedPlanPhases to []", () => {
-      result.state.cachedPlanPhases = [
+      result.state.setCachedPlanPhases([
         { number: 1, title: "Phase", status: "pending" },
-      ];
+      ]);
       result.onPlanReset();
       expect(result.state.cachedPlanPhases).toEqual([]);
     });
 
     it("sets planUserChoice to 'dismiss'", () => {
-      result.state.planUserChoice = "resume";
+      result.state.setPlanUserChoice("resume");
       result.onPlanReset();
       expect(result.state.planUserChoice).toBe("dismiss");
     });
 
     it("updates sidebar (view becomes empty when no plan)", () => {
-      result.state.planDetected = false;
+      result.state.setPlanDetected(false);
       result.onPlanReset();
       expect(result.buildFullState().view).toBe("empty");
     });
@@ -430,13 +429,13 @@ describe("activateSidebar", () => {
 
   describe("onPlanChatStarted", () => {
     it("sets planUserChoice to 'planning'", () => {
-      result.state.planUserChoice = "none";
+      result.state.setPlanUserChoice("none");
       result.onPlanChatStarted();
       expect(result.state.planUserChoice).toBe("planning");
     });
 
     it("transitions view to 'planning' when idle", () => {
-      result.state.planUserChoice = "none";
+      result.state.setPlanUserChoice("none");
       result.onPlanChatStarted();
       expect(result.buildFullState().view).toBe("planning");
     });
@@ -444,13 +443,13 @@ describe("activateSidebar", () => {
 
   describe("onPlanChatEnded", () => {
     it("resets planUserChoice to 'none'", () => {
-      result.state.planUserChoice = "planning";
+      result.state.setPlanUserChoice("planning");
       result.onPlanChatEnded();
       expect(result.state.planUserChoice).toBe("none");
     });
 
     it("transitions view away from 'planning' when idle", () => {
-      result.state.planUserChoice = "planning";
+      result.state.setPlanUserChoice("planning");
       expect(result.buildFullState().view).toBe("planning");
       result.onPlanChatEnded();
       expect(result.buildFullState().view).not.toBe("planning");
@@ -459,13 +458,13 @@ describe("activateSidebar", () => {
 
   describe("onAiParseStarted", () => {
     it("sets aiParsing to true", () => {
-      result.state.aiParsing = false;
+      result.state.setAiParsing(false);
       result.onAiParseStarted();
       expect(result.state.aiParsing).toBe(true);
     });
 
     it("includes aiParsing in buildFullState", () => {
-      result.state.aiParsing = false;
+      result.state.setAiParsing(false);
       result.onAiParseStarted();
       expect(result.buildFullState().aiParsing).toBe(true);
     });
@@ -501,13 +500,13 @@ describe("activateSidebar", () => {
 
   describe("onAiParseEnded", () => {
     it("sets aiParsing to false", () => {
-      result.state.aiParsing = true;
+      result.state.setAiParsing(true);
       result.onAiParseEnded();
       expect(result.state.aiParsing).toBe(false);
     });
 
     it("includes aiParsing in buildFullState", () => {
-      result.state.aiParsing = true;
+      result.state.setAiParsing(true);
       result.onAiParseEnded();
       expect(result.buildFullState().aiParsing).toBe(false);
     });
@@ -530,7 +529,7 @@ describe("activateSidebar", () => {
     });
 
     it("plan file deleted from .claude/plans/ sets planDetected=false", () => {
-      result.state.planDetected = true;
+      result.state.setPlanDetected(true);
       result.registerPlanWatcher();
       allWatcherCallbacks[1]?.onDelete?.();
       expect(result.state.planDetected).toBe(false);
@@ -632,27 +631,27 @@ describe("activateSidebar", () => {
     });
 
     it("detectInconsistencies returns false when planDetected matches disk (both false)", async () => {
-      result.state.planDetected = false;
+      result.state.setPlanDetected(false);
       await result.refreshSidebar();
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Refreshed");
     });
 
     it("detectInconsistencies returns true when planDetected=true but PLAN.md missing", async () => {
-      result.state.planDetected = true;
+      result.state.setPlanDetected(true);
       // access throws for all paths → PLAN.md doesn't exist → inconsistency
       await result.refreshSidebar();
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Full refresh completed");
     });
 
     it("detectInconsistencies returns true when aiParsing=true but session not running", async () => {
-      result.state.aiParsing = true;
+      result.state.setAiParsing(true);
       // session is not running (getActiveSession returns undefined) → inconsistency
       await result.refreshSidebar();
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Full refresh completed");
     });
 
     it("detectInconsistencies returns false when aiParsing=false and session not running", async () => {
-      result.state.aiParsing = false;
+      result.state.setAiParsing(false);
       await result.refreshSidebar();
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith("Oxveil: Refreshed");
     });

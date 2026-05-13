@@ -69,7 +69,7 @@ describe("activateSidebar integration: plan phases in ready state", () => {
       expect(result.state.cachedPlanPhases.length).toBe(3);
     });
 
-    result.state.planUserChoice = "resume";
+    result.state.setPlanUserChoice("resume");
     const state = result.buildFullState();
 
     expect(state.view).toBe("ready");
@@ -106,7 +106,7 @@ describe("activateSidebar integration: plan phases in ready state", () => {
       expect(result.state.cachedPlanPhases.length).toBeGreaterThan(0);
     });
 
-    result.state.planUserChoice = "resume";
+    result.state.setPlanUserChoice("resume");
     const state = result.buildFullState();
 
     expect(state.plan!.phases.length).toBeGreaterThan(0);
@@ -131,7 +131,7 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
 
     const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
     // Simulate that PLAN.md was detected (as happens in production before onPlanFormed)
-    result.state.planDetected = true;
+    result.state.setPlanDetected(true);
 
     await result.onPlanFormed();
 
@@ -150,11 +150,11 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
   it("onPlanReset() → planUserChoice='dismiss', view='empty', cachedPlanPhases cleared", () => {
     const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
     // Pre-populate state as if onPlanFormed had run
-    result.state.planDetected = true;
-    result.state.planUserChoice = "resume";
-    result.state.cachedPlanPhases = [
+    result.state.setPlanDetected(true);
+    result.state.setPlanUserChoice("resume");
+    result.state.setCachedPlanPhases([
       { number: 1, title: "Setup", status: "pending" },
-    ];
+    ]);
 
     result.onPlanReset();
 
@@ -170,8 +170,8 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
     // planDetected stays true. The view is still "empty" because planUserChoice="dismiss"
     // takes precedence in deriveViewState (sidebarState.ts line 108).
     const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
-    result.state.planDetected = true;
-    result.state.planUserChoice = "resume";
+    result.state.setPlanDetected(true);
+    result.state.setPlanUserChoice("resume");
 
     result.onPlanReset();
 
@@ -186,7 +186,7 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
       .mockResolvedValueOnce(PLAN_CONTENT as any);
 
     const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
-    result.state.planDetected = true;
+    result.state.setPlanDetected(true);
 
     // Phase 1: form the plan
     await result.onPlanFormed();

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerSelfImprovementCommands, type SelfImprovementCommandDeps } from "../../../commands/selfImprovement";
 import type { SelfImprovementPanel } from "../../../views/selfImprovementPanel";
-import type { SidebarMutableState } from "../../../activateSidebar";
+import { SidebarMutableState } from "../../../core/sidebarMutableState";
 import type { SelfImprovementSession } from "../../../core/selfImprovementSession";
 import type { Lesson } from "../../../types";
 import { findLessonsContent } from "../../../sessionWiring";
@@ -55,16 +55,7 @@ describe("registerSelfImprovementCommands", () => {
       reveal: vi.fn(),
     };
 
-    mockMutableState = {
-      detectionStatus: "detected",
-      planDetected: false,
-      planUserChoice: "none",
-      cachedPlanPhases: [],
-      cost: 0,
-      todoDone: 0,
-      todoTotal: 0,
-      selfImprovementActive: true,
-    };
+    mockMutableState = new SidebarMutableState({ detectionStatus: "detected", selfImprovementActive: true });
 
     mockSession = {
       isActive: vi.fn().mockReturnValue(false),

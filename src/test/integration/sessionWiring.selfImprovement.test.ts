@@ -208,7 +208,7 @@ describe("Self-improvement trigger on session completion", () => {
       });
 
       expect(mutableState.selfImprovementActive).toBe(false);
-      expect(mutableState.lessonsAvailable).toBeUndefined();
+      expect(mutableState.lessonsAvailable).toBe(false);
     } finally {
       vi.mocked(vscode.commands.executeCommand).mockReset();
       consoleErrorSpy.mockRestore();
@@ -218,7 +218,7 @@ describe("Self-improvement trigger on session completion", () => {
   it("resets selfImprovementActive on new run and loads fresh lessons", async () => {
     const session = new SessionState();
     const mutableState = makeMutableState();
-    mutableState.selfImprovementActive = true;
+    mutableState.setSelfImprovementActive(true);
 
     const selfImprovementPanel = { reveal: vi.fn() };
     wireSessionEvents(makeSessionDeps(session, mutableState, {

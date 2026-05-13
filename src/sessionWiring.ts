@@ -105,10 +105,9 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     // Reset cost/todo/notification tracking on new run
     if (to === "running") {
       if (ms) {
-        ms.cost = 0;
-        ms.todoDone = 0;
-        ms.todoTotal = 0;
-        ms.selfImprovementActive = false;
+        ms.setCost(0);
+        ms.setTodos(0, 0);
+        ms.setSelfImprovementActive(false);
       }
       notifications.reset();
       lastProgress = undefined;
@@ -187,8 +186,8 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
                   break;
                 }
                 if (ms) {
-                  ms.selfImprovementActive = true;
-                  ms.lessonsAvailable = true;
+                  ms.setSelfImprovementActive(true);
+                  ms.setLessonsAvailable(true);
                   buildAndSendSidebarState();
                 }
               } catch (err) {
@@ -286,13 +285,12 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
       for (const line of lines) {
         const costMatch = line.match(/cost=\$([0-9.]+)/);
         if (costMatch) {
-          ms.cost += parseFloat(costMatch[1]) || 0;
+          ms.addCost(parseFloat(costMatch[1]) || 0);
           updated = true;
         }
         const todoMatch = line.match(/\[Todos:\s*(\d+)\/(\d+)\s+done\]/);
         if (todoMatch) {
-          ms.todoDone = parseInt(todoMatch[1], 10);
-          ms.todoTotal = parseInt(todoMatch[2], 10);
+          ms.setTodos(parseInt(todoMatch[1], 10), parseInt(todoMatch[2], 10));
           updated = true;
         }
       }

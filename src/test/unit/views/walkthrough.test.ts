@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { SidebarMutableState } from "../../../core/sidebarMutableState";
 
 // Track setContext calls
 const setContextCalls: Array<{ key: string; value: unknown }> = [];
@@ -152,7 +153,7 @@ describe("walkthrough step completion", () => {
         } as any,
         folderUri: "file:///test",
         isActiveSession: () => true,
-        sidebarMutableState: { detectionStatus: "detected", planDetected: false, planUserChoice: "none", cachedPlanPhases: [], cost: 0, todoDone: 0, todoTotal: 0, selfImprovementActive: false },
+        sidebarMutableState: new SidebarMutableState({ detectionStatus: "detected" }),
       };
 
       wireSessionEvents(wiringDeps);

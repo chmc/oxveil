@@ -151,7 +151,7 @@ export function createRefreshDetection(deps: RefreshDetectionDeps): () => Promis
         "oxveil.detected",
         r.status === "detected",
       );
-      deps.sidebarState.detectionStatus = r.status;
+      deps.sidebarState.setDetectionStatus(r.status);
       const fullState = deps.buildFullState();
       deps.sidebarPanel.updateState(fullState);
       deps.statusBar.update(deriveStatusBarFromView(

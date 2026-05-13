@@ -22,17 +22,10 @@ function makeProgress(
   };
 }
 
+import { SidebarMutableState } from "../../core/sidebarMutableState";
+
 function makeMutableState() {
-  return {
-    detectionStatus: "detected" as const,
-    planDetected: false,
-    planUserChoice: "none" as const,
-    cachedPlanPhases: [] as any[],
-    cost: 0,
-    todoDone: 0,
-    todoTotal: 0,
-    selfImprovementActive: false,
-  };
+  return new SidebarMutableState({ detectionStatus: "detected" });
 }
 
 function wireDeps(

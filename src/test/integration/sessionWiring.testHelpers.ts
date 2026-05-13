@@ -1,21 +1,12 @@
 import { vi } from "vitest";
 import type { SessionState } from "../../core/sessionState";
-import type { SidebarMutableState } from "../../activateSidebar";
+import { SidebarMutableState } from "../../core/sidebarMutableState";
 import type { SessionWiringDeps } from "../../sessionWiring";
 import type { SidebarState } from "../../views/sidebarState";
 import { deriveViewState } from "../../views/sidebarState";
 
 export function makeMutableState(): SidebarMutableState {
-  return {
-    detectionStatus: "detected",
-    planDetected: false,
-    planUserChoice: "none",
-    cachedPlanPhases: [],
-    cost: 0,
-    todoDone: 0,
-    todoTotal: 0,
-    selfImprovementActive: false,
-  };
+  return new SidebarMutableState({ detectionStatus: "detected" });
 }
 
 export function makeBuildFullState(session: SessionState, ms: SidebarMutableState) {

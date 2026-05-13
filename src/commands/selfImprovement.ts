@@ -93,7 +93,7 @@ export function registerSelfImprovementCommands(
     vscode.commands.registerCommand("oxveil.selfImprovement.skip", () => {
       const ms = deps.getMutableState();
       if (ms) {
-        ms.selfImprovementActive = false;
+        ms.setSelfImprovementActive(false);
       }
 
       const panel = deps.getSelfImprovementPanel();

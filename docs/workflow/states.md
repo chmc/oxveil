@@ -6,6 +6,7 @@ machines: [session]
 projections: [sidebar, statusbar, plan-preview]
 related_files:
   - src/core/sessionState.ts
+  - src/core/sidebarMutableState.ts
   - src/views/sidebarState.ts
   - src/views/statusBar.ts
   - src/views/planPreviewPanel.ts

@@ -42,7 +42,7 @@ export function createConfigWatcher(deps: ConfigWatcherDeps): vscode.Disposable 
         deps.detection.detect().then((r) => {
           deps.folderChangeOpts.detected = r.status === "detected";
           vscode.commands.executeCommand("setContext", "oxveil.detected", r.status === "detected");
-          deps.sidebarState.detectionStatus = r.status;
+          deps.sidebarState.setDetectionStatus(r.status);
           const fullState = deps.buildFullState();
           deps.sidebarPanel.updateState(fullState);
           deps.statusBar.update(deriveStatusBarFromView(
