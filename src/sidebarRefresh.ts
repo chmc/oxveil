@@ -98,10 +98,7 @@ async function fullReInit(ctx: SidebarRefreshContext): Promise<void> {
   }
 
   // 2. Reset mutable state
-  state.setCost(0);
-  state.setTodos(0, 0);
-  state.setAiParsing(false);
-  state.setSelfImprovementActive(false);
+  state.resetForNewRun();
   state.setPlanUserChoice("none");
 
   // 3. Re-detect plan
