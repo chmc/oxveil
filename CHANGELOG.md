@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Fix EROFS error when forming plan with relative PLAN_FILE path in .claudeloop.conf
 - Panel visible getter now tracks webview ready state to prevent silent postMessage failures (#119)
 - ProcessManager race conditions in spawn methods (#117)
 - Fix async race condition in self-improvement trigger (#116)

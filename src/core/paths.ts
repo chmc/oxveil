@@ -23,7 +23,9 @@ export async function loadPlanFileOverride(workspaceRoot: string): Promise<strin
   try {
     const content = await fs.readFile(confPath, "utf-8");
     const match = content.match(/^PLAN_FILE=(.+)$/m);
-    return match?.[1]?.trim() || undefined;
+    const rawPath = match?.[1]?.trim();
+    if (!rawPath) return undefined;
+    return path.isAbsolute(rawPath) ? rawPath : path.join(workspaceRoot, rawPath);
   } catch {
     return undefined;
   }
