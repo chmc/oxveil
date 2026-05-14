@@ -20,6 +20,8 @@ Port claudeloop's hook enforcement to Oxveil with these adaptations:
 - **Feature registry** (`docs/FEATURES.md`) — plans declare which features they affect; registry is the single source of truth for feature status
 - **TypeScript TDD patterns** — `src/core/foo.ts` → `src/test/unit/core/foo.test.ts` (views, parsers, root variants)
 - **Visual verification scope** — limited to views; non-UI tasks may skip with a written justification in `visual-skip-reason`
+- **SessionStart cleanup** — clears `edit-order` at session start to prevent stale TDD checks from previous sessions
+- **Gate 5b: Test gate** — runs `vitest related` on changed files before task completion; blocks if tests fail (~500ms overhead)
 - **Bypass env vars** — `OXVEIL_SKIP_GATES`, `OXVEIL_SKIP_TDD`, `OXVEIL_SKIP_STATE_SYNC` for emergency escapes; require post-hoc review
 
 State is tracked in `.claude/workflow-state/` (gitignored). The `/workflow` skill surfaces current gate status on demand.

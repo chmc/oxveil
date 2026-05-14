@@ -32,6 +32,18 @@ fi
 # Collect missing requirements
 missing=""
 
+# Gate 5b: Incremental test gate (skip for internal tooling)
+if [ -f "$EDIT_ORDER_FILE" ] && ! grep -qvE '^(\.claude/|docs/)' "$EDIT_ORDER_FILE" 2>/dev/null; then
+    : # internal tooling only — skip
+elif [ -f "$EDIT_ORDER_FILE" ]; then
+    _changed=$(grep -vE '\.md$|\.claude/' "$EDIT_ORDER_FILE" 2>/dev/null | sort -u)
+    if [ -n "$_changed" ]; then
+        if ! echo "$_changed" | xargs npx vitest related --run --passWithNoTests 2>/dev/null; then
+            add_missing "related tests failed"
+        fi
+    fi
+fi
+
 # Helper: Add to missing list
 add_missing() {
     if [ -z "$missing" ]; then

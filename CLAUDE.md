@@ -121,7 +121,7 @@ Clear plan file when done. No stale plans.
 
 0. GitHub issue task? → plan MUST verify issue closed (`gh issue view #N --json state -q .state`). See [GitHub Issues](#github-issues).
 1. `npm run lint` — fix all
-2. `npm test` — fix all
+2. `npm test` — fix all (hook also runs `vitest related` on changed files at task completion)
 3. Doc scan: state files → `docs/workflow/states.md` (see `workflow-docs` skill), user-facing → README, architecture → ADR
 4. UI changes → `/visual-verification`
 5. State result + next step

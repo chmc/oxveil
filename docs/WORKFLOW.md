@@ -16,6 +16,7 @@ Claudeloop check → Branch confirm → Plan (9 sections) → Tasks → TDD → 
 | 3 | Plan-to-tasks | Edit/Write (post-plan) | Tasks must exist |
 | 4 | TDD | Edit (impl files) | Test file edited first |
 | 5 | State sync | Edit (state files) | docs/workflow/states.md edited first |
+| 5b | Test gate | TaskUpdate (complete) | Run vitest related on changed files (~500ms) |
 | 6 | Documentation | TaskUpdate (complete) | Update if plan indicated |
 | 7 | ADR | TaskUpdate (complete) | Create ADR if indicated |
 | 8 | package.json / changelog / README | TaskUpdate (complete) | Update if plan indicated |
@@ -69,7 +70,7 @@ Located in `.claude/workflow-state/` (gitignored):
 | `plan-exited` | ExitPlanMode called | Gate 2 |
 | `plan-requirements.json` | Which sections need updates | Gate 2 |
 | `tasks-created` | Tasks exist from plan | tasks-created.sh |
-| `edit-order` | Tracks file edit sequence | Gates 1, 4, 5 |
+| `edit-order` | Tracks file edit sequence (cleared on session start) | Gates 1, 4, 5 |
 | `docs-complete` | Documentation updated | Manual touch |
 | `adr-complete` | ADR created | Manual touch |
 | `package-json-complete` | package.json updated | Manual touch |
