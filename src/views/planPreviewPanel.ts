@@ -36,6 +36,7 @@ export class PlanPreviewPanel {
   private _lastRawContent: string | undefined;
   private _webviewReady = false;
   private _pendingMessages: unknown[] = [];
+  private _disposed = false;
 
   constructor(deps: PlanPreviewPanelDeps) {
     this._deps = deps;
@@ -117,6 +118,7 @@ export class PlanPreviewPanel {
   }
 
   async onFileChanged(): Promise<void> {
+    if (this._disposed) return;
     const seq = ++this._readSeq;
     const candidates = await this._deps.findAllPlanFiles();
     if (seq !== this._readSeq) return;
@@ -140,6 +142,7 @@ export class PlanPreviewPanel {
   }
 
   private async _parseAndRender(filePath: string, seq?: number): Promise<void> {
+    if (this._disposed) return;
     const content = await this._deps.readFile(filePath);
     if (seq !== undefined && seq !== this._readSeq) return;
 
@@ -270,6 +273,7 @@ export class PlanPreviewPanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this.stopWatching();
     clearInterval(this._pollTimer);
     this._pollTimer = undefined;
@@ -291,6 +295,7 @@ export class PlanPreviewPanel {
   }
 
   private async _onTabSwitch(category: PlanFileCategory): Promise<void> {
+    if (this._disposed) return;
     const tracked = this._resolver.switchTab(category);
     if (!tracked) return;
     await this._parseAndRender(tracked.path);

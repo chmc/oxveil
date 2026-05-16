@@ -37,6 +37,7 @@ export class SidebarPanel {
   private _pendingMessages: any[] = [];
   private _pendingClicks = new Map<string, { resolve: (found: boolean) => void; timeout: ReturnType<typeof setTimeout> }>();
   private readonly _deps: SidebarPanelDeps;
+  private _disposed = false;
 
   constructor(deps: SidebarPanelDeps) {
     this._deps = deps;
@@ -145,7 +146,20 @@ export class SidebarPanel {
   }
 
   /** Trigger a real DOM click in the webview. Returns whether element was found and clicked. */
+  dispose(): void {
+    this._disposed = true;
+    this._view = undefined;
+    this._webviewReady = false;
+    this._pendingMessages = [];
+    for (const pending of this._pendingClicks.values()) {
+      clearTimeout(pending.timeout);
+      pending.resolve(false);
+    }
+    this._pendingClicks.clear();
+  }
+
   triggerClick(selector: string): Promise<boolean> {
+    if (this._disposed) return Promise.resolve(false);
     return new Promise((resolve) => {
       const requestId = Math.random().toString(36).slice(2);
       const timeout = setTimeout(() => {
@@ -158,6 +172,7 @@ export class SidebarPanel {
   }
 
   private _postMessage(msg: any): void {
+    if (this._disposed) return;
     console.log("[Oxveil] posting to webview:", msg.type);
     if (!this._view) return;
     if (!this._webviewReady) {
