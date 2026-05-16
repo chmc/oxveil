@@ -12,7 +12,6 @@ dot.claudeloop.zip
 # Node
 node_modules/
 dist/
-package-lock.json
 
 # Test coverage
 coverage/
