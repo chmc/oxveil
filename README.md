@@ -244,6 +244,8 @@ npm run build
 
 Releases are automated via GitHub Actions — see the Release workflow.
 
+**CI notifications:** A VS Code task polls for CI failures and shows a native macOS notification. Requires `gh` CLI authenticated (`gh auth login`). Verify with `gh run list -L1`. Without auth, notifications are silently disabled.
+
 ## License
 
 [MIT](LICENSE)

@@ -14,3 +14,9 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -d "CI failed: ${GITHUB_SHA::7}" \
+            -H "Title: Oxveil CI" -H "Priority: high" \
+            ntfy.sh/oxveil-ci-${{ github.repository_owner }}

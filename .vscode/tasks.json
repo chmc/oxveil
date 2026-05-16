@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CI Notifications",
+      "type": "shell",
+      "command": "while true; do status=$(gh run list -L1 --json conclusion -q '.[0].conclusion' 2>/dev/null || true); if [ \"$status\" = \"failure\" ]; then osascript -e 'display notification \"CI failed\" with title \"Oxveil\"'; fi; sleep 60; done",
+      "isBackground": true,
+      "runOptions": { "runOn": "folderOpen" },
+      "problemMatcher": []
+    }
+  ]
+}
