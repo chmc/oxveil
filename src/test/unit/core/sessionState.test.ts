@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SessionState } from "../../../core/sessionState";
+import { SessionState, InvalidTransitionError } from "../../../core/sessionState";
 import type { ProgressState } from "../../../types";
 
 function makeProgress(overrides?: Partial<ProgressState>): ProgressState {
@@ -132,6 +132,15 @@ describe("SessionState", () => {
       }).not.toThrow();
       // Should stay idle since we never transitioned to running
       expect(session.status).toBe("idle");
+    });
+
+    it("throws InvalidTransitionError on programmatically invalid transition", () => {
+      // _transition is private — access via cast to test the guard directly
+      expect(() => {
+        (session as unknown as { _transition: (to: string) => void })._transition(
+          "done",
+        );
+      }).toThrow(InvalidTransitionError);
     });
   });
 

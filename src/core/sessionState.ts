@@ -2,6 +2,19 @@ import { EventEmitter } from "node:events";
 import type { ProgressState, SessionStatus } from "../types";
 import type { LockState } from "./lock";
 
+const TRANSITIONS: Record<SessionStatus, SessionStatus[]> = {
+  idle: ["running"],
+  running: ["done", "failed", "idle"],
+  done: ["idle", "running"],
+  failed: ["idle", "running"],
+};
+
+export class InvalidTransitionError extends Error {
+  constructor(from: SessionStatus, to: SessionStatus) {
+    super(`Invalid transition: ${from} → ${to}`);
+  }
+}
+
 export interface SessionStateEvents {
   "state-changed": [from: SessionStatus, to: SessionStatus];
   "phases-changed": [progress: ProgressState];
@@ -93,6 +106,9 @@ export class SessionState extends EventEmitter {
 
   private _transition(to: SessionStatus): void {
     const from = this._status;
+    if (!TRANSITIONS[from].includes(to)) {
+      throw new InvalidTransitionError(from, to);
+    }
     this._status = to;
     this.emit("state-changed", from, to);
   }

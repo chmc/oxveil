@@ -76,6 +76,19 @@ stateDiagram-v2
 | `failed` | `idle` | Reset command | `status === "failed"` | `SessionState.reset()` |
 | `running` | `idle` | Full reset command | (process stopped first) | `fullReset` → `processManager.stop()` → `onFullReset()` → `SessionState.reset()` |
 
+### Transition Validation
+
+`_transition()` validates every state change against a static `TRANSITIONS` map before applying it. An `InvalidTransitionError` is thrown if the target state is not in the allowed set for the current state. All callers already guard their call sites, so this serves as a programmatic safety net.
+
+```typescript
+const TRANSITIONS: Record<SessionStatus, SessionStatus[]> = {
+  idle: ["running"],
+  running: ["done", "failed", "idle"],
+  done: ["idle", "running"],
+  failed: ["idle", "running"],
+};
+```
+
 ### Orphan Recovery
 
 On activation, `checkInitialState()` reads existing lock and progress files. If a lock exists (extension restarted while claudeloop was running), it transitions directly to `running`. Progress is restored from the filesystem.
@@ -737,3 +750,4 @@ Used by self-improvement session to provide Claude with context about what happe
 ## Maintenance Log
 
 - **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.
+- **2026-05-16**: Added `TRANSITIONS` map and `InvalidTransitionError` to `sessionState.ts`. `_transition()` now throws on invalid state changes as a programmatic guard.
