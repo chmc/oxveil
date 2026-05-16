@@ -482,6 +482,7 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "tsc --noEmit && npx eslint src",
     "package": "vsce package -o oxveil.vsix",

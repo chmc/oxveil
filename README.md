@@ -154,6 +154,7 @@ Oxveil supports VS Code multi-root workspaces natively:
 | VS Code | ^1.100.0 |
 | claudeloop | >= 0.22.0 |
 | Node.js | >= 20 |
+| gh CLI | any | Optional — required for CI failure notifications (`gh auth login`) |
 
 claudeloop is a runtime dependency — Oxveil detects it automatically and offers installation if missing.
 

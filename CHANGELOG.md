@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- CI workflow for PR checks with coverage reporting
+- ESLint async rules to catch floating promises
+- Pre-commit hooks via lefthook
+- State transition validation in SessionState
+- Regression test suite for race conditions and cleanup
 - Incremental test gate using `vitest related` on task completion (~500ms)
 
 ### Fixed
