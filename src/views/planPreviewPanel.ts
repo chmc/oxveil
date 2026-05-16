@@ -32,6 +32,7 @@ export class PlanPreviewPanel {
   private _watcherSubscriptions: { dispose: () => void }[] = [];
   private _debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private _pollTimer: ReturnType<typeof setInterval> | undefined;
+  private _readSeq = 0;
   private _lastRawContent: string | undefined;
   private _webviewReady = false;
   private _pendingMessages: unknown[] = [];
@@ -116,9 +117,12 @@ export class PlanPreviewPanel {
   }
 
   async onFileChanged(): Promise<void> {
+    const seq = ++this._readSeq;
     const candidates = await this._deps.findAllPlanFiles();
+    if (seq !== this._readSeq) return;
     console.log("[PlanPreview] onFileChanged candidates:", candidates.length, "hasPanel:", !!this._panel);
     const tracked = await this._resolver.resolve(candidates);
+    if (seq !== this._readSeq) return;
     console.log("[PlanPreview] resolved:", tracked?.path ?? "none");
 
     if (!tracked) {
@@ -132,11 +136,12 @@ export class PlanPreviewPanel {
       return;
     }
 
-    await this._parseAndRender(tracked.path);
+    await this._parseAndRender(tracked.path, seq);
   }
 
-  private async _parseAndRender(filePath: string): Promise<void> {
+  private async _parseAndRender(filePath: string, seq?: number): Promise<void> {
     const content = await this._deps.readFile(filePath);
+    if (seq !== undefined && seq !== this._readSeq) return;
 
     const titleMatch = content.match(/^#\s+(.+)$/m);
     this._lastTitle = titleMatch ? titleMatch[1].trim() : undefined;

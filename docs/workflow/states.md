@@ -373,6 +373,10 @@ flowchart TD
 
 When the panel is visible, a 5-second poll timer runs as a fallback for file system watcher events that may be missed (e.g. files written by external processes like Claude Code). The `_pollTimer` starts in `reveal()` and is cleared in `dispose()`. Each tick calls `onFileChanged()`. State is also tracked even when the panel is not open so that when the panel is revealed it immediately shows any already-detected plan.
 
+### Async Sequence Guard
+
+`onFileChanged()` and `_parseAndRender()` are async — concurrent invocations (watcher + poll overlap) can complete out of order, causing stale state to overwrite newer state. A monotonic `_readSeq` counter prevents this: incremented at the start of each `onFileChanged()` call, checked after each `await` point in `_parseAndRender()`. If the captured sequence number no longer matches `_readSeq`, the call was superseded and returns without mutating state or calling `_sendUpdate()`.
+
 ### Scroll Preservation
 
 On `update` messages, the webview saves `.preview-content` scroll position before replacing `innerHTML` and restores it after (re-querying the element since `innerHTML` replacement destroys the old DOM node), clamped to `scrollHeight - clientHeight` to handle content shrinking. The scrollable element is `.preview-content` inside `#plan-content`, not `#plan-content` itself.
