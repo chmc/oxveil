@@ -10,6 +10,7 @@ related_files:
   - src/views/sidebarState.ts
   - src/views/statusBar.ts
   - src/views/planPreviewPanel.ts
+  - src/views/planPreviewTypes.ts
   - src/views/planPreviewHtml.ts
   - src/types.ts
   - src/sessionWiring.ts
