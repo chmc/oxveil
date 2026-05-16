@@ -390,7 +390,10 @@
         },
         "oxveil.provider": {
           "type": "string",
-          "enum": ["claude", "opencode"],
+          "enum": [
+            "claude",
+            "opencode"
+          ],
           "default": "claude",
           "description": "AI provider to use for pipelines"
         },
@@ -486,9 +489,10 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@vscode/codicons": "^0.0.36",
     "@types/semver": "^7.7.1",
     "@types/vscode": "^1.100.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vscode/codicons": "^0.0.36",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0",
