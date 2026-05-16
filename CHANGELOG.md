@@ -11,6 +11,7 @@
 - Incremental test gate using `vitest related` on task completion (~500ms)
 
 ### Fixed
+- Eliminate TOCTOU race conditions in state-changed handler via snapshot capture (sessionWiring.ts)
 - Session-scoped edit-order cleared on session start to prevent stale TDD checks
 - Fix EROFS error when forming plan with relative PLAN_FILE path in .claudeloop.conf
 - Panel visible getter now tracks webview ready state to prevent silent postMessage failures (#119)

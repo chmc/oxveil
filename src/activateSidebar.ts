@@ -103,7 +103,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       if (choice === "resume" && state.cachedPlanPhases.length === 0) {
         void loadPlanPhases().then(() => {
           sidebarPanel.updateState(buildFullState());
-        });
+        }).catch((err) => console.error("[oxveil] loadPlanPhases failed:", err));
       }
     },
     buildState: () => buildFullState(),
@@ -114,7 +114,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   if (deps.initialPlanDetected) {
     void loadPlanPhases().then(() => {
       sidebarPanel.updateState(buildFullState());
-    });
+    }).catch((err) => console.error("[oxveil] loadPlanPhases failed:", err));
   }
 
   // Check for lessons at startup if self-improvement is enabled
@@ -122,7 +122,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   if (selfImprovementEnabled) {
     void refreshLessonsAvailable().then(() => {
       sidebarPanel.updateState(buildFullState());
-    });
+    }).catch((err) => console.error("[oxveil] refreshLessonsAvailable failed:", err));
   }
 
   async function clearStaleParsedPlan(): Promise<void> {

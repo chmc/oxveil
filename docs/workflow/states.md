@@ -243,9 +243,9 @@ When a session completes with `selfImprovement` enabled and lessons captured:
 3. **Terminal close:** When user closes the terminal, `selfImprovementActive` resets to `false`, transitioning sidebar back to `completed` view
 4. **Manual skip:** User can click "End Session" to close the terminal and return to `completed` view
 
-**Race condition guards:** After each `await` in the self-improvement trigger (`findLessonsContent`, `executeCommand`), `sessionWiring` re-checks `session.status === "done"` before proceeding. If the session has moved out of `done` (e.g. reset), it `break`s out of the switch case without mutating `ms.selfImprovementActive` or calling `buildAndSendSidebarState()`.
+**Concurrency model:** The `state-changed` handler receives `to` as a snapshot of the status at event time. A single guard checks `session.status !== "done"` after `findLessonsContent` completes — this handles the user-reset-during-await case. No further re-reads after that point. The original three TOCTOU guards after `executeCommand` have been removed.
 
-**Diagnostic logging:** `[oxveil]`-prefixed console logs are emitted at each check point (selfImprovementEnabled, view, lessons found, lessons count) to aid debugging when the trigger fails silently.
+**Diagnostic logging:** `[oxveil]`-prefixed console logs are emitted at lessons found/count check points to aid debugging when the trigger fails silently.
 
 ```mermaid
 stateDiagram-v2
@@ -753,6 +753,7 @@ Used by self-improvement session to provide Claude with context about what happe
 
 ## Maintenance Log
 
+- **2026-05-16**: Race condition mitigation — removed 3 TOCTOU guards from `sessionWiring.ts` self-improvement trigger. Handler now uses `to` snapshot throughout instead of re-reading `session.status` after each await. Added `.catch()` to fire-and-forget chains in `activateSidebar.ts`.
 - **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.
 - **2026-05-16**: Added `TRANSITIONS` map and `InvalidTransitionError` to `sessionState.ts`. `_transition()` now throws on invalid state changes as a programmatic guard.
 - **2026-05-16**: Added `_disposed` flag + `dispose()` to `SidebarPanel`; added `_disposed = true` at start of `PlanPreviewPanel.dispose()`. Both panels guard async entry points (`triggerClick`, `_postMessage`, `onFileChanged`, `_parseAndRender`, `_onTabSwitch`) with early-return on `_disposed`. No state machine behavior changed.
