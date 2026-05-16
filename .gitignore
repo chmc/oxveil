@@ -14,6 +14,9 @@ node_modules/
 dist/
 package-lock.json
 
+# Test coverage
+coverage/
+
 # Release artifacts
 release_notes.md
 *.vsix
