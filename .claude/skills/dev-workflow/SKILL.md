@@ -31,3 +31,7 @@ No feature flags until Oxveil is published to the VS Code Marketplace. Ship all 
 ## Enforcement
 
 These are conventions for Claude Code. A human or explicit user instruction can override them. For hard enforcement, configure branch protection rules and pre-push git hooks on the GitHub remote.
+
+## Lefthook
+
+- If `lefthook install` fails silently, check for `core.hooksPath`. Run with `--reset-hooks-path` to clear it.

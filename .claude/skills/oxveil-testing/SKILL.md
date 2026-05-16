@@ -27,3 +27,5 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - Race condition tests: use deferred promise (`new Promise` + external `resolve`) for mocked async calls. Resolve AFTER triggering the state change to verify guards fire correctly—the guard must re-check state after the await returns (`if (session.status !== "done")`).
 - Async methods returning exit promises (e.g., `spawn()` returns `_exitPromise`): don't `await` when testing mid-run guards (`_stopping`, `_process !== null`). Use `startSpawn`/`flushMicrotasks` pattern, trigger `close()` separately for cleanup.
 - Path-returning functions: unit test with absolute path, relative path, empty string, undefined. Relative paths resolved incorrectly cause EROFS when extension cwd is read-only bundle.
+- Vitest coverage peer deps: pin `@vitest/coverage-v8` to match vitest major (e.g., `^3.0.0` for vitest 3.x) — npm resolves latest otherwise, causing peer dep failures
+- Disposal guards: place `if (this._disposed) return` at method ENTRY, not just post-await — poll timers and debounce callbacks can fire synchronously after `dispose()` clears refs

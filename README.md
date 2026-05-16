@@ -247,6 +247,8 @@ Releases are automated via GitHub Actions — see the Release workflow.
 
 **CI notifications:** A VS Code task polls for CI failures and shows a native macOS notification. Requires `gh` CLI authenticated (`gh auth login`). Verify with `gh run list -L1`. Without auth, notifications are silently disabled.
 
+**Note:** `runOn: folderOpen` requires user confirmation in VS Code 1.90+. Accept the prompt on first open.
+
 ## License
 
 [MIT](LICENSE)
