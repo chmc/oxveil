@@ -27,6 +27,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | provider-ui | planned | - | src/views/statusBar.ts, src/views/sidebarRenderers.ts | Provider indicator in status bar and sidebar with quick-switch |
 | visual-verification | stable | 0.5.0 | .claude/skills/visual-verification/ | Automated UI testing skill for VS Code EDH |
 | workflow-enforcement | planned | - | .claude/hooks/ | Regression prevention gates: test-pass, session-scoped edit-order, marker validation |
+| regression-prevention | planned | - | .github/workflows/ci.yml, vitest.config.ts, eslint.config.mjs | CI pipeline, coverage tracking, ESLint async rules, pre-commit hooks |
 
 ## Adding a New Feature
 
