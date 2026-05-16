@@ -84,6 +84,7 @@ function sessionWiringDeps(
       ? () => computeOtherRootsSummary(manager, ws.folderUri)
       : undefined,
     isActiveSession: () => manager.getActiveSession() === ws,
+    isDisposed: () => ws.isDisposed,
   };
 }
 

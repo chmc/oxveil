@@ -15,6 +15,7 @@ export class WorkspaceSession {
   readonly sessionState: SessionState;
   processManager: ProcessManager | undefined;
   gitExec: GitExecDeps | undefined;
+  private _disposed = false;
 
   constructor(init: WorkspaceSessionInit) {
     this.folderUri = init.folderUri;
@@ -23,7 +24,10 @@ export class WorkspaceSession {
     this.sessionState = new SessionState();
   }
 
+  get isDisposed(): boolean { return this._disposed; }
+
   dispose(): void {
+    this._disposed = true;
     this.sessionState.removeAllListeners();
     this.processManager = undefined;
     this.gitExec = undefined;

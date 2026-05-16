@@ -283,6 +283,35 @@ describe("Self-improvement trigger on session completion", () => {
     expect(mutableState.selfImprovementActive).toBe(true);
   });
 
+  it("does not mutate selfImprovementActive when session is disposed during findLessonsContent", async () => {
+    const session = new SessionState();
+    const mutableState = makeMutableState();
+    let disposed = false;
+
+    wireSessionEvents(makeSessionDeps(session, mutableState, {
+      isDisposed: () => disposed,
+    }));
+
+    let resolveReadFile!: (value: string) => void;
+    vi.mocked(readFile).mockReturnValueOnce(new Promise<string>((r) => { resolveReadFile = r; }) as any);
+
+    session.onLockChanged({ locked: true, pid: 42 });
+    session.onProgressChanged({
+      phases: [{ number: 1, title: "Setup", status: "completed" }],
+      totalPhases: 1,
+    });
+    session.onLockChanged({ locked: false });
+    expect(session.status).toBe("done");
+
+    // Dispose mid-await — status remains "done" but isDisposed() returns true
+    disposed = true;
+    resolveReadFile(LESSONS_MD);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mutableState.selfImprovementActive).toBe(false);
+  });
+
   it("does not mutate selfImprovementActive when session transitions to idle during findLessonsContent", async () => {
     const session = new SessionState();
     const mutableState = makeMutableState();

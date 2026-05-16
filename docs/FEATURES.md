@@ -28,7 +28,8 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | visual-verification | stable | 0.5.0 | .claude/skills/visual-verification/ | Automated UI testing skill for VS Code EDH |
 | workflow-enforcement | planned | - | .claude/hooks/ | Regression prevention gates: test-pass, session-scoped edit-order, marker validation |
 | regression-prevention | planned | - | .github/workflows/ci.yml, vitest.config.ts, eslint.config.mjs | CI pipeline, coverage tracking, ESLint async rules, pre-commit hooks |
-| race-condition-mitigation | planned | - | src/sessionWiring.ts | Snapshot capture to eliminate TOCTOU in async state-changed handlers |
+| race-condition-mitigation | stable | 0.8.0 | src/sessionWiring.ts | Snapshot capture to eliminate TOCTOU in async state-changed handlers |
+| disposal-guard | planned | - | src/sessionWiring.ts, src/core/workspaceSession.ts | Guard async handler continuations against disposed session |
 
 ## Adding a New Feature
 

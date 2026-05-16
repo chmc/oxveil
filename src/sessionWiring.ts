@@ -71,6 +71,7 @@ export interface SessionWiringDeps {
   getOtherRootsSummary?: () => string | undefined;
   getConfig?: (key: string) => any;
   isActiveSession: () => boolean;
+  isDisposed?: () => boolean;
   sidebarPanel?: SidebarPanel;
   buildSidebarState?: () => SidebarState;
   sidebarMutableState?: SidebarMutableState;
@@ -164,7 +165,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         if (selfImprovementEnabled && allCompleted) {
           const folderPath = vscode.Uri.parse(deps.folderUri).fsPath;
           const lessonsContent = await findLessonsContent(folderPath);
-          if (session.status !== "done") break;
+          if (session.status !== "done" || deps.isDisposed?.()) break;
           console.log("[oxveil] Lessons content:", { found: !!lessonsContent });
           if (lessonsContent) {
             const lessons = parseLessons(lessonsContent);

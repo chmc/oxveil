@@ -245,6 +245,8 @@ When a session completes with `selfImprovement` enabled and lessons captured:
 
 **Concurrency model:** The `state-changed` handler receives `to` as a snapshot of the status at event time. A single guard checks `session.status !== "done"` after `findLessonsContent` completes — this handles the user-reset-during-await case. No further re-reads after that point. The original three TOCTOU guards after `executeCommand` have been removed.
 
+**Disposal guard:** `WorkspaceSession.dispose()` calls `removeAllListeners()` but does not change session status. In-flight async handlers can therefore resume after disposal. A second guard checks `deps.isDisposed?.()` after `findLessonsContent` resolves to prevent stale writes to `SidebarMutableState` on a disposed session. `WorkspaceSession` exposes `isDisposed: boolean` (set to `true` as the first action in `dispose()`); `SessionWiringDeps` accepts `isDisposed?: () => boolean` following the existing `isActiveSession` callback pattern.
+
 **Diagnostic logging:** `[oxveil]`-prefixed console logs are emitted at lessons found/count check points to aid debugging when the trigger fails silently.
 
 ```mermaid
@@ -753,6 +755,7 @@ Used by self-improvement session to provide Claude with context about what happe
 
 ## Maintenance Log
 
+- **2026-05-16**: Disposal guard added to `sessionWiring.ts` self-improvement trigger — `deps.isDisposed?.()` checked after `findLessonsContent` resolves. `WorkspaceSession` gained `isDisposed` getter set in `dispose()`.
 - **2026-05-16**: Race condition mitigation — removed 3 TOCTOU guards from `sessionWiring.ts` self-improvement trigger. Handler now uses `to` snapshot throughout instead of re-reading `session.status` after each await. Added `.catch()` to fire-and-forget chains in `activateSidebar.ts`.
 - **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.
 - **2026-05-16**: Added `TRANSITIONS` map and `InvalidTransitionError` to `sessionState.ts`. `_transition()` now throws on invalid state changes as a programmatic guard.
