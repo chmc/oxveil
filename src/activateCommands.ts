@@ -68,7 +68,7 @@ export function activateCommands(deps: ActivateCommandsDeps): vscode.Disposable[
     installer: deps.installer,
     statusBar: deps.statusBar,
     readdir: (dir: string) => fs.readdir(dir),
-    onArchiveRefresh: deps.refreshArchive,
+    onArchiveRefresh: () => { void deps.refreshArchive(); },
     dependencyGraph: deps.dependencyGraph,
     executionTimeline: deps.executionTimeline,
     configWizard: deps.configWizard,

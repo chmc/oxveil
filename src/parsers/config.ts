@@ -94,7 +94,6 @@ export function parseConfig(content: string): ParsedConfig {
 
     const typedKey = key as keyof ConfigState;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cfg = config as any;
     if (BOOLEAN_KEYS.has(typedKey)) {
       cfg[key] = parseBool(value);

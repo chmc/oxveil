@@ -20,21 +20,15 @@ export function createNotificationManager(deps: NotificationFactoryDeps): Notifi
       const progress = active?.sessionState.progress ?? { phases: [], totalPhases: 0 };
       deps.liveRunPanel.reveal(progress, active?.folderUri);
     },
-    onViewLog: (phaseNumber) =>
-      vscode.commands.executeCommand("oxveil.viewLog", { phaseNumber }),
-    onInstall: () => vscode.commands.executeCommand("oxveil.install"),
-    onSetPath: () =>
-      vscode.commands.executeCommand(
-        "workbench.action.openSettings",
-        "oxveil.claudeloopPath",
-      ),
-    onStop: () => vscode.commands.executeCommand("oxveil.stop"),
-    onForceUnlock: () => vscode.commands.executeCommand("oxveil.forceUnlock"),
-    onOpenFile: (filePath) =>
-      vscode.workspace.openTextDocument(filePath).then(vscode.window.showTextDocument),
+    onViewLog: (phaseNumber) => { void vscode.commands.executeCommand("oxveil.viewLog", { phaseNumber }); },
+    onInstall: () => { void vscode.commands.executeCommand("oxveil.install"); },
+    onSetPath: () => { void vscode.commands.executeCommand("workbench.action.openSettings", "oxveil.claudeloopPath"); },
+    onStop: () => { void vscode.commands.executeCommand("oxveil.stop"); },
+    onForceUnlock: () => { void vscode.commands.executeCommand("oxveil.forceUnlock"); },
+    onOpenFile: (filePath) => { void vscode.workspace.openTextDocument(filePath).then(vscode.window.showTextDocument); },
     onFocusLiveRun: () => deps.liveRunPanel.panel?.reveal(),
-    onUpdate: () => vscode.commands.executeCommand("oxveil.install"),
-    onReleaseNotes: (url) => vscode.env.openExternal(vscode.Uri.parse(url)),
+    onUpdate: () => { void vscode.commands.executeCommand("oxveil.install"); },
+    onReleaseNotes: (url) => { void vscode.env.openExternal(vscode.Uri.parse(url)); },
   });
 }
 

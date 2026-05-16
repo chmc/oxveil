@@ -92,7 +92,7 @@ export async function activateMcpBridge(deps: McpBridgeDeps): Promise<vscode.Dis
   disposables.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("oxveil.mcpBridge")) {
-        startBridgeIfEnabled();
+        void startBridgeIfEnabled();
       }
     }),
   );

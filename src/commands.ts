@@ -185,7 +185,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
         ".claudeloop",
         ".claudeloop.conf",
       );
-      configWizard?.reveal(configPath, resolved.folderUri);
+      void configWizard?.reveal(configPath, resolved.folderUri);
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.configured", true);
     }),
     vscode.commands.registerCommand("oxveil.showLiveRun", async () => {

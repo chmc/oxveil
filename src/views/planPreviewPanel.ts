@@ -75,7 +75,7 @@ export class PlanPreviewPanel {
         } else if (msg.type === "annotation" && msg.phase && msg.text) {
           this._deps.onAnnotation(msg.phase, msg.text);
         } else if (msg.type === "switchTab" && msg.category) {
-          this._onTabSwitch(msg.category as PlanFileCategory);
+          void this._onTabSwitch(msg.category as PlanFileCategory);
         } else if (msg.type === "formPlan") {
           this._deps.onFormPlan?.();
         } else if (msg.type === "start") {
@@ -90,7 +90,7 @@ export class PlanPreviewPanel {
 
   private _startPolling(): void {
     if (this._pollTimer) return;
-    this._pollTimer = setInterval(() => { this.onFileChanged(); }, 5000);
+    this._pollTimer = setInterval(() => { void this.onFileChanged(); }, 5000);
   }
 
   beginSession(): void {
@@ -207,7 +207,7 @@ export class PlanPreviewPanel {
       if (this._debounceTimer) clearTimeout(this._debounceTimer);
       this._debounceTimer = setTimeout(() => {
         this._debounceTimer = undefined;
-        this.onFileChanged();
+        void this.onFileChanged();
       }, 200);
     };
 

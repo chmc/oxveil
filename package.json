@@ -483,7 +483,7 @@
     "watch": "node esbuild.mjs --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && npx eslint src",
     "package": "vsce package -o oxveil.vsix",
     "release:local": "vsce package -o oxveil.vsix && vsce publish --packagePath oxveil.vsix"
   },
@@ -491,10 +491,13 @@
     "@types/node": "^20.0.0",
     "@types/semver": "^7.7.1",
     "@types/vscode": "^1.100.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
     "@vitest/coverage-v8": "^3.2.4",
     "@vscode/codicons": "^0.0.36",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.25.0",
+    "eslint": "^10.4.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },

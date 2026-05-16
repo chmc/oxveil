@@ -292,7 +292,7 @@ export class ProcessManager implements IProcessManager {
 
     const timeout = new Promise<"timeout">((resolve) => {
       const id = setTimeout(() => resolve("timeout"), timeoutMs);
-      exitPromise.then(() => clearTimeout(id));
+      void exitPromise.then(() => clearTimeout(id));
     });
 
     const result = await Promise.race([

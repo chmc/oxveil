@@ -49,7 +49,7 @@ export async function startBridge(deps: BridgeDeps): Promise<BridgeHandle> {
   const token = randomBytes(32).toString("hex");
   const discoveryPath = path.join(deps.workspaceRoot, ".oxveil-mcp");
 
-  const server = http.createServer(async (req, res) => {
+  const server = http.createServer((req, res) => { void (async () => {
     // Auth check
     const auth = req.headers.authorization;
     if (auth !== `Bearer ${token}`) {
@@ -91,7 +91,7 @@ export async function startBridge(deps: BridgeDeps): Promise<BridgeHandle> {
       const msg = err instanceof Error ? err.message : String(err);
       json(res, 500, { error: msg });
     }
-  });
+  })(); });
 
   // Set request timeout
   server.timeout = 8000;

@@ -58,7 +58,7 @@ export class WatcherManager {
     this._pollTimer = setInterval(() => {
       if (this._pollInFlight) return;
       this._pollInFlight = true;
-      this._handleFile(lockFilePath, "lock").finally(() => {
+      void this._handleFile(lockFilePath, "lock").finally(() => {
         this._pollInFlight = false;
       });
     }, LOCK_POLL_INTERVAL_MS);
@@ -91,7 +91,7 @@ export class WatcherManager {
       }
 
       this._startCooldown(filePath, basename, fileType);
-      this._handleFile(filePath, fileType);
+      void this._handleFile(filePath, fileType);
     };
   }
 
@@ -102,7 +102,7 @@ export class WatcherManager {
         this._timers.delete(basename);
         if (this._pending.delete(basename)) {
           this._startCooldown(filePath, basename, fileType);
-          this._handleFile(filePath, fileType);
+          void this._handleFile(filePath, fileType);
         }
       }, this._deps.debounceMs),
     );

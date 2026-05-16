@@ -68,7 +68,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
   const replayViewer = new ReplayViewerPanel({
     createWebviewPanel: vscode.window.createWebviewPanel as any,
     readFile: (p: string) => fs.readFile(p, "utf-8"),
-    showInformationMessage: (msg: string) => vscode.window.showInformationMessage(msg),
+    showInformationMessage: (msg: string) => { void vscode.window.showInformationMessage(msg); },
   });
   disposables.push({ dispose: () => replayViewer.dispose() });
 
@@ -85,7 +85,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
   const liveRunPanel = new LiveRunPanel({
     createWebviewPanel: vscode.window.createWebviewPanel,
-    executeCommand: vscode.commands.executeCommand,
+    executeCommand: (cmd: string, ...args: unknown[]): void => { void vscode.commands.executeCommand(cmd, ...args); },
     getConfig: (key: string) => vscode.workspace.getConfiguration("oxveil").get(key),
   });
   disposables.push({ dispose: () => liveRunPanel.dispose() });
@@ -151,8 +151,8 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
         return undefined;
       }
     },
-    onFormPlan: () => vscode.commands.executeCommand("oxveil.formPlan"),
-    onStart: () => vscode.commands.executeCommand("oxveil.start"),
+    onFormPlan: () => { void vscode.commands.executeCommand("oxveil.formPlan"); },
+    onStart: () => { void vscode.commands.executeCommand("oxveil.start"); },
     persistPlanPath: (state: PersistedPlanState | undefined) => {
       deps.context?.workspaceState.update("oxveil.activePlan", state);
     },
@@ -221,7 +221,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
   planPreviewPanel.endSession();
 
   // Load any existing plan files on activation (survives VS Code reload)
-  planPreviewPanel.onFileChanged();
+  void planPreviewPanel.onFileChanged();
 
   // Auto-detect plan readiness: suggest forming a claudeloop plan
   // when a plan file is created or stabilizes (no writes for 5s)
@@ -232,7 +232,7 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
     const suggestFormPlan = async (uri: vscode.Uri) => {
       if (stabilityTimer) clearTimeout(stabilityTimer);
-      stabilityTimer = setTimeout(async () => {
+      stabilityTimer = setTimeout(() => { void (async () => {
         // Don't suggest same file twice per session
         if (uri.fsPath === lastSuggestedPath) return;
         lastSuggestedPath = uri.fsPath;
@@ -251,9 +251,9 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
           "Dismiss",
         );
         if (action === "Form Plan") {
-          vscode.commands.executeCommand("oxveil.formPlan", { filePath: uri.fsPath });
+          void vscode.commands.executeCommand("oxveil.formPlan", { filePath: uri.fsPath });
         }
-      }, 5000);
+      })(); }, 5000);
     };
 
     for (const watcher of watchers) {

@@ -93,7 +93,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     : undefined;
 
   const sidebarPanel = new SidebarPanel({
-    executeCommand: vscode.commands.executeCommand,
+    executeCommand: (cmd: string, ...args: unknown[]): void => { void vscode.commands.executeCommand(cmd, ...args); },
     getCodiconsUri,
     onPlanChoice: (choice) => {
       state.setPlanUserChoice(choice);
@@ -101,7 +101,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       sidebarPanel.updateState(buildFullState());
       // If phases need loading, update again when ready
       if (choice === "resume" && state.cachedPlanPhases.length === 0) {
-        loadPlanPhases().then(() => {
+        void loadPlanPhases().then(() => {
           sidebarPanel.updateState(buildFullState());
         });
       }
@@ -112,7 +112,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
   // Eagerly parse plan phases if PLAN.md was detected at startup
   if (deps.initialPlanDetected) {
-    loadPlanPhases().then(() => {
+    void loadPlanPhases().then(() => {
       sidebarPanel.updateState(buildFullState());
     });
   }
@@ -120,7 +120,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   // Check for lessons at startup if self-improvement is enabled
   const selfImprovementEnabled = vscode.workspace.getConfiguration?.("oxveil")?.get<boolean>("selfImprovement") ?? false;
   if (selfImprovementEnabled) {
-    refreshLessonsAvailable().then(() => {
+    void refreshLessonsAvailable().then(() => {
       sidebarPanel.updateState(buildFullState());
     });
   }

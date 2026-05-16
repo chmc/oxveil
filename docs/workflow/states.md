@@ -731,3 +731,9 @@ interface Lesson {
 **Source:** `src/types.ts`, parsed by `src/parsers/lessons.ts` from `.claudeloop/lessons.md`
 
 Used by self-improvement session to provide Claude with context about what happened during execution. The `failReason` captures why retries were needed (e.g., `verification_failed`, `trapped_tool_calls`, `empty_log`). The `summary` captures Claude's own reflection on what was learned during the phase.
+
+---
+
+## Maintenance Log
+
+- **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.

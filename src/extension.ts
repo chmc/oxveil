@@ -224,7 +224,7 @@ export async function activate(
     createTerminal: (opts) => vscode.window.createTerminal(opts),
     onDidCloseTerminal: (cb) => vscode.window.onDidCloseTerminal(cb),
     onDetectionChanged: () => {
-      refreshDetection();
+      void refreshDetection();
     },
     platform: process.platform,
   });
@@ -263,7 +263,7 @@ export async function activate(
       buildFullState,
       sidebar: {
         onPlanChatStarted: sidebar.onPlanChatStarted,
-        onPlanFormed: sidebar.onPlanFormed,
+        onPlanFormed: () => { void sidebar.onPlanFormed(); },
         onFullReset: sidebar.onFullReset,
         onAiParseStarted: sidebar.onAiParseStarted,
         onAiParseEnded: sidebar.onAiParseEnded,
@@ -281,7 +281,7 @@ export async function activate(
   sidebarPanel.updateState(buildFullState());
 
   // Then load archives and refresh sidebar with archive data
-  refreshArchive()
+  void refreshArchive()
     .catch((err) => console.warn("[Oxveil] Archive load failed:", err))
     .then(() => {
       sidebarPanel.updateState(buildFullState());

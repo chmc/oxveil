@@ -102,9 +102,9 @@ function attachArchiveListener(
   ws.sessionState.on("state-changed", (_from, to) => {
     if (to === "done" || to === "failed") {
       if (manager.getActiveSession() === ws) {
-        callbacks.onArchiveDone();
+        void callbacks.onArchiveDone();
       } else {
-        callbacks.refreshArchive();
+        void callbacks.refreshArchive();
       }
     }
   });

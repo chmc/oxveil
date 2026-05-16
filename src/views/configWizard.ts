@@ -81,6 +81,7 @@ export class ConfigWizardPanel {
       this._panel.onDidDispose(() => {
         this._panel = undefined;
       });
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this._panel.webview.onDidReceiveMessage(async (msg) => {
         if (msg.type === "save" && msg.config) {
           const { parseConfig, serializeConfig } = await import(

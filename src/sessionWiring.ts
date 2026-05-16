@@ -94,7 +94,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     deps.sidebarPanel.updateState(deps.buildSidebarState());
   }
 
-  session.on("state-changed", async (_from, to) => {
+  session.on("state-changed", (_from, to) => { void (async () => {
     // Removed isActiveSession() guard - sidebar should show whichever session is running
     vscode.commands.executeCommand(
       "setContext",
@@ -234,7 +234,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
     }
 
     buildAndSendSidebarState();
-  });
+  })(); });
 
   session.on("phases-changed", (progress) => {
     // Removed isActiveSession() guards - UI should show whichever session is running

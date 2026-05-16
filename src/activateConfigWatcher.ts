@@ -31,7 +31,7 @@ export function createConfigWatcher(deps: ConfigWatcherDeps): vscode.Disposable 
         .getConfiguration("oxveil")
         .get<string>("claudeloopPath", "claudeloop");
 
-      resolveClaudeloopPath(configuredPath, pathResolverDeps).then((resolved) => {
+      void resolveClaudeloopPath(configuredPath, pathResolverDeps).then((resolved) => {
         const resolvedPath = resolved?.path ?? configuredPath;
         if (resolved) {
           console.log(`[Oxveil] claudeloop re-resolved via ${resolved.source}: ${resolved.path}`);
@@ -39,7 +39,7 @@ export function createConfigWatcher(deps: ConfigWatcherDeps): vscode.Disposable 
         deps.detection.updatePath(resolvedPath);
         deps.folderChangeOpts.resolvedPath = resolvedPath;
 
-        deps.detection.detect().then((r) => {
+        void deps.detection.detect().then((r) => {
           deps.folderChangeOpts.detected = r.status === "detected";
           vscode.commands.executeCommand("setContext", "oxveil.detected", r.status === "detected");
           deps.sidebarState.setDetectionStatus(r.status);
