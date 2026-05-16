@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: true
+  commands:
+    typecheck:
+      glob: "*.ts"
+      run: npx tsc --noEmit
+    test-related:
+      glob: "src/**/*.ts"
+      run: npx vitest related {staged_files} --run
