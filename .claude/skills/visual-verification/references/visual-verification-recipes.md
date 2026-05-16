@@ -1099,7 +1099,7 @@ fi
 
 ### Setup
 
-Use a single temp dir for both the binary and FAKE_CLAUDE_DIR. PATH scoped to the `code` launch propagates to EDH → Extension Host → claudeloop → claude (verified by spike test 2026-05-13).
+Use `CLAUDELOOP_CLAUDE_BIN` to inject fake_claude. PATH modification alone is unreliable — macOS GUI apps (Electron/VS Code) may not inherit terminal PATH when `code` forwards IPC to a running instance.
 
 ```bash
 # Create temp dir — binary + config in same dir
@@ -1117,8 +1117,12 @@ echo "success_verbose" > "$FAKE_CLAUDE_DIR/scenario"
 # Ensure cleanup on any exit (SIGINT, SIGTERM, set -e)
 trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT
 
-# Launch EDH with scoped PATH — modification propagates to all child processes
-PATH="$FAKE_CLAUDE_DIR:$PATH" code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
+# Export CLAUDELOOP_CLAUDE_BIN — claudeloop provider_cli() checks this first,
+# bypassing PATH lookup. Safe: env var is process-scoped, unset = real claude.
+export CLAUDELOOP_CLAUDE_BIN="$FAKE_CLAUDE_DIR/claude"
+
+# Launch EDH — CLAUDELOOP_CLAUDE_BIN propagates via env, not PATH
+code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"
 ```
 
 **Cleanup:** Handled automatically by `trap EXIT`. No manual cleanup needed.
