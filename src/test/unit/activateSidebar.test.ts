@@ -543,31 +543,25 @@ describe("activateSidebar", () => {
   });
 
   describe("checkInitialPlanState", () => {
-    it("returns true when .claude/plans/*.md exists but legacy path absent", async () => {
-      vi.mocked(access).mockRejectedValueOnce(new Error("ENOENT"));
-      vi.mocked(readdir).mockResolvedValueOnce([
-        { isFile: () => true, name: "my-plan.md" },
-      ] as any);
+    it("returns true when .claudeloop/PLAN.md exists", async () => {
+      vi.mocked(access).mockResolvedValueOnce(undefined);
 
       const result = await checkInitialPlanState("/workspace");
 
       expect(result).toBe(true);
     });
 
-    it("returns false when neither legacy path nor .claude/plans/ has files", async () => {
+    it("returns false when .claudeloop/PLAN.md absent even if .claude/plans/ has files", async () => {
       vi.mocked(access).mockRejectedValueOnce(new Error("ENOENT"));
-      vi.mocked(readdir).mockRejectedValueOnce(new Error("ENOENT"));
 
       const result = await checkInitialPlanState("/workspace");
 
       expect(result).toBe(false);
+      expect(readdir).not.toHaveBeenCalled();
     });
 
-    it("returns false when .claude/plans/ has no .md files", async () => {
+    it("returns false when nothing exists", async () => {
       vi.mocked(access).mockRejectedValueOnce(new Error("ENOENT"));
-      vi.mocked(readdir).mockResolvedValueOnce([
-        { isFile: () => true, name: "not-a-plan.txt" },
-      ] as any);
 
       const result = await checkInitialPlanState("/workspace");
 

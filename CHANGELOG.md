@@ -16,6 +16,9 @@
 - `oxveil.writePlan` and `oxveil.aiParsePlan` commands
 
 ### Fixed
+- Sidebar no longer shows "Ready" state on startup due to stale `.claude/plans/` files from previous sessions
+- Sidebar no longer shows orphaned plan files from `.claude/plans/` when no active session
+- Edit button in sidebar now opens plan file (was calling unregistered `oxveil.writePlan` command)
 - Fix code block indentation in plan preview (#121)
 - Disposal guard in async state-changed handler prevents stale writes after WorkspaceSession disposed
 - Eliminate TOCTOU race conditions in state-changed handler via snapshot capture (sessionWiring.ts)

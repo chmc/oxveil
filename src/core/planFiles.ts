@@ -36,6 +36,6 @@ export async function checkInitialPlanState(
     await fs.access(planPath);
     return true;
   } catch {
-    return (await listPlanFiles(workspaceRoot)).length > 0;
+    return false;
   }
 }
