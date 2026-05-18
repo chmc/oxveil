@@ -176,6 +176,23 @@ else
     fi
 fi
 
+# 11. Visual Verification phase (if present and not N/A, must have descriptive checkboxes)
+vv_phase_start=$(grep -in "^## .*visual verification" "$plan_file" 2>/dev/null | head -1 | cut -d: -f1) || vv_phase_start=""
+if [ -n "$vv_phase_start" ]; then
+    vv_content=$(tail -n +"$((vv_phase_start + 1))" "$plan_file" | sed -n '1,/^## /p' | grep -v '^## ')
+    vv_first=$(echo "$vv_content" | grep -v '^$' | head -1 | tr '[:upper:]' '[:lower:]')
+    if ! echo "$vv_first" | grep -qE '^n/?a'; then
+        if ! echo "$vv_content" | grep -qE "^- \[ \]"; then
+            missing="$missing Visual Verification phase (no checkboxes),"
+        else
+            short_items=$(echo "$vv_content" | grep -E "^- \[ \]" | sed 's/^- \[ \] //' | awk 'length < 15')
+            if [ -n "$short_items" ]; then
+                missing="$missing Visual Verification items too short (need >15 chars each),"
+            fi
+        fi
+    fi
+fi
+
 # If any missing or empty, deny
 if [ -n "$missing" ]; then
     missing=$(echo "$missing" | sed 's/,$//')
@@ -185,7 +202,7 @@ if [ -n "$missing" ]; then
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
     "permissionDecisionReason": "Plan missing or empty sections:$missing",
-    "additionalContext": "All 9 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README."
+    "additionalContext": "All 9 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
   }
 }
 EOF
