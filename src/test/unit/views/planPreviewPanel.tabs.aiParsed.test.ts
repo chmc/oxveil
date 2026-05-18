@@ -7,6 +7,8 @@ import {
   DESIGN_CONTENT,
   AI_PARSED_PATH,
   AI_PARSED_CONTENT,
+  ACTIVE_PLAN_PATH,
+  VALID_PLAN,
 } from "./planPreviewPanel.helpers";
 
 describe("PlanPreviewPanel > ai-parsed category", () => {
@@ -191,6 +193,46 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     expect(lastCall.html).toContain("AI Parsed Plan");
 
     // Restore Date.now
+    vi.mocked(Date.now).mockRestore();
+  });
+
+  it("stale workspace plan + fresh ai-parsed: plan not tracked, ai-parsed is tracked", async () => {
+    const deps = makeDeps();
+    const sessionStartTime = 1000000;
+    const beforeSession = sessionStartTime - 10000;
+    const afterSession = sessionStartTime + 10000;
+
+    vi.spyOn(Date, "now").mockReturnValue(sessionStartTime);
+
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: beforeSession },
+      { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: afterSession },
+    ]);
+    (deps.statFile as any).mockImplementation(async (p: string) => {
+      if (p === ACTIVE_PLAN_PATH) {
+        return { birthtimeMs: beforeSession, mtimeMs: beforeSession };
+      }
+      if (p === AI_PARSED_PATH) {
+        return { birthtimeMs: afterSession, mtimeMs: afterSession };
+      }
+      return undefined;
+    });
+    deps.readFile = vi.fn(async (p: string) =>
+      p === AI_PARSED_PATH ? AI_PARSED_CONTENT : VALID_PLAN,
+    );
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    panel.beginSession();
+
+    await panel.onFileChanged();
+
+    // Stale plan filtered out; only ai-parsed tracked
+    expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
+    const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
+    expect(lastCall.html).not.toContain('data-category="plan"');
+    expect(lastCall.html).toContain("AI Parsed Plan");
+
     vi.mocked(Date.now).mockRestore();
   });
 });
