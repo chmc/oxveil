@@ -17,6 +17,7 @@ import type { SidebarMutableState } from "./activateSidebar";
 import { deriveStatusBarFromView } from "./views/deriveStatusBar";
 import { parseLessons } from "./parsers/lessons";
 import type { SelfImprovementPanel } from "./views/selfImprovementPanel";
+import type { PlanPreviewPanel } from "./views/planPreviewPanel";
 
 /**
  * Find lessons.md in .claudeloop or the most recent archive.
@@ -77,6 +78,7 @@ export interface SessionWiringDeps {
   sidebarMutableState?: SidebarMutableState;
   selfImprovementPanel?: SelfImprovementPanel;
   clearSessionPlanFiles?: () => Promise<void>;
+  planPreviewPanel?: PlanPreviewPanel;
 }
 
 export function wireSessionEvents(deps: SessionWiringDeps): void {
@@ -156,6 +158,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           });
         }
         deps.liveRunPanel?.onRunFinished(view === "stopped" ? "stopped" : "done");
+        deps.planPreviewPanel?.setSessionActive(false);
         vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasRun", true);
         // Self-improvement trigger
         const selfImprovementEnabled = deps.getConfig?.("selfImprovement") ?? false;
