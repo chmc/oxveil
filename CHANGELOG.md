@@ -16,6 +16,7 @@
 - `oxveil.writePlan` and `oxveil.aiParsePlan` commands
 
 ### Fixed
+- Fix code block indentation in plan preview (#121)
 - Disposal guard in async state-changed handler prevents stale writes after WorkspaceSession disposed
 - Eliminate TOCTOU race conditions in state-changed handler via snapshot capture (sessionWiring.ts)
 - Session-scoped edit-order cleared on session start to prevent stale TDD checks
