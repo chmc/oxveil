@@ -202,8 +202,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       return;
     }
     try {
+      const session = manager.getActiveSession();
       const parsedPlanPath = path.join(deps.workspaceRoot, ".claudeloop", "ai-parsed-plan.md");
-      const planMdPath = getPlanPath(deps.workspaceRoot, manager.getActiveSession()?.planFileOverride);
+      const planMdPath = getPlanPath(deps.workspaceRoot, session?.planFileOverride);
       let content: string;
       try {
         content = await fs.readFile(parsedPlanPath, "utf-8");
@@ -211,6 +212,9 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
         try {
           content = await fs.readFile(planMdPath, "utf-8");
         } catch {
+          if (!session?.planFileOverride && session?.sessionState.status !== "running") {
+            throw new Error("No active session");
+          }
           content = await readNewestClaudePlan(deps.workspaceRoot);
         }
       }

@@ -30,7 +30,7 @@ describe("dispatchSidebarMessage", () => {
   it("dispatches editPlan by opening the plan file", () => {
     const exec = vi.fn();
     dispatchSidebarMessage({ command: "editPlan" }, exec);
-    expect(exec).toHaveBeenCalledWith("oxveil.writePlan");
+    expect(exec).toHaveBeenCalledWith("oxveil._openParsedPlan");
   });
 
   it("dispatches configure", () => {

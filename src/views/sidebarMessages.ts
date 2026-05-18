@@ -59,7 +59,7 @@ function safeExec(result: void | Thenable<unknown>, showError?: ShowError): void
 const COMMAND_MAP: Record<string, string> = {
   install: "oxveil.install",
   createPlan: "oxveil.createPlan",
-  editPlan: "oxveil.writePlan",
+  editPlan: "oxveil._openParsedPlan",
   configure: "oxveil.openConfigWizard",
   start: "oxveil.start",
   stop: "oxveil.stop",

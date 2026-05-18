@@ -497,6 +497,10 @@ describe("activateSidebar", () => {
 
   describe("loadPlanPhases - .claude/plans fallback", () => {
     it("reads plan from .claude/plans/ when .claudeloop/PLAN.md missing", async () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockReturnValue({
+        sessionState: { status: "running" },
+        planFileOverride: undefined,
+      });
       vi.mocked(readFile)
         .mockRejectedValueOnce(new Error("ENOENT")) // ai-parsed-plan.md
         .mockRejectedValueOnce(new Error("ENOENT")) // .claudeloop/PLAN.md
@@ -515,12 +519,26 @@ describe("activateSidebar", () => {
     });
 
     it("falls back to empty phases when neither location has a plan", async () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockReturnValue({
+        sessionState: { status: "running" },
+        planFileOverride: undefined,
+      });
       vi.mocked(readFile).mockRejectedValue(new Error("ENOENT"));
       vi.mocked(readdir).mockRejectedValue(new Error("ENOENT"));
 
       await result.onPlanFormed();
 
       expect(result.state.cachedPlanPhases).toEqual([]);
+    });
+
+    it("skips .claude/plans/ fallback when no active session", async () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockReturnValueOnce(undefined);
+      vi.mocked(readFile).mockRejectedValue(new Error("ENOENT")); // both plan paths miss
+
+      await result.onPlanFormed();
+
+      expect(result.state.cachedPlanPhases).toEqual([]);
+      expect(readdir).not.toHaveBeenCalled();
     });
   });
 

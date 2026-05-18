@@ -488,7 +488,7 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 | `install` | `oxveil.install` | Installation |
 | `setPath` | `workbench.action.openSettings` (direct, not via command map) | Installation |
 | `createPlan` | `oxveil.createPlan` | Plan creation |
-| `editPlan` | `oxveil.writePlan` | Plan editing |
+| `editPlan` | `oxveil._openParsedPlan` | Plan editing |
 | `configure` | `oxveil.openConfigWizard` | Configuration |
 | `start` | `oxveil.start` | Execution |
 | `stop` | `oxveil.stop` | Execution |
