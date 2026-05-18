@@ -16,6 +16,7 @@
 - `oxveil.writePlan` and `oxveil.aiParsePlan` commands
 
 ### Fixed
+- Plan preview Start button now disables when claudeloop starts (#124)
 - Plan preview no longer shows stale plans when ai-parsed file exists (#123)
 - Sidebar no longer shows "Ready" state on startup due to stale `.claude/plans/` files from previous sessions
 - Sidebar no longer shows orphaned plan files from `.claude/plans/` when no active session
