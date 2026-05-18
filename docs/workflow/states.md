@@ -126,9 +126,9 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 | `sessionStatus` | `SessionStatus` (`"idle" \| "running" \| "done" \| "failed"`) | `SessionState.status` |
 | `planDetected` | `boolean` | File watcher in `activateSidebar.registerPlanWatcher()` — watches `.claudeloop/PLAN.md` (legacy) and `.claude/plans/*.md` (Claude Code default) |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
-| `planUserChoice` | `PlanUserChoice` (`"none" \| "resume" \| "dismiss" \| "planning"`) | User interaction in stale view; `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
+| `planUserChoice` | `PlanUserChoice` (`"none" \| "planning"`) | `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
 | `selfImprovementActive` | `boolean` | Whether self-improvement mode is active after session completion. Set to `true` by `sessionWiring` when session completes and lessons are captured. Reset by `skipSelfImprovement` command or `onFullReset()`. |
-| `cachedPlanPhases` | `PhaseView[]` | Plan phases for sidebar display before session runs. Populated by `loadPlanPhases()` from four sites: (1) `onPlanFormed()` after `formPlan` completes, (2) `onDidCreate` file watcher, (3) initial activation when `initialPlanDetected`, (4) `onPlanChoice("resume")` fallback when phases are empty |
+| `cachedPlanPhases` | `PhaseView[]` | Plan phases for sidebar display before session runs. Populated by `loadPlanPhases()` from three sites: (1) `onPlanFormed()` after `formPlan` completes, (2) `onDidCreate` file watcher, (3) initial activation when `initialPlanDetected` |
 
 ### Output States
 
@@ -138,7 +138,6 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 | `empty` | Detected, idle, no plan, no progress |
 | `planning` | Plan chat session is active — user is conversing with Claude to create a plan |
 | `ready` | Plan detected with all-pending phases, ready to execute |
-| `stale` | Plan file found on activation, no progress, user hasn't chosen what to do |
 | `running` | Session actively running |
 | `stopped` | Session done but partial progress (not all completed, not all failed) |
 | `failed` | At least one phase failed (session failed, or orphaned failed progress) |
@@ -164,10 +163,8 @@ The `deriveViewState()` function evaluates conditions top-to-bottom. First match
 | 11 | `"detected"` | `"idle"` | any | all completed | any | any | `completed` |
 | 12 | `"detected"` | `"idle"` | `false` | `undefined` | any | any | `empty` |
 | 13 | `"detected"` | `"idle"` | any | all pending | any | any | `ready` |
-| 14 | `"detected"` | `"idle"` | `true` | `undefined` | `"dismiss"` | any | `empty` |
-| 15 | `"detected"` | `"idle"` | `true` | `undefined` | `"resume"` | any | `ready` |
-| 16 | `"detected"` | `"idle"` | `true` | `undefined` | `"none"` | any | `stale` |
-| 17 | `"detected"` | `"idle"` | `false` | `undefined` | any | any | `ready` |
+| 14 | `"detected"` | `"idle"` | `true` | `undefined` | any | any | `ready` |
+| 15 | `"detected"` | `"idle"` | `false` | `undefined` | any | any | `ready` |
 
 <!-- NOTE: Row 15 is the final fallback for planDetected=false — reachable when progress exists but is empty (0 phases). -->
 
@@ -199,12 +196,7 @@ flowchart TD
     D6 -- Yes --> Empty1[empty]
     D6 -- No --> D7{all phases pending?}
     D7 -- Yes --> Ready1[ready]
-    D7 -- No --> D8{planUserChoice?}
-    D8 -- dismiss --> Empty2[empty]
-    D8 -- resume --> Ready2[ready]
-    D8 -- none --> D9{planDetected?}
-    D9 -- Yes --> Stale[stale]
-    D9 -- No --> Ready3[ready]
+    D7 -- No --> Ready2[ready]
 ```
 
 ### Renderer Table
@@ -214,10 +206,9 @@ Each view maps to a renderer function in `sidebarRenderers.ts` and a set of user
 | View | Renderer | Badge | Primary Action | Secondary Actions | UI Elements |
 |------|----------|-------|----------------|-------------------|-------------|
 | `not-found` | `renderNotFound()` | — | Install | Set custom path (link) | Warning icon, description |
-| `empty` | `renderEmpty()` | — | Let's Go (`createPlan`) | Write Plan, AI Parse, Form Plan | "How it works" steps, archives |
+| `empty` | `renderEmpty()` | — | Let's Go (`createPlan`) | — | "How it works" steps, archives |
 | `planning` | `renderPlanning()` | — | — | — | Same as `empty` but during active plan chat session |
 | `ready` | `renderReady()` | Ready | Start | Edit, Discard (links) | Phase list, plan filename, self-improvement status, archives |
-| `stale` | `renderStale()` | Found | Resume (`resumePlan`) | Dismiss (`dismissPlan`) | Plan filename, description, archives |
 | `running` | `renderRunning()` | Running | Stop | — | Progress bar, info bar (elapsed, cost, todos, attempts), phase list |
 | `stopped` | `renderStopped()` | Stopped | Resume (from next pending phase) | Restart | Progress bar, phase list (paused phase highlighted), archives |
 | `failed` | `renderFailed()` | Failed | Retry (failed phase) | Skip (failed phase) | Progress bar, error snippet, phase list, archives |
@@ -322,7 +313,7 @@ When transitioning to `idle` or on startup, the status bar state is derived from
 | `not-found` | "Oxveil: claudeloop not found" | `$(warning)` | warningBackground | "claudeloop not found — click to install" | `extension.ts` activation (detection failed), `deriveStatusBarFromView` |
 | `installing` | "Oxveil: installing claudeloop..." | `$(sync~spin)` | none | "Installing claudeloop..." | Installer callback |
 | `ready` | "Oxveil: ready" | `$(cloud)`/`$(terminal)`/`$(symbol-event)` | none | "Provider: Claude/OpenCode …" or "claudeloop detected — ready to run" | `extension.ts` post-init via `deriveStatusBarFromView` |
-| `idle` | "Oxveil: idle" | `$(cloud)`/`$(terminal)`/`$(symbol-event)` | none | "No active session" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (when sidebar view is empty/stale) |
+| `idle` | "Oxveil: idle" | `$(cloud)`/`$(terminal)`/`$(symbol-event)` | none | "No active session" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (when sidebar view is empty) |
 | `stopped` | "Oxveil: stopped" | `$(debug-pause)` | none | "Execution stopped — click to resume" | `wireSessionEvents()` on state→idle via `deriveStatusBarFromView` (orphan partial progress) |
 | `running` | "Oxveil: Phase N/M \| elapsed" | `$(sync~spin)` | none | "Running — Phase N of M (elapsed)" | `wireSessionEvents()` on state→running + phases-changed + elapsedTimer tick |
 | `failed` | "Oxveil: Phase N failed" | `$(error)` | errorBackground | "Phase N failed — click for details" | `wireSessionEvents()` on state→failed, or via `deriveStatusBarFromView` (orphan failed progress) |
@@ -497,14 +488,11 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 | `install` | `oxveil.install` | Installation |
 | `setPath` | `workbench.action.openSettings` (direct, not via command map) | Installation |
 | `createPlan` | `oxveil.createPlan` | Plan creation |
-| `openPlan` | `oxveil.writePlan` | Plan editing |
 | `editPlan` | `oxveil.writePlan` | Plan editing |
-| `writePlan` | `oxveil.writePlan` | Plan editing |
 | `configure` | `oxveil.openConfigWizard` | Configuration |
 | `start` | `oxveil.start` | Execution |
 | `stop` | `oxveil.stop` | Execution |
 | `restart` | `oxveil.reset` | Execution |
-| `aiParse` | `oxveil.aiParsePlan` | Plan processing |
 | `formPlan` | `oxveil.formPlan` | Plan processing |
 | `planChat` | `oxveil.openPlanChat` | Plan creation |
 | `discardPlan` | `oxveil.discardPlan` | Plan management |
@@ -540,13 +528,6 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 |---------|-----------------|----------|
 | `openLog` | `oxveil.viewLog` | `{ phaseNumber: phase }` if phase present |
 | `openDiff` | `oxveil.viewDiff` | `{ phaseNumber: phase }` if phase present |
-
-#### Plan Intent Commands (no VS Code command — handled by sidebar panel)
-
-| Command | Handler | Effect |
-|---------|---------|--------|
-| `resumePlan` | `SidebarPanel.onPlanChoice("resume")` | Sets `planUserChoice = "resume"`, rebuilds sidebar |
-| `dismissPlan` | `SidebarPanel.onPlanChoice("dismiss")` | Sets `planUserChoice = "dismiss"`, rebuilds sidebar |
 
 ### Sidebar Updates (Extension → Webview)
 
@@ -644,7 +625,7 @@ type DetectionStatus = "detected" | "not-found" | "version-incompatible";
 
 ### SidebarView
 ```typescript
-type SidebarView = "not-found" | "empty" | "planning" | "ready" | "stale" | "running" | "stopped" | "failed" | "completed" | "self-improvement";
+type SidebarView = "not-found" | "empty" | "planning" | "ready" | "running" | "stopped" | "failed" | "completed" | "self-improvement";
 ```
 
 ### Provider
@@ -709,7 +690,7 @@ Used in `SidebarState.selfImprovement` to render the self-improvement status sec
 
 ### PlanUserChoice
 ```typescript
-type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
+type PlanUserChoice = "none" | "planning";
 ```
 
 ### PlanPreviewState
@@ -762,4 +743,5 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.
 - **2026-05-16**: Added `TRANSITIONS` map and `InvalidTransitionError` to `sessionState.ts`. `_transition()` now throws on invalid state changes as a programmatic guard.
 - **2026-05-16**: Added `_disposed` flag + `dispose()` to `SidebarPanel`; added `_disposed = true` at start of `PlanPreviewPanel.dispose()`. Both panels guard async entry points (`triggerClick`, `_postMessage`, `onFileChanged`, `_parseAndRender`, `_onTabSwitch`) with early-return on `_disposed`. No state machine behavior changed.
+- **2026-05-18**: Removed `stale` view state, `resumePlan`/`dismissPlan` commands, `writePlan`/`aiParse` sidebar buttons, and `PlanUserChoice` resume/dismiss options. Initial view now shows only "Let's Go". Always starts fresh on VS Code reopen — no stale plan detection.
 - **2026-05-18**: Added `VersionedSnapshot<T>` utility (`src/core/state/VersionedSnapshot.ts`) and `GuardedHandler` types (`src/core/state/GuardedHandler.ts`). `SessionState` gains `readSnapshot()` returning `{ status, progress, seq }` and `assertFresh(seq)` for TOCTOU prevention in async handlers. No state transitions changed.

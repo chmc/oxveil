@@ -10,6 +10,11 @@
 - Regression test suite for race conditions and cleanup
 - Incremental test gate using `vitest related` on task completion (~500ms)
 
+### Removed
+- Write Plan, AI Parse, Form Plan buttons from initial view — "Let's Go" is the only entry point
+- Stale plan detection and Resume/Dismiss flow — always starts fresh on VS Code reopen
+- `oxveil.writePlan` and `oxveil.aiParsePlan` commands
+
 ### Fixed
 - Disposal guard in async state-changed handler prevents stale writes after WorkspaceSession disposed
 - Eliminate TOCTOU race conditions in state-changed handler via snapshot capture (sessionWiring.ts)

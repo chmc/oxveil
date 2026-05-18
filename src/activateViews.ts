@@ -15,7 +15,6 @@ import { LiveRunPanel } from "./views/liveRunPanel";
 import { PlanPreviewPanel, type PlanFileCategory, type PersistedPlanState } from "./views/planPreviewPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
-import { resolveFromSessionData } from "./core/planResolver";
 import { getPlanPath } from "./core/paths";
 import type { SessionState } from "./core/sessionState";
 import type { GitExecDeps } from "./core/gitIntegration";
@@ -159,24 +158,6 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
     loadPersistedPlanPath: () => {
       return deps.context?.workspaceState.get("oxveil.activePlan") as PersistedPlanState | undefined;
     },
-    resolveFromSessionData: deps.workspaceRoot
-      ? () => resolveFromSessionData(deps.workspaceRoot!, {
-          readdir: (dir: string) => fs.readdir(dir),
-          readFile: (p: string) => fs.readFile(p, "utf-8"),
-          stat: async (p: string) => {
-            const s = await stat(p);
-            return { mtimeMs: s.mtimeMs };
-          },
-          fileExists: async (p: string) => {
-            try {
-              await stat(p);
-              return true;
-            } catch {
-              return false;
-            }
-          },
-        })
-      : undefined,
     fileExists: async (p: string) => {
       try {
         await stat(p);

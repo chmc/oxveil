@@ -37,12 +37,12 @@ describe("renderBody data-command contract", () => {
     expect(html).toContain('data-command="setPath"');
   });
 
-  it("empty: createPlan button and secondary actions", () => {
+  it("empty: createPlan button only", () => {
     const html = renderBody({ view: "empty", archives: [] });
     expect(html).toContain('data-command="createPlan"');
-    expect(html).toContain('data-command="writePlan"');
-    expect(html).toContain('data-command="aiParse"');
-    expect(html).toContain('data-command="formPlan"');
+    expect(html).not.toContain('data-command="writePlan"');
+    expect(html).not.toContain('data-command="aiParse"');
+    expect(html).not.toContain('data-command="formPlan"');
   });
 
   it("ready: start button and edit/discard links", () => {
@@ -59,15 +59,6 @@ describe("renderBody data-command contract", () => {
     expect(html).toContain('data-command="discardPlan"');
   });
 
-  it("stale: resumePlan and dismissPlan commands", () => {
-    const html = renderBody({
-      view: "stale",
-      plan: { filename: "PLAN.md", phases: [] },
-      archives: [],
-    });
-    expect(html).toContain('data-command="resumePlan"');
-    expect(html).toContain('data-command="dismissPlan"');
-  });
 
   it("running: stop button", () => {
     const html = renderBody({

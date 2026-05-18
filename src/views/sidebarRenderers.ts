@@ -36,11 +36,6 @@ function renderEmpty(state: SidebarState): string {
       <li>Review and let AI build it</li>
     </ol>
   </div>
-  <div class="quick-actions">
-    <button class="action-btn" data-command="writePlan">Write Plan</button>
-    <button class="action-btn" data-command="aiParse">AI Parse</button>
-    <button class="action-btn" data-command="formPlan">Form Plan</button>
-  </div>
 </div>
 ${archivesHtml}`;
 }
@@ -69,23 +64,6 @@ function renderReady(state: SidebarState): string {
 ${archivesHtml}`;
 }
 
-function renderStale(state: SidebarState): string {
-  const plan = state.plan!;
-  const filename = escapeHtml(plan.filename);
-  const archivesHtml = renderArchives(state.archives);
-  return `<div class="card">
-  <div class="card-header">
-    <span class="plan-filename">${filename}</span>
-    <span class="badge stale">Found</span>
-  </div>
-  <p class="state-desc">A plan file was found. Is this your current work?</p>
-  ${renderActionBar([
-    { label: "Resume", command: "resumePlan", primary: true },
-    { label: "Dismiss", command: "dismissPlan" },
-  ])}
-</div>
-${archivesHtml}`;
-}
 
 function renderRunning(state: SidebarState): string {
   const plan = state.plan!;
@@ -283,8 +261,6 @@ export function renderBody(state?: SidebarState): string {
       return renderPlanning(state);
     case "ready":
       return renderReady(state);
-    case "stale":
-      return renderStale(state);
     case "running":
       return renderRunning(state);
     case "stopped":

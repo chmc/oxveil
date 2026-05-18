@@ -44,7 +44,6 @@ export class PlanPreviewPanel {
       statFile: deps.statFile,
       persistPlanPath: deps.persistPlanPath,
       loadPersistedPlanPath: deps.loadPersistedPlanPath,
-      resolveFromSessionData: deps.resolveFromSessionData,
       fileExists: deps.fileExists,
     });
   }

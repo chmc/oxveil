@@ -10,13 +10,10 @@ let allWatcherCallbacks: WatcherCallbacks[] = [];
 // Legacy alias: first watcher (.claudeloop/PLAN.md) for backward compat
 let watcherCallbacks: WatcherCallbacks = {};
 
-// Capture the onPlanChoice callback passed to SidebarPanel
-let capturedOnPlanChoice: ((choice: "resume" | "dismiss") => void) | undefined;
 let capturedUpdateState: ReturnType<typeof vi.fn> | undefined;
 
 vi.mock("../../views/sidebarPanel", () => ({
-  SidebarPanel: vi.fn().mockImplementation((deps: any) => {
-    capturedOnPlanChoice = deps.onPlanChoice;
+  SidebarPanel: vi.fn().mockImplementation((_deps: any) => {
     const updateState = vi.fn();
     capturedUpdateState = updateState;
     return { updateState };
@@ -85,7 +82,6 @@ describe("activateSidebar", () => {
     vi.clearAllMocks();
     allWatcherCallbacks = [];
     watcherCallbacks = {};
-    capturedOnPlanChoice = undefined;
     capturedUpdateState = undefined;
     deps = makeDeps();
     result = activateSidebar(deps);
@@ -97,11 +93,11 @@ describe("activateSidebar", () => {
       expect(state.view).toBe("empty");
     });
 
-    it("returns view='stale' when detected + idle + plan detected + planUserChoice='none'", () => {
+    it("returns view='ready' when detected + idle + plan detected + planUserChoice='none'", () => {
       result.state.setPlanDetected(true);
       result.state.setPlanUserChoice("none");
       const state = result.buildFullState();
-      expect(state.view).toBe("stale");
+      expect(state.view).toBe("ready");
     });
 
     it("returns view='running' when session is running", () => {
@@ -133,7 +129,6 @@ describe("activateSidebar", () => {
         expect(res.state.cachedPlanPhases.length).toBe(2);
       });
 
-      res.state.setPlanUserChoice("resume");
       const state = res.buildFullState();
       expect(state.view).toBe("ready");
       expect(state.plan!.phases).toEqual([
@@ -143,63 +138,16 @@ describe("activateSidebar", () => {
     });
   });
 
-  describe("onPlanChoice via state mutation", () => {
-    it("'resume' transitions stale -> ready", () => {
-      result.state.setPlanDetected(true);
-      result.state.setPlanUserChoice("none");
-      expect(result.buildFullState().view).toBe("stale");
-
-      result.state.setPlanUserChoice("resume");
-      expect(result.buildFullState().view).toBe("ready");
-    });
-
-    it("'dismiss' transitions stale -> empty", () => {
-      result.state.setPlanDetected(true);
-      result.state.setPlanUserChoice("none");
-      expect(result.buildFullState().view).toBe("stale");
-
-      result.state.setPlanUserChoice("dismiss");
-      expect(result.buildFullState().view).toBe("empty");
-    });
-
-    it("resume triggers loadPlanPhases when cachedPlanPhases is empty", async () => {
-      // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
-      vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
-      vi.mocked(readFile).mockResolvedValueOnce(
-        "# Plan\n## Phase 1: Parsed\n" as any,
-      );
-      vi.resetModules();
-      vi.doMock("../../parsers/plan", () => ({
-        parsePlan: vi.fn(() => ({
-          phases: [{ number: 1, title: "Parsed" }],
-        })),
-      }));
-
-      // Simulate: planDetected but phases not yet loaded
-      result.state.setPlanDetected(true);
-      expect(result.state.cachedPlanPhases).toEqual([]);
-
-      // Trigger resume via captured callback
-      capturedOnPlanChoice!("resume");
-
-      await vi.waitFor(() => {
-        expect(result.state.cachedPlanPhases).toEqual([
-          { number: 1, title: "Parsed", status: "pending" },
-        ]);
-      });
-    });
-  });
 
   describe("onPlanFormed", () => {
     beforeEach(() => {
       vi.resetModules();
     });
 
-    it("sets planUserChoice to 'resume'", async () => {
+    it("sets planUserChoice to 'none' after forming plan", async () => {
       vi.mocked(readFile).mockRejectedValueOnce(new Error("no parsed plan"));
       vi.mocked(readFile).mockResolvedValueOnce("# Plan\n## Phase 1: Setup\nDo stuff" as any);
 
-      // Mock the dynamic import of parsePlan
       vi.doMock("../../parsers/plan", () => ({
         parsePlan: vi.fn(() => ({
           phases: [{ number: 1, title: "Setup" }],
@@ -207,7 +155,7 @@ describe("activateSidebar", () => {
       }));
 
       await result.onPlanFormed();
-      expect(result.state.planUserChoice).toBe("resume");
+      expect(result.state.planUserChoice).toBe("none");
     });
 
     it("caches parsed phases from plan file", async () => {
@@ -234,7 +182,7 @@ describe("activateSidebar", () => {
       const res = activateSidebar(noRootDeps);
       await res.onPlanFormed();
       expect(res.state.cachedPlanPhases).toEqual([]);
-      expect(res.state.planUserChoice).toBe("resume");
+      expect(res.state.planUserChoice).toBe("none");
     });
 
     it("resets session state when session exists and status is not running", async () => {
@@ -282,20 +230,20 @@ describe("activateSidebar", () => {
   });
 
   describe("registerPlanWatcher", () => {
-    it("onDidCreate sets planDetected=true and view becomes 'stale'", () => {
+    it("onDidCreate sets planDetected=true and view becomes 'ready'", () => {
       result.registerPlanWatcher();
       expect(result.buildFullState().view).toBe("empty");
 
       watcherCallbacks.onCreate!();
 
       expect(result.state.planDetected).toBe(true);
-      expect(result.buildFullState().view).toBe("stale");
+      expect(result.buildFullState().view).toBe("ready");
     });
 
     it("onDidDelete sets planDetected=false and view becomes 'empty'", () => {
       result.state.setPlanDetected(true);
       result.registerPlanWatcher();
-      expect(result.buildFullState().view).toBe("stale");
+      expect(result.buildFullState().view).toBe("ready");
 
       watcherCallbacks.onDelete!();
 
@@ -303,15 +251,13 @@ describe("activateSidebar", () => {
       expect(result.buildFullState().view).toBe("empty");
     });
 
-    it("PLAN.md created after activation updates sidebar without manual resumePlan", () => {
+    it("PLAN.md created after activation updates sidebar to ready state", () => {
       result.registerPlanWatcher();
 
-      // Simulate PLAN.md creation — no manual resumePlan or planUserChoice change
       watcherCallbacks.onCreate!();
 
-      // Should transition to stale automatically (planUserChoice stays "none")
       expect(result.state.planUserChoice).toBe("none");
-      expect(result.buildFullState().view).toBe("stale");
+      expect(result.buildFullState().view).toBe("ready");
       expect(result.buildFullState().plan).toBeDefined();
       expect(result.buildFullState().plan!.filename).toBe("PLAN.md");
     });
@@ -414,10 +360,9 @@ describe("activateSidebar", () => {
       expect(result.state.cachedPlanPhases).toEqual([]);
     });
 
-    it("sets planUserChoice to 'dismiss'", () => {
-      result.state.setPlanUserChoice("resume");
+    it("sets planUserChoice to 'none'", () => {
       result.onPlanReset();
-      expect(result.state.planUserChoice).toBe("dismiss");
+      expect(result.state.planUserChoice).toBe("none");
     });
 
     it("updates sidebar (view becomes empty when no plan)", () => {

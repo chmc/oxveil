@@ -95,17 +95,6 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
   const sidebarPanel = new SidebarPanel({
     executeCommand: (cmd: string, ...args: unknown[]): void => { void vscode.commands.executeCommand(cmd, ...args); },
     getCodiconsUri,
-    onPlanChoice: (choice) => {
-      state.setPlanUserChoice(choice);
-      // Always update immediately after choice
-      sidebarPanel.updateState(buildFullState());
-      // If phases need loading, update again when ready
-      if (choice === "resume" && state.cachedPlanPhases.length === 0) {
-        void loadPlanPhases().then(() => {
-          sidebarPanel.updateState(buildFullState());
-        }).catch((err) => console.error("[oxveil] loadPlanPhases failed:", err));
-      }
-    },
     buildState: () => buildFullState(),
     showError: (msg) => { vscode.window.showErrorMessage(`Oxveil: ${msg}`); },
   });
@@ -163,7 +152,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     async function onPlanCreated(): Promise<void> {
       vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", true);
       state.setPlanDetected(true);
-      if (state.planUserChoice !== "resume" && state.planUserChoice !== "dismiss" && state.planUserChoice !== "planning") {
+      if (state.planUserChoice !== "planning") {
         state.setPlanUserChoice("none");
       }
       sidebarPanel.updateState(buildFullState());
@@ -266,14 +255,14 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
     // Reset mutable state counters for clean slate
     state.resetForNewRun();
-    state.setPlanUserChoice("resume");
+    state.setPlanUserChoice("none");
     await loadPlanPhases();
     sidebarPanel.updateState(buildFullState());
   }
 
   function onPlanReset(): void {
     state.setCachedPlanPhases([]);
-    state.setPlanUserChoice("dismiss");
+    state.setPlanUserChoice("none");
     sidebarPanel.updateState(buildFullState());
   }
 

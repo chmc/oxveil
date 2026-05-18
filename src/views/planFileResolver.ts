@@ -14,7 +14,6 @@ export interface PlanFileResolverDeps {
   statFile?: (filePath: string) => Promise<{ birthtimeMs: number; mtimeMs: number } | undefined>;
   persistPlanPath?: (state: PersistedPlanState | undefined) => void;
   loadPersistedPlanPath?: () => PersistedPlanState | undefined;
-  resolveFromSessionData?: () => Promise<{ planPath: string } | undefined>;
   fileExists?: (filePath: string) => Promise<boolean>;
 }
 
@@ -29,7 +28,6 @@ export class PlanFileResolver {
   private _trackedFiles = new Map<PlanFileCategory, TrackedFile>();
   private _activeCategory: PlanFileCategory | undefined;
   private _autoSwitch = true;
-  private _sessionDataResolved = false;
   private readonly _deps: PlanFileResolverDeps;
 
   constructor(deps: PlanFileResolverDeps) {
@@ -58,13 +56,11 @@ export class PlanFileResolver {
     this._trackedFiles = new Map();
     this._activeCategory = undefined;
     this._autoSwitch = true;
-    this._sessionDataResolved = false;
     this._deps.persistPlanPath?.(undefined);
   }
 
   endSession(): void {
     this._sessionStartTime = undefined;
-    this._sessionDataResolved = false;
     this._trackedFiles.clear();
     this._activeCategory = undefined;
   }
@@ -220,21 +216,6 @@ export class PlanFileResolver {
       this._deps.persistPlanPath?.(undefined);
     }
 
-    // Layer 2: Session JSONL lookup (runs once per activation)
-    if (!this._sessionDataResolved && this._deps.resolveFromSessionData) {
-      this._sessionDataResolved = true;
-      try {
-        const result = await this._deps.resolveFromSessionData();
-        if (result && !result.planPath.startsWith(homePlansDir)) {
-          this._deps.persistPlanPath?.({ planPath: result.planPath, resolvedAt: Date.now() });
-          const match = candidates.find((c) => c.path === result.planPath);
-          if (match) return match;
-          return { path: result.planPath, category: "plan", mtimeMs: Date.now() };
-        }
-      } catch {
-        // Layer 2 failed gracefully — fall through
-      }
-    }
 
     // Layer 3: mtimeMs fallback
     if (candidates.length > 0) {

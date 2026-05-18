@@ -7,7 +7,6 @@ import type { SidebarCommand } from "./sidebarMessages";
 
 export interface SidebarPanelDeps {
   executeCommand: (command: string, ...args: any[]) => void;
-  onPlanChoice?: (choice: "resume" | "dismiss") => void;
   buildState?: () => SidebarState;
   showError?: (message: string) => void;
   getCodiconsUri?: (webview: Webview) => string | undefined;
@@ -101,10 +100,6 @@ export class SidebarPanel {
         return;
       }
       console.log("[Oxveil] webview message received:", msg.command);
-      if (msg.command === "resumePlan" || msg.command === "dismissPlan") {
-        this._deps.onPlanChoice?.(msg.command === "resumePlan" ? "resume" : "dismiss");
-        return;
-      }
       dispatchSidebarMessage(msg, this._deps.executeCommand, this._deps.showError);
     });
 
@@ -134,10 +129,6 @@ export class SidebarPanel {
   }
 
   simulateClick(command: string): void {
-    if (command === "resumePlan" || command === "dismissPlan") {
-      this._deps.onPlanChoice?.(command === "resumePlan" ? "resume" : "dismiss");
-      return;
-    }
     dispatchSidebarMessage({ command } as SidebarCommand, this._deps.executeCommand, this._deps.showError);
   }
 

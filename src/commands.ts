@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import type { ArchiveTimelinePanel } from "./views/archiveTimelinePanel";
 import { registerCreatePlanCommand } from "./commands/createPlan";
-import { registerWritePlanCommand } from "./commands/writePlan";
 import { registerArchiveCommands } from "./commands/archive";
 import { registerPhaseCommands } from "./commands/phaseOps";
 import type { Installer } from "./core/installer";
@@ -15,7 +14,6 @@ import type { ReplayViewerPanel } from "./views/replayViewer";
 import type { LiveRunPanel } from "./views/liveRunPanel";
 import type { PlanPreviewPanel } from "./views/planPreviewPanel";
 import type { NotificationManager } from "./views/notifications";
-import { registerAiParsePlanCommand } from "./commands/aiParsePlan";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
 import { pickWorkspaceFolder } from "./views/folderPicker";
 import { registerPlanChatCommand } from "./commands/registerPlanChat";
@@ -197,9 +195,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       planPreviewPanel?.reveal();
       await planPreviewPanel?.onFileChanged();
     }),
-    registerAiParsePlanCommand(sessionManager, liveRunPanel, notificationManager),
     registerCreatePlanCommand(),
-    registerWritePlanCommand(sessionManager),
     vscode.commands.registerCommand("oxveil.welcome", () =>
       vscode.commands.executeCommand(
         "workbench.action.openWalkthrough",

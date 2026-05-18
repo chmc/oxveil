@@ -28,7 +28,6 @@ export interface PlanPreviewPanelDeps {
   onStart?: () => void;
   persistPlanPath?: (state: PersistedPlanState | undefined) => void;
   loadPersistedPlanPath?: () => PersistedPlanState | undefined;
-  resolveFromSessionData?: () => Promise<{ planPath: string } | undefined>;
   fileExists?: (filePath: string) => Promise<boolean>;
 }
 

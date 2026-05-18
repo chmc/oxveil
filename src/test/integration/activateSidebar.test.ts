@@ -124,7 +124,7 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
     watcherCallbacks = {};
   });
 
-  it("onPlanFormed() → planUserChoice='resume', view='ready', cachedPlanPhases populated", async () => {
+  it("onPlanFormed() → planUserChoice='none', view='ready', cachedPlanPhases populated", async () => {
     vi.mocked(readFile)
       .mockRejectedValueOnce(new Error("ENOENT")) // ai-parsed-plan.md
       .mockResolvedValueOnce(PLAN_CONTENT as any); // PLAN.md
@@ -135,7 +135,7 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
 
     await result.onPlanFormed();
 
-    expect(result.state.planUserChoice).toBe("resume");
+    expect(result.state.planUserChoice).toBe("none");
     expect(result.state.cachedPlanPhases).toEqual([
       { number: 1, title: "Setup", status: "pending" },
       { number: 2, title: "Implement", status: "pending" },
@@ -147,40 +147,39 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
     expect(state.plan!.phases).toHaveLength(3);
   });
 
-  it("onPlanReset() → planUserChoice='dismiss', view='empty', cachedPlanPhases cleared", () => {
+  it("onPlanReset() → planUserChoice='none', cachedPlanPhases cleared, view='ready'", () => {
     const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
     // Pre-populate state as if onPlanFormed had run
     result.state.setPlanDetected(true);
-    result.state.setPlanUserChoice("resume");
+    result.state.setPlanUserChoice("none");
     result.state.setCachedPlanPhases([
       { number: 1, title: "Setup", status: "pending" },
     ]);
 
     result.onPlanReset();
 
-    expect(result.state.planUserChoice).toBe("dismiss");
+    expect(result.state.planUserChoice).toBe("none");
     expect(result.state.cachedPlanPhases).toEqual([]);
 
+    // planDetected stays true → view is "ready" (no stale/dismiss logic anymore)
     const state = result.buildFullState();
-    expect(state.view).toBe("empty");
+    expect(state.view).toBe("ready");
   });
 
   it("onPlanReset() does NOT set planDetected to false (documents actual behavior)", () => {
-    // Issue #46 spec says planDetected should be false, but onPlanReset() does not touch it.
-    // planDetected stays true. The view is still "empty" because planUserChoice="dismiss"
-    // takes precedence in deriveViewState (sidebarState.ts line 108).
+    // planDetected stays true after onPlanReset; view remains "ready" since planDetected=true
     const result = activateSidebar(makeDeps({ initialPlanDetected: false }));
     result.state.setPlanDetected(true);
-    result.state.setPlanUserChoice("resume");
+    result.state.setPlanUserChoice("none");
 
     result.onPlanReset();
 
-    expect(result.state.planDetected).toBe(true); // actual behavior
-    expect(result.state.planUserChoice).toBe("dismiss");
-    expect(result.buildFullState().view).toBe("empty");
+    expect(result.state.planDetected).toBe(true);
+    expect(result.state.planUserChoice).toBe("none");
+    expect(result.buildFullState().view).toBe("ready");
   });
 
-  it("onPlanFormed() then onPlanReset() → clean return to empty state", async () => {
+  it("onPlanFormed() then onPlanReset() → planUserChoice stays 'none', phases cleared", async () => {
     vi.mocked(readFile)
       .mockRejectedValueOnce(new Error("ENOENT"))
       .mockResolvedValueOnce(PLAN_CONTENT as any);
@@ -190,14 +189,14 @@ describe("activateSidebar integration: sidebar activation callbacks (issue #46)"
 
     // Phase 1: form the plan
     await result.onPlanFormed();
-    expect(result.state.planUserChoice).toBe("resume");
+    expect(result.state.planUserChoice).toBe("none");
     expect(result.state.cachedPlanPhases).toHaveLength(3);
     expect(result.buildFullState().view).toBe("ready");
 
-    // Phase 2: reset
+    // Phase 2: reset — phases cleared, planDetected stays true → still "ready"
     result.onPlanReset();
-    expect(result.state.planUserChoice).toBe("dismiss");
+    expect(result.state.planUserChoice).toBe("none");
     expect(result.state.cachedPlanPhases).toEqual([]);
-    expect(result.buildFullState().view).toBe("empty");
+    expect(result.buildFullState().view).toBe("ready");
   });
 });

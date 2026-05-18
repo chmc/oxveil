@@ -81,24 +81,6 @@ describe("SidebarPanel", () => {
     expect(view.webview.postMessage).not.toHaveBeenCalled();
   });
 
-  it("dispatches resumePlan to onPlanChoice callback", () => {
-    const onPlanChoice = vi.fn();
-    const panel2 = new SidebarPanel({ executeCommand: vi.fn(), onPlanChoice });
-    const view = makeMockWebviewView();
-    panel2.resolveWebviewView(view as any);
-    view._simulateMessage({ command: "resumePlan" });
-    expect(onPlanChoice).toHaveBeenCalledWith("resume");
-  });
-
-  it("dispatches dismissPlan to onPlanChoice callback", () => {
-    const onPlanChoice = vi.fn();
-    const panel2 = new SidebarPanel({ executeCommand: vi.fn(), onPlanChoice });
-    const view = makeMockWebviewView();
-    panel2.resolveWebviewView(view as any);
-    view._simulateMessage({ command: "dismissPlan" });
-    expect(onPlanChoice).toHaveBeenCalledWith("dismiss");
-  });
-
   it("simulateClick dispatches restart as oxveil.reset", () => {
     const view = makeMockWebviewView();
     panel.resolveWebviewView(view as any);
@@ -109,13 +91,6 @@ describe("SidebarPanel", () => {
   it("simulateClick works without webview resolved", () => {
     panel.simulateClick("restart");
     expect(deps.executeCommand).toHaveBeenCalledWith("oxveil.reset");
-  });
-
-  it("simulateClick dispatches resumePlan via onPlanChoice", () => {
-    const onPlanChoice = vi.fn();
-    const p = new SidebarPanel({ executeCommand: vi.fn(), onPlanChoice });
-    p.simulateClick("resumePlan");
-    expect(onPlanChoice).toHaveBeenCalledWith("resume");
   });
 
   it("simulateClick with phase command but no phase is a no-op", () => {

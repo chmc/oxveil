@@ -76,12 +76,6 @@ describe("dispatchSidebarMessage", () => {
     expect(exec).toHaveBeenCalledWith("oxveil.forceUnlock");
   });
 
-  it("dispatches aiParse", () => {
-    const exec = vi.fn();
-    dispatchSidebarMessage({ command: "aiParse" }, exec);
-    expect(exec).toHaveBeenCalledWith("oxveil.aiParsePlan");
-  });
-
   it("dispatches planChat", () => {
     const exec = vi.fn();
     dispatchSidebarMessage({ command: "planChat" }, exec);
@@ -113,18 +107,6 @@ describe("dispatchSidebarMessage", () => {
   });
 
   // --- Additional tests for missing coverage (Issue #7) ---
-
-  it("dispatches openPlan", () => {
-    const exec = vi.fn();
-    dispatchSidebarMessage({ command: "openPlan" }, exec);
-    expect(exec).toHaveBeenCalledWith("oxveil.writePlan");
-  });
-
-  it("dispatches writePlan", () => {
-    const exec = vi.fn();
-    dispatchSidebarMessage({ command: "writePlan" }, exec);
-    expect(exec).toHaveBeenCalledWith("oxveil.writePlan");
-  });
 
   it("dispatches openTimeline", () => {
     const exec = vi.fn();

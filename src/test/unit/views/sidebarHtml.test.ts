@@ -42,9 +42,9 @@ describe("renderSidebar", () => {
     const html = renderSidebar(nonce, csp, state);
     expect(html).toContain("From Idea to Reality");
     expect(html).toContain("How it works");
-    expect(html).toContain("Form Plan");
-    expect(html).toContain("Write Plan");
-    expect(html).toContain("AI Parse");
+    expect(html).not.toContain("Form Plan");
+    expect(html).not.toContain("Write Plan");
+    expect(html).not.toContain("AI Parse");
   });
 
   it("renders ready state with phases and actions", () => {
@@ -167,20 +167,6 @@ describe("renderSidebar", () => {
     expect(html).not.toContain('>Replay<');
   });
 
-  it("renders stale state with Found badge and Resume/Dismiss buttons", () => {
-    const state: SidebarState = {
-      view: "stale",
-      plan: { filename: "PLAN.md", phases: [] },
-      archives: [],
-    };
-    const html = renderSidebar(nonce, csp, state);
-    expect(html).toContain("PLAN.md");
-    expect(html).toContain("Found");
-    expect(html).toContain("Resume");
-    expect(html).toContain("Dismiss");
-    expect(html).toContain("resumePlan");
-    expect(html).toContain("dismissPlan");
-  });
 
   it("renders planning state with Form Plan and chat links", () => {
     const state: SidebarState = {

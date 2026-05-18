@@ -135,9 +135,9 @@ async function main(): Promise<void> {
 
   server.tool(
     "click_sidebar_button",
-    "Simulate clicking a sidebar button. Common commands: start, stop, resume, restart, resumePlan, dismissPlan, discardPlan, createPlan, editPlan. For phase commands add phase parameter. Response confirms dispatch only — poll get_sidebar_state to verify the effect.",
+    "Simulate clicking a sidebar button. Common commands: start, stop, resume, restart, discardPlan, createPlan, editPlan. For phase commands add phase parameter. Response confirms dispatch only — poll get_sidebar_state to verify the effect.",
     {
-      command: z.string().describe("The sidebar command to dispatch (e.g. 'start', 'stop', 'resumePlan')"),
+      command: z.string().describe("The sidebar command to dispatch (e.g. 'start', 'stop', 'createPlan')"),
       phase: z.number().optional().describe("Phase number for phase-specific commands (resume, retry, skip)"),
       archive: z.string().optional().describe("Archive name for archive commands (openReplay, restoreArchive)"),
     },

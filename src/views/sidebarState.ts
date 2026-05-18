@@ -12,7 +12,6 @@ export type SidebarView =
   | "not-found"
   | "empty"
   | "ready"
-  | "stale"
   | "running"
   | "stopped"
   | "failed"
@@ -20,7 +19,7 @@ export type SidebarView =
   | "planning"
   | "self-improvement";
 
-export type PlanUserChoice = "none" | "resume" | "dismiss" | "planning";
+export type PlanUserChoice = "none" | "planning";
 
 export interface SidebarState {
   view: SidebarView;
@@ -142,10 +141,7 @@ export function deriveViewState(
     progress && progress.phases.every((p) => p.status === "pending");
   if (allPending) return "ready";
 
-  // Plan detected, no progress — check user intent
-  if (planUserChoice === "dismiss") return "empty";
-  if (planUserChoice === "resume") return "ready";
-  return planDetected ? "stale" : "ready";
+  return "ready";
 }
 
 export function mapPhases(phases: PhaseState[]): PhaseView[] {

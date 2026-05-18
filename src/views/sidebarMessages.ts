@@ -5,9 +5,7 @@ export type SidebarCommand =
   | { command: "install" }
   | { command: "setPath" }
   | { command: "createPlan" }
-  | { command: "openPlan" }
   | { command: "editPlan" }
-  | { command: "writePlan" }
   | { command: "configure" }
   | { command: "start" }
   | { command: "stop" }
@@ -17,7 +15,6 @@ export type SidebarCommand =
   | { command: "skip"; phase: number }
   | { command: "markComplete"; phase: number }
   | { command: "runFromPhase"; phase: number }
-  | { command: "aiParse" }
   | { command: "formPlan" }
   | { command: "planChat" }
   | { command: "focusPlanChat" }
@@ -33,8 +30,6 @@ export type SidebarCommand =
   | { command: "fullReset" }
   | { command: "refreshArchives" }
   | { command: "discardPlan" }
-  | { command: "resumePlan" }
-  | { command: "dismissPlan" }
   | { command: "focusSelfImprovement" }
   | { command: "skipSelfImprovement" }
   // selectFolder deferred to multi-root follow-up
@@ -64,14 +59,11 @@ function safeExec(result: void | Thenable<unknown>, showError?: ShowError): void
 const COMMAND_MAP: Record<string, string> = {
   install: "oxveil.install",
   createPlan: "oxveil.createPlan",
-  writePlan: "oxveil.writePlan",
-  openPlan: "oxveil.writePlan",
-  editPlan: "oxveil.writePlan",   // writePlan opens existing if present
+  editPlan: "oxveil.writePlan",
   configure: "oxveil.openConfigWizard",
   start: "oxveil.start",
   stop: "oxveil.stop",
   restart: "oxveil.reset",          // Reset clears state; user starts fresh
-  aiParse: "oxveil.aiParsePlan",
   formPlan: "oxveil.formPlan",
   discardPlan: "oxveil.discardPlan",
   planChat: "oxveil.openPlanChat",

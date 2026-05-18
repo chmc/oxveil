@@ -15,16 +15,14 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
       resolvedAt: Date.now(),
     }));
     deps.fileExists = vi.fn(async () => true);
-    deps.resolveFromSessionData = vi.fn(async () => ({ planPath: "/other.md" }));
 
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
 
     await panel.onFileChanged();
 
-    // Should use cached path, not JSONL lookup
+    // Should use cached path
     expect(deps.loadPersistedPlanPath).toHaveBeenCalled();
-    expect(deps.resolveFromSessionData).not.toHaveBeenCalled();
     expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
   });
 
@@ -37,7 +35,6 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
       resolvedAt: now - 10000,
     }));
     deps.persistPlanPath = vi.fn();
-    deps.resolveFromSessionData = vi.fn(async () => undefined);
     deps.findAllPlanFiles = vi.fn(async () => [
       { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: now - 5000 },
       { path: newerPath, category: "plan" as PlanFileCategory, mtimeMs: now },
@@ -53,17 +50,16 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).toHaveBeenCalledWith(newerPath);
   });
 
-  it("sessionless: falls through to JSONL when cache is stale (file deleted)", async () => {
-    const resolvedPath = "/resolved-from-jsonl.md";
+  it("sessionless: falls through to mtimeMs when cache miss (file deleted)", async () => {
+    const freshPath = "/workspace/.claude/plans/fresh-plan.md";
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => ({
       planPath: "/deleted-plan.md",
       resolvedAt: Date.now(),
     }));
-    deps.fileExists = vi.fn(async (p: string) => p === resolvedPath);
-    deps.resolveFromSessionData = vi.fn(async () => ({ planPath: resolvedPath }));
+    deps.fileExists = vi.fn(async (p: string) => p === freshPath);
     deps.findAllPlanFiles = vi.fn(async () => [
-      { path: resolvedPath, category: "plan" as PlanFileCategory, mtimeMs: Date.now() },
+      { path: freshPath, category: "plan" as PlanFileCategory, mtimeMs: Date.now() },
     ]);
     deps.persistPlanPath = vi.fn();
 
@@ -72,25 +68,7 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
 
     await panel.onFileChanged();
 
-    expect(deps.resolveFromSessionData).toHaveBeenCalled();
-    expect(deps.persistPlanPath).toHaveBeenCalledWith(
-      expect.objectContaining({ planPath: resolvedPath }),
-    );
-    expect(deps.readFile).toHaveBeenCalledWith(resolvedPath);
-  });
-
-  it("sessionless: JSONL lookup runs only once", async () => {
-    const deps = makeDeps();
-    deps.loadPersistedPlanPath = vi.fn(() => undefined);
-    deps.resolveFromSessionData = vi.fn(async () => undefined);
-
-    const panel = new PlanPreviewPanel(deps);
-    panel.reveal();
-
-    await panel.onFileChanged();
-    await panel.onFileChanged();
-
-    expect(deps.resolveFromSessionData).toHaveBeenCalledTimes(1);
+    expect(deps.readFile).toHaveBeenCalledWith(freshPath);
   });
 
   it("sessionless: rejects candidates older than 4 hours when no session active", async () => {
@@ -101,7 +79,6 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
       resolvedAt: staleTime,
     }));
     deps.persistPlanPath = vi.fn();
-    deps.resolveFromSessionData = vi.fn(async () => undefined);
     deps.findAllPlanFiles = vi.fn(async () => [
       { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: staleTime },
     ]);
@@ -115,12 +92,11 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).not.toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
   });
 
-  it("sessionless: rejects stale candidates via Layer 3 when no cache exists", async () => {
+  it("sessionless: rejects stale candidates via mtimeMs layer when no cache exists", async () => {
     const staleTime = Date.now() - 5 * 60 * 60 * 1000;
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => undefined);
     deps.persistPlanPath = vi.fn();
-    deps.resolveFromSessionData = vi.fn(async () => undefined);
     deps.findAllPlanFiles = vi.fn(async () => [
       { path: ACTIVE_PLAN_PATH, category: "plan" as PlanFileCategory, mtimeMs: staleTime },
     ]);
@@ -134,10 +110,9 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).not.toHaveBeenCalled();
   });
 
-  it("sessionless: falls through to mtimeMs when cache and JSONL both miss", async () => {
+  it("sessionless: falls through to mtimeMs when no cache exists", async () => {
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => undefined);
-    deps.resolveFromSessionData = vi.fn(async () => undefined);
 
     const panel = new PlanPreviewPanel(deps);
     panel.reveal();
@@ -181,7 +156,6 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
 
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => undefined);
-    deps.resolveFromSessionData = vi.fn(async () => undefined);
     deps.findAllPlanFiles = vi.fn(async () => [
       { path: globalPlanPath, category: "plan" as PlanFileCategory, mtimeMs: now },
       { path: workspacePlanPath, category: "plan" as PlanFileCategory, mtimeMs: now - 1000 },
@@ -196,21 +170,6 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).toHaveBeenCalledWith(workspacePlanPath);
   });
 
-  it("sessionless: Layer 2 skips global plan paths from resolveFromSessionData", async () => {
-    const globalPlanPath = path.join(os.homedir(), ".claude", "plans", "other-project-plan.md");
-    const deps = makeDeps();
-    deps.loadPersistedPlanPath = vi.fn(() => undefined);
-    deps.resolveFromSessionData = vi.fn(async () => ({ planPath: globalPlanPath }));
-    deps.findAllPlanFiles = vi.fn(async () => []);
-
-    const panel = new PlanPreviewPanel(deps);
-    panel.reveal();
-
-    await panel.onFileChanged();
-
-    expect(deps.readFile).not.toHaveBeenCalled();
-  });
-
   it("sessionless: prunes previously tracked global plans on each resolve cycle", async () => {
     const globalPlanPath = path.join(os.homedir(), ".claude", "plans", "stale-plan.md");
     const workspacePlanPath = ACTIVE_PLAN_PATH;
@@ -218,8 +177,6 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
 
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => undefined);
-    // First call: session data returns global plan (simulates previously persisted state)
-    deps.resolveFromSessionData = vi.fn(async () => ({ planPath: globalPlanPath }));
     deps.findAllPlanFiles = vi.fn(async () => [
       { path: globalPlanPath, category: "plan" as PlanFileCategory, mtimeMs: now },
     ]);
@@ -240,16 +197,4 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).not.toHaveBeenCalledWith(globalPlanPath);
   });
 
-  it("sessionless: handles resolveFromSessionData errors gracefully", async () => {
-    const deps = makeDeps();
-    deps.loadPersistedPlanPath = vi.fn(() => undefined);
-    deps.resolveFromSessionData = vi.fn(async () => { throw new Error("boom"); });
-
-    const panel = new PlanPreviewPanel(deps);
-    panel.reveal();
-
-    // Should not throw, falls through to mtimeMs
-    await panel.onFileChanged();
-    expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
-  });
 });
