@@ -100,6 +100,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
           vscode.window.showInformationMessage("Oxveil: claudeloop is already running.");
           return;
         }
+        planPreviewPanel?.setSessionActive(true);
         await resolved.processManager.spawn();
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
