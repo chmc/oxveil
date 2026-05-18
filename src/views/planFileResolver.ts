@@ -127,7 +127,7 @@ export class PlanFileResolver {
       const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
       const aiParsedInCandidates = candidates.some(c => c.category === "ai-parsed");
       console.log("[PlanResolver] candidate:", { path: candidate.path, birthtimeMs: stats.birthtimeMs, mtimeMs: stats.mtimeMs, sessionStartTime: this._sessionStartTime, isStale });
-      if (isStale && !aiParsedInCandidates) continue;
+      if (isStale && candidate.category !== "ai-parsed") continue;
 
       const existing = this._trackedFiles.get(candidate.category);
       if (!existing) {

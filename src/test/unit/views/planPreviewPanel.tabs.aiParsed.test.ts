@@ -133,7 +133,7 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     expect(lastCall.html).toContain("AI Parsed");
   });
 
-  it("should show tabs when ai-parsed created with pre-existing source file", async () => {
+  it("should show only ai-parsed tab when source file is stale and ai-parsed is created mid-session", async () => {
     const deps = makeDeps();
     // Use fixed timestamps to avoid timing race with Date.now() inside beginSession()
     const sessionStartTime = 1000000;
@@ -185,10 +185,10 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
-    // Both tabs should be visible (design + ai-parsed)
+    // Only ai-parsed visible — stale design filtered out, no tab strip (single file)
     const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
-    expect(lastCall.html).toContain('data-category="design"');
-    expect(lastCall.html).toContain('data-category="ai-parsed"');
+    expect(lastCall.html).not.toContain('data-category="design"');
+    expect(lastCall.html).toContain("AI Parsed Plan");
 
     // Restore Date.now
     vi.mocked(Date.now).mockRestore();
