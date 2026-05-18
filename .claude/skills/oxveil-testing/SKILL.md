@@ -29,3 +29,5 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - Path-returning functions: unit test with absolute path, relative path, empty string, undefined. Relative paths resolved incorrectly cause EROFS when extension cwd is read-only bundle.
 - Vitest coverage peer deps: pin `@vitest/coverage-v8` to match vitest major (e.g., `^3.0.0` for vitest 3.x) — npm resolves latest otherwise, causing peer dep failures
 - Disposal guards: place `if (this._disposed) return` at method ENTRY, not just post-await — poll timers and debounce callbacks can fire synchronously after `dispose()` clears refs
+- Plan preview tab assertions: `data-category` attribute only exists when `options.tabs.length >= 2` in `planPreviewHtml.ts`. Single-file state tests must assert on content (title text, body content) not tab attributes.
+- Plan staleness tests: use `ACTIVE_PLAN_PATH` + `VALID_PLAN` from `src/test/unit/sidebar/helpers.ts` — they represent `.claude/plans/` workspace path and valid parseable plan content respectively.
