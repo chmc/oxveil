@@ -23,6 +23,7 @@ export interface WebviewPanel {
 
 export class ReplayViewerPanel {
   private _panel: WebviewPanel | undefined;
+  private _disposed = false;
   private readonly _deps: ReplayViewerDeps;
   private _currentFolderUri: string | undefined;
 
@@ -39,6 +40,7 @@ export class ReplayViewerPanel {
   }
 
   async reveal(replayPath: string, claudeloopRoot: string, folderUri?: string): Promise<void> {
+    if (this._disposed) return;
     this._currentFolderUri = folderUri;
     let html: string;
     try {
@@ -69,6 +71,7 @@ export class ReplayViewerPanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this._panel?.dispose();
     this._panel = undefined;
   }

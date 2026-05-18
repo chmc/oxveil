@@ -11,6 +11,7 @@ export interface DependencyGraphDeps {
 
 export class DependencyGraphPanel {
   private _panel: vscode.WebviewPanel | undefined;
+  private _disposed = false;
   private readonly _deps: DependencyGraphDeps;
   private _currentFolderUri: string | undefined;
 
@@ -27,6 +28,7 @@ export class DependencyGraphPanel {
   }
 
   reveal(progress: ProgressState | undefined, folderUri?: string): void {
+    if (this._disposed) return;
     this._currentFolderUri = folderUri;
     if (this._panel) {
       this._panel.reveal();
@@ -61,6 +63,7 @@ export class DependencyGraphPanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this._panel?.dispose();
     this._panel = undefined;
   }

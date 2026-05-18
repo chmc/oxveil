@@ -13,6 +13,7 @@ export interface ArchiveTimelineDeps {
 export class ArchiveTimelinePanel {
   private readonly _deps: ArchiveTimelineDeps;
   private readonly _panels = new Map<string, vscode.WebviewPanel>();
+  private _disposed = false;
 
   constructor(deps: ArchiveTimelineDeps) {
     this._deps = deps;
@@ -23,6 +24,7 @@ export class ArchiveTimelinePanel {
     progress: ProgressState,
     metadata: ArchiveMetadata | null,
   ): void {
+    if (this._disposed) return;
     const existing = this._panels.get(archiveName);
     if (existing) {
       existing.reveal();
@@ -60,6 +62,7 @@ export class ArchiveTimelinePanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     for (const panel of this._panels.values()) {
       panel.dispose();
     }

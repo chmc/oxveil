@@ -52,6 +52,7 @@ interface ConfigState {
 
 export class ConfigWizardPanel {
   private _panel: WebviewPanel | undefined;
+  private _disposed = false;
   private readonly _deps: ConfigWizardDeps;
   private _currentFolderUri: string | undefined;
 
@@ -68,6 +69,7 @@ export class ConfigWizardPanel {
   }
 
   async reveal(configPath: string, folderUri?: string): Promise<void> {
+    if (this._disposed) return;
     this._currentFolderUri = folderUri;
     if (this._panel) {
       this._panel.reveal();
@@ -108,6 +110,7 @@ export class ConfigWizardPanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this._panel?.dispose();
     this._panel = undefined;
   }

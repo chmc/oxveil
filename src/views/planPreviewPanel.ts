@@ -296,9 +296,10 @@ export class PlanPreviewPanel {
 
   private async _onTabSwitch(category: PlanFileCategory): Promise<void> {
     if (this._disposed) return;
+    const seq = ++this._readSeq;
     const tracked = this._resolver.switchTab(category);
     if (!tracked) return;
-    await this._parseAndRender(tracked.path);
+    await this._parseAndRender(tracked.path, seq);
   }
 
   private _sendUpdate(): void {

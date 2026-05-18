@@ -31,6 +31,7 @@ interface WebviewPanel {
 
 export class LiveRunPanel {
   private _panel: WebviewPanel | undefined;
+  private _disposed = false;
   private readonly _deps: LiveRunPanelDeps;
   private _currentFolderUri: string | undefined;
 
@@ -75,6 +76,7 @@ export class LiveRunPanel {
   }
 
   reveal(progress: ProgressState, folderUri?: string): void {
+    if (this._disposed) return;
     this._currentFolderUri = folderUri;
     this._lastProgress = progress;
     if (!this._runStartedAt) {
@@ -89,6 +91,7 @@ export class LiveRunPanel {
   }
 
   revealForAiParse(folderUri?: string): void {
+    if (this._disposed) return;
     this._currentFolderUri = folderUri;
     this._aiParseStatus = "parsing";
     this.clear();
@@ -110,6 +113,7 @@ export class LiveRunPanel {
   }
 
   onLogAppended(fullContent: string): void {
+    if (this._disposed) return;
     if (fullContent.length < this._logOffset) {
       this._logOffset = 0;
     }
@@ -158,6 +162,7 @@ export class LiveRunPanel {
   }
 
   onVerifyFailed(options: VerifyFailedOptions): void {
+    if (this._disposed) return;
     this._ensurePanel();
     this._aiParseStatus = "needs-input";
     this._postMessage({ type: "ai-parse-status", status: "needs-input" });
@@ -211,6 +216,7 @@ export class LiveRunPanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this._panel?.dispose();
     this._panel = undefined;
     this._webviewReady = false;

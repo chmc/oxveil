@@ -30,6 +30,7 @@ export interface Disposable {
 
 export class SelfImprovementPanel {
   private _panel: WebviewPanel | undefined;
+  private _disposed = false;
   private readonly _deps: SelfImprovementPanelDeps;
   private _currentLessons: Lesson[] = [];
   private _messageDisposable: Disposable | undefined;
@@ -47,6 +48,7 @@ export class SelfImprovementPanel {
   }
 
   reveal(lessons: Lesson[]): void {
+    if (this._disposed) return;
     this._currentLessons = lessons;
 
     if (this._panel) {
@@ -81,6 +83,7 @@ export class SelfImprovementPanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this._messageDisposable?.dispose();
     this._panel?.dispose();
     this._panel = undefined;

@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
 import type { ProgressState, SessionStatus } from "../types";
 import type { LockState } from "./lock";
+import { VersionedSnapshot } from "./state/VersionedSnapshot";
+export { StaleStateError } from "./state/VersionedSnapshot";
 
 const TRANSITIONS: Record<SessionStatus, SessionStatus[]> = {
   idle: ["running"],
@@ -25,6 +27,7 @@ export interface SessionStateEvents {
 export class SessionState extends EventEmitter {
   private _status: SessionStatus = "idle";
   private _progress: ProgressState | undefined;
+  private _snapshot = new VersionedSnapshot<{ status: SessionStatus; progress: ProgressState | undefined }>({ status: "idle", progress: undefined });
 
   get status(): SessionStatus {
     return this._status;
@@ -32,6 +35,15 @@ export class SessionState extends EventEmitter {
 
   get progress(): ProgressState | undefined {
     return this._progress;
+  }
+
+  readSnapshot(): { status: SessionStatus; progress: ProgressState | undefined; seq: number } {
+    const { value, seq } = this._snapshot.read();
+    return { ...value, seq };
+  }
+
+  assertFresh(seq: number): void {
+    this._snapshot.assertFresh(seq);
   }
 
   on<K extends keyof SessionStateEvents>(
@@ -76,6 +88,7 @@ export class SessionState extends EventEmitter {
 
   onProgressChanged(progress: ProgressState): void {
     this._progress = progress;
+    this._snapshot.update((v) => ({ ...v, progress }));
     this.emit("phases-changed", progress);
   }
 
@@ -110,6 +123,7 @@ export class SessionState extends EventEmitter {
       throw new InvalidTransitionError(from, to);
     }
     this._status = to;
+    this._snapshot.update((v) => ({ ...v, status: to }));
     this.emit("state-changed", from, to);
   }
 }

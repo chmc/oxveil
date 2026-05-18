@@ -11,6 +11,7 @@ export interface ExecutionTimelineDeps {
 
 export class ExecutionTimelinePanel {
   private _panel: vscode.WebviewPanel | undefined;
+  private _disposed = false;
   private readonly _deps: ExecutionTimelineDeps;
   private _currentFolderUri: string | undefined;
 
@@ -27,6 +28,7 @@ export class ExecutionTimelinePanel {
   }
 
   reveal(progress: ProgressState | undefined, folderUri?: string): void {
+    if (this._disposed) return;
     this._currentFolderUri = folderUri;
     if (this._panel) {
       this._panel.reveal();
@@ -57,6 +59,7 @@ export class ExecutionTimelinePanel {
   }
 
   dispose(): void {
+    this._disposed = true;
     this._panel?.dispose();
     this._panel = undefined;
   }

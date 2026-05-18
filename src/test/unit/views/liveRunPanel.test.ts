@@ -166,6 +166,25 @@ describe("LiveRunPanel", () => {
     expect(mockPanel.dispose).toHaveBeenCalled();
   });
 
+  it("all public operations are no-ops after dispose", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    panel.dispose();
+    deps.createWebviewPanel.mockClear();
+    mockPanel.webview.postMessage.mockClear();
+
+    panel.reveal(makeProgress());
+    panel.revealForAiParse();
+    panel.onProgressChanged(makeProgress());
+    panel.onLogAppended("should not process\n");
+    panel.onVerifyFailed({ reason: "x", attempt: 1, maxAttempts: 3 });
+
+    expect(deps.createWebviewPanel).not.toHaveBeenCalled();
+    expect(mockPanel.webview.postMessage).not.toHaveBeenCalled();
+  });
+
   it("empty state when no progress", () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);

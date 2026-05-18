@@ -74,6 +74,13 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - Confirming work is done = verify closed state. Don't ask, verify.
 - Prefer `Closes #N` in commit message — auto-closes on push. Parenthetical `(#N)` does NOT auto-close. Use `gh issue close` only when no commit is involved. Final step: `gh issue view #N --json state -q .state` to verify closed. If already closed, phase succeeds.
 
+## Async State Patterns
+
+- Async handlers in views: use `GuardedHandler` type (`src/core/state/GuardedHandler.ts`) — compiler enforces seq parameter
+- State reads before await: use `session.readSnapshot()` + `assertFresh(seq)` or re-read after
+- New panels: include `_disposed = false` field, set `_disposed = true` first in `dispose()`
+- See `docs/patterns/async-guards.md` for copy-paste examples
+
 ## Development Process
 
 Trunk-based. See `.claude/skills/dev-workflow/SKILL.md`. Not published yet — no feature flags.

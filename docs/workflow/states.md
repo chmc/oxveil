@@ -6,6 +6,8 @@ machines: [session]
 projections: [sidebar, statusbar, plan-preview]
 related_files:
   - src/core/sessionState.ts
+  - src/core/state/VersionedSnapshot.ts
+  - src/core/state/GuardedHandler.ts
   - src/core/sidebarMutableState.ts
   - src/views/sidebarState.ts
   - src/views/statusBar.ts
@@ -760,3 +762,4 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.
 - **2026-05-16**: Added `TRANSITIONS` map and `InvalidTransitionError` to `sessionState.ts`. `_transition()` now throws on invalid state changes as a programmatic guard.
 - **2026-05-16**: Added `_disposed` flag + `dispose()` to `SidebarPanel`; added `_disposed = true` at start of `PlanPreviewPanel.dispose()`. Both panels guard async entry points (`triggerClick`, `_postMessage`, `onFileChanged`, `_parseAndRender`, `_onTabSwitch`) with early-return on `_disposed`. No state machine behavior changed.
+- **2026-05-18**: Added `VersionedSnapshot<T>` utility (`src/core/state/VersionedSnapshot.ts`) and `GuardedHandler` types (`src/core/state/GuardedHandler.ts`). `SessionState` gains `readSnapshot()` returning `{ status, progress, seq }` and `assertFresh(seq)` for TOCTOU prevention in async handlers. No state transitions changed.

@@ -15,6 +15,16 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Fix commits require tests
+        if: github.event_name == 'pull_request'
+        run: |
+          MSG=$(git log -1 --pretty=%s HEAD)
+          if echo "$MSG" | grep -q "^fix:"; then
+            if ! git diff --name-only HEAD~1 | grep -q "\.test\."; then
+              echo "fix: commit requires at least one test file in diff"
+              exit 1
+            fi
+          fi
       - name: Notify on failure
         if: failure()
         run: |
