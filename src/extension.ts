@@ -162,6 +162,7 @@ export async function activate(
   const wiringCtx = {
     statusBar,
     liveRunPanel,
+    planPreviewPanel,
     notifications,
     elapsedTimer,
     dependencyGraph,
