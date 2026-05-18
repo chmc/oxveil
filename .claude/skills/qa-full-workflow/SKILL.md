@@ -52,7 +52,7 @@ For each: set up state → `GET /state` → assert → screenshot → log PASS/F
 | Execution Timeline | `oxveil.showTimeline` | Opens, content rendered |
 | Config Wizard | `/click configure` | Opens, form fields + preview |
 | Replay Viewer | `oxveil.openReplayViewer` | Opens |
-| Plan Preview | `/click createPlan` | Opens, phase cards |
+| Plan Preview | `/click createPlan` | Opens, phase cards (resolver detects plan by mtime — wait 5s after file write before asserting) |
 | Walkthrough | `oxveil.welcome` | Opens, 4 steps visible |
 
 ## Report Template

@@ -999,6 +999,8 @@ end tell'
 
 Applies to any webview button/toggle needing verification. Commands serve double duty — keyboard-accessible for users AND testable in automation.
 
+**Plan Preview timing**: PlanFileResolver picks up plans via filesystem mtime/birthtime — not active editor. After writing a plan file, wait for the watcher debounce (~200ms) or the 5-second poll interval before asserting Plan Preview state. Add `sleep 6` if the watcher may not be registered yet.
+
 ## Mock .claudeloop/ State Scripts
 
 ### Triggering Webview Updates
@@ -1411,6 +1413,8 @@ echo "Plan file: $PLAN_FILE"
 
 Full workflow: click Let's Go → type in Plan Chat → wait for plan file → verify Plan Preview via /state.
 Requires: $PORT, $TOKEN from .oxveil-mcp, type_in_plan_chat, wait_for_plan_file.
+
+**Timing prerequisite**: PlanFileResolver detects plans by filesystem mtime/birthtime (watcher debounce ~200ms, poll interval 5s). The `sleep 3` at step 4 below covers the debounce but not the poll — if the watcher isn't registered, increase to `sleep 6`.
 
 ```bash
 verify_plan_chat_flow() {
