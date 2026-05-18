@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { parseProgress } from "./parsers/progress";
+import { parseProgress, serializeProgress } from "./parsers/progress";
 import { getPlanPath } from "./core/paths";
 import type { SidebarMutableState, SidebarActivationDeps } from "./sidebarActivationTypes";
 import type { SidebarPanel } from "./views/sidebarPanel";
@@ -84,6 +84,9 @@ async function detectInconsistencies(ctx: SidebarRefreshContext): Promise<boolea
   // 9. Elapsed timer running but session not running (or vice versa)
   if (elapsedTimer.isRunning() !== isRunning) return true;
 
+  // 10. Orphaned in_progress phases: no lock but memory has in_progress
+  if (!lockExists && sessionState?.progress?.phases.some((p) => p.status === "in_progress")) return true;
+
   return false;
 }
 
@@ -113,6 +116,28 @@ async function fullReInit(ctx: SidebarRefreshContext): Promise<void> {
   // 4. Reload cached state from disk
   await loadPlanPhases();
   await refreshLessonsAvailable();
+
+  // 4b. Sync progress from disk; reset orphaned in_progress phases if no lock
+  const claudeloopDir = path.join(workspaceRoot, ".claudeloop");
+  const progressPath = path.join(claudeloopDir, "PROGRESS.md");
+  const lockPath = path.join(claudeloopDir, "lock");
+  let lockExists = false;
+  try { await fs.access(lockPath); lockExists = true; } catch { /* no lock */ }
+
+  try {
+    const content = await fs.readFile(progressPath, "utf-8");
+    let diskProgress = parseProgress(content);
+    if (!lockExists && diskProgress.phases.some((p) => p.status === "in_progress")) {
+      diskProgress = {
+        ...diskProgress,
+        phases: diskProgress.phases.map((p) =>
+          p.status === "in_progress" ? { ...p, status: "pending" as const } : p,
+        ),
+      };
+      await fs.writeFile(progressPath, serializeProgress(diskProgress), "utf-8");
+    }
+    session?.sessionState.onProgressChanged(diskProgress);
+  } catch { /* no progress file — OK */ }
 
   // 5. Sync elapsed timer with session state
   const isRunning = session?.sessionState.status === "running";

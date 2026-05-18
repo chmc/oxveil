@@ -91,6 +91,57 @@ function emptyState(): ProgressState {
   return { phases: [], totalPhases: 0 };
 }
 
+const STATUS_EMOJI: Record<string, string> = {
+  completed: "✅",
+  pending: "⏳",
+  failed: "❌",
+  in_progress: "🔄",
+};
+
+export function serializeProgress(state: ProgressState): string {
+  const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const completed = state.phases.filter((p) => p.status === "completed").length;
+  const inProgress = state.phases.filter((p) => p.status === "in_progress").length;
+  const pending = state.phases.filter((p) => p.status === "pending").length;
+  const failed = state.phases.filter((p) => p.status === "failed").length;
+
+  const lines: string[] = [
+    "# Progress for PLAN.md",
+    `Last updated: ${now}`,
+    "",
+    "## Status Summary",
+    `- Total phases: ${state.phases.length}`,
+    `- Completed: ${completed}`,
+    `- In progress: ${inProgress}`,
+    `- Pending: ${pending}`,
+    `- Failed: ${failed}`,
+    "",
+    "## Phase Details",
+    "",
+  ];
+
+  for (const phase of state.phases) {
+    const emoji = STATUS_EMOJI[phase.status] ?? "⏳";
+    lines.push(`### ${emoji} Phase ${phase.number}: ${phase.title}`);
+    lines.push(`Status: ${phase.status}`);
+    if (phase.started) lines.push(`Started: ${phase.started}`);
+    if (phase.completed) lines.push(`Completed: ${phase.completed}`);
+    if (phase.attempts !== undefined) lines.push(`Attempts: ${phase.attempts}`);
+    if (phase.dependencies?.length) {
+      const depStr = phase.dependencies
+        .map((d) => {
+          const e = STATUS_EMOJI[d.status] ?? "";
+          return `Phase ${d.phaseNumber}${e ? ` ${e}` : ""}`;
+        })
+        .join(", ");
+      lines.push(`Depends on: ${depStr}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
 export function parseProgress(content: string): ProgressState {
   try {
     if (!content || !content.includes("## Phase Details")) {

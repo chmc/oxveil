@@ -1101,6 +1101,33 @@ fi
 
 Use `CLAUDELOOP_CLAUDE_BIN` to inject fake_claude. PATH modification alone is unreliable — macOS GUI apps (Electron/VS Code) may not inherit terminal PATH when `code` forwards IPC to a running instance.
 
+**Persistent dev config via launch.json** — add an `env` block to `.vscode/launch.json` so `CLAUDELOOP_CLAUDE_BIN` is set automatically on every EDH launch from VS Code (F5 / Run Extension):
+
+```json
+{
+  "name": "Run Extension",
+  "type": "extensionHost",
+  "request": "launch",
+  "env": {
+    "CLAUDELOOP_CLAUDE_BIN": "/path/to/fake_claude_dir/claude",
+    "FAKE_CLAUDE_DIR": "/path/to/fake_claude_dir"
+  },
+  ...
+}
+```
+
+Set up the fake_claude dir once:
+```bash
+FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX)
+cp /Users/aleksi/source/claudeloop/tests/fake_claude "$FAKE_CLAUDE_DIR/claude"
+cp -r /Users/aleksi/source/claudeloop/tests/lib "$FAKE_CLAUDE_DIR/"
+chmod +x "$FAKE_CLAUDE_DIR/claude"
+echo "success" > "$FAKE_CLAUDE_DIR/scenario"
+# Then hardcode the path in launch.json env block
+```
+
+**Note:** launch.json env propagates to the EDH process, which spawns claudeloop, which inherits `CLAUDELOOP_CLAUDE_BIN` — same inheritance chain as the script approach.
+
 ```bash
 # Create temp dir — binary + config in same dir
 FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX)
