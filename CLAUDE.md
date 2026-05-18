@@ -79,6 +79,7 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - Async handlers in views: use `GuardedHandler` type (`src/core/state/GuardedHandler.ts`) — compiler enforces seq parameter
 - State reads before await: use `session.readSnapshot()` + `assertFresh(seq)` or re-read after
 - New panels: include `_disposed = false` field, set `_disposed = true` first in `dispose()`
+- Adding optional field to shared interface? Grep all construction sites — TypeScript won't error on missing optional fields.
 - See `docs/patterns/async-guards.md` for copy-paste examples
 
 ## Development Process
