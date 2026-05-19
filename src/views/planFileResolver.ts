@@ -125,7 +125,6 @@ export class PlanFileResolver {
       const stats = await this._deps.statFile(candidate.path);
       if (!stats) continue;
       const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
-      const aiParsedInCandidates = candidates.some(c => c.category === "ai-parsed");
       console.log("[PlanResolver] candidate:", { path: candidate.path, birthtimeMs: stats.birthtimeMs, mtimeMs: stats.mtimeMs, sessionStartTime: this._sessionStartTime, isStale });
       if (isStale && candidate.category !== "ai-parsed") continue;
 
@@ -143,6 +142,18 @@ export class PlanFileResolver {
           category: candidate.category,
           birthtimeMs: stats.birthtimeMs,
         });
+      }
+    }
+
+    // When ai-parsed is tracked, it's the authoritative source — clear other categories
+    if (this._trackedFiles.has("ai-parsed")) {
+      for (const cat of Array.from(this._trackedFiles.keys())) {
+        if (cat !== "ai-parsed") {
+          this._trackedFiles.delete(cat);
+          if (this._activeCategory === cat) {
+            this._activeCategory = undefined;
+          }
+        }
       }
     }
 

@@ -34,9 +34,8 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
-    // Verify ai-parsed tab is present
-    let call = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
-    expect(call.html).toContain('data-category="ai-parsed"');
+    // ai-parsed is authoritative — design cleared, only ai-parsed content shown
+    expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
 
     // File deleted - only design remains
     deps.findAllPlanFiles = vi.fn(async () => [
@@ -47,7 +46,7 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
-    call = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
+    const call = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
     expect(call.html).not.toContain('data-category="ai-parsed"');
   });
 
@@ -74,7 +73,7 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     expect(call.html).toContain("AI Parsed Plan");
   });
 
-  it("should render AI Parsed tab when ai-parsed file exists", async () => {
+  it("should show ai-parsed content exclusively when ai-parsed file exists alongside design", async () => {
     const deps = makeDeps();
     const now = Date.now();
     deps.findAllPlanFiles = vi.fn(async () => [
@@ -92,9 +91,10 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
+    // ai-parsed is authoritative — design cleared, only ai-parsed content shown
+    expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
     const calls2 = deps._panel.webview.postMessage.mock.calls;
     const call = calls2[calls2.length - 1][0];
-    expect(call.html).toContain('data-category="ai-parsed"');
     expect(call.html).toContain("AI Parsed");
   });
 
@@ -129,9 +129,9 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     // Trigger file change
     await panel.onFileChanged();
 
+    // ai-parsed is authoritative — design cleared, ai-parsed content shown exclusively
+    expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
     const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
-    expect(lastCall.html).toContain('data-category="ai-parsed"');
-    expect(lastCall.html).toContain('class="tab-pill active"');
     expect(lastCall.html).toContain("AI Parsed");
   });
 
