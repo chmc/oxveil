@@ -235,4 +235,41 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     vi.mocked(Date.now).mockRestore();
   });
+
+  it("sessionless: ai-parsed clears previously-tracked superpowers category", async () => {
+    const deps = makeDeps();
+    const now = Date.now();
+    const recentMs = now - 1000; // 1s ago — passes 4h age filter
+
+    // First resolve cycle: only design file tracked (no session)
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: recentMs },
+    ]);
+    deps.readFile = vi.fn(async () => DESIGN_CONTENT);
+
+    const panel = new PlanPreviewPanel(deps);
+    panel.reveal();
+    // No beginSession() — sessionless mode
+
+    await panel.onFileChanged();
+    expect(panel.getActiveFilePath()).toBe(DESIGN_PATH);
+
+    // Second resolve cycle: ai-parsed created alongside design
+    deps.findAllPlanFiles = vi.fn(async () => [
+      { path: DESIGN_PATH, category: "design" as PlanFileCategory, mtimeMs: recentMs },
+      { path: AI_PARSED_PATH, category: "ai-parsed" as PlanFileCategory, mtimeMs: now },
+    ]);
+    deps.readFile = vi.fn(async (p: string) =>
+      p === AI_PARSED_PATH ? AI_PARSED_CONTENT : DESIGN_CONTENT,
+    );
+    deps._panel.webview.postMessage.mockClear();
+
+    await panel.onFileChanged();
+
+    // ai-parsed is authoritative — design cleared, no tab strip (single file)
+    expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
+    const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
+    expect(lastCall.html).not.toContain('data-category="design"');
+    expect(lastCall.html).toContain("AI Parsed Plan");
+  });
 });

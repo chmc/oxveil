@@ -198,6 +198,19 @@ export class PlanFileResolver {
         return resolved.category;
       }
     }
+
+    // When ai-parsed is tracked, it's the authoritative source — clear other categories
+    if (this._trackedFiles.has("ai-parsed")) {
+      for (const cat of Array.from(this._trackedFiles.keys())) {
+        if (cat !== "ai-parsed") {
+          this._trackedFiles.delete(cat);
+          if (this._activeCategory === cat) {
+            this._activeCategory = undefined;
+          }
+        }
+      }
+    }
+
     return undefined;
   }
 
