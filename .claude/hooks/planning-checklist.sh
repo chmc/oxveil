@@ -193,6 +193,13 @@ if [ -n "$vv_phase_start" ]; then
     fi
 fi
 
+# Helper: get full section content (all lines between heading and next ##)
+get_full_section_content() {
+    section_start=$(grep -in "^## $1" "$plan_file" | head -1 | cut -d: -f1) || true
+    [ -z "$section_start" ] && return 0
+    tail -n +"$((section_start + 1))" "$plan_file" | sed -n '1,/^## /p' | grep -v '^## '
+}
+
 # If any missing or empty, deny
 if [ -n "$missing" ]; then
     missing=$(echo "$missing" | sed 's/,$//')
@@ -207,6 +214,25 @@ if [ -n "$missing" ]; then
 }
 EOF
     exit 0
+fi
+
+# Cross-check: state files in plan → Documentation must not be N/A
+STATE_FILE_PATTERN="activateSidebar|sessionWiring|sidebarRefresh|sessionState|sidebarState|statusBar|planPreviewPanel|types\.ts|extension\.ts|activateDetection|formPlan"
+files_content=$(get_full_section_content "Files" || echo "")
+if echo "$files_content" | grep -qE "$STATE_FILE_PATTERN"; then
+    if is_na_section "Documentation"; then
+        cat <<'EOF'
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Plan modifies state files but Documentation is N/A. State file changes require docs/workflow/states.md update.",
+    "additionalContext": "Files touching state machines (activateSidebar, sessionWiring, sidebarState, etc.) must document their changes in docs/workflow/states.md. Update Documentation section to reference states.md."
+  }
+}
+EOF
+        exit 0
+    fi
 fi
 
 # All sections present — validate Feature section against FEATURES.md
