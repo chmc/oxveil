@@ -84,6 +84,12 @@ export function getLiveRunStyles(): string {
     .banner-btn.primary { background: var(--vscode-button-background, #0e639c); color: var(--vscode-button-foreground, #fff); border-color: transparent; }
     .banner-btn.primary:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
 
+    /* Task list */
+    .task-list { max-height: 200px; overflow-y: auto; margin-top: 8px; }
+    .task-item { padding: 2px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .task-item.completed { text-decoration: line-through; opacity: 0.7; }
+    .task-item.in-progress { color: var(--vscode-progressBar-background, #0e70c0); }
+
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .spinner { display: inline-block; animation: spin 1s linear infinite; }
 

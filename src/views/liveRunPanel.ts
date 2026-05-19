@@ -305,6 +305,7 @@ export class LiveRunPanel {
       todoDone: this._todoTotal > 0 ? this._todoDone : undefined,
       todoTotal: this._todoTotal > 0 ? this._todoTotal : undefined,
       todoCurrentItem: this._todoCurrentItem,
+      taskItems: this._taskItems.length > 0 ? this._taskItems : undefined,
     };
     const html = renderDashboardHtml(progress, options);
     this._postMessage({ type: "dashboard", html });

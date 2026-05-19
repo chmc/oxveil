@@ -8,6 +8,7 @@ export interface DashboardOptions {
   todoDone?: number;
   todoTotal?: number;
   todoCurrentItem?: string;
+  taskItems?: Array<{ name: string; status: 'pending' | 'in_progress' | 'completed' }>;
 }
 
 function statusIcon(status: string): string {
@@ -97,6 +98,15 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
     })
     .join("\n");
 
+  const taskListHtml =
+    options?.taskItems && options.taskItems.length > 0
+      ? `<div class="task-list">${options.taskItems.map((item) => {
+          const cls = item.status === "completed" ? "completed" : item.status === "in_progress" ? "in-progress" : "";
+          const icon = item.status === "completed" ? "&#10003;" : item.status === "in_progress" ? '<span class="spinner">&#8635;</span>' : "&#9675;";
+          return `<div class="task-item${cls ? ` ${cls}` : ""}"><span>${icon}</span><span>${escapeHtml(item.name)}</span></div>`;
+        }).join("")}</div>`
+      : "";
+
   return `<div class="dashboard-content">
   <span class="dashboard-toggle">&#9650; Collapse</span>
   <div class="dashboard-header">
@@ -106,6 +116,7 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
     ${phasesHtml}
   </div>
   ${todoHtml}
+  ${taskListHtml}
 </div>`;
 }
 
