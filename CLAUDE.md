@@ -81,6 +81,7 @@ Before visual verification of cross-repo features (self-improvement, lessons cap
 - New panels: include `_disposed = false` field, set `_disposed = true` first in `dispose()`
 - Adding optional field to shared interface? Grep all construction sites — TypeScript won't error on missing optional fields.
 - Parallel code paths (e.g., `withSession` / `withoutSession`): state clearing in one path often needs mirroring in the other — grep all mutation sites, extract shared helper if duplicating
+- Touch one switch case → verify all cases have equivalent coverage
 - See `docs/patterns/async-guards.md` for copy-paste examples
 
 ## Development Process
