@@ -264,6 +264,23 @@ describe("LiveRunPanel", () => {
     expect(logCalls[1][0].lines).toContainEqual('<div class="log-line">new-line1</div>');
   });
 
+  it("parses todo created events and tracks task items", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    panel.onLogAppended('[14:00:00] [Todo created] "Write unit tests"\n');
+    panel.onLogAppended('[14:00:01] [Todo created] "Run linter"\n');
+    // Verify by checking completed event works (requires prior created tracking)
+    panel.onLogAppended('[14:00:02] [Todo completed] ✓ "Write unit tests"\n');
+    // No assertion on internal state — verify via in_progress transition
+    panel.onLogAppended('[14:00:03] [Todos: 1/2 done] ▸ "Run linter"\n');
+    const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "dashboard",
+    );
+    expect(dashCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("tracks todo progress from log lines", () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);

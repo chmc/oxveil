@@ -43,6 +43,7 @@ export class LiveRunPanel {
   private _todoDone = 0;
   private _todoTotal = 0;
   private _todoCurrentItem: string | undefined;
+  private _taskItems: Array<{ name: string; status: 'pending' | 'in_progress' | 'completed' }> = [];
   private _runStartedAt: number | undefined;
   private _aiParseActionListeners: Array<(action: string) => void> = [];
   private _aiParseStatus: "idle" | "parsing" | "complete" | "needs-input" = "idle";
@@ -131,11 +132,24 @@ export class LiveRunPanel {
       if (costMatch) {
         this._totalCost += parseFloat(costMatch[1]) || 0;
       }
+      const createdMatch = line.match(/\[Todo created\]\s*"([^"]+)"/);
+      if (createdMatch) {
+        this._taskItems.push({ name: createdMatch[1], status: 'pending' });
+      }
+
+      const completedMatch = line.match(/\[Todo completed\]\s*\u2713\s*"([^"]+)"/);
+      if (completedMatch) {
+        const item = this._taskItems.find(t => t.name === completedMatch[1]);
+        if (item) item.status = 'completed';
+      }
+
       const todoMatch = line.match(/\[Todos:\s*(\d+)\/(\d+)\s+done\]\s*\u25b8\s*"([^"]*)"/);
       if (todoMatch) {
         this._todoDone = parseInt(todoMatch[1], 10);
         this._todoTotal = parseInt(todoMatch[2], 10);
         this._todoCurrentItem = todoMatch[3];
+        const inProgressItem = this._taskItems.find(t => t.name === todoMatch[3]);
+        if (inProgressItem) inProgressItem.status = 'in_progress';
         todoUpdated = true;
       }
     }
@@ -213,6 +227,7 @@ export class LiveRunPanel {
     this._logBuffer = [];
     this._totalCost = 0;
     this._runStartedAt = undefined;
+    this._taskItems = [];
   }
 
   dispose(): void {
