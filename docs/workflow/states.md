@@ -124,7 +124,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 |-------|------|--------|
 | `detection` | `DetectionStatus` (`"detected" \| "not-found" \| "version-incompatible"`) | `activateDetection()` |
 | `sessionStatus` | `SessionStatus` (`"idle" \| "running" \| "done" \| "failed"`) | `SessionState.status` |
-| `planDetected` | `boolean` | File watcher in `activateSidebar.registerPlanWatcher()` — watches `.claudeloop/PLAN.md` (legacy) and `.claude/plans/*.md` (Claude Code default) |
+| `planDetected` | `boolean` | File watcher in `activateSidebar.registerPlanWatcher()` — watches `.claudeloop/PLAN.md` (legacy) and `.claude/plans/*.md` (Claude Code default). On plan create/change: reloads `cachedPlanPhases` only. Does NOT clear `ai-parsed-plan.md` — that file is managed by claudeloop and cleared only on session completion via `clearSessionPlanFiles()`. |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
 | `planUserChoice` | `PlanUserChoice` (`"none" \| "planning"`) | `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
 | `selfImprovementActive` | `boolean` | Whether self-improvement mode is active after session completion. Set to `true` by `sessionWiring` when session completes and lessons are captured. Reset by `skipSelfImprovement` command or `onFullReset()`. |

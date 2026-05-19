@@ -16,6 +16,7 @@
 - `oxveil.writePlan` and `oxveil.aiParsePlan` commands
 
 ### Fixed
+- Fix ai-parsed-plan.md being deleted on plan file changes during active sessions
 - Fix plan preview showing Design tab alongside AI Parsed in sessionless mode when ai-parsed-plan.md is created
 - Fix plan preview showing stale superpowers plans when ai-parsed appears
 - Plan preview Start button now disables when claudeloop starts (#124)

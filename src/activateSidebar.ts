@@ -156,7 +156,6 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
         state.setPlanUserChoice("none");
       }
       sidebarPanel.updateState(buildFullState());
-      await clearStaleParsedPlan();
       await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
     }
@@ -170,7 +169,6 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
     }
 
     async function onPlanChanged(): Promise<void> {
-      await clearStaleParsedPlan();
       await loadPlanPhases();
       sidebarPanel.updateState(buildFullState());
     }

@@ -58,7 +58,7 @@ import type {
   SidebarActivationResult,
 } from "../../activateSidebar";
 import * as vscode from "vscode";
-import { readFile, access, readdir, stat } from "node:fs/promises";
+import { readFile, access, readdir, stat, unlink } from "node:fs/promises";
 
 function makeDeps(overrides: Partial<SidebarActivationDeps> = {}): SidebarActivationDeps {
   return {
@@ -319,6 +319,18 @@ describe("activateSidebar", () => {
         { number: 1, title: "New", status: "pending" },
         { number: 2, title: "Added", status: "pending" },
       ]);
+    });
+
+    it("does not delete ai-parsed-plan.md on plan change", async () => {
+      result.registerPlanWatcher();
+      await watcherCallbacks.onChange!();
+      expect(unlink).not.toHaveBeenCalledWith(expect.stringContaining("ai-parsed-plan.md"));
+    });
+
+    it("does not delete ai-parsed-plan.md on plan create", async () => {
+      result.registerPlanWatcher();
+      await watcherCallbacks.onCreate!();
+      expect(unlink).not.toHaveBeenCalledWith(expect.stringContaining("ai-parsed-plan.md"));
     });
   });
 
