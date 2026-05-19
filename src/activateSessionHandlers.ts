@@ -52,7 +52,6 @@ export function createTerminalCloseHandler(deps: TerminalHandlerDeps): vscode.Di
     const session = deps.getActivePlanChatSession();
     if (session?.matchesTerminal(terminal)) {
       deps.setActivePlanChatSession(undefined);
-      deps.planPreviewPanel.setSessionActive(false);
       deps.planPreviewPanel.endSession();
       deps.onPlanChatEnded();
       vscode.commands.executeCommand("setContext", "oxveil.planChatActive", false);

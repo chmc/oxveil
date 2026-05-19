@@ -209,6 +209,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
         deps.liveRunPanel?.onRunFinished("failed");
+        deps.planPreviewPanel?.setSessionActive(false);
         break;
       }
       case "idle":

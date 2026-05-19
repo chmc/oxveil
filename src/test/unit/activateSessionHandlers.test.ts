@@ -134,7 +134,7 @@ describe("createTerminalCloseHandler", () => {
     fireAllTerminalClose(terminal);
 
     expect(setActivePlanChatSession).toHaveBeenCalledWith(undefined);
-    expect(planPreviewPanel.setSessionActive).toHaveBeenCalledWith(false);
+    expect(planPreviewPanel.setSessionActive).not.toHaveBeenCalled();
     expect(planPreviewPanel.endSession).toHaveBeenCalled();
     expect(onPlanChatEnded).toHaveBeenCalled();
     expect(vscode.commands.executeCommand).toHaveBeenCalledWith(

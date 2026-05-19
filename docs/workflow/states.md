@@ -360,7 +360,7 @@ flowchart TD
 | any | `empty` | `beginSession()` called — clears `_lastTitle`, `_lastPhases`, `_lastValid`, `_lastFormat`, `_lastKeyword`, `_lastRawContent`, then calls `_sendUpdate()` | `beginSession()` |
 | any | `raw-markdown` | File changed, content doesn't parse to phases | `onFileChanged()` → `_parseAndRender()` |
 | `raw-markdown` | `active`/`session-ended` | File changed, phases now parseable | `onFileChanged()` → `_parseAndRender()` |
-| `active` | `session-ended` | Terminal closed | `setSessionActive(false)` |
+| `active` | `session-ended` | Session done or failed | `setSessionActive(false)` |
 | `session-ended` | `active` | New plan chat session started | `setSessionActive(true)` |
 | any | (re-derived) | File changed (200ms debounce) | `onFileChanged()` |
 
