@@ -9,6 +9,10 @@
       "runOptions": {
         "runOn": "folderOpen"
       },
+      "presentation": {
+        "reveal": "never",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     }
   ]
