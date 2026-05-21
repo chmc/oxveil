@@ -16,6 +16,7 @@
 - `oxveil.writePlan` and `oxveil.aiParsePlan` commands
 
 ### Fixed
+- Plan Preview Start button now responds to clicks correctly (#115)
 - Plan Preview keeps both plan tabs when ai-parsed appears after Form Plan
 - Plan Preview shows correct content after VS Code window reload (#128)
 - Fix plan preview showing "Terminal closed" on session failure instead of only on terminal close
