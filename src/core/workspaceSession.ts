@@ -28,6 +28,7 @@ export class WorkspaceSession {
 
   dispose(): void {
     this._disposed = true;
+    this.processManager?.deactivate().catch(() => {});
     this.sessionState.removeAllListeners();
     this.processManager = undefined;
     this.gitExec = undefined;

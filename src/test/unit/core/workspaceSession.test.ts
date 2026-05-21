@@ -51,13 +51,38 @@ describe("WorkspaceSession", () => {
 
     it("clears processManager and gitExec", () => {
       const session = new WorkspaceSession(init);
-      session.processManager = { spawn: vi.fn() } as never;
+      session.processManager = { spawn: vi.fn(), deactivate: vi.fn().mockResolvedValue(undefined) } as never;
       session.gitExec = { exec: vi.fn(), cwd: "/project" };
 
       session.dispose();
 
       expect(session.processManager).toBeUndefined();
       expect(session.gitExec).toBeUndefined();
+    });
+
+    it("calls deactivate() on processManager before clearing it", () => {
+      const session = new WorkspaceSession(init);
+      const deactivate = vi.fn().mockResolvedValue(undefined);
+      session.processManager = { deactivate } as never;
+
+      session.dispose();
+
+      expect(deactivate).toHaveBeenCalledOnce();
+    });
+
+    it("disposes cleanly when deactivate() rejects", async () => {
+      const session = new WorkspaceSession(init);
+      const deactivate = vi.fn().mockRejectedValue(new Error("kill failed"));
+      session.processManager = { deactivate } as never;
+
+      expect(() => session.dispose()).not.toThrow();
+      // allow the rejected promise to settle without unhandled rejection
+      await Promise.resolve();
+    });
+
+    it("disposes cleanly when processManager is undefined", () => {
+      const session = new WorkspaceSession(init);
+      expect(() => session.dispose()).not.toThrow();
     });
   });
 
