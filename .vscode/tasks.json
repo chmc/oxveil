@@ -6,9 +6,6 @@
       "type": "shell",
       "command": "while true; do ci_status=$(gh run list -L1 --json conclusion -q '.[0].conclusion' 2>/dev/null || true); if [ \"$ci_status\" = \"failure\" ]; then osascript -e 'display notification \"CI failed\" with title \"Oxveil\"'; fi; sleep 60; done",
       "isBackground": true,
-      "runOptions": {
-        "runOn": "folderOpen"
-      },
       "presentation": {
         "reveal": "never",
         "panel": "dedicated"
