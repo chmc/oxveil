@@ -56,6 +56,10 @@ When visual verification runs on Oxveil itself, the main VS Code and EDH share t
 - At milestone boundaries.
 - Lightweight mode (skip session folder) for quick spot-checks when explicitly requested.
 
+## Plan Formatting
+
+When writing plans with numbered phases, VV must be a numbered phase (e.g., `## Phase N: Visual Verification`), not a standalone section at the end. If the plan has no numbered phases, use `## Visual Verification` as a standalone section.
+
 ## Phases
 
 0. **Pre-flight** — **First, define acceptance criteria:**
