@@ -114,6 +114,33 @@ Details.
     expect(result.phases[0].description).toBe("Some description.");
   });
 
+  it("preserves code block indentation", () => {
+    const content = `## Phase 1: Setup
+Run this:
+
+\`\`\`bash
+    npm install
+    npm run build
+\`\`\`
+`;
+    const result = parsePlanWithDescriptions(content);
+    expect(result.phases[0].description).toContain("    npm install");
+    expect(result.phases[0].description).toContain("    npm run build");
+  });
+
+  it("preserves nested list indentation", () => {
+    const content = `## Phase 1: Setup
+Steps:
+- First item
+  - Nested item
+  - Another nested
+- Second item
+`;
+    const result = parsePlanWithDescriptions(content);
+    expect(result.phases[0].description).toContain("  - Nested item");
+    expect(result.phases[0].description).toContain("  - Another nested");
+  });
+
   it("handles decimal phase numbers", () => {
     const content = `## Phase 1.1: Sub-step A
 Details for A.

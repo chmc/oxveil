@@ -175,6 +175,42 @@ Log summary.
     expect(result.phases[2].description).toBe("Write results.\nLog summary.");
   });
 
+  it("preserves code block indentation", () => {
+    const content = `### Step 1: Setup
+Run this:
+
+\`\`\`bash
+    npm install
+    npm run build
+\`\`\`
+`;
+    const result = parseSections(content);
+    expect(result.phases[0].description).toContain("    npm install");
+    expect(result.phases[0].description).toContain("    npm run build");
+  });
+
+  it("preserves nested list indentation", () => {
+    const content = `### Step 1: Setup
+Steps:
+- First item
+  - Nested item
+  - Another nested
+- Second item
+`;
+    const result = parseSections(content);
+    expect(result.phases[0].description).toContain("  - Nested item");
+    expect(result.phases[0].description).toContain("  - Another nested");
+  });
+
+  it("still trims whitespace-only trailing lines", () => {
+    const content = `### Step 1: Setup
+Install things.
+
+`;
+    const result = parseSections(content);
+    expect(result.phases[0].description).toBe("Install things.");
+  });
+
   it("computes correct headerLine and bodyEndLine", () => {
     const content = `### 1. First
 Body line.

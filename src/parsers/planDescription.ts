@@ -31,14 +31,14 @@ export function parsePlanWithDescriptions(
       const trimmed = lines[i].trim();
       if (STATUS_RE.test(trimmed)) continue;
       if (DEPENDS_RE.test(trimmed)) continue;
-      descLines.push(trimmed);
+      descLines.push(lines[i]);
     }
 
     // Trim leading and trailing blank lines
-    while (descLines.length > 0 && descLines[0] === "") {
+    while (descLines.length > 0 && descLines[0].trim() === "") {
       descLines.shift();
     }
-    while (descLines.length > 0 && descLines[descLines.length - 1] === "") {
+    while (descLines.length > 0 && descLines[descLines.length - 1].trim() === "") {
       descLines.pop();
     }
 
