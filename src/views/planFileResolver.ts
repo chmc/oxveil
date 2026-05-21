@@ -109,9 +109,8 @@ export class PlanFileResolver {
     const candidatePaths = new Set(candidates.map((c) => c.path));
 
     // Prune tracked files that no longer exist in candidates
-    // Exception: ai-parsed is authoritative and may have transient stat failures during writes
     for (const [category, tracked] of this._trackedFiles) {
-      if (!candidatePaths.has(tracked.path) && category !== "ai-parsed") {
+      if (!candidatePaths.has(tracked.path)) {
         this._trackedFiles.delete(category);
         if (this._activeCategory === category) {
           this._activeCategory = undefined;
@@ -124,7 +123,18 @@ export class PlanFileResolver {
       if (!this._deps.statFile) continue;
 
       const stats = await this._deps.statFile(candidate.path);
-      if (!stats) continue;
+      if (!stats) {
+        // ai-parsed: on transient stat failure (file being written), track using candidate mtime
+        if (candidate.category === "ai-parsed" && !this._trackedFiles.has("ai-parsed")) {
+          newCategoryAdded = "ai-parsed";
+          this._trackedFiles.set("ai-parsed", {
+            path: candidate.path,
+            category: "ai-parsed",
+            birthtimeMs: candidate.mtimeMs,
+          });
+        }
+        continue;
+      }
       const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
       if (isStale && candidate.category !== "ai-parsed") continue;
 
@@ -142,19 +152,6 @@ export class PlanFileResolver {
           category: candidate.category,
           birthtimeMs: stats.birthtimeMs,
         });
-      }
-    }
-
-
-    // When ai-parsed is tracked, it's the authoritative source — clear other categories
-    if (this._trackedFiles.has("ai-parsed")) {
-      for (const cat of Array.from(this._trackedFiles.keys())) {
-        if (cat !== "ai-parsed") {
-          this._trackedFiles.delete(cat);
-          if (this._activeCategory === cat) {
-            this._activeCategory = undefined;
-          }
-        }
       }
     }
 
@@ -195,20 +192,9 @@ export class PlanFileResolver {
         category: resolved.category,
         birthtimeMs: resolved.mtimeMs,
       });
-      if (!this._activeCategory) {
+      // ai-parsed always auto-switches when first added
+      if (!this._activeCategory || resolved.category === "ai-parsed") {
         return resolved.category;
-      }
-    }
-
-    // When ai-parsed is tracked, it's the authoritative source — clear other categories
-    if (this._trackedFiles.has("ai-parsed")) {
-      for (const cat of Array.from(this._trackedFiles.keys())) {
-        if (cat !== "ai-parsed") {
-          this._trackedFiles.delete(cat);
-          if (this._activeCategory === cat) {
-            this._activeCategory = undefined;
-          }
-        }
       }
     }
 

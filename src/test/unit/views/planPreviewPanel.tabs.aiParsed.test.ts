@@ -73,7 +73,7 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     expect(call.html).toContain("AI Parsed Plan");
   });
 
-  it("should show ai-parsed content exclusively when ai-parsed file exists alongside design", async () => {
+  it("should show both design and ai-parsed as tabs when both exist", async () => {
     const deps = makeDeps();
     const now = Date.now();
     deps.findAllPlanFiles = vi.fn(async () => [
@@ -91,8 +91,9 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
-    // ai-parsed is authoritative — design cleared, only ai-parsed content shown
+    // Both tabs tracked; ai-parsed is active (newer)
     expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
+    expect(panel.getTrackedPaths()).toHaveLength(2);
     const calls2 = deps._panel.webview.postMessage.mock.calls;
     const call = calls2[calls2.length - 1][0];
     expect(call.html).toContain("AI Parsed");
@@ -129,8 +130,9 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     // Trigger file change
     await panel.onFileChanged();
 
-    // ai-parsed is authoritative — design cleared, ai-parsed content shown exclusively
+    // ai-parsed auto-switches to active; design tab still present
     expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
+    expect(panel.getTrackedPaths()).toHaveLength(2);
     const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
     expect(lastCall.html).toContain("AI Parsed");
   });
@@ -236,7 +238,7 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
     vi.mocked(Date.now).mockRestore();
   });
 
-  it("sessionless: ai-parsed clears previously-tracked superpowers category", async () => {
+  it("sessionless: ai-parsed appears alongside previously-tracked superpowers category", async () => {
     const deps = makeDeps();
     const now = Date.now();
     const recentMs = now - 1000; // 1s ago — passes 4h age filter
@@ -266,10 +268,9 @@ describe("PlanPreviewPanel > ai-parsed category", () => {
 
     await panel.onFileChanged();
 
-    // ai-parsed is authoritative — design cleared, no tab strip (single file)
+    // ai-parsed added as new tab; design stays tracked
     expect(panel.getActiveFilePath()).toBe(AI_PARSED_PATH);
     const lastCall = deps._panel.webview.postMessage.mock.calls.at(-1)[0];
-    expect(lastCall.html).not.toContain('data-category="design"');
     expect(lastCall.html).toContain("AI Parsed Plan");
   });
 });
