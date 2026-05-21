@@ -24,6 +24,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
     .start-btn:hover { background: #2d5a8a; }
     .start-btn.primary { background: #0e639c; border-color: #1177bb; }
     .start-btn.primary:hover { background: #1177bb; }
+    .start-btn:disabled { background: #3c3c3c; border-color: #555; color: #888; cursor: not-allowed; pointer-events: none; }
 
     /* Tab strip */
     .tab-strip { display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
@@ -134,6 +135,7 @@ export function renderPlanPreviewShell(nonce: string, cspSource: string): string
         var startBtn = document.querySelector(".start-btn");
         if (startBtn) {
           startBtn.addEventListener("click", function() {
+            if (this.hasAttribute("disabled")) return;
             vscode.postMessage({ type: "start" });
           });
         }
