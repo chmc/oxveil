@@ -364,6 +364,10 @@ flowchart TD
 | `session-ended` | `active` | New plan chat session started | `setSessionActive(true)` |
 | any | (re-derived) | File changed (200ms debounce) | `onFileChanged()` |
 
+### Webview Restoration
+
+After VS Code reload, the webview panel may persist visually but `_panel` reference is lost. `restorePanel()` reconnects to the existing webview via `WebviewPanelSerializer`, re-initializes event handlers, starts polling, and triggers `onFileChanged()` to refresh content.
+
 ### Polling Fallback
 
 When the panel is visible, a 5-second poll timer runs as a fallback for file system watcher events that may be missed (e.g. files written by external processes like Claude Code). The `_pollTimer` starts in `reveal()` and is cleared in `dispose()`. Each tick calls `onFileChanged()`. State is also tracked even when the panel is not open so that when the panel is revealed it immediately shows any already-detected plan.

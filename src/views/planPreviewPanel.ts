@@ -55,38 +55,63 @@ export class PlanPreviewPanel {
         "oxveil.planPreview",
         "Plan Preview",
         2, // ViewColumn.Two
-        { enableScripts: true, retainContextWhenHidden: true },
+        { enableScripts: true, retainContextWhenHidden: false },
       );
-      this._panel.webview.html = renderPlanPreviewShell(nonce, this._panel.webview.cspSource);
-      this._panel.onDidDispose(() => {
-        this._panel = undefined;
-        this._webviewReady = false;
-        this._pendingMessages = [];
-        clearInterval(this._pollTimer);
-        this._pollTimer = undefined;
-      });
-      this._panel.webview.onDidReceiveMessage((msg: any) => {
-        if (msg.type === "ready") {
-          this._webviewReady = true;
-          for (const pending of this._pendingMessages) {
-            this._panel?.webview.postMessage(pending);
-          }
-          this._pendingMessages = [];
-          this._sendUpdate();
-        } else if (msg.type === "annotation" && msg.phase && msg.text) {
-          this._deps.onAnnotation(msg.phase, msg.text);
-        } else if (msg.type === "switchTab" && msg.category) {
-          void this._onTabSwitch(msg.category as PlanFileCategory);
-        } else if (msg.type === "formPlan") {
-          this._deps.onFormPlan?.();
-        } else if (msg.type === "start") {
-          this._deps.onStart?.();
-        }
-      });
+      this._setupPanel(nonce);
     } else {
       this._panel.reveal();
     }
     this._startPolling();
+  }
+
+  /**
+   * Restore panel from VS Code's webview serializer (called after reload).
+   */
+  restorePanel(panel: WebviewPanel): void {
+    if (this._panel) {
+      panel.dispose();
+      return;
+    }
+    this._panel = panel;
+    const nonce = randomBytes(16).toString("hex");
+    this._setupPanel(nonce);
+    this._startPolling();
+    void this.onFileChanged();
+  }
+
+  private _setupPanel(nonce: string): void {
+    if (!this._panel) return;
+    this._panel.webview.html = renderPlanPreviewShell(nonce, this._panel.webview.cspSource);
+    this._panel.onDidDispose(() => {
+      this._panel = undefined;
+      this._webviewReady = false;
+      this._pendingMessages = [];
+      clearInterval(this._pollTimer);
+      this._pollTimer = undefined;
+    });
+    this._panel.onDidChangeViewState(() => {
+      if (this._panel?.visible && this._webviewReady) {
+        void this.onFileChanged();
+      }
+    });
+    this._panel.webview.onDidReceiveMessage((msg: any) => {
+      if (msg.type === "ready") {
+        this._webviewReady = true;
+        for (const pending of this._pendingMessages) {
+          this._panel?.webview.postMessage(pending);
+        }
+        this._pendingMessages = [];
+        this._sendUpdate();
+      } else if (msg.type === "annotation" && msg.phase && msg.text) {
+        this._deps.onAnnotation(msg.phase, msg.text);
+      } else if (msg.type === "switchTab" && msg.category) {
+        void this._onTabSwitch(msg.category as PlanFileCategory);
+      } else if (msg.type === "formPlan") {
+        this._deps.onFormPlan?.();
+      } else if (msg.type === "start") {
+        this._deps.onStart?.();
+      }
+    });
   }
 
   private _startPolling(): void {
@@ -121,10 +146,8 @@ export class PlanPreviewPanel {
     const seq = ++this._readSeq;
     const candidates = await this._deps.findAllPlanFiles();
     if (seq !== this._readSeq) return;
-    console.log("[PlanPreview] onFileChanged candidates:", candidates.length, "hasPanel:", !!this._panel);
     const tracked = await this._resolver.resolve(candidates);
     if (seq !== this._readSeq) return;
-    console.log("[PlanPreview] resolved:", tracked?.path ?? "none");
 
     if (!tracked) {
       this._lastPhases = [];

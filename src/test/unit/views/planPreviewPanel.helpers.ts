@@ -62,6 +62,7 @@ export function makeMockPanel() {
     },
     reveal: vi.fn(),
     onDidDispose: vi.fn(),
+    onDidChangeViewState: vi.fn(),
     dispose: vi.fn(),
     _simulateMessage(msg: any) { messageHandler?.(msg); },
   };

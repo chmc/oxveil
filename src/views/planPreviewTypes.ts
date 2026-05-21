@@ -33,8 +33,10 @@ export interface PlanPreviewPanelDeps {
 
 export interface WebviewPanel {
   webview: Webview;
+  visible: boolean;
   reveal: () => void;
   onDidDispose: (cb: () => void) => void;
+  onDidChangeViewState: (cb: () => void) => void;
   dispose: () => void;
 }
 

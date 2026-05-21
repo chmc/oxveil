@@ -156,6 +156,15 @@ export async function activate(
     ),
   );
 
+  // Restore Plan Preview panel after reload
+  context.subscriptions.push(
+    vscode.window.registerWebviewPanelSerializer("oxveil.planPreview", {
+      async deserializeWebviewPanel(panel: vscode.WebviewPanel) {
+        planPreviewPanel.restorePanel(panel);
+      },
+    }),
+  );
+
   disposables.push(...sidebar.registerPlanWatcher()); // Plan watcher
 
   // Wire each session's events

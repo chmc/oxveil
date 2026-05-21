@@ -86,7 +86,6 @@ export class PlanFileResolver {
    */
   async resolve(candidates: FileCandidate[]): Promise<TrackedFile | undefined> {
     let newCategoryAdded: PlanFileCategory | undefined;
-    console.log("[PlanResolver] resolve candidates:", candidates.length, "sessionStartTime:", this._sessionStartTime);
 
     if (this._sessionStartTime) {
       newCategoryAdded = await this._resolveWithSession(candidates);
@@ -101,7 +100,8 @@ export class PlanFileResolver {
       this._activeCategory = this._trackedFiles.keys().next().value;
     }
 
-    return this._activeCategory ? this._trackedFiles.get(this._activeCategory) : undefined;
+    const result = this._activeCategory ? this._trackedFiles.get(this._activeCategory) : undefined;
+    return result;
   }
 
   private async _resolveWithSession(candidates: FileCandidate[]): Promise<PlanFileCategory | undefined> {
@@ -109,8 +109,9 @@ export class PlanFileResolver {
     const candidatePaths = new Set(candidates.map((c) => c.path));
 
     // Prune tracked files that no longer exist in candidates
+    // Exception: ai-parsed is authoritative and may have transient stat failures during writes
     for (const [category, tracked] of this._trackedFiles) {
-      if (!candidatePaths.has(tracked.path)) {
+      if (!candidatePaths.has(tracked.path) && category !== "ai-parsed") {
         this._trackedFiles.delete(category);
         if (this._activeCategory === category) {
           this._activeCategory = undefined;
@@ -125,7 +126,6 @@ export class PlanFileResolver {
       const stats = await this._deps.statFile(candidate.path);
       if (!stats) continue;
       const isStale = stats.birthtimeMs <= this._sessionStartTime! && stats.mtimeMs <= this._sessionStartTime!;
-      console.log("[PlanResolver] candidate:", { path: candidate.path, birthtimeMs: stats.birthtimeMs, mtimeMs: stats.mtimeMs, sessionStartTime: this._sessionStartTime, isStale });
       if (isStale && candidate.category !== "ai-parsed") continue;
 
       const existing = this._trackedFiles.get(candidate.category);
@@ -144,6 +144,7 @@ export class PlanFileResolver {
         });
       }
     }
+
 
     // When ai-parsed is tracked, it's the authoritative source — clear other categories
     if (this._trackedFiles.has("ai-parsed")) {

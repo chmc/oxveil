@@ -12,7 +12,7 @@ describe("PlanPreviewPanel", () => {
     panel.reveal();
     expect(deps.createWebviewPanel).toHaveBeenCalledWith(
       "oxveil.planPreview", "Plan Preview", 2,
-      { enableScripts: true, retainContextWhenHidden: true },
+      { enableScripts: true, retainContextWhenHidden: false },
     );
   });
 
