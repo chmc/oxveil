@@ -224,26 +224,26 @@ export class PlanFileResolver {
 
     if (candidates.length > 0) {
       candidates = [...candidates].sort((a, b) => b.mtimeMs - a.mtimeMs);
+    }
+
+    // Layer 1: workspaceState cache — restore user's session choice regardless of age.
+    // Check before age filter so reload doesn't discard an active plan.
+    const cached = this._deps.loadPersistedPlanPath?.();
+    if (cached) {
+      const cachedCandidate = candidates.find(c => c.path === cached.planPath);
+      if (cachedCandidate) {
+        return cachedCandidate;
+      }
+      // Cache stale (file deleted or different workspace) — clear it
+      this._deps.persistPlanPath?.(undefined);
+    }
+
+    // Layer 2: Age filter for non-cached candidates
+    if (candidates.length > 0) {
       if (Date.now() - candidates[0].mtimeMs > SESSIONLESS_MAX_AGE_MS) {
         this._deps.persistPlanPath?.(undefined);
         return undefined;
       }
-    }
-
-    // Layer 1: workspaceState cache - only use if it points to the newest candidate
-    const cached = this._deps.loadPersistedPlanPath?.();
-    if (cached && candidates.length > 0) {
-      const newest = candidates[0];
-      if (cached.planPath === newest.path) {
-        return newest;
-      }
-      // Cache is stale (e.g. points to a file from a previous session) — clear it
-      this._deps.persistPlanPath?.(undefined);
-    }
-
-
-    // Layer 3: mtimeMs fallback
-    if (candidates.length > 0) {
       return candidates[0];
     }
 

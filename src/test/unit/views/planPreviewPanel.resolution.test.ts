@@ -26,7 +26,7 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
   });
 
-  it("sessionless: cache cleared when newer candidate exists (stale session pointer)", async () => {
+  it("sessionless: cached plan wins over newer candidate (restores user's session choice)", async () => {
     const newerPath = "/workspace/.claude/plans/newer-plan.md";
     const deps = makeDeps();
     const now = Date.now();
@@ -45,9 +45,10 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
 
     await panel.onFileChanged();
 
-    // Cache should be cleared and newest candidate used
-    expect(deps.persistPlanPath).toHaveBeenCalledWith(undefined);
-    expect(deps.readFile).toHaveBeenCalledWith(newerPath);
+    // Cache points to existing file — trust it, restore user's choice (not the newer file)
+    expect(deps.persistPlanPath).not.toHaveBeenCalledWith(undefined);
+    expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+    expect(deps.readFile).not.toHaveBeenCalledWith(newerPath);
   });
 
   it("sessionless: falls through to mtimeMs when cache miss (file deleted)", async () => {
@@ -71,7 +72,7 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
     expect(deps.readFile).toHaveBeenCalledWith(freshPath);
   });
 
-  it("sessionless: rejects candidates older than 4 hours when no session active", async () => {
+  it("sessionless: loads cached plan older than 4 hours (reload restores active plan)", async () => {
     const staleTime = Date.now() - 5 * 60 * 60 * 1000; // 5 hours ago
     const deps = makeDeps();
     deps.loadPersistedPlanPath = vi.fn(() => ({
@@ -88,8 +89,9 @@ describe("PlanPreviewPanel > 4-layer resolution pipeline", () => {
 
     await panel.onFileChanged();
 
-    expect(deps.persistPlanPath).toHaveBeenCalledWith(undefined);
-    expect(deps.readFile).not.toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
+    // Cache points to existing file — trust it regardless of age (fixes reload showing "No plan yet")
+    expect(deps.persistPlanPath).not.toHaveBeenCalledWith(undefined);
+    expect(deps.readFile).toHaveBeenCalledWith(ACTIVE_PLAN_PATH);
   });
 
   it("sessionless: rejects stale candidates via mtimeMs layer when no cache exists", async () => {
