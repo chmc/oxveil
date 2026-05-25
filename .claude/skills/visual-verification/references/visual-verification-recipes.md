@@ -8,6 +8,7 @@ description: Scripts, templates, and checklists for the visual verification loop
 ## Contents
 
 - [Safety Rules](#safety-rules)
+- [GUI Primitives](#gui-primitives)
 - [Oxveil Sidebar Identification](#oxveil-sidebar-identification)
 - [Pre-flight Checks](#pre-flight-checks)
 - [Self-Implementation Mode Recipes](#self-implementation-mode-recipes)
@@ -26,6 +27,55 @@ description: Scripts, templates, and checklists for the visual verification loop
 - [Common Issues Checklist](#common-issues-checklist)
 - [v0.1 Verification Targets](#v01-verification-targets)
 - [Error Handling](#error-handling)
+
+## GUI Primitives
+
+VS Code Activity Bar buttons are NOT exposed via osascript (`every button of edhWin` returns only window chrome). Use cliclick coordinates instead.
+
+```bash
+# ICON_INDEX: 1=Explorer, 2=Search, 3=SCM, 4=Debug, 5=Extensions, 6=Claude, 7=Graph, 8=Oxveil
+# Adjust if other extensions installed — screenshot right edge to count.
+click_activity_bar_icon() {
+    local ICON_LABEL="$1"
+    local ICON_INDEX="${2:-8}"
+    local INFO=$(osascript -e '
+    tell application "System Events"
+        tell process "Code"
+            set w to (first window whose name contains "[Extension Development Host]")
+            set p to position of w; set s to size of w
+            return (item 1 of p) & "," & (item 2 of p) & "," & (item 1 of s) & "," & (item 2 of s)
+        end tell
+    end tell')
+    local WIN_X=$(echo $INFO | cut -d, -f1)
+    local WIN_Y=$(echo $INFO | cut -d, -f2)
+    local WIN_W=$(echo $INFO | cut -d, -f3)
+    osascript -e "tell application \"System Events\" to tell process \"Code\" to perform action \"AXRaise\" of (first window whose name contains \"[Extension Development Host]\")"
+    sleep 0.2
+    cliclick c:$((WIN_X + WIN_W - 24)),$((WIN_Y + 28 + (ICON_INDEX - 1) * 48 + 24))
+    sleep 0.5
+}
+
+# Click into terminal (must be visible), then type
+type_in_terminal_gui() {
+    local TEXT="$1"
+    cliclick t:"$TEXT"
+    sleep 0.1
+    cliclick kp:return
+}
+```
+
+Usage:
+```bash
+click_activity_bar_icon "Oxveil" 8    # open Oxveil sidebar
+click_activity_bar_icon "Explorer" 1  # open Explorer
+
+# Plan Chat input: click Let's Go first, click terminal area, then type
+cliclick c:$((WIN_X + WIN_W / 2)),$((WIN_Y + WIN_H / 2))
+sleep 0.5
+type_in_terminal_gui "describe what to build"
+```
+
+---
 
 ## Safety Rules
 
@@ -63,25 +113,15 @@ VS Code has multiple sidebar views. You MUST verify you're capturing the Oxveil 
 
 ### Focus Oxveil Sidebar Recipe
 
-If you captured the wrong sidebar, use this to focus Oxveil:
+If you captured the wrong sidebar, use `click_activity_bar_icon` (GUI primitive, see [GUI Primitives](#gui-primitives)):
 
 ```bash
-# Via Command Palette
-osascript -e '
-tell application "System Events"
-  tell process "Code"
-    set frontmost to true
-    delay 0.2
-    keystroke "p" using {command down, shift down}
-    delay 0.5
-    keystroke "View: Show Oxveil"
-    delay 0.3
-    key code 36  -- Enter
-    delay 0.5
-  end tell
-end tell'
+click_activity_bar_icon "Oxveil"
+```
 
-# Or via menu (more reliable)
+Fallback via menu if Activity Bar button not found:
+
+```bash
 osascript -e '
 tell application "System Events"
   tell process "Code"
@@ -785,54 +825,17 @@ All recipes use `process "Code"` with window name filtering. `set frontmost to t
 
 ### Focusing the Plan Chat terminal
 
-Plan Chat is an editor-area terminal — standard terminal focus methods target the bottom panel instead. Call `Oxveil: Plan Chat` via command palette twice (second call triggers `focusTerminal()`).
+Plan Chat opens as an editor-area terminal when the user clicks "Let's Go". Focus it by clicking into the editor area using `type_in_terminal_gui` (see [GUI Primitives](#gui-primitives)).
+
+Never use `click at {x, y}` for Plan Chat focus — editor-area terminals don't reliably receive click-based focus from AppleScript coordinates; use cliclick coordinates instead.
 
 ```bash
-for attempt in 1 2; do
-    osascript -e '
-    tell application "System Events"
-        tell process "Code"
-            set frontmost to true
-            perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
-            delay 0.3
-            keystroke "p" using {command down, shift down}
-        end tell
-    end tell'
-    sleep 1
-    osascript -e '
-    tell application "System Events"
-        tell process "Code"
-            keystroke "Oxveil: Plan Chat"
-            delay 0.8
-            key code 36
-        end tell
-    end tell'
-    sleep 2
-done
-```
-
-Never use `click at {x, y}` for Plan Chat focus — editor-area terminals don't reliably receive click-based focus.
-
-```bash
-# Focus EDH + open command palette
+# Focus EDH window
 osascript -e '
 tell application "System Events"
     tell process "Code"
         set frontmost to true
         perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
-        delay 0.3
-        keystroke "p" using {command down, shift down}
-    end tell
-end tell'
-
-# Type and execute a command
-osascript -e '
-tell application "System Events"
-    tell process "Code"
-        delay 0.5
-        keystroke "Oxveil: Start"
-        delay 0.3
-        key code 36 -- Enter
     end tell
 end tell'
 
@@ -861,7 +864,7 @@ Handles modal sheets, verifies closure. Use this instead of inline osascript eve
 close_edh_window() {
     local MCP_PORT="${1:-}"
 
-    # 1. Discard unsaved changes via MCP to avoid "Save changes?" sheet
+    # 1. [SETUP] Discard unsaved changes via MCP to avoid "Save changes?" sheet
     if [[ -n "$MCP_PORT" ]]; then
         curl -s -X POST "http://localhost:$MCP_PORT/command" \
             -H "Content-Type: application/json" \
@@ -954,15 +957,15 @@ end tell'
 
 sleep 0.3
 
-# Close bottom panel (Terminal, Problems, Output, Debug Console)
+# [SETUP] Close bottom panel (Terminal, Problems, Output, Debug Console)
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"workbench.action.closePanel"}' http://127.0.0.1:$PORT/command
 
-# Close secondary sidebar
+# [SETUP] Close secondary sidebar
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"workbench.action.closeAuxiliaryBar"}' http://127.0.0.1:$PORT/command
 
-# Close all editor tabs (Welcome, Settings, etc.) in one shot
+# [SETUP] Close all editor tabs (Welcome, Settings, etc.) in one shot
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"workbench.action.closeAllEditors"}' http://127.0.0.1:$PORT/command
 
@@ -1343,33 +1346,39 @@ These can diverge when:
 - **osascript failure:** Menu clicks for destructive ops, `set frontmost` + AXRaise for keystrokes. Retry once.
 - **Vision inconclusive:** Log "analysis inconclusive" and continue.
 
-## Terminal Input via MCP Bridge
+## Terminal Input
 
-Use `oxveil.focusPlanChat` + `workbench.action.terminal.sendSequence` to type into Plan Chat terminal.
-Requires: `$PORT`, `$TOKEN` from `.oxveil-mcp` discovery (see MCP Bridge Discovery section).
+Use `type_in_terminal_gui` (see [GUI Primitives](#gui-primitives)) — clicks into the terminal area and types via cliclick. This mirrors how a real user interacts with the Plan Chat terminal.
 
 ```bash
-# Type text into Plan Chat terminal via MCP bridge
-# jq -Rs handles all special chars: $, \, ", backticks
-# For prompts > 4KB, split into multiple calls
-type_in_plan_chat() {
-    local TEXT="$1"
+# Click Let's Go to open Plan Chat, then type
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"createPlan"}' "http://127.0.0.1:$PORT/click"
+sleep 2
 
-    # Focus Plan Chat terminal
-    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-      -d '{"command":"oxveil.focusPlanChat"}' "http://127.0.0.1:$PORT/command"
-    sleep 0.3
+# Get EDH window geometry
+WIN_INFO=$(osascript -e '
+tell application "System Events"
+    tell process "Code"
+        set edhWin to (first window whose name contains "[Extension Development Host]")
+        set p to position of edhWin
+        set s to size of edhWin
+        return (item 1 of p) & "," & (item 2 of p) & "," & (item 1 of s) & "," & (item 2 of s)
+    end tell
+end tell')
+WIN_X=$(echo $WIN_INFO | cut -d, -f1)
+WIN_Y=$(echo $WIN_INFO | cut -d, -f2)
+WIN_W=$(echo $WIN_INFO | cut -d, -f3)
+WIN_H=$(echo $WIN_INFO | cut -d, -f4)
 
-    # Caller must append \n to text to submit (sendSequence interprets \n as Enter)
-    local ESCAPED=$(printf '%s' "$TEXT" | jq -Rs .)
-    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-      -d "{\"command\":\"workbench.action.terminal.sendSequence\",\"args\":[{\"text\":$ESCAPED}]}" \
-      "http://127.0.0.1:$PORT/command"
-}
+# Click center of editor area where Plan Chat terminal appears
+cliclick c:$((WIN_X + WIN_W / 2)),$((WIN_Y + WIN_H / 2))
+sleep 0.5
 
-# Example: send prompt with Enter
-type_in_plan_chat "plan how to add a button\n"
+type_in_terminal_gui "plan how to add a button"
 ```
+
+**Legacy:** `type_in_plan_chat()` via MCP `sendSequence` is removed. `workbench.action.terminal.sendSequence` bypasses the terminal UI and is not a real user action.
 
 ## Waiting for Plan Files
 

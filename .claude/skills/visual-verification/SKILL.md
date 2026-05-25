@@ -86,13 +86,27 @@ When writing plans with numbered phases, VV must be a numbered phase (e.g., `## 
 5. **Decide** — **Before claiming success:** Re-read SESSION.md acceptance criteria. Did you observe the specific behavior stated? If not → FAILED, regardless of other observations. Mark the verification task complete only if yes. Then: Critical/bug: fix code, go to Phase 1. Nit: log, continue to Phase 2. All states verified: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
 6. **Cleanup** — Close EDH window via `close_edh_window` function (see recipes): dismisses modal sheets by clicking Cancel/Don't Save button directly (Escape does not work on VS Code sheets), then AXPress close button, then verifies no EDH windows remain. Never use `keystroke` Cmd+W or inline osascript. **If self-implementation mode:** Remove worktree via `git worktree remove $WORKTREE_PATH`, restore stash if created in Phase 0. Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains (from worktree or main repo). Verify no orphan processes. Write final result and completion time to SESSION.md. NEVER delete the `verification-sessions/` folder or any session subfolder — they are gitignored but kept on disk for developer auditing. **Write session path to marker:** `echo "$SESSION_DIR" > .claude/workflow-state/visual-verified` (not `touch` — path is required for gate validation).
 
+## Setup vs Verification Boundary
+
+**Setup (acceptable shortcuts):** file writes, env vars, build, EDH launch, MCP `/command` `[SETUP]` for viewport prep, `GET /state` for assertions.
+
+**Verification (must mirror real user interactions):**
+- Sidebar buttons → MCP `/click` (real DOM `MouseEvent`, same path as physical click)
+- Activity bar navigation → `click_activity_bar_icon()` (see recipes)
+- Text input → `type_in_terminal_gui()` after clicking to focus (see recipes)
+- QuickPick → `click_quickpick_item()` (see recipes)
+
+**MCP `/command` is a shortcut** — calls `vscode.commands.executeCommand()` directly, bypasses UI. Allowed only for `[SETUP]` tagged operations (viewport prep, cleanup). Never use for verification-path interactions.
+
+**MCP `/click` is legitimate** — calls `element.dispatchEvent(new MouseEvent(...))`. Same event chain as physical click: DOM event → handler → postMessage → command.
+
 ## MCP Bridge Interaction
 
 The MCP bridge is the primary method for interacting with sidebar webview buttons. osascript cannot reach webview iframe content.
 
 **Setup:** The bridge starts automatically when `oxveil.mcpBridge` is enabled in workspace settings. After EDH launch, verify `.oxveil-mcp` exists in workspace root.
 
-**Pattern:** Read state via `GET /state`, click buttons via `POST /click`, execute commands via `POST /command`. After every click, poll state to confirm the effect.
+**Pattern:** Read state via `GET /state`, click buttons via `POST /click`. After every click, poll state to confirm the effect.
 
 **Real DOM clicks:** POST `/click` calls `element.click()` in the webview. This exercises the full click path: DOM event → event handler → postMessage → command execution. The same path as a real user click. Note: `/click` is fire-and-forget; check state after to confirm the effect.
 
