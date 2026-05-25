@@ -18,8 +18,11 @@ When modifying any of the following files, update `docs/workflow/states.md`:
 | `src/sessionWiring.ts` | E. Cross-Machine Wiring (event → update matrix, context keys) |
 | `src/views/sidebarRenderers.ts` | B. Sidebar View Projection (renderer table) |
 
-**BLOCKING:** When changing any file in `related_files`, edit `docs/workflow/states.md` FIRST — spec is source of truth, code follows.
+**BLOCKING:** Gate 5 blocks state file edits until BOTH of these are updated first:
+1. `docs/workflow/states.md` — spec is source of truth, code follows
+2. `docs/workflow/user-flows.md` — run `npm run generate:flow` to regenerate
 
 - Update the Appendix type definitions if union members change.
-- If behavior changes affect user journeys, run `npm run generate:flow` to regenerate `docs/workflow/user-flows.md`.
-- Run `npm test` — the `workflowStatesSync.test.ts` test validates state enumerations match the spec.
+- Run `npm test` — `workflowStatesSync.test.ts` validates state enumerations, `userFlowsSync.test.ts` validates views.
+
+**Note:** VS Code mermaid extension unreliable (flashes/disappears). `user-flows.md` mermaid renders correctly on GitHub.
