@@ -563,9 +563,11 @@ The `fullReset` command performs a complete workspace reset via `onFullReset()` 
 
 ---
 
-## G. User Stories
+## G. User Flows
 
-See [user-stories.md](user-stories.md) for the full 10 user stories with as-is/to-be analysis, state traces, context keys, edge cases, and gap annotations.
+See [user-flows.md](user-flows.md) for generated user journey diagrams and the full state transition graph.
+
+Regenerate: `npm run generate:flow`
 
 ---
 

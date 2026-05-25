@@ -474,7 +474,8 @@
     "test:watch": "vitest",
     "lint": "tsc --noEmit && npx eslint src",
     "package": "vsce package -o oxveil.vsix",
-    "release:local": "vsce package -o oxveil.vsix && vsce publish --packagePath oxveil.vsix"
+    "release:local": "vsce package -o oxveil.vsix && vsce publish --packagePath oxveil.vsix",
+    "generate:flow": "npx tsx scripts/generate-flow.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

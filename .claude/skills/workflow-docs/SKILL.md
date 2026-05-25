@@ -21,5 +21,5 @@ When modifying any of the following files, update `docs/workflow/states.md`:
 **BLOCKING:** When changing any file in `related_files`, edit `docs/workflow/states.md` FIRST — spec is source of truth, code follows.
 
 - Update the Appendix type definitions if union members change.
-- If behavior changes affect user journeys, also update `docs/workflow/user-stories.md`.
+- If behavior changes affect user journeys, run `npm run generate:flow` to regenerate `docs/workflow/user-flows.md`.
 - Run `npm test` — the `workflowStatesSync.test.ts` test validates state enumerations match the spec.

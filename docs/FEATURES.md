@@ -30,6 +30,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | regression-prevention | planned | - | .github/workflows/ci.yml, vitest.config.ts, eslint.config.mjs | CI pipeline, coverage tracking, ESLint async rules, pre-commit hooks |
 | race-condition-mitigation | stable | 0.8.0 | src/sessionWiring.ts | Snapshot capture to eliminate TOCTOU in async state-changed handlers |
 | disposal-guard | planned | - | src/sessionWiring.ts, src/core/workspaceSession.ts | Guard async handler continuations against disposed session |
+| user-flows | planned | - | scripts/generate-flow.ts, docs/workflow/user-flows.md | Generated user journey diagram from code |
 
 ## Adding a New Feature
 

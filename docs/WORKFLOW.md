@@ -15,7 +15,7 @@ Claudeloop check → Branch confirm → Plan (9 sections) → Tasks → TDD → 
 | 2 | Planning checklist | ExitPlanMode | 9 sections required |
 | 3 | Plan-to-tasks | Edit/Write (post-plan) | Tasks must exist |
 | 4 | TDD | Edit (impl files) | Test file edited first |
-| 5 | State sync | Edit (state files) | docs/workflow/states.md edited first |
+| 5 | State sync | Edit (state files) | docs/workflow/states.md + user-flows.md (via `npm run generate:flow`) edited first |
 | 5b | Test gate | TaskUpdate (complete) | Run vitest related on changed files (~500ms) |
 | 6 | Documentation | TaskUpdate (complete) | Update if plan indicated |
 | 7 | ADR | TaskUpdate (complete) | Create ADR if indicated |
