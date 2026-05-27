@@ -202,8 +202,8 @@ describe("cleanupStaleTriggers", () => {
   });
 });
 
-describe("hook output format (scripts/oxveil-plan-intercept.sh)", () => {
-  const hookPath = nodePath.resolve(__dirname, "../../../scripts/oxveil-plan-intercept.sh");
+describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
+  const hookPath = nodePath.resolve(__dirname, "../../../resources/oxveil-plan-intercept.sh");
 
   function runHook(claudeProjectDir: string): string {
     return execSync(`bash "${hookPath}"`, {
@@ -222,7 +222,7 @@ describe("hook output format (scripts/oxveil-plan-intercept.sh)", () => {
     }
   });
 
-  it("outputs deny hookSpecificOutput JSON when marker exists with low denyCount", () => {
+  it("outputs deny hookSpecificOutput JSON when marker exists and extension responds deny", () => {
     const tmp = fsSyncModule.mkdtempSync(nodePath.join(os.tmpdir(), "oxveil-hook-test-"));
     try {
       const claudeDir = nodePath.join(tmp, ".claude");
@@ -232,7 +232,33 @@ describe("hook output format (scripts/oxveil-plan-intercept.sh)", () => {
         JSON.stringify({ sessionId: "s1", denyCount: 0 }),
       );
 
-      const parsed = JSON.parse(runHook(tmp)) as {
+      // Simulate extension: watch for request file, write deny response
+      const responderScript = nodePath.join(tmp, "responder.sh");
+      fsSyncModule.writeFileSync(
+        responderScript,
+        [
+          "#!/usr/bin/env bash",
+          `CLAUDEDIR="${claudeDir}"`,
+          "DEADLINE=$((SECONDS + 10))",
+          "while [[ $SECONDS -lt $DEADLINE ]]; do",
+          '  REQ=$(ls "$CLAUDEDIR"/plan-intercept-request-*.json 2>/dev/null | head -1)',
+          '  if [[ -n "$REQ" ]]; then',
+          '    UUID=$(basename "$REQ" | sed "s/plan-intercept-request-//;s/\\.json//")',
+          '    printf \'{"decision":"deny","reason":"critic"}\' > "$CLAUDEDIR/plan-intercept-response-$UUID.json"',
+          "    exit 0",
+          "  fi",
+          "  sleep 0.05",
+          "done",
+        ].join("\n"),
+        { mode: 0o755 },
+      );
+
+      const result = execSync(
+        `bash -c '"${responderScript}" & bash "${hookPath}"; wait'`,
+        { env: { ...process.env, CLAUDE_PROJECT_DIR: tmp }, encoding: "utf8" },
+      ).trim();
+
+      const parsed = JSON.parse(result) as {
         hookSpecificOutput?: {
           hookEventName?: string;
           permissionDecision?: string;

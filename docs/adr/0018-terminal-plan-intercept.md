@@ -13,7 +13,7 @@ The original implementation used a VS Code QuickPick dialog triggered from the e
 
 ## Decision
 
-Intercept `ExitPlanMode` in the Claude terminal using a `PreToolUse:ExitPlanMode` hook (`scripts/oxveil-plan-intercept.sh`):
+Intercept `ExitPlanMode` in the Claude terminal using a `PreToolUse:ExitPlanMode` hook (`resources/oxveil-plan-intercept.sh`):
 
 1. **Hook denies `ExitPlanMode`** and injects `additionalContext` instructing Claude to call `AskUserQuestion` with three options: Form Plan with Oxveil, run critics, or continue planning.
 2. **Claude presents the choice** natively in the terminal via `AskUserQuestion`.
@@ -38,7 +38,7 @@ The hook is active only when `.claude/oxveil-plan-active` marker file exists, so
 
 ## Files
 
-- `scripts/oxveil-plan-intercept.sh` — PreToolUse hook: deny + inject AskUserQuestion instruction
+- `resources/oxveil-plan-intercept.sh` — PreToolUse hook: deny + inject AskUserQuestion instruction
 - `src/planInterceptWatcher.ts` — file watcher for trigger files; `cleanupStaleTriggers()`
 - `src/extension.ts` — registers watcher and calls `cleanupStaleTriggers()` on activation
 - `.claude/oxveil-plan-active` — marker file controlling hook activation (runtime artifact, not committed)
