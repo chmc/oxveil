@@ -10,7 +10,7 @@ export function getLiveRunStyles(): string {
     #dashboard { position: sticky; top: 0; z-index: 10; background: var(--vscode-sideBar-background, #252526); }
 
     /* Dashboard */
-    .dashboard { padding: 16px 20px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
+    .dashboard-content { padding: 16px 20px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
     .dashboard-toggle { font-size: 11px; color: #569cd6; cursor: pointer; margin-bottom: 10px; user-select: none; }
     .dashboard-empty { padding: 16px 20px; color: #888; font-size: 13px; background: var(--vscode-sideBar-background, #252526); }
     .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
