@@ -13,6 +13,8 @@ export function getLiveRunStyles(): string {
     .dashboard-content { padding: 16px 20px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
     .dashboard-toggle { font-size: 11px; color: #569cd6; cursor: pointer; margin-bottom: 10px; user-select: none; }
     .dashboard-empty { padding: 16px 20px; color: #888; font-size: 13px; background: var(--vscode-sideBar-background, #252526); }
+    .dashboard-collapsed { padding: 16px 20px; border-bottom: 1px solid #333; background: var(--vscode-sideBar-background, #252526); }
+    .collapsed-summary { margin-top: 6px; font-size: 12px; color: #888; }
     .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
     .cost { font-size: 12px; color: #888; }
 
