@@ -638,7 +638,7 @@ subSteps: [
 
 **Sources:** `src/core/planChatMarker.ts`, `src/planInterceptWatcher.ts`, `src/planInterceptInstaller.ts`, `resources/oxveil-plan-intercept.sh`
 
-The plan intercept system routes `ExitPlanMode` tool calls through a VS Code QuickPick, allowing the user to execute with Oxveil orchestration, run critic agents, or provide feedback — before Claude proceeds.
+The plan intercept system intercepts `ExitPlanMode` tool calls and presents the user with options via `AskUserQuestion` in the terminal: execute with Oxveil, run critic agents first, or continue planning.
 
 ### Marker File
 
@@ -666,14 +666,12 @@ interface PlanChatMarker {
 
 ### Execute Trigger File
 
-The shell hook writes a trigger file to signal Oxveil to execute `formPlan`. The extension watches for this file, acts on it, and deletes it.
+When the user selects "Form Plan with Oxveil" via `AskUserQuestion`, Claude writes a trigger file that the extension watcher picks up.
 
-**Trigger file:** `.claude/oxveil-execute-{uuid}.json`
+**Trigger file:** `.claude/oxveil-execute`
 ```json
-{ "uuid": "...", "sessionId": "...", "timestamp": 1234567890000 }
+{ "action": "formPlan" }
 ```
-
-**Stale policy:** Files with `timestamp` older than 60s are ignored and deleted — both on creation (watcher) and on extension activation (`cleanupStaleTriggers`).
 
 ### Hook Flow
 
@@ -681,13 +679,17 @@ The shell hook writes a trigger file to signal Oxveil to execute `formPlan`. The
 flowchart TD
     Hook([PreToolUse:ExitPlanMode fires]) --> M1{oxveil-plan-active exists?}
     M1 -- No --> Allow1[allow]
-    M1 -- Yes --> Write[write oxveil-execute-{uuid}.json]
-    Write --> Allow2[allow — extension handles formPlan]
+    M1 -- Yes --> D1{denyCount >= 5?}
+    D1 -- Yes --> Allow2[allow — loop breaker]
+    D1 -- No --> Deny[deny with AskUserQuestion instruction]
+    Deny --> User{User choice}
+    User -- Form Plan --> Trigger[Claude writes .claude/oxveil-execute]
+    User -- Critics --> Critics[run critics, call ExitPlanMode again]
+    User -- Continue --> Continue[stay in plan mode]
+    Trigger --> Watcher[extension watcher calls formPlan]
 ```
 
-The hook writes the trigger and immediately allows. The extension watcher handles `formPlan` asynchronously — Claude is not blocked waiting for a response.
-
-**Stale guard:** On detection the watcher checks `timestamp`; if age > 60s the file is deleted and `formPlan` is not called. `cleanupStaleTriggers()` runs the same check on activation.
+Hook denies and injects `additionalContext` instructing Claude to call `AskUserQuestion`. Claude presents options; user choice drives the next action.
 
 ### Hook Installation
 
@@ -836,6 +838,6 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-18**: Removed `stale` view state, `resumePlan`/`dismissPlan` commands, `writePlan`/`aiParse` sidebar buttons, and `PlanUserChoice` resume/dismiss options. Initial view now shows only "Let's Go". Always starts fresh on VS Code reopen — no stale plan detection.
 - **2026-05-18**: Added `VersionedSnapshot<T>` utility (`src/core/state/VersionedSnapshot.ts`) and `GuardedHandler` types (`src/core/state/GuardedHandler.ts`). `SessionState` gains `readSnapshot()` returning `{ status, progress, seq }` and `assertFresh(seq)` for TOCTOU prevention in async handlers. No state transitions changed.
 - **2026-05-18**: `planPreviewPanel` added to `wiringCtx` in `extension.ts` so `wireSessionEvents` can call `setSessionActive(false)` on process done. Previously missing from wiringCtx caused sessionActive to remain `true` after session end.
-- **2026-05-27**: Changed `planInterceptWatcher.ts` — now watches `.claude/oxveil-execute-{uuid}.json` trigger files. On detection, validates `timestamp` (<60s), calls `oxveil.formPlan` directly, then deletes the file. Removed request/response file pair. Added `cleanupStaleTriggers()` exported for activation. No state machine behavior changed.
+- **2026-05-27**: Migrated plan intercept to AskUserQuestion flow. Hook now denies ExitPlanMode with instruction for Claude to call AskUserQuestion; user choice drives action. Trigger file changed from `.claude/plan-intercept-request-*.json` to `.claude/oxveil-execute` (no UUID, action-based). Removed `cleanupStaleTriggers()`. No state machine behavior changed.
 - **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to platform cache (`env-paths('oxveil').cache`), merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json` using absolute cache path, and cleans up old per-project `.claude/hooks/` copy. Fire-and-forget; no state machine behavior changed.
 - **2026-05-27**: Moved plan marker from workspace `.claude/oxveil-plan-active` to `context.storageUri/oxveil-plan-active`. Shell hook reads `$OXVEIL_PLAN_MARKER` env var set via `environmentVariableCollection`. Marker cleanup added to `deactivate()`. No state machine behavior changed.

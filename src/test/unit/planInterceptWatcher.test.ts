@@ -25,23 +25,20 @@ vi.mock("vscode", () => ({
 vi.mock("node:fs/promises", () => ({
   readFile: vi.fn(),
   unlink: vi.fn().mockResolvedValue(undefined),
-  readdir: vi.fn().mockResolvedValue([]),
 }));
 
-import { createPlanInterceptWatcher, cleanupStaleTriggers } from "../../planInterceptWatcher";
+import { createPlanInterceptWatcher } from "../../planInterceptWatcher";
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 
 const executeCommand = vscode.commands.executeCommand as ReturnType<typeof vi.fn>;
 const readFileMock = fs.readFile as ReturnType<typeof vi.fn>;
 const unlinkMock = fs.unlink as ReturnType<typeof vi.fn>;
-const readdirMock = fs.readdir as ReturnType<typeof vi.fn>;
 
 const MOCK_FOLDER = { uri: { fsPath: "/workspace" } } as unknown as vscode.WorkspaceFolder;
-const STALE_MS = 60_000;
 
 function makeValidTrigger(overrides: Record<string, unknown> = {}): string {
-  return JSON.stringify({ uuid: "test-uuid-123", timestamp: Date.now(), ...overrides });
+  return JSON.stringify({ action: "formPlan", ...overrides });
 }
 
 async function flushAsync(): Promise<void> {
@@ -52,16 +49,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   onDidCreateCallback = undefined;
   unlinkMock.mockResolvedValue(undefined);
-  readdirMock.mockResolvedValue([]);
 });
 
 describe("createPlanInterceptWatcher", () => {
-  it("creates watcher with oxveil-execute glob pattern", () => {
+  it("creates watcher with oxveil-execute pattern", () => {
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
     expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledOnce();
     const pattern = (vscode.RelativePattern as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(pattern[1]).toBe(".claude/plan-intercept-request-*.json");
+    expect(pattern[1]).toBe(".claude/oxveil-execute");
   });
 
   it("returns the watcher disposable", () => {
@@ -74,7 +70,7 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockResolvedValue(makeValidTrigger());
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
     expect(executeCommand).toHaveBeenCalledWith("oxveil.formPlan");
@@ -84,44 +80,29 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockResolvedValue(makeValidTrigger());
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
-    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/plan-intercept-request-abc.json");
+    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/oxveil-execute");
   });
 
-  it("ignores trigger with no uuid", async () => {
-    readFileMock.mockResolvedValue(JSON.stringify({ timestamp: Date.now() }));
+  it("ignores trigger with wrong action", async () => {
+    readFileMock.mockResolvedValue(JSON.stringify({ action: "other" }));
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
   });
 
-  it("ignores stale trigger (timestamp > 60s ago)", async () => {
-    readFileMock.mockResolvedValue(
-      makeValidTrigger({ timestamp: Date.now() - STALE_MS - 1 }),
-    );
+  it("ignores trigger with no action", async () => {
+    readFileMock.mockResolvedValue(JSON.stringify({}));
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
-    expect(executeCommand).not.toHaveBeenCalled();
-  });
-
-  it("deletes stale trigger without calling formPlan", async () => {
-    readFileMock.mockResolvedValue(
-      makeValidTrigger({ timestamp: Date.now() - STALE_MS - 1 }),
-    );
-    createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
-
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
-    await flushAsync();
-
-    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/plan-intercept-request-abc.json");
     expect(executeCommand).not.toHaveBeenCalled();
   });
 
@@ -129,7 +110,7 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockResolvedValue("not valid json {{{");
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
@@ -139,128 +120,55 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockRejectedValue(new Error("ENOENT"));
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
   });
 });
 
-describe("cleanupStaleTriggers", () => {
-  it("removes stale trigger files", async () => {
-    readdirMock.mockResolvedValue(["plan-intercept-request-stale.json"]);
-    readFileMock.mockResolvedValue(
-      JSON.stringify({ timestamp: Date.now() - STALE_MS - 1 }),
-    );
-
-    await cleanupStaleTriggers("/workspace");
-
-    expect(unlinkMock).toHaveBeenCalledWith(
-      nodePath.join("/workspace", ".claude", "plan-intercept-request-stale.json"),
-    );
-  });
-
-  it("keeps fresh trigger files", async () => {
-    readdirMock.mockResolvedValue(["plan-intercept-request-fresh.json"]);
-    readFileMock.mockResolvedValue(JSON.stringify({ timestamp: Date.now() }));
-
-    await cleanupStaleTriggers("/workspace");
-
-    expect(unlinkMock).not.toHaveBeenCalled();
-  });
-
-  it("skips non-matching filenames", async () => {
-    readdirMock.mockResolvedValue([
-      "oxveil-execute-abc.json",
-      "other-file.json",
-      "plan-intercept-request-abc.txt",
-    ]);
-
-    await cleanupStaleTriggers("/workspace");
-
-    expect(unlinkMock).not.toHaveBeenCalled();
-  });
-
-  it("handles missing .claude directory gracefully", async () => {
-    readdirMock.mockRejectedValue(
-      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
-    );
-
-    await expect(cleanupStaleTriggers("/workspace")).resolves.toBeUndefined();
-    expect(unlinkMock).not.toHaveBeenCalled();
-  });
-
-  it("removes unparseable trigger files", async () => {
-    readdirMock.mockResolvedValue(["plan-intercept-request-broken.json"]);
-    readFileMock.mockResolvedValue("not json");
-
-    await cleanupStaleTriggers("/workspace");
-
-    expect(unlinkMock).toHaveBeenCalledWith(
-      nodePath.join("/workspace", ".claude", "plan-intercept-request-broken.json"),
-    );
-  });
-});
-
 describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
   const hookPath = nodePath.resolve(__dirname, "../../../resources/oxveil-plan-intercept.sh");
 
-  function runHook(claudeProjectDir: string, extra: Record<string, string> = {}): string {
-    const { OXVEIL_PLAN_MARKER: _drop, ...baseEnv } = process.env as Record<string, string>;
-    return execSync(`bash "${hookPath}"`, {
-      env: { ...baseEnv, CLAUDE_PROJECT_DIR: claudeProjectDir, ...extra },
-      encoding: "utf8",
-    }).trim();
-  }
-
-  it("outputs allow JSON when no marker file exists", () => {
+  it("outputs allow JSON when no marker env var set", () => {
     const tmp = fsSyncModule.mkdtempSync(nodePath.join(os.tmpdir(), "oxveil-hook-test-"));
     try {
-      const parsed = JSON.parse(runHook(tmp)) as Record<string, unknown>;
-      expect(parsed).toEqual({ permissionDecision: "allow" });
+      const { OXVEIL_PLAN_MARKER: _drop, ...baseEnv } = process.env as Record<string, string>;
+      const output = execSync(`bash "${hookPath}"`, {
+        env: { ...baseEnv, CLAUDE_PROJECT_DIR: tmp },
+        encoding: "utf8",
+      }).trim();
+      expect(JSON.parse(output)).toEqual({ permissionDecision: "allow" });
     } finally {
       fsSyncModule.rmSync(tmp, { recursive: true, force: true });
     }
   });
 
-  it("outputs deny hookSpecificOutput JSON when marker exists and extension responds deny", () => {
+  it("outputs allow JSON when marker file does not exist", () => {
     const tmp = fsSyncModule.mkdtempSync(nodePath.join(os.tmpdir(), "oxveil-hook-test-"));
     try {
-      const claudeDir = nodePath.join(tmp, ".claude");
-      fsSyncModule.mkdirSync(claudeDir);
+      const output = execSync(`bash "${hookPath}"`, {
+        env: { ...process.env, CLAUDE_PROJECT_DIR: tmp, OXVEIL_PLAN_MARKER: "/nonexistent/marker" },
+        encoding: "utf8",
+      }).trim();
+      expect(JSON.parse(output)).toEqual({ permissionDecision: "allow" });
+    } finally {
+      fsSyncModule.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("outputs deny with AskUserQuestion instruction when marker exists", () => {
+    const tmp = fsSyncModule.mkdtempSync(nodePath.join(os.tmpdir(), "oxveil-hook-test-"));
+    try {
       const markerPath = nodePath.join(tmp, "oxveil-plan-active");
-      fsSyncModule.writeFileSync(
-        markerPath,
-        JSON.stringify({ sessionId: "s1", denyCount: 0 }),
-      );
+      fsSyncModule.writeFileSync(markerPath, JSON.stringify({ sessionId: "s1", denyCount: 0 }));
 
-      // Simulate extension: watch for request file, write deny response
-      const responderScript = nodePath.join(tmp, "responder.sh");
-      fsSyncModule.writeFileSync(
-        responderScript,
-        [
-          "#!/usr/bin/env bash",
-          `CLAUDEDIR="${claudeDir}"`,
-          "DEADLINE=$((SECONDS + 10))",
-          "while [[ $SECONDS -lt $DEADLINE ]]; do",
-          '  REQ=$(ls "$CLAUDEDIR"/plan-intercept-request-*.json 2>/dev/null | head -1)',
-          '  if [[ -n "$REQ" ]]; then',
-          '    UUID=$(basename "$REQ" | sed "s/plan-intercept-request-//;s/\\.json//")',
-          '    printf \'{"decision":"deny","reason":"critic"}\' > "$CLAUDEDIR/plan-intercept-response-$UUID.json"',
-          "    exit 0",
-          "  fi",
-          "  sleep 0.05",
-          "done",
-        ].join("\n"),
-        { mode: 0o755 },
-      );
+      const output = execSync(`bash "${hookPath}"`, {
+        env: { ...process.env, CLAUDE_PROJECT_DIR: tmp, OXVEIL_PLAN_MARKER: markerPath },
+        encoding: "utf8",
+      }).trim();
 
-      const result = execSync(
-        `bash -c '"${responderScript}" & bash "${hookPath}"; wait'`,
-        { env: { ...process.env, CLAUDE_PROJECT_DIR: tmp, OXVEIL_PLAN_MARKER: markerPath }, encoding: "utf8" },
-      ).trim();
-
-      const parsed = JSON.parse(result) as {
+      const parsed = JSON.parse(output) as {
         hookSpecificOutput?: {
           hookEventName?: string;
           permissionDecision?: string;
@@ -268,11 +176,9 @@ describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
         };
       };
 
-      expect(parsed.hookSpecificOutput).toBeDefined();
-      expect(parsed.hookSpecificOutput!.hookEventName).toBe("PreToolUse");
-      expect(parsed.hookSpecificOutput!.permissionDecision).toBe("deny");
-      expect(typeof parsed.hookSpecificOutput!.additionalContext).toBe("string");
-      expect(parsed.hookSpecificOutput!.additionalContext!.length).toBeGreaterThan(0);
+      expect(parsed.hookSpecificOutput?.hookEventName).toBe("PreToolUse");
+      expect(parsed.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(parsed.hookSpecificOutput?.additionalContext).toContain("AskUserQuestion");
     } finally {
       fsSyncModule.rmSync(tmp, { recursive: true, force: true });
     }
@@ -282,17 +188,13 @@ describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
     const tmp = fsSyncModule.mkdtempSync(nodePath.join(os.tmpdir(), "oxveil-hook-test-"));
     try {
       const markerPath = nodePath.join(tmp, "oxveil-plan-active");
-      fsSyncModule.writeFileSync(
-        markerPath,
-        JSON.stringify({ sessionId: "s1", denyCount: 5 }),
-      );
+      fsSyncModule.writeFileSync(markerPath, JSON.stringify({ sessionId: "s1", denyCount: 5 }));
 
       const output = execSync(`bash "${hookPath}"`, {
         env: { ...process.env, CLAUDE_PROJECT_DIR: tmp, OXVEIL_PLAN_MARKER: markerPath },
         encoding: "utf8",
       }).trim();
-      const parsed = JSON.parse(output) as Record<string, unknown>;
-      expect(parsed).toEqual({ permissionDecision: "allow" });
+      expect(JSON.parse(output)).toEqual({ permissionDecision: "allow" });
     } finally {
       fsSyncModule.rmSync(tmp, { recursive: true, force: true });
     }
