@@ -1,14 +1,13 @@
 ---
 title: Oxveil User Flows
 generated: true
-regenerated: "2026-05-27"
 source: scripts/generate-flow.ts
 views: ["not-found","empty","ready","running","stopped","failed","completed","planning","self-improvement"]
 ---
 
 # User Flows
 
-Generated from source. Do not edit manually — regenerate: `npm run generate:flow`
+Generated from source. Do not edit manually — regenerate: `npm run generate:flow`. Last regenerated: 2026-05-27.
 
 ## User Journeys
 

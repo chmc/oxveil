@@ -35,6 +35,7 @@ import {
 } from "./activateSessionHandlers";
 import { activateUpdateCheck } from "./activateUpdateCheck";
 import { initPlanChatMarkerState } from "./core/planChatMarker";
+import { createPlanInterceptWatcher } from "./planInterceptWatcher";
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -343,6 +344,11 @@ export async function activate(
     config, workspaceRoot, buildFullState, sidebarPanel, sidebarState,
   });
   disposables.push(...mcpDisposables);
+
+  // Plan exit intercept watcher (responds to hook-written request files)
+  if (workspaceRoot && workspaceFolders?.[0]) {
+    disposables.push(createPlanInterceptWatcher(workspaceRoot, workspaceFolders[0]));
+  }
 
   context.subscriptions.push(...disposables);
 }
