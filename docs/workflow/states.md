@@ -26,6 +26,11 @@ related_files:
   - src/extensionLifecycle.ts
   - src/core/planChatMarker.ts
   - src/commands/formPlan.ts
+  - src/core/planChatMarker.ts
+  - src/planInterceptWatcher.ts
+  - src/planInterceptInstaller.ts
+  - src/commands/planExitPicker.ts
+  - resources/oxveil-plan-intercept.sh
 ---
 
 # Oxveil Workflow State Specification
@@ -627,6 +632,94 @@ subSteps: [
   { name: "refactor", status: "in_progress" }
 ]
 ```
+
+---
+
+## I. Plan Intercept State
+
+**Sources:** `src/core/planChatMarker.ts`, `src/planInterceptWatcher.ts`, `src/planInterceptInstaller.ts`, `src/commands/planExitPicker.ts`, `resources/oxveil-plan-intercept.sh`
+
+The plan intercept system routes `ExitPlanMode` tool calls through a VS Code QuickPick, allowing the user to execute with Oxveil orchestration, run critic agents, or provide feedback — before Claude proceeds.
+
+### Marker File
+
+**Path:** `.claude/oxveil-plan-active`
+
+**Schema:**
+```typescript
+interface PlanChatMarker {
+  sessionId: string;   // timestamp+random: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  denyCount: number;   // incremented each time user selects "Run critic agents"
+}
+```
+
+**Lifecycle:**
+
+| Event | Effect |
+|-------|--------|
+| `planChatSession.start()` | Marker created with `{ sessionId, denyCount: 0 }` |
+| User selects "critics" in picker | `denyCount` incremented in-place by the hook script |
+| `planChatSession.dispose()` | Marker deleted (terminal close or explicit dispose) |
+| Extension activation (stale check) | If marker age > 24h, deleted by `initPlanChatMarkerState()` |
+
+### Intercept Request/Response Files
+
+The shell hook and extension communicate via ephemeral JSON files in `.claude/`. Both are removed after processing.
+
+**Request file:** `.claude/plan-intercept-request-{uuid}.json`
+```json
+{ "workspaceRoot": "/path/to/project", "uuid": "..." }
+```
+
+**Response file:** `.claude/plan-intercept-response-{uuid}.json`
+```typescript
+interface PlanInterceptResult {
+  decision: "allow" | "deny";
+  reason?: "critic";     // present when user selected "Run critic agents"
+  feedback?: string;     // present when user typed text without selecting an item
+}
+```
+
+### Hook Flow
+
+```mermaid
+flowchart TD
+    Hook([PreToolUse:ExitPlanMode fires]) --> M1{oxveil-plan-active exists?}
+    M1 -- No --> Allow1[allow]
+    M1 -- Yes --> M2{denyCount >= 3?}
+    M2 -- Yes --> Allow2[allow loop-break]
+    M2 -- No --> Write[write request-{uuid}.json]
+    Write --> Poll{response-{uuid}.json appears within 30s?}
+    Poll -- Timeout --> Allow3[allow + cleanup]
+    Poll -- Yes --> Read[read decision]
+    Read --> D1{decision = allow?}
+    D1 -- Yes --> Allow4[allow]
+    D1 -- No --> D2{reason = critic?}
+    D2 -- Yes --> Inc[increment denyCount in marker] --> Deny1[deny with critic instructions]
+    D2 -- No --> Deny2[deny with feedback text]
+```
+
+### Picker Actions
+
+| User Action | `PlanInterceptResult` | Side Effect |
+|-------------|----------------------|-------------|
+| Execute with Oxveil orchestration | `{ decision: "allow" }` | Fires `oxveil.formPlan` command |
+| Run critic agents | `{ decision: "deny", reason: "critic" }` | Hook increments `denyCount` in marker |
+| Skip (continue in Claude) | `{ decision: "allow" }` | — |
+| Type feedback text | `{ decision: "deny", feedback: "..." }` | — |
+| Dismiss / timeout | No response written | Hook times out → allow |
+
+**Anti-loop guard:** When `denyCount >= 3`, the hook skips the picker and allows immediately — prevents infinite critic cycles.
+
+**Disabled mode:** When `oxveil.interceptPlanReady` is `false`, `showPlanExitPicker` writes `{ decision: "allow" }` immediately without showing the UI.
+
+### Hook Installation
+
+`installPlanInterceptHook()` runs fire-and-forget on extension activation:
+1. Copies bundled `resources/oxveil-plan-intercept.sh` to `workspaceRoot/.claude/hooks/` (skip if already present)
+2. Merges a `PreToolUse:ExitPlanMode` entry into `.claude/settings.json` (skip if already present)
+
+No state machine behavior is affected — installation is idempotent and transparent to the session state machine.
 
 ---
 
