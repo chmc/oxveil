@@ -29,7 +29,8 @@ RESPONSE_FILE="$CLAUDE_DIR/plan-intercept-response-${UUID}.json"
 jq -n \
   --arg root "${CLAUDE_PROJECT_DIR:-$PWD}" \
   --arg uuid "$UUID" \
-  '{"workspaceRoot":$root,"uuid":$uuid}' > "$REQUEST_FILE"
+  --argjson ts "$(date +%s)000" \
+  '{"workspaceRoot":$root,"uuid":$uuid,"timestamp":$ts}' > "$REQUEST_FILE"
 
 # Poll for response (30s timeout, 100ms interval)
 DEADLINE=$((SECONDS + 30))

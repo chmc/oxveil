@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Fix plan intercept watcher not detecting hook request files (pattern mismatch)
 - Plan intercept now works in all projects, not just those previously opened with Oxveil
 
 ### Changed

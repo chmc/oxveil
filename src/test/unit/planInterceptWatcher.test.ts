@@ -61,7 +61,7 @@ describe("createPlanInterceptWatcher", () => {
 
     expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledOnce();
     const pattern = (vscode.RelativePattern as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(pattern[1]).toBe(".claude/oxveil-execute-*.json");
+    expect(pattern[1]).toBe(".claude/plan-intercept-request-*.json");
   });
 
   it("returns the watcher disposable", () => {
@@ -74,7 +74,7 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockResolvedValue(makeValidTrigger());
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
     expect(executeCommand).toHaveBeenCalledWith("oxveil.formPlan");
@@ -84,17 +84,17 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockResolvedValue(makeValidTrigger());
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
-    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/oxveil-execute-abc.json");
+    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/plan-intercept-request-abc.json");
   });
 
   it("ignores trigger with no uuid", async () => {
     readFileMock.mockResolvedValue(JSON.stringify({ timestamp: Date.now() }));
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe("createPlanInterceptWatcher", () => {
     );
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
@@ -118,10 +118,10 @@ describe("createPlanInterceptWatcher", () => {
     );
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
-    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/oxveil-execute-abc.json");
+    expect(unlinkMock).toHaveBeenCalledWith("/workspace/.claude/plan-intercept-request-abc.json");
     expect(executeCommand).not.toHaveBeenCalled();
   });
 
@@ -129,7 +129,7 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockResolvedValue("not valid json {{{");
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe("createPlanInterceptWatcher", () => {
     readFileMock.mockRejectedValue(new Error("ENOENT"));
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
-    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute-abc.json" });
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/plan-intercept-request-abc.json" });
     await flushAsync();
 
     expect(executeCommand).not.toHaveBeenCalled();
@@ -148,7 +148,7 @@ describe("createPlanInterceptWatcher", () => {
 
 describe("cleanupStaleTriggers", () => {
   it("removes stale trigger files", async () => {
-    readdirMock.mockResolvedValue(["oxveil-execute-stale.json"]);
+    readdirMock.mockResolvedValue(["plan-intercept-request-stale.json"]);
     readFileMock.mockResolvedValue(
       JSON.stringify({ timestamp: Date.now() - STALE_MS - 1 }),
     );
@@ -156,12 +156,12 @@ describe("cleanupStaleTriggers", () => {
     await cleanupStaleTriggers("/workspace");
 
     expect(unlinkMock).toHaveBeenCalledWith(
-      nodePath.join("/workspace", ".claude", "oxveil-execute-stale.json"),
+      nodePath.join("/workspace", ".claude", "plan-intercept-request-stale.json"),
     );
   });
 
   it("keeps fresh trigger files", async () => {
-    readdirMock.mockResolvedValue(["oxveil-execute-fresh.json"]);
+    readdirMock.mockResolvedValue(["plan-intercept-request-fresh.json"]);
     readFileMock.mockResolvedValue(JSON.stringify({ timestamp: Date.now() }));
 
     await cleanupStaleTriggers("/workspace");
@@ -171,9 +171,9 @@ describe("cleanupStaleTriggers", () => {
 
   it("skips non-matching filenames", async () => {
     readdirMock.mockResolvedValue([
-      "plan-intercept-request-abc.json",
+      "oxveil-execute-abc.json",
       "other-file.json",
-      "oxveil-execute-abc.txt",
+      "plan-intercept-request-abc.txt",
     ]);
 
     await cleanupStaleTriggers("/workspace");
@@ -191,13 +191,13 @@ describe("cleanupStaleTriggers", () => {
   });
 
   it("removes unparseable trigger files", async () => {
-    readdirMock.mockResolvedValue(["oxveil-execute-broken.json"]);
+    readdirMock.mockResolvedValue(["plan-intercept-request-broken.json"]);
     readFileMock.mockResolvedValue("not json");
 
     await cleanupStaleTriggers("/workspace");
 
     expect(unlinkMock).toHaveBeenCalledWith(
-      nodePath.join("/workspace", ".claude", "oxveil-execute-broken.json"),
+      nodePath.join("/workspace", ".claude", "plan-intercept-request-broken.json"),
     );
   });
 });

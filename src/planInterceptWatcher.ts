@@ -9,7 +9,7 @@ export function createPlanInterceptWatcher(
   folder: vscode.WorkspaceFolder,
 ): vscode.Disposable {
   const watcher = vscode.workspace.createFileSystemWatcher(
-    new vscode.RelativePattern(folder, ".claude/oxveil-execute-*.json"),
+    new vscode.RelativePattern(folder, ".claude/plan-intercept-request-*.json"),
   );
 
   watcher.onDidCreate((uri) => {
@@ -30,7 +30,7 @@ export async function cleanupStaleTriggers(workspaceRoot: string): Promise<void>
 
   const now = Date.now();
   for (const entry of entries) {
-    if (!entry.startsWith("oxveil-execute-") || !entry.endsWith(".json")) continue;
+    if (!entry.startsWith("plan-intercept-request-") || !entry.endsWith(".json")) continue;
     const filePath = path.join(dir, entry);
     try {
       const content = await fs.readFile(filePath, "utf8");
