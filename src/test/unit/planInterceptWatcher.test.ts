@@ -66,14 +66,34 @@ describe("createPlanInterceptWatcher", () => {
     expect(typeof disposable.dispose).toBe("function");
   });
 
-  it("calls oxveil.formPlan for valid trigger file", async () => {
+  it("calls oxveil.formPlan for valid trigger file (no getPlanFile)", async () => {
     readFileMock.mockResolvedValue(makeValidTrigger());
     createPlanInterceptWatcher("/workspace", MOCK_FOLDER);
 
     onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
     await flushAsync();
 
-    expect(executeCommand).toHaveBeenCalledWith("oxveil.formPlan");
+    expect(executeCommand).toHaveBeenCalledWith("oxveil.formPlan", undefined);
+  });
+
+  it("passes planFile from getPlanFile callback to formPlan", async () => {
+    readFileMock.mockResolvedValue(makeValidTrigger());
+    createPlanInterceptWatcher("/workspace", MOCK_FOLDER, () => "/workspace/.claude/plans/my-plan.md");
+
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
+    await flushAsync();
+
+    expect(executeCommand).toHaveBeenCalledWith("oxveil.formPlan", { filePath: "/workspace/.claude/plans/my-plan.md" });
+  });
+
+  it("passes undefined when getPlanFile returns undefined", async () => {
+    readFileMock.mockResolvedValue(makeValidTrigger());
+    createPlanInterceptWatcher("/workspace", MOCK_FOLDER, () => undefined);
+
+    onDidCreateCallback!({ fsPath: "/workspace/.claude/oxveil-execute" });
+    await flushAsync();
+
+    expect(executeCommand).toHaveBeenCalledWith("oxveil.formPlan", undefined);
   });
 
   it("deletes trigger file after processing", async () => {

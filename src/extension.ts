@@ -363,7 +363,11 @@ export async function activate(
 
   // Plan exit intercept watcher (responds to hook-written trigger files)
   if (workspaceRoot && workspaceFolders?.[0]) {
-    disposables.push(createPlanInterceptWatcher(workspaceRoot, workspaceFolders[0]));
+    disposables.push(createPlanInterceptWatcher(
+      workspaceRoot,
+      workspaceFolders[0],
+      () => manager.getActiveSession()?.planFileOverride,
+    ));
   }
 
   context.subscriptions.push(...disposables);

@@ -686,10 +686,12 @@ flowchart TD
     User -- Form Plan --> Trigger[Claude writes .claude/oxveil-execute]
     User -- Critics --> Critics[run critics, call ExitPlanMode again]
     User -- Continue --> Continue[stay in plan mode]
-    Trigger --> Watcher[extension watcher calls formPlan]
+    Trigger --> Watcher[watcher reads planFile from active session, calls formPlan]
 ```
 
 Hook denies and injects `additionalContext` instructing Claude to call `AskUserQuestion`. Claude presents options; user choice drives the next action.
+
+**planFile resolution:** Watcher passes `getPlanFile` callback (reads `WorkspaceSession.planFileOverride`) to `formPlan`. Fallback: `getActivePreviewFile()` if no active session.
 
 ### Hook Installation
 
@@ -839,5 +841,6 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-18**: Added `VersionedSnapshot<T>` utility (`src/core/state/VersionedSnapshot.ts`) and `GuardedHandler` types (`src/core/state/GuardedHandler.ts`). `SessionState` gains `readSnapshot()` returning `{ status, progress, seq }` and `assertFresh(seq)` for TOCTOU prevention in async handlers. No state transitions changed.
 - **2026-05-18**: `planPreviewPanel` added to `wiringCtx` in `extension.ts` so `wireSessionEvents` can call `setSessionActive(false)` on process done. Previously missing from wiringCtx caused sessionActive to remain `true` after session end.
 - **2026-05-27**: Migrated plan intercept to AskUserQuestion flow. Hook now denies ExitPlanMode with instruction for Claude to call AskUserQuestion; user choice drives action. Trigger file changed from `.claude/plan-intercept-request-*.json` to `.claude/oxveil-execute` (no UUID, action-based). Removed `cleanupStaleTriggers()`. No state machine behavior changed.
+- **2026-05-27**: Watcher now accepts `getPlanFile` callback; passes `planFileOverride` from active session to `formPlan` to prevent stale Plan Preview content from being used as source. No state machine behavior changed.
 - **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to platform cache (`env-paths('oxveil').cache`), merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json` using absolute cache path, and cleans up old per-project `.claude/hooks/` copy. Fire-and-forget; no state machine behavior changed.
 - **2026-05-27**: Moved plan marker from workspace `.claude/oxveil-plan-active` to `context.storageUri/oxveil-plan-active`. Shell hook reads `$OXVEIL_PLAN_MARKER` env var set via `environmentVariableCollection`. Marker cleanup added to `deactivate()`. No state machine behavior changed.
