@@ -31,7 +31,7 @@ Options:
 3. "Continue planning" - Stay in plan mode for refinement
 
 Based on their answer:
-- Form Plan with Oxveil → write file `.claude/oxveil-execute` with content `{"action":"formPlan"}`, then STOP and wait (do NOT call ExitPlanMode)
+- Form Plan with Oxveil → write file `.claude/oxveil-execute-trigger.json` with content `{"uuid":"trigger","timestamp":1}`, then STOP and wait (do NOT call ExitPlanMode)
 - Run critic agents → run 2-3 parallel critic agents covering root cause, scope/mocks, alternatives/UX, then call ExitPlanMode again
 - Continue planning → do NOT call ExitPlanMode, ask what they want to change'
 
