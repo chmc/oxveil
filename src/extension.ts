@@ -35,7 +35,7 @@ import {
 } from "./activateSessionHandlers";
 import { activateUpdateCheck } from "./activateUpdateCheck";
 import { initPlanChatMarkerState } from "./core/planChatMarker";
-import { createPlanInterceptWatcher } from "./planInterceptWatcher";
+import { createPlanInterceptWatcher, cleanupStaleTriggers } from "./planInterceptWatcher";
 import { installPlanInterceptHook } from "./planInterceptInstaller";
 
 export async function activate(
@@ -353,8 +353,9 @@ export async function activate(
   });
   disposables.push(...mcpDisposables);
 
-  // Plan exit intercept watcher (responds to hook-written request files)
+  // Plan exit intercept watcher (responds to hook-written trigger files)
   if (workspaceRoot && workspaceFolders?.[0]) {
+    void cleanupStaleTriggers(workspaceRoot);
     disposables.push(createPlanInterceptWatcher(workspaceRoot, workspaceFolders[0]));
   }
 

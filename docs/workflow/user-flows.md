@@ -7,7 +7,7 @@ views: ["not-found","empty","ready","running","stopped","failed","completed","pl
 
 # User Flows
 
-Generated from source. Do not edit manually — regenerate: `npm run generate:flow`. Last regenerated: 2026-05-27. (No flow changes — planInterceptInstaller is activation-only, no new user journey steps.)
+Generated from source. Do not edit manually — regenerate: `npm run generate:flow`
 
 ## User Journeys
 

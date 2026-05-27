@@ -1,37 +1,63 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { showPlanExitPicker } from "./commands/planExitPicker";
+
+const STALE_MS = 60_000;
 
 export function createPlanInterceptWatcher(
   workspaceRoot: string,
   folder: vscode.WorkspaceFolder,
 ): vscode.Disposable {
   const watcher = vscode.workspace.createFileSystemWatcher(
-    new vscode.RelativePattern(folder, ".claude/plan-intercept-request-*.json"),
+    new vscode.RelativePattern(folder, ".claude/oxveil-execute-*.json"),
   );
 
   watcher.onDidCreate((uri) => {
-    void handleRequest(uri.fsPath, workspaceRoot);
+    void handleTrigger(uri.fsPath);
   });
 
   return watcher;
 }
 
-async function handleRequest(requestFile: string, workspaceRoot: string): Promise<void> {
-  let uuid: string;
+export async function cleanupStaleTriggers(workspaceRoot: string): Promise<void> {
+  const dir = path.join(workspaceRoot, ".claude");
+  let entries: string[];
   try {
-    const content = await fs.readFile(requestFile, "utf8");
-    const parsed = JSON.parse(content) as { uuid?: string };
-    if (!parsed.uuid) return;
-    uuid = parsed.uuid;
+    entries = await fs.readdir(dir);
   } catch {
     return;
   }
 
-  try {
-    await showPlanExitPicker(workspaceRoot, uuid);
-  } finally {
-    await fs.unlink(requestFile).catch(() => undefined);
+  const now = Date.now();
+  for (const entry of entries) {
+    if (!entry.startsWith("oxveil-execute-") || !entry.endsWith(".json")) continue;
+    const filePath = path.join(dir, entry);
+    try {
+      const content = await fs.readFile(filePath, "utf8");
+      const parsed = JSON.parse(content) as { timestamp?: number };
+      if (parsed.timestamp && now - parsed.timestamp > STALE_MS) {
+        await fs.unlink(filePath).catch(() => undefined);
+      }
+    } catch {
+      await fs.unlink(filePath).catch(() => undefined);
+    }
   }
+}
+
+async function handleTrigger(triggerFile: string): Promise<void> {
+  try {
+    const content = await fs.readFile(triggerFile, "utf8");
+    const parsed = JSON.parse(content) as { uuid?: string; sessionId?: string; timestamp?: number };
+    if (!parsed.uuid) return;
+
+    if (parsed.timestamp && Date.now() - parsed.timestamp > STALE_MS) {
+      await fs.unlink(triggerFile).catch(() => undefined);
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  await fs.unlink(triggerFile).catch(() => undefined);
+  await vscode.commands.executeCommand("oxveil.formPlan");
 }
