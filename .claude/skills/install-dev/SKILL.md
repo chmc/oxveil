@@ -7,6 +7,8 @@ description: Package and install the current Oxveil build into VS Code. Use when
 
 ## Steps
 
-1. Run `npm run package` to build the VSIX.
-2. Run `code --install-extension oxveil.vsix --force` to install it.
-3. Tell the user to reload VS Code (`Cmd+Shift+P` -> "Developer: Reload Window").
+1. Run `npm run build` to compile TypeScript.
+2. Run `npm run package` to build the VSIX.
+3. Run `code --install-extension oxveil.vsix --force` to install it.
+4. Verify installation: `code --list-extensions --show-versions | grep -i oxveil`
+5. Tell the user to reload VS Code (`Cmd+Shift+P` -> "Developer: Reload Window").
