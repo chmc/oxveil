@@ -19,6 +19,7 @@ import { pickWorkspaceFolder } from "./views/folderPicker";
 import { registerPlanChatCommand } from "./commands/registerPlanChat";
 import { registerFormPlanCommand } from "./commands/formPlan";
 import { registerPlanLifecycleCommands } from "./commands/planLifecycle";
+import { showPlanExitPicker } from "./commands/planExitPicker";
 import type { PlanChatSession } from "./core/planChatSession";
 
 export interface CommandDeps {
@@ -256,6 +257,23 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       sessionManager,
       getActive,
       onFullReset: deps.onFullReset,
+    }),
+    vscode.commands.registerCommand("oxveil._planExitIntercept", async (workspaceRoot: string, uuid: string) => {
+      const root = workspaceRoot
+        ?? getActive()?.workspaceRoot
+        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!root || !uuid) return;
+
+      const timeoutHandle = setTimeout(() => {
+        statusBar.update({ kind: "ready" });
+        vscode.window.setStatusBarMessage("Oxveil: intercept timed out", 4000);
+      }, 30_000);
+
+      try {
+        await showPlanExitPicker(root, uuid);
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
     }),
     vscode.commands.registerCommand("oxveil.switchProvider", async () => {
       const current = vscode.workspace.getConfiguration("oxveil").get<string>("provider", "claude");

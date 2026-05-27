@@ -199,6 +199,10 @@
       {
         "command": "oxveil.switchProvider",
         "title": "Oxveil: Switch Provider"
+      },
+      {
+        "command": "oxveil._planExitIntercept",
+        "title": "Oxveil: Plan Exit Intercept (Internal)"
       }
     ],
     "menus": {
