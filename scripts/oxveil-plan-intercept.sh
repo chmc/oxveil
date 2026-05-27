@@ -34,24 +34,31 @@ jq -n \
 DEADLINE=$((SECONDS + 30))
 while [[ $SECONDS -lt $DEADLINE ]]; do
   if [[ -f "$RESPONSE_FILE" ]]; then
-    action=$(jq -r '.action // "skip"' "$RESPONSE_FILE" 2>/dev/null || echo "skip")
+    decision=$(jq -r '.decision // "allow"' "$RESPONSE_FILE" 2>/dev/null || echo "allow")
+    reason=$(jq -r '.reason // ""' "$RESPONSE_FILE" 2>/dev/null || echo "")
     feedback=$(jq -r '.feedback // ""' "$RESPONSE_FILE" 2>/dev/null || echo "")
     rm -f "$REQUEST_FILE" "$RESPONSE_FILE"
 
-    if [[ "$action" == "critics" ]]; then
-      # Increment denyCount in marker
-      new_count=$((deny_count + 1))
-      session_id=$(jq -r '.sessionId // ""' "$MARKER" 2>/dev/null || echo "")
-      jq -n --arg sid "$session_id" --argjson cnt "$new_count" \
-        '{"sessionId":$sid,"denyCount":$cnt}' > "$MARKER"
+    if [[ "$decision" == "deny" ]]; then
+      if [[ "$reason" == "critic" ]]; then
+        # Increment denyCount in marker
+        new_count=$((deny_count + 1))
+        session_id=$(jq -r '.sessionId // ""' "$MARKER" 2>/dev/null || echo "")
+        jq -n --arg sid "$session_id" --argjson cnt "$new_count" \
+          '{"sessionId":$sid,"denyCount":$cnt}' > "$MARKER"
 
-      critic_msg="Run 2-3 critic agents in parallel before calling ExitPlanMode. Agents should cover: (1) root cause correctness, (2) scope and mock sites, (3) alternatives and UX. After critics complete, call ExitPlanMode again."
-      [[ -z "$feedback" ]] || critic_msg="User feedback: ${feedback}. ${critic_msg}"
+        critic_msg="Run 2-3 critic agents in parallel before calling ExitPlanMode. Agents should cover: (1) root cause correctness, (2) scope and mock sites, (3) alternatives and UX. After critics complete, call ExitPlanMode again."
 
-      jq -n --arg msg "$critic_msg" \
-        '{"permissionDecision":"deny","permissionDecisionReason":"Run critic agents first","additionalContext":$msg}'
+        jq -n --arg msg "$critic_msg" \
+          '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","additionalContext":$msg}}'
+      else
+        # Text feedback deny
+        context="${feedback:-Please review and make changes before proceeding.}"
+        jq -n --arg ctx "$context" \
+          '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","additionalContext":$ctx}}'
+      fi
     else
-      # "execute" or "skip" — allow ExitPlanMode to proceed
+      # decision == "allow" — execute or skip
       allow
     fi
     exit 0

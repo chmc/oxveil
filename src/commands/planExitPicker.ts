@@ -5,12 +5,20 @@ import * as crypto from "node:crypto";
 import * as os from "node:os";
 
 export interface PlanInterceptResult {
-  action: "execute" | "critics" | "skip";
-  feedback: string;
+  decision: "allow" | "deny";
+  reason?: "critic";
+  feedback?: string;
 }
 
+type PickerAction = "execute" | "critics" | "skip";
+
 interface InterceptItem extends vscode.QuickPickItem {
-  action: PlanInterceptResult["action"];
+  action: PickerAction;
+}
+
+interface PickerSelection {
+  action: PickerAction | null;
+  text: string;
 }
 
 const ITEMS: InterceptItem[] = [
@@ -36,17 +44,37 @@ export async function showPlanExitPicker(
 ): Promise<void> {
   const responseFile = path.join(workspaceRoot, ".claude", `plan-intercept-response-${uuid}.json`);
 
-  const result = await runPicker();
+  const picked = await runPicker();
 
-  if (result === null) {
-    // Timed out — caller detects absence of file; status bar message already shown
+  if (picked === null) {
     return;
   }
 
+  const result = toInterceptResult(picked);
   await writeAtomic(responseFile, result);
 }
 
-function runPicker(): Promise<PlanInterceptResult | null> {
+function toInterceptResult(picked: PickerSelection): PlanInterceptResult {
+  const { action, text } = picked;
+
+  if (action === "execute") {
+    void vscode.commands.executeCommand("oxveil.formPlan");
+    return { decision: "allow" };
+  }
+
+  if (action === "critics") {
+    return { decision: "deny", reason: "critic" };
+  }
+
+  if (action === "skip") {
+    return { decision: "allow" };
+  }
+
+  // Text-only input: no item selected, user typed feedback
+  return { decision: "deny", feedback: text };
+}
+
+function runPicker(): Promise<PickerSelection | null> {
   return new Promise((resolve) => {
     const qp = vscode.window.createQuickPick<InterceptItem>();
     qp.items = ITEMS;
@@ -65,11 +93,15 @@ function runPicker(): Promise<PlanInterceptResult | null> {
     qp.onDidAccept(() => {
       if (settled) return;
       const [selected] = qp.selectedItems;
-      if (!selected) return;
+      const text = qp.value;
+
+      // No item selected but text entered → treat as feedback
+      if (!selected && !text) return;
+
       settled = true;
       clearTimeout(timer);
       qp.dispose();
-      resolve({ action: selected.action, feedback: qp.value });
+      resolve({ action: selected?.action ?? null, text });
     });
 
     qp.onDidHide(() => {
