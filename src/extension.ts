@@ -36,6 +36,7 @@ import {
 import { activateUpdateCheck } from "./activateUpdateCheck";
 import { initPlanChatMarkerState } from "./core/planChatMarker";
 import { createPlanInterceptWatcher } from "./planInterceptWatcher";
+import { installPlanInterceptHook } from "./planInterceptInstaller";
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -72,6 +73,13 @@ export async function activate(
 
   const workspaceFolders = vscode.workspace.workspaceFolders;
   const workspaceRoot = workspaceFolders?.[0]?.uri.fsPath;
+
+  // Auto-install plan intercept hook into project .claude/hooks/ and settings.json
+  if (workspaceRoot) {
+    installPlanInterceptHook(context.extensionUri, workspaceRoot).catch((err) =>
+      console.warn("[Oxveil] Plan intercept install failed:", err),
+    );
+  }
 
   // Set oxveil.planChatActive from marker file; remove stale markers (>24h)
   const planChatWasActive = await initPlanChatMarkerState(workspaceRoot);

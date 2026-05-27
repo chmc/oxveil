@@ -44,6 +44,12 @@ export async function showPlanExitPicker(
 ): Promise<void> {
   const responseFile = path.join(workspaceRoot, ".claude", `plan-intercept-response-${uuid}.json`);
 
+  const interceptEnabled = vscode.workspace.getConfiguration("oxveil").get<boolean>("interceptPlanReady", true);
+  if (!interceptEnabled) {
+    await writeAtomic(responseFile, { decision: "allow" });
+    return;
+  }
+
   const picked = await runPicker();
 
   if (picked === null) {

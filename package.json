@@ -465,6 +465,11 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically check for claudeloop updates on extension activation"
+        },
+        "oxveil.interceptPlanReady": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show plan action picker when Claude exits plan mode (Execute, Critics, Skip). When false, ExitPlanMode proceeds immediately."
         }
       }
     }
