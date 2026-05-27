@@ -1,14 +1,10 @@
 import * as fs from "node:fs/promises";
+import type { PlanChatMarker } from "./planChatMarker";
 
 export interface Terminal {
   sendText: (text: string) => void;
   show: () => void;
   dispose: () => void;
-}
-
-export interface PlanChatMarker {
-  sessionId: string;
-  denyCount: number;
 }
 
 export interface PlanChatSessionDeps {

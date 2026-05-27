@@ -24,6 +24,7 @@ related_files:
   - src/activateDetection.ts
   - src/extension.ts
   - src/extensionLifecycle.ts
+  - src/core/planChatMarker.ts
   - src/commands/formPlan.ts
 ---
 
@@ -758,6 +759,7 @@ Used by self-improvement session to provide Claude with context about what happe
 
 - **2026-05-16**: Disposal guard added to `sessionWiring.ts` self-improvement trigger — `deps.isDisposed?.()` checked after `findLessonsContent` resolves. `WorkspaceSession` gained `isDisposed` getter set in `dispose()`.
 - **2026-05-16**: Race condition mitigation — removed 3 TOCTOU guards from `sessionWiring.ts` self-improvement trigger. Handler now uses `to` snapshot throughout instead of re-reading `session.status` after each await. Added `.catch()` to fire-and-forget chains in `activateSidebar.ts`.
+- **2026-05-27**: Extracted marker constants (`PLAN_MARKER_FILENAME`, `MARKER_MAX_AGE_MS`), `PlanChatMarker` interface, and `initPlanChatMarkerState()` from `extension.ts` and `planChatSession.ts` into `src/core/planChatMarker.ts`. No state behavior changed.
 - **2026-05-16**: Lint-only edits to `extension.ts`, `sessionWiring.ts`, `planPreviewPanel.ts`, `activateSidebar.ts` — added `void` operator to fire-and-forget promise calls. No state machine behavior changed.
 - **2026-05-16**: Added `TRANSITIONS` map and `InvalidTransitionError` to `sessionState.ts`. `_transition()` now throws on invalid state changes as a programmatic guard.
 - **2026-05-16**: Added `_disposed` flag + `dispose()` to `SidebarPanel`; added `_disposed = true` at start of `PlanPreviewPanel.dispose()`. Both panels guard async entry points (`triggerClick`, `_postMessage`, `onFileChanged`, `_parseAndRender`, `_onTabSwitch`) with early-return on `_disposed`. No state machine behavior changed.
