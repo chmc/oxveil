@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- Plan exit intercept now shows options in Claude terminal instead of VS Code QuickPick
+
 ### Added
 - CI workflow for PR checks with coverage reporting
 - ESLint async rules to catch floating promises
