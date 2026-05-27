@@ -26,17 +26,24 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 const MOCK_CACHE = "/mock-cache/oxveil";
+const MOCK_HOME = "/mock-home";
 
 vi.mock("env-paths", () => ({
   default: () => ({ cache: MOCK_CACHE }),
 }));
 
-import { installPlanInterceptHook } from "../../planInterceptInstaller";
+vi.mock("node:os", () => ({
+  homedir: () => MOCK_HOME,
+}));
+
+import { installPlanInterceptHook, uninstallPlanInterceptHook } from "../../planInterceptInstaller";
 
 const HOOK_FILENAME = "oxveil-plan-intercept.sh";
 const expectedDest = nodePath.join(MOCK_CACHE, HOOK_FILENAME);
+const globalSettingsPath = nodePath.join(MOCK_HOME, ".claude", "settings.json");
 const fakeExtUri = { fsPath: "/ext" } as any;
 const fakeWorkspace = "/workspace/project";
+const projectSettingsPath = nodePath.join(fakeWorkspace, ".claude", "settings.json");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,16 +66,20 @@ describe("installPlanInterceptHook", () => {
     expect(mockRename).toHaveBeenCalledWith(expectedDest + ".tmp", expectedDest);
   });
 
-  it("hook command uses absolute cache path", async () => {
+  it("writes hook entry to global ~/.claude/settings.json", async () => {
     await installPlanInterceptHook(fakeExtUri, fakeWorkspace);
-    const settingsCall = mockWriteFile.mock.calls.find((c) =>
-      (c[0] as string).endsWith("settings.json"),
-    );
+    const settingsCall = mockWriteFile.mock.calls.find((c) => c[0] === globalSettingsPath);
     expect(settingsCall).toBeDefined();
     const settings = JSON.parse(settingsCall![1] as string) as Record<string, unknown>;
     const hooks = (settings.hooks as any).PreToolUse as unknown[];
     const entry = hooks.find((e: any) => e.matcher === "ExitPlanMode") as any;
     expect(entry.hooks[0].command).toBe(expectedDest);
+  });
+
+  it("does not write hook entry to project settings.json", async () => {
+    await installPlanInterceptHook(fakeExtUri, fakeWorkspace);
+    const projectWrite = mockWriteFile.mock.calls.find((c) => c[0] === projectSettingsPath);
+    expect(projectWrite).toBeUndefined();
   });
 
   it("does not create files in project .claude/hooks/", async () => {
@@ -83,8 +94,8 @@ describe("installPlanInterceptHook", () => {
     expect(mockUnlink).toHaveBeenCalledWith(oldPath);
   });
 
-  it("migrates stale per-project command in existing settings.json", async () => {
-    const staleSettings = {
+  it("removes stale per-project hook entry from project settings.json", async () => {
+    const projectSettings = {
       hooks: {
         PreToolUse: [
           {
@@ -96,25 +107,24 @@ describe("installPlanInterceptHook", () => {
     };
     mockReadFile.mockImplementation((p: string) => {
       if (p.includes("resources")) return Promise.resolve("#!/bin/bash\n");
-      if (p.endsWith("settings.json")) return Promise.resolve(JSON.stringify(staleSettings));
+      if (p === projectSettingsPath) return Promise.resolve(JSON.stringify(projectSettings));
+      if (p.endsWith("settings.json")) return Promise.reject(new Error("ENOENT"));
       return Promise.reject(new Error("unexpected"));
     });
 
     await installPlanInterceptHook(fakeExtUri, fakeWorkspace);
 
-    const settingsCall = mockWriteFile.mock.calls.find((c) =>
-      (c[0] as string).endsWith("settings.json"),
+    const projectWrite = mockWriteFile.mock.calls.find((c) => c[0] === projectSettingsPath);
+    expect(projectWrite).toBeDefined();
+    const saved = JSON.parse(projectWrite![1] as string) as Record<string, unknown>;
+    const entries = ((saved.hooks as any).PreToolUse as unknown[]).filter(
+      (e: any) => e.matcher === "ExitPlanMode",
     );
-    expect(settingsCall).toBeDefined();
-    const settings = JSON.parse(settingsCall![1] as string) as Record<string, unknown>;
-    const hooks = (settings.hooks as any).PreToolUse as unknown[];
-    const entries = hooks.filter((e: any) => e.matcher === "ExitPlanMode");
-    expect(entries).toHaveLength(1);
-    expect((entries[0] as any).hooks[0].command).toBe(expectedDest);
+    expect(entries).toHaveLength(0);
   });
 
-  it("is idempotent — does not duplicate hook entry", async () => {
-    const existingSettings = {
+  it("is idempotent — does not duplicate hook entry in global settings", async () => {
+    const existingGlobal = {
       hooks: {
         PreToolUse: [
           {
@@ -126,15 +136,62 @@ describe("installPlanInterceptHook", () => {
     };
     mockReadFile.mockImplementation((p: string) => {
       if (p.includes("resources")) return Promise.resolve("#!/bin/bash\n");
-      if (p.endsWith("settings.json")) return Promise.resolve(JSON.stringify(existingSettings));
+      if (p === globalSettingsPath) return Promise.resolve(JSON.stringify(existingGlobal));
+      if (p.endsWith("settings.json")) return Promise.reject(new Error("ENOENT"));
       return Promise.reject(new Error("unexpected"));
     });
 
     await installPlanInterceptHook(fakeExtUri, fakeWorkspace);
 
-    const settingsCall = mockWriteFile.mock.calls.find((c) =>
-      (c[0] as string).endsWith("settings.json"),
+    const globalWrite = mockWriteFile.mock.calls.find((c) => c[0] === globalSettingsPath);
+    expect(globalWrite).toBeUndefined();
+  });
+});
+
+describe("uninstallPlanInterceptHook", () => {
+  it("removes hook entry from global settings", async () => {
+    const existingGlobal = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "ExitPlanMode",
+            hooks: [{ type: "command", command: expectedDest }],
+          },
+          { matcher: "Bash", hooks: [{ type: "command", command: "other.sh" }] },
+        ],
+      },
+    };
+    mockReadFile.mockImplementation((p: string) => {
+      if (p === globalSettingsPath) return Promise.resolve(JSON.stringify(existingGlobal));
+      return Promise.reject(new Error("unexpected"));
+    });
+
+    await uninstallPlanInterceptHook();
+
+    const writeCall = mockWriteFile.mock.calls.find((c) => c[0] === globalSettingsPath);
+    expect(writeCall).toBeDefined();
+    const saved = JSON.parse(writeCall![1] as string) as Record<string, unknown>;
+    const entries = ((saved.hooks as any).PreToolUse as unknown[]).filter(
+      (e: any) => e.matcher === "ExitPlanMode",
     );
-    expect(settingsCall).toBeUndefined();
+    expect(entries).toHaveLength(0);
+    // other hooks preserved
+    const otherEntries = ((saved.hooks as any).PreToolUse as unknown[]).filter(
+      (e: any) => e.matcher === "Bash",
+    );
+    expect(otherEntries).toHaveLength(1);
+  });
+
+  it("is a no-op when global settings absent", async () => {
+    mockReadFile.mockRejectedValue(new Error("ENOENT"));
+    await expect(uninstallPlanInterceptHook()).resolves.toBeUndefined();
+    expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op when hook entry absent", async () => {
+    const existingGlobal = { hooks: { PreToolUse: [] } };
+    mockReadFile.mockResolvedValue(JSON.stringify(existingGlobal));
+    await uninstallPlanInterceptHook();
+    expect(mockWriteFile).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import type { WorkspaceSessionManager } from "./core/workspaceSessionManager";
+import { uninstallPlanInterceptHook } from "./planInterceptInstaller";
 
 export const disposables: vscode.Disposable[] = [];
 
@@ -16,6 +17,8 @@ export function setSessionManager(manager: WorkspaceSessionManager): void {
 }
 
 export async function deactivate(): Promise<void> {
+  await uninstallPlanInterceptHook().catch(() => {});
+
   if (_markerPath) {
     await fs.unlink(_markerPath).catch(() => {});
   }

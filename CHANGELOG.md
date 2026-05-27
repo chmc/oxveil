@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- Plan intercept now works in all projects, not just those previously opened with Oxveil
+
 ### Changed
 - Plan exit intercept now shows options in Claude terminal instead of VS Code QuickPick
 

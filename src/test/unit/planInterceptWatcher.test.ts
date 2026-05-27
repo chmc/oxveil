@@ -205,9 +205,10 @@ describe("cleanupStaleTriggers", () => {
 describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
   const hookPath = nodePath.resolve(__dirname, "../../../resources/oxveil-plan-intercept.sh");
 
-  function runHook(claudeProjectDir: string): string {
+  function runHook(claudeProjectDir: string, extra: Record<string, string> = {}): string {
+    const { OXVEIL_PLAN_MARKER: _drop, ...baseEnv } = process.env as Record<string, string>;
     return execSync(`bash "${hookPath}"`, {
-      env: { ...process.env, CLAUDE_PROJECT_DIR: claudeProjectDir },
+      env: { ...baseEnv, CLAUDE_PROJECT_DIR: claudeProjectDir, ...extra },
       encoding: "utf8",
     }).trim();
   }

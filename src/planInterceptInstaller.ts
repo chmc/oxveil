@@ -10,6 +10,10 @@ function getCacheDir(): string {
   return envPaths("oxveil", { suffix: "" }).cache;
 }
 
+function getGlobalSettingsPath(): string {
+  return path.join(os.homedir(), ".claude", "settings.json");
+}
+
 export async function installPlanInterceptHook(
   extensionUri: vscode.Uri,
   workspaceRoot: string,
@@ -28,7 +32,7 @@ export async function installPlanInterceptHook(
 
   const claudeDir = path.join(workspaceRoot, ".claude");
 
-  // Cleanup old per-project copy
+  // Cleanup old per-project hook script
   const oldScript = path.join(claudeDir, "hooks", HOOK_FILENAME);
   try {
     await fs.unlink(oldScript);
@@ -36,21 +40,56 @@ export async function installPlanInterceptHook(
     // not present — ignore
   }
 
-  // Update or add hook entry in settings.json
-  const settingsFile = path.join(claudeDir, "settings.json");
+  // Migration: remove per-project hook entry
+  await removeInterceptFromSettings(path.join(claudeDir, "settings.json"));
+
+  // Install to global settings
+  const globalSettingsFile = getGlobalSettingsPath();
   let settings: Record<string, unknown> = {};
   try {
-    const raw = await fs.readFile(settingsFile, "utf8");
+    const raw = await fs.readFile(globalSettingsFile, "utf8");
     settings = JSON.parse(raw) as Record<string, unknown>;
   } catch {
     // absent or unparseable — start fresh
   }
 
   if (!hasInterceptHook(settings, hookCommand)) {
-    migrateOrAddInterceptHook(settings, hookCommand);
-    await fs.mkdir(claudeDir, { recursive: true });
-    await fs.writeFile(settingsFile, JSON.stringify(settings, null, 2) + "\n", "utf8");
+    addInterceptHook(settings, hookCommand);
+    await fs.mkdir(path.dirname(globalSettingsFile), { recursive: true });
+    await fs.writeFile(globalSettingsFile, JSON.stringify(settings, null, 2) + "\n", "utf8");
   }
+}
+
+export async function uninstallPlanInterceptHook(): Promise<void> {
+  await removeInterceptFromSettings(getGlobalSettingsPath());
+}
+
+async function removeInterceptFromSettings(settingsFile: string): Promise<void> {
+  let settings: Record<string, unknown>;
+  try {
+    const raw = await fs.readFile(settingsFile, "utf8");
+    settings = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+
+  const preToolUse = (settings.hooks as Record<string, unknown[]> | undefined)?.PreToolUse;
+  if (!Array.isArray(preToolUse)) return;
+
+  const filtered = preToolUse.filter((entry: unknown) => {
+    if (typeof entry !== "object" || entry === null) return true;
+    const e = entry as { matcher?: string; hooks?: unknown[] };
+    if (e.matcher !== "ExitPlanMode") return true;
+    return !(e.hooks ?? []).some((h: unknown) => {
+      if (typeof h !== "object" || h === null) return false;
+      return ((h as { command?: string }).command ?? "").includes(HOOK_FILENAME);
+    });
+  });
+
+  if (filtered.length === preToolUse.length) return;
+
+  (settings.hooks as Record<string, unknown[]>).PreToolUse = filtered;
+  await fs.writeFile(settingsFile, JSON.stringify(settings, null, 2) + "\n", "utf8");
 }
 
 function hasInterceptHook(settings: Record<string, unknown>, command: string): boolean {
@@ -67,12 +106,11 @@ function hasInterceptHook(settings: Record<string, unknown>, command: string): b
   });
 }
 
-function migrateOrAddInterceptHook(settings: Record<string, unknown>, command: string): void {
+function addInterceptHook(settings: Record<string, unknown>, command: string): void {
   if (!settings.hooks) settings.hooks = {};
   const hooks = settings.hooks as Record<string, unknown[]>;
   if (!hooks.PreToolUse) hooks.PreToolUse = [];
 
-  // Replace stale entry if present (old path)
   const preToolUse = hooks.PreToolUse;
   const idx = preToolUse.findIndex((entry: unknown) => {
     if (typeof entry !== "object" || entry === null) return false;
