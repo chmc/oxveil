@@ -465,7 +465,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | `oxveil.detected` | `activateDetection()` | `true`/`false` | claudeloop installed and compatible |
 | `oxveil.processRunning` | `wireSessionEvents()` state-changed handler | `true`/`false` | Session actively running |
 | `oxveil.claudeDetected` | `activateDetection()` | `true`/`false` | Claude CLI available |
-| `oxveil.planChatActive` | `extension.ts` terminal close/create handlers | `true`/`false` | Plan chat terminal is open |
+| `oxveil.planChatActive` | Derived from `.claude/oxveil-plan-active` marker; set `true` on `planChatSession.start()`, `false` on `dispose()` / terminal close, and initialised from marker existence on activation | `true`/`false` | Plan chat terminal is open |
 | `oxveil.walkthrough.hasPlan` | `activateSidebar.registerPlanWatcher()` | `true`/`false` | `.claudeloop/PLAN.md` or `.claude/plans/*.md` exists |
 | `oxveil.walkthrough.hasRun` | `wireSessionEvents()` on done | `true`/`false` | At least one session completed |
 | `oxveil.walkthrough.configured` | Config wizard command | `true`/`false` | Config wizard opened |

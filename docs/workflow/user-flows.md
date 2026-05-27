@@ -59,6 +59,15 @@ Generated from source. Do not edit manually — regenerate: `npm run generate:fl
 [planning] --(terminal close)--> [empty]
 ```
 
+### UJ-9: Plan chat active state (marker-based)
+
+```
+[planChatActive=false] --(start())--> [planChatActive=true, .claude/oxveil-plan-active written]
+[planChatActive=true] --(terminal close / dispose())--> [planChatActive=false, marker removed]
+[activation] --(marker exists <24h)--> [planChatActive=true]
+[activation] --(marker >24h or absent)--> [planChatActive=false, stale marker cleaned up]
+```
+
 ## Full State Diagram
 
 ```mermaid

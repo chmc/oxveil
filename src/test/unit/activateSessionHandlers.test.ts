@@ -119,7 +119,7 @@ describe("createElapsedTimer", () => {
 describe("createTerminalCloseHandler", () => {
   it("clears active session when matching terminal closes", () => {
     const terminal = {};
-    const session = { matchesTerminal: vi.fn(() => true) };
+    const session = { matchesTerminal: vi.fn(() => true), dispose: vi.fn() };
     const setActivePlanChatSession = vi.fn();
     const planPreviewPanel = { setSessionActive: vi.fn(), endSession: vi.fn() } as any;
     const onPlanChatEnded = vi.fn();

@@ -1,7 +1,14 @@
+import * as fs from "node:fs/promises";
+
 export interface Terminal {
   sendText: (text: string) => void;
   show: () => void;
   dispose: () => void;
+}
+
+export interface PlanChatMarker {
+  sessionId: string;
+  denyCount: number;
 }
 
 export interface PlanChatSessionDeps {
@@ -16,12 +23,16 @@ export interface PlanChatSessionDeps {
   allowSkipPermissions?: boolean;
   provider?: "claude" | "opencode";
   opencodePath?: string;
+  markerPath?: string;
+  writeMarker?: (path: string, content: string) => Promise<void>;
+  removeMarker?: (path: string) => Promise<void>;
 }
 
 export class PlanChatSession {
   private _deps: PlanChatSessionDeps;
   private _terminal: Terminal | undefined;
   private _active = false;
+  private _sessionId: string | undefined;
 
   constructor(deps: PlanChatSessionDeps) {
     this._deps = deps;
@@ -58,6 +69,14 @@ export class PlanChatSession {
     });
     this._terminal.show();
     this._active = true;
+
+    if (this._deps.markerPath) {
+      const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      this._sessionId = sessionId;
+      const marker: PlanChatMarker = { sessionId, denyCount: 0 };
+      const write = this._deps.writeMarker ?? ((p, c) => fs.writeFile(p, c, "utf-8"));
+      write(this._deps.markerPath, JSON.stringify(marker)).catch(() => {});
+    }
   }
 
   sendAnnotation(phase: string | number, text: string): void {
@@ -84,5 +103,10 @@ export class PlanChatSession {
     this._active = false;
     this._terminal?.dispose();
     this._terminal = undefined;
+
+    if (this._deps.markerPath) {
+      const remove = this._deps.removeMarker ?? ((p) => fs.unlink(p).catch(() => {}));
+      remove(this._deps.markerPath).catch(() => {});
+    }
   }
 }

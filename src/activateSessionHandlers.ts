@@ -51,6 +51,7 @@ export function createTerminalCloseHandler(deps: TerminalHandlerDeps): vscode.Di
   return vscode.window.onDidCloseTerminal((terminal) => {
     const session = deps.getActivePlanChatSession();
     if (session?.matchesTerminal(terminal)) {
+      session.dispose();
       deps.setActivePlanChatSession(undefined);
       deps.planPreviewPanel.endSession();
       deps.onPlanChatEnded();

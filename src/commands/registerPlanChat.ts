@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { PlanChatSession } from "../core/planChatSession";
 import type { PlanPreviewPanel } from "../views/planPreviewPanel";
@@ -47,6 +48,10 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
       deps.extensionMode,
     );
     const allowSkipPermissions = config.get<boolean>("planChat.allowSkipPermissions", false);
+    const workspaceRoot = deps.getWorkspaceRoot();
+    const markerPath = workspaceRoot
+      ? path.join(workspaceRoot, ".claude", "oxveil-plan-active")
+      : undefined;
     const session = new PlanChatSession({
       createTerminal: (opts) => vscode.window.createTerminal(opts as any),
       claudePath: deps.claudePath ?? "",
@@ -54,6 +59,7 @@ export function registerPlanChatCommand(deps: PlanChatCommandDeps): vscode.Dispo
       allowSkipPermissions,
       provider,
       opencodePath,
+      markerPath,
     });
     deps.planPreviewPanel?.beginSession();
     session.start(buildSystemPrompt());
