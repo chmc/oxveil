@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse:ExitPlanMode — intercept for Oxveil plan review workflow
-# Writes a request file, polls for extension response, returns allow/deny JSON.
+# Denies ExitPlanMode and instructs Claude to ask the user how to proceed.
 
 set -euo pipefail
 
@@ -12,60 +12,28 @@ allow() { echo '{"permissionDecision":"allow"}'; exit 0; }
 # Pass through if no active Plan chat session
 [[ -f "$MARKER" ]] || allow
 
-# Break infinite loop: allow if denyCount >= 3
+# Break infinite loop: allow if denyCount >= 5
 deny_count=$(jq -r '.denyCount // 0' "$MARKER" 2>/dev/null || echo 0)
-[[ "$deny_count" -lt 3 ]] || allow
+[[ "$deny_count" -lt 5 ]] || allow
 
-# Generate UUID
-UUID=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' \
-  || python3 -c "import uuid; print(uuid.uuid4())" 2>/dev/null \
-  || cat /proc/sys/kernel/random/uuid 2>/dev/null)
+# Increment denyCount in marker
+new_count=$((deny_count + 1))
+session_id=$(jq -r '.sessionId // ""' "$MARKER" 2>/dev/null || echo "")
+jq -n --arg sid "$session_id" --argjson cnt "$new_count" \
+  '{"sessionId":$sid,"denyCount":$cnt}' > "$MARKER"
 
-REQUEST_FILE="$CLAUDE_DIR/plan-intercept-request-${UUID}.json"
-RESPONSE_FILE="$CLAUDE_DIR/plan-intercept-response-${UUID}.json"
+CONTEXT='Before proceeding, ask the user with AskUserQuestion:
 
-# Write request — extension watches .claude/ and responds
-jq -n \
-  --arg root "${CLAUDE_PROJECT_DIR:-$PWD}" \
-  --arg uuid "$UUID" \
-  '{"workspaceRoot":$root,"uuid":$uuid}' > "$REQUEST_FILE"
+Question: "How should we proceed with the plan?"
+Options:
+1. "Form Plan with Oxveil" - Hand off to Oxveil for implementation
+2. "Run critic agents first" - Run 2-3 critic agents before proceeding
+3. "Continue planning" - Stay in plan mode for refinement
 
-# Poll for response (30s timeout, 100ms interval)
-DEADLINE=$((SECONDS + 30))
-while [[ $SECONDS -lt $DEADLINE ]]; do
-  if [[ -f "$RESPONSE_FILE" ]]; then
-    decision=$(jq -r '.decision // "allow"' "$RESPONSE_FILE" 2>/dev/null || echo "allow")
-    reason=$(jq -r '.reason // ""' "$RESPONSE_FILE" 2>/dev/null || echo "")
-    feedback=$(jq -r '.feedback // ""' "$RESPONSE_FILE" 2>/dev/null || echo "")
-    rm -f "$REQUEST_FILE" "$RESPONSE_FILE"
+Based on their answer:
+- Form Plan with Oxveil → write file `.claude/oxveil-execute` with content `{"action":"formPlan"}`, then STOP and wait (do NOT call ExitPlanMode)
+- Run critic agents → run 2-3 parallel critic agents covering root cause, scope/mocks, alternatives/UX, then call ExitPlanMode again
+- Continue planning → do NOT call ExitPlanMode, ask what they want to change'
 
-    if [[ "$decision" == "deny" ]]; then
-      if [[ "$reason" == "critic" ]]; then
-        # Increment denyCount in marker
-        new_count=$((deny_count + 1))
-        session_id=$(jq -r '.sessionId // ""' "$MARKER" 2>/dev/null || echo "")
-        jq -n --arg sid "$session_id" --argjson cnt "$new_count" \
-          '{"sessionId":$sid,"denyCount":$cnt}' > "$MARKER"
-
-        critic_msg="Run 2-3 critic agents in parallel before calling ExitPlanMode. Agents should cover: (1) root cause correctness, (2) scope and mock sites, (3) alternatives and UX. After critics complete, call ExitPlanMode again."
-
-        jq -n --arg msg "$critic_msg" \
-          '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","additionalContext":$msg}}'
-      else
-        # Text feedback deny
-        context="${feedback:-Please review and make changes before proceeding.}"
-        jq -n --arg ctx "$context" \
-          '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","additionalContext":$ctx}}'
-      fi
-    else
-      # decision == "allow" — execute or skip
-      allow
-    fi
-    exit 0
-  fi
-  sleep 0.1
-done
-
-# Timeout — cleanup and allow silently
-rm -f "$REQUEST_FILE"
-allow
+jq -n --arg ctx "$CONTEXT" \
+  '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","additionalContext":$ctx}}'
