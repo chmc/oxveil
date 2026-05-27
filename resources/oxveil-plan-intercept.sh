@@ -5,11 +5,12 @@
 set -euo pipefail
 
 CLAUDE_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/.claude"
-MARKER="$CLAUDE_DIR/oxveil-plan-active"
 
 allow() { echo '{"permissionDecision":"allow"}'; exit 0; }
 
 # Pass through if no active Plan chat session
+MARKER="${OXVEIL_PLAN_MARKER:-}"
+[[ -n "$MARKER" ]] || allow
 [[ -f "$MARKER" ]] || allow
 
 # Break infinite loop: allow if denyCount >= 3

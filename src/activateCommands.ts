@@ -38,6 +38,7 @@ export interface ActivateCommandsDeps {
   selfImprovementPanel: SelfImprovementPanel;
   claudePath: string | null;
   extensionMode: number;
+  markerPath?: string;
   notifications: NotificationManager;
   sidebarState: SidebarMutableState;
   sidebarPanel: SidebarPanel;
@@ -78,6 +79,7 @@ export function activateCommands(deps: ActivateCommandsDeps): vscode.Disposable[
     planPreviewPanel: deps.planPreviewPanel,
     claudePath: deps.claudePath,
     extensionMode: deps.extensionMode,
+    markerPath: deps.markerPath,
     getActivePlanChatSession: deps.getActivePlanChatSession,
     onPlanChatSessionCreated: (session) => {
       // Clear stale sidebar state first (before reset() fires synchronous events)

@@ -227,8 +227,9 @@ describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
     try {
       const claudeDir = nodePath.join(tmp, ".claude");
       fsSyncModule.mkdirSync(claudeDir);
+      const markerPath = nodePath.join(tmp, "oxveil-plan-active");
       fsSyncModule.writeFileSync(
-        nodePath.join(claudeDir, "oxveil-plan-active"),
+        markerPath,
         JSON.stringify({ sessionId: "s1", denyCount: 0 }),
       );
 
@@ -255,7 +256,7 @@ describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
 
       const result = execSync(
         `bash -c '"${responderScript}" & bash "${hookPath}"; wait'`,
-        { env: { ...process.env, CLAUDE_PROJECT_DIR: tmp }, encoding: "utf8" },
+        { env: { ...process.env, CLAUDE_PROJECT_DIR: tmp, OXVEIL_PLAN_MARKER: markerPath }, encoding: "utf8" },
       ).trim();
 
       const parsed = JSON.parse(result) as {
@@ -279,14 +280,17 @@ describe("hook output format (resources/oxveil-plan-intercept.sh)", () => {
   it("outputs allow JSON when denyCount >= 5 (loop breaker)", () => {
     const tmp = fsSyncModule.mkdtempSync(nodePath.join(os.tmpdir(), "oxveil-hook-test-"));
     try {
-      const claudeDir = nodePath.join(tmp, ".claude");
-      fsSyncModule.mkdirSync(claudeDir);
+      const markerPath = nodePath.join(tmp, "oxveil-plan-active");
       fsSyncModule.writeFileSync(
-        nodePath.join(claudeDir, "oxveil-plan-active"),
+        markerPath,
         JSON.stringify({ sessionId: "s1", denyCount: 5 }),
       );
 
-      const parsed = JSON.parse(runHook(tmp)) as Record<string, unknown>;
+      const output = execSync(`bash "${hookPath}"`, {
+        env: { ...process.env, CLAUDE_PROJECT_DIR: tmp, OXVEIL_PLAN_MARKER: markerPath },
+        encoding: "utf8",
+      }).trim();
+      const parsed = JSON.parse(output) as Record<string, unknown>;
       expect(parsed).toEqual({ permissionDecision: "allow" });
     } finally {
       fsSyncModule.rmSync(tmp, { recursive: true, force: true });

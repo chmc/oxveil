@@ -22,7 +22,7 @@ Intercept `ExitPlanMode` in the Claude terminal using a `PreToolUse:ExitPlanMode
 5. **Loop breaker:** hook allows `ExitPlanMode` after 5 consecutive denies, preventing infinite loops if Claude ignores the instruction.
 6. **Stale trigger cleanup:** `cleanupStaleTriggers()` runs on extension activation to purge leftover files from previous sessions.
 
-The hook is active only when `.claude/oxveil-plan-active` marker file exists, so it does not affect non-plan sessions.
+The hook is active only when the `$OXVEIL_PLAN_MARKER` env var is set and the referenced file exists. The marker lives in VS Code's `context.storageUri` (outside the workspace) to avoid git pollution. The env var is injected into all terminals opened after extension activation via `context.environmentVariableCollection`.
 
 ## Consequences
 

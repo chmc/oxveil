@@ -642,7 +642,9 @@ The plan intercept system routes `ExitPlanMode` tool calls through a VS Code Qui
 
 ### Marker File
 
-**Path:** `.claude/oxveil-plan-active`
+**Path:** VS Code `context.storageUri/oxveil-plan-active` (workspace-scoped extension storage — outside workspace, no git pollution)
+
+**Shell hook access:** `$OXVEIL_PLAN_MARKER` env var set via `context.environmentVariableCollection` at activation. Terminals opened before activation will not have the var; hook allows silently.
 
 **Schema:**
 ```typescript
@@ -659,6 +661,7 @@ interface PlanChatMarker {
 | `planChatSession.start()` | Marker created with `{ sessionId, denyCount: 0 }` |
 | User selects "critics" in picker | `denyCount` incremented in-place by the hook script |
 | `planChatSession.dispose()` | Marker deleted (terminal close or explicit dispose) |
+| Extension deactivate | Marker deleted by `deactivate()` in `extensionLifecycle.ts` |
 | Extension activation (stale check) | If marker age > 24h, deleted by `initPlanChatMarkerState()` |
 
 ### Execute Trigger File
@@ -835,3 +838,4 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-18**: `planPreviewPanel` added to `wiringCtx` in `extension.ts` so `wireSessionEvents` can call `setSessionActive(false)` on process done. Previously missing from wiringCtx caused sessionActive to remain `true` after session end.
 - **2026-05-27**: Changed `planInterceptWatcher.ts` — now watches `.claude/oxveil-execute-{uuid}.json` trigger files. On detection, validates `timestamp` (<60s), calls `oxveil.formPlan` directly, then deletes the file. Removed request/response file pair. Added `cleanupStaleTriggers()` exported for activation. No state machine behavior changed.
 - **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to platform cache (`env-paths('oxveil').cache`), merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json` using absolute cache path, and cleans up old per-project `.claude/hooks/` copy. Fire-and-forget; no state machine behavior changed.
+- **2026-05-27**: Moved plan marker from workspace `.claude/oxveil-plan-active` to `context.storageUri/oxveil-plan-active`. Shell hook reads `$OXVEIL_PLAN_MARKER` env var set via `environmentVariableCollection`. Marker cleanup added to `deactivate()`. No state machine behavior changed.

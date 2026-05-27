@@ -45,6 +45,7 @@ export interface CommandDeps {
   onAiParseStarted?: () => void;
   onAiParseEnded?: () => void;
   isAiParsing?: () => boolean;
+  markerPath?: string;
 }
 
 export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -207,8 +208,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     registerPlanChatCommand({
       claudePath,
       extensionMode: deps.extensionMode,
-      getWorkspaceRoot: () => getActive()?.workspaceRoot
-        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      markerPath: deps.markerPath,
       getActivePlanChatSession: deps.getActivePlanChatSession,
       onPlanChatSessionCreated: deps.onPlanChatSessionCreated,
       planPreviewPanel,

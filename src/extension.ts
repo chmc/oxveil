@@ -21,7 +21,7 @@ import type { PlanChatSession } from "./core/planChatSession";
 import type { SelfImprovementSession } from "./core/selfImprovementSession";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { activateSidebar, checkInitialPlanState } from "./activateSidebar";
-import { disposables, setSessionManager } from "./extensionLifecycle";
+import { disposables, setSessionManager, setMarkerPath } from "./extensionLifecycle";
 export { deactivate } from "./extensionLifecycle";
 import { activateMcpBridge } from "./activateMcpBridge";
 import { activateCommands } from "./activateCommands";
@@ -34,7 +34,7 @@ import {
   setupSessionChangeHandler,
 } from "./activateSessionHandlers";
 import { activateUpdateCheck } from "./activateUpdateCheck";
-import { initPlanChatMarkerState } from "./core/planChatMarker";
+import { initPlanChatMarkerState, getMarkerPath, ensureMarkerDir } from "./core/planChatMarker";
 import { createPlanInterceptWatcher, cleanupStaleTriggers } from "./planInterceptWatcher";
 import { installPlanInterceptHook } from "./planInterceptInstaller";
 
@@ -82,7 +82,13 @@ export async function activate(
   }
 
   // Set oxveil.planChatActive from marker file; remove stale markers (>24h)
-  const planChatWasActive = await initPlanChatMarkerState(workspaceRoot);
+  const storageUri = context.storageUri;
+  const markerPath = storageUri ? getMarkerPath(storageUri) : undefined;
+  if (storageUri && markerPath) {
+    await ensureMarkerDir(storageUri);
+    context.environmentVariableCollection.replace("OXVEIL_PLAN_MARKER", markerPath);
+  }
+  const planChatWasActive = await initPlanChatMarkerState(markerPath);
   void vscode.commands.executeCommand("setContext", "oxveil.planChatActive", planChatWasActive);
 
   const archive = createArchiveView({ workspaceRoot });
@@ -241,6 +247,7 @@ export async function activate(
   });
 
   setSessionManager(manager);
+  setMarkerPath(markerPath);
 
   // Installer
   const installer = new Installer({
@@ -280,6 +287,7 @@ export async function activate(
       selfImprovementPanel,
       claudePath: resolvedClaudePath,
       extensionMode: context.extensionMode,
+      markerPath,
       notifications,
       sidebarState,
       sidebarPanel,
