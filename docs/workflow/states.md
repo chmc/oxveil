@@ -29,7 +29,6 @@ related_files:
   - src/core/planChatMarker.ts
   - src/planInterceptWatcher.ts
   - src/planInterceptInstaller.ts
-  - src/commands/planExitPicker.ts
   - resources/oxveil-plan-intercept.sh
 ---
 
@@ -637,7 +636,7 @@ subSteps: [
 
 ## I. Plan Intercept State
 
-**Sources:** `src/core/planChatMarker.ts`, `src/planInterceptWatcher.ts`, `src/planInterceptInstaller.ts`, `src/commands/planExitPicker.ts`, `resources/oxveil-plan-intercept.sh`
+**Sources:** `src/core/planChatMarker.ts`, `src/planInterceptWatcher.ts`, `src/planInterceptInstaller.ts`, `resources/oxveil-plan-intercept.sh`
 
 The plan intercept system routes `ExitPlanMode` tool calls through a VS Code QuickPick, allowing the user to execute with Oxveil orchestration, run critic agents, or provide feedback — before Claude proceeds.
 
@@ -834,4 +833,4 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-18**: Added `VersionedSnapshot<T>` utility (`src/core/state/VersionedSnapshot.ts`) and `GuardedHandler` types (`src/core/state/GuardedHandler.ts`). `SessionState` gains `readSnapshot()` returning `{ status, progress, seq }` and `assertFresh(seq)` for TOCTOU prevention in async handlers. No state transitions changed.
 - **2026-05-18**: `planPreviewPanel` added to `wiringCtx` in `extension.ts` so `wireSessionEvents` can call `setSessionActive(false)` on process done. Previously missing from wiringCtx caused sessionActive to remain `true` after session end.
 - **2026-05-27**: Changed `planInterceptWatcher.ts` — now watches `.claude/oxveil-execute-{uuid}.json` trigger files. On detection, validates `timestamp` (<60s), calls `oxveil.formPlan` directly, then deletes the file. Removed request/response file pair. Added `cleanupStaleTriggers()` exported for activation. No state machine behavior changed.
-- **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to `workspaceRoot/.claude/hooks/` if missing and merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json`. Fire-and-forget; no state machine behavior changed. Respects `oxveil.interceptPlanReady` setting (default: true) — when false, `showPlanExitPicker` auto-allows immediately.
+- **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to `workspaceRoot/.claude/hooks/` if missing and merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json`. Fire-and-forget; no state machine behavior changed.
