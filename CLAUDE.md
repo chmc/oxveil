@@ -40,7 +40,7 @@
 - NEVER call ExitPlanMode without 2-3 critic agents. Exception: config/docs-only changes with zero source or skill code → "Skipping critics — no source: [files changed]."
 - After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
 - If critics widen scope or plan changes significantly after critics, re-run critics before ExitPlanMode.
-- N/A plan sections: grep for related files first (states.md, user-flows, ADRs).
+- N/A plan sections: grep for related files first (states.md, user-flows, ADRs). ADR N/A requires approved category: bug fix|docs only|test only|config only|typo fix|dependency update|ci fix|build fix|lint fix|formatting only|version bump|no architectural change.
 - Trust proven patterns: if WORKFLOW.md/hooks already do X, don't doubt X works.
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.

@@ -36,8 +36,14 @@ State is tracked in `.claude/workflow-state/` (gitignored). The `/workflow` skil
 
 **Negative:**
 - Planning overhead for every task — mitigated by allowing "N/A - reason" for inapplicable sections
+- ADR N/A requires approved category (bug fix|docs only|test only|config only|typo fix|dependency update|ci fix|build fix|lint fix|formatting only|version bump|no architectural change); generic reasons rejected
 - Feature registry requires maintenance as features are added or retired
 - Bypass discipline depends on team culture; hooks can be disabled via `disableAllHooks`
+
+**ADR enforcement rules (added 2026-05-28):**
+- N/A category validation: ADR N/A blocked unless reason matches approved categories
+- Keyword detection: ADR N/A blocked when plan mentions architectural terms (new pattern, new module, new service, breaking change, security, authentication, authorization, encryption, new dependency, api change, schema change, database, migration, introduces, replaces, deprecates)
+- Decision language cross-check: ADR N/A blocked when Architecture Impact section contains decision words (decided, chose, will use, option, alternative, selected, adopted)
 
 **Alternatives considered:**
 

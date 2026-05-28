@@ -78,6 +78,14 @@ is_na_section() {
     echo "$first" | grep -qE '^n/?a[[:space:]]|^n/?a$|^n/?a[[:space:]]*-'
 }
 
+# Helper: check if N/A reason uses an approved category
+# Returns 0 (true) if approved category found
+# Returns 1 (false) otherwise
+is_valid_na_reason() {
+    first=$(get_section_content "$1" | tr '[:upper:]' '[:lower:]')
+    echo "$first" | grep -qiE '^n/?a[[:space:]]*-[[:space:]]*(bug fix|docs only|test only|config only|typo fix|dependency update|ci fix|build fix|lint fix|formatting only|version bump|no architectural change)'
+}
+
 # Helper: extract section content text (first non-empty lines, up to 5)
 get_section_first_line() {
     section_name="$1"
@@ -121,6 +129,8 @@ if ! echo "$plan_content" | grep -q "^## adr"; then
     missing="$missing ADR (missing),"
 elif is_empty_section "ADR"; then
     missing="$missing ADR (empty),"
+elif is_na_section "ADR" && ! is_valid_na_reason "ADR"; then
+    missing="$missing ADR (N/A requires approved category: bug fix|docs only|test only|config only|typo fix|dependency update|ci fix|build fix|lint fix|formatting only|version bump|no architectural change),"
 fi
 
 # 4. State Machine / Sync (prefix match: ^## state)
@@ -221,6 +231,42 @@ if [ -n "$missing" ]; then
 }
 EOF
     exit 0
+fi
+
+# ADR keyword detection: block N/A when plan mentions architectural terms
+ADR_TRIGGER_KEYWORDS="new pattern|new module|new service|new protocol|breaking change|security|authentication|authorization|encryption|new dependency|api change|schema change|database|migration|introduces|replaces|deprecates"
+plan_body=$(cat "$plan_file" | tr '[:upper:]' '[:lower:]')
+if is_na_section "ADR" && echo "$plan_body" | grep -qiE "$ADR_TRIGGER_KEYWORDS"; then
+    matched=$(echo "$plan_body" | grep -oiE "$ADR_TRIGGER_KEYWORDS" | head -1)
+    cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Plan mentions '$matched' but ADR is N/A. This keyword typically requires ADR consideration.",
+    "additionalContext": "Review docs/adr/README.md for ADR trigger criteria. Either create an ADR in docs/adr/ or explicitly justify why ADR doesn't apply."
+  }
+}
+EOF
+    exit 0
+fi
+
+# Cross-check: Architecture Impact with decision language → ADR must also be non-N/A
+arch_content=$(get_section_content "Architecture Impact" | tr '[:upper:]' '[:lower:]')
+if ! is_na_section "Architecture Impact" && is_na_section "ADR"; then
+    if echo "$arch_content" | grep -qiE "decided|chose|will use|option|alternative|selected|adopted"; then
+        cat <<'EOF'
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Architecture Impact contains decision language but ADR is N/A. Architectural decisions require an ADR.",
+    "additionalContext": "Either: (1) Create/update ADR in docs/adr/, or (2) Rewrite Architecture Impact without decision language if no architectural decision was actually made."
+  }
+}
+EOF
+        exit 0
+    fi
 fi
 
 # Cross-check: state files in plan → Documentation must not be N/A
