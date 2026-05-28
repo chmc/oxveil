@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { ProgressState } from "../types";
+import type { ProgressState, SessionStatus } from "../types";
 import { renderDashboardHtml, renderCompletionBannerHtml, renderVerifyFailedBannerHtml, renderVerifyPassedBannerHtml, type DashboardOptions, type VerifyFailedOptions, type VerifyPassedOptions } from "./liveRunHtml";
 import { renderLiveRunShell } from "./liveRunHtml";
 import { formatLogLine } from "../parsers/logFormatter";
@@ -44,6 +44,7 @@ export class LiveRunPanel {
   private _todoTotal = 0;
   private _todoCurrentItem: string | undefined;
   private _taskItems: Array<{ name: string; status: 'pending' | 'in_progress' | 'completed' }> = [];
+  private _sessionStatus: SessionStatus = "running";
   private _runStartedAt: number | undefined;
   private _aiParseActionListeners: Array<(action: string) => void> = [];
   private _aiParseStatus: "idle" | "parsing" | "complete" | "needs-input" = "idle";
@@ -84,6 +85,7 @@ export class LiveRunPanel {
       this._runStartedAt = Date.now();
     }
 
+    this._sessionStatus = "running";
     this._ensurePanel();
     // Clear any stale AI parse status when switching to normal run mode
     this.clearAiParseStatus();
@@ -234,6 +236,10 @@ export class LiveRunPanel {
 
   onRunFinished(status?: string): void {
     if (!this._panel) return;
+    this._sessionStatus = status === "failed" ? "failed" : "done";
+    if (this._lastProgress) {
+      this._sendDashboard(this._lastProgress);
+    }
     const durationMs = this._runStartedAt ? Date.now() - this._runStartedAt : undefined;
     const html = renderCompletionBannerHtml(status ?? "done", {
       totalCost: this._totalCost || undefined,
@@ -249,6 +255,7 @@ export class LiveRunPanel {
     this._totalCost = 0;
     this._runStartedAt = undefined;
     this._taskItems = [];
+    this._sessionStatus = "running";
   }
 
   dispose(): void {
@@ -327,6 +334,7 @@ export class LiveRunPanel {
       todoTotal: this._todoTotal > 0 ? this._todoTotal : undefined,
       todoCurrentItem: this._todoCurrentItem,
       taskItems: this._taskItems.length > 0 ? this._taskItems : undefined,
+      sessionStatus: this._sessionStatus,
     };
     const html = renderDashboardHtml(progress, options);
     this._postMessage({ type: "dashboard", html });
