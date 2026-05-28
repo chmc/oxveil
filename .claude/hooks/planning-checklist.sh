@@ -55,12 +55,20 @@ if [ -n "$plan_title" ]; then
     else
         created="created: $(date '+%d.%m.%Y %H:%M')"
     fi
+    context_content=$(sed -n '/^## Context/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 | sed 's/^[[:space:]]*//' || true)
+    task_content=$(sed -n '/^## Task Tracking/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 || true)
     tmp=$(mktemp)
     cat > "$tmp" << EOF
 ---
 $created
 ---
 # $plan_title
+
+## Why
+${context_content:-No context section in plan.}
+
+## Status
+${task_content:-See plan file for details.}
 EOF
     mv "$tmp" "$goal_file"
 fi
