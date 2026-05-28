@@ -218,8 +218,7 @@ fi
 
 # Cross-check: state files in plan → Documentation must not be N/A
 STATE_FILE_PATTERN="activateSidebar|sessionWiring|sidebarRefresh|sessionState|sidebarState|statusBar|planPreviewPanel|types\.ts|extension\.ts|activateDetection|formPlan"
-files_content=$(get_full_section_content "Files" || echo "")
-if echo "$files_content" | grep -qE "$STATE_FILE_PATTERN"; then
+if grep -qE "$STATE_FILE_PATTERN" "$plan_file" 2>/dev/null; then
     if is_na_section "Documentation"; then
         cat <<'EOF'
 {
