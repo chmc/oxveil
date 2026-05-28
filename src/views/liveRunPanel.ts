@@ -179,10 +179,7 @@ export class LiveRunPanel {
     }
 
     if (todoUpdated && this._panel && this._lastProgress) {
-      // Skip dashboard updates in ai-parse terminal states to preserve verify banner
-      if (this._aiParseStatus !== "complete" && this._aiParseStatus !== "needs-input") {
-        this._sendDashboard(this._lastProgress);
-      }
+      this._sendDashboard(this._lastProgress);
     }
 
     const maxLines = this._getMaxLines();

@@ -600,23 +600,39 @@ describe("LiveRunPanel", () => {
       expect(aiParseStatusCalls).toHaveLength(0);
     });
 
-    it("onLogAppended() skips dashboard when ai-parse is complete", () => {
+    it("onLogAppended() sends dashboard for task updates even when ai-parse is complete", () => {
       const mockPanel = makeMockPanel();
       const deps = makeDeps(mockPanel);
       const panel = new LiveRunPanel(deps);
       panel.revealForAiParse();
       panel.onAiParseComplete();
-      // Set up lastProgress so dashboard would normally be sent
       panel.onProgressChanged(makeProgress());
       mockPanel.webview.postMessage.mockClear();
 
-      // Log with todo update - should NOT trigger dashboard in ai-parse complete state
-      panel.onLogAppended("some content\n[Todos: 1/3 done] \u25b8 \"current task\"\nmore content");
+      // Task update should trigger dashboard even in complete state
+      panel.onLogAppended('[14:00:00] [Task created] "Write tests"\n');
 
       const dashboardCalls = mockPanel.webview.postMessage.mock.calls.filter(
         (c: any) => c[0].type === "dashboard",
       );
-      expect(dashboardCalls).toHaveLength(0);
+      expect(dashboardCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("onLogAppended() sends dashboard for todo updates even when ai-parse is complete", () => {
+      const mockPanel = makeMockPanel();
+      const deps = makeDeps(mockPanel);
+      const panel = new LiveRunPanel(deps);
+      panel.revealForAiParse();
+      panel.onAiParseComplete();
+      panel.onProgressChanged(makeProgress());
+      mockPanel.webview.postMessage.mockClear();
+
+      panel.onLogAppended('[14:00:00] [Todos: 1/3 done] \u25b8 "current task"\n');
+
+      const dashboardCalls = mockPanel.webview.postMessage.mock.calls.filter(
+        (c: any) => c[0].type === "dashboard",
+      );
+      expect(dashboardCalls.length).toBeGreaterThanOrEqual(1);
     });
 
     it("reveal() after onRunFinished sends dashboard (clears banner in webview)", () => {
