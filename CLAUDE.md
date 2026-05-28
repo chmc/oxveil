@@ -1,3 +1,7 @@
+## FIRST: Goal Selection
+
+If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any other response.
+
 ## Behavioral Guidelines
 
 - Think before coding. State your assumptions out loud. If the request is ambiguous, ask. If a simpler approach exists, push back. Stop when you are confused, name what is unclear, do not just pick one interpretation and run.
