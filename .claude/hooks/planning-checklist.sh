@@ -37,6 +37,34 @@ EOF
     exit 0
 fi
 
+# Auto-create/update goal from plan (before validation, so goal exists even if denied)
+GOALS_DIR="$STATE_DIR/goals"
+mkdir -p "$GOALS_DIR"
+plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
+if [ -n "$plan_title" ]; then
+    issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+    slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
+    if [ -n "$issue_num" ]; then
+        goal_name="${issue_num}-${slug}"
+    else
+        goal_name="$slug"
+    fi
+    goal_file="$GOALS_DIR/${goal_name}.md"
+    if [ -f "$goal_file" ]; then
+        created=$(grep '^created:' "$goal_file" | head -1)
+    else
+        created="created: $(date '+%d.%m.%Y %H:%M')"
+    fi
+    tmp=$(mktemp)
+    cat > "$tmp" << EOF
+---
+$created
+---
+# $plan_title
+EOF
+    mv "$tmp" "$goal_file"
+fi
+
 # Read plan content (lowercase for case-insensitive matching)
 plan_content=$(tr '[:upper:]' '[:lower:]' < "$plan_file")
 
@@ -439,32 +467,6 @@ rm -f "$STATE_DIR/simplify-complete"
 rm -f "$STATE_DIR/review-complete"
 rm -f "$STATE_DIR/visual-verified"
 rm -f "$STATE_DIR/visual-skip-reason"
-
-# Auto-create goal from plan if none exists for this plan
-GOALS_DIR="$STATE_DIR/goals"
-mkdir -p "$GOALS_DIR"
-plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
-if [ -n "$plan_title" ]; then
-    # Derive slug from issue # if present, else from title
-    issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
-    slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
-    if [ -n "$issue_num" ]; then
-        goal_name="${issue_num}-${slug}"
-    else
-        goal_name="$slug"
-    fi
-    goal_file="$GOALS_DIR/${goal_name}.md"
-    if [ ! -f "$goal_file" ]; then
-        tmp=$(mktemp)
-        cat > "$tmp" << EOF
----
-created: $(date '+%d.%m.%Y %H:%M')
----
-# $plan_title
-EOF
-        mv "$tmp" "$goal_file"
-    fi
-fi
 
 # Allow
 exit 0
