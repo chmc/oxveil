@@ -251,6 +251,41 @@ EOF
     exit 0
 fi
 
+# Complex feature planning check: >3 phases requires spike evidence or approved bypass
+phase_count=$(grep -ciE "^#{2,3} (phase |step )?[0-9]+[.:]?" "$plan_file" || echo "0")
+if [ "$phase_count" -gt 3 ]; then
+    unverified_count=$(grep -c '\[UNVERIFIED\]' "$plan_file" 2>/dev/null) || unverified_count=0
+    if [ "$unverified_count" -gt 0 ]; then
+        cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Plan has $phase_count phases with $unverified_count unresolved [UNVERIFIED] assumptions.",
+    "additionalContext": "Resolve each [UNVERIFIED] tag by testing the assumption and documenting the result. See .claude/skills/complex-feature-planning/SKILL.md"
+  }
+}
+EOF
+        exit 0
+    fi
+
+    SPIKE_BYPASS_PATTERN='\[SPIKE-NOT-NEEDED:[[:space:]]*(single api call|well-documented pattern|config only|refactor only|trivial change)\]'
+    SPIKE_EVIDENCE_PATTERN='spike:|prototype built|^#{1,3} .*spike|verified.*(assumption|api|behavior)'
+    if ! grep -qiE "$SPIKE_BYPASS_PATTERN" "$plan_file" && ! grep -qiE "$SPIKE_EVIDENCE_PATTERN" "$plan_file"; then
+        cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Plan has $phase_count phases but no spike/prototype evidence.",
+    "additionalContext": "Complex plans (>3 phases) require spike evidence. Add a 'Spike:' section, or use [SPIKE-NOT-NEEDED: reason] with an approved category: single api call|well-documented pattern|config only|refactor only|trivial change. See .claude/skills/complex-feature-planning/SKILL.md"
+  }
+}
+EOF
+        exit 0
+    fi
+fi
+
 # Cross-check: Architecture Impact with decision language → ADR must also be non-N/A
 arch_content=$(get_section_content "Architecture Impact" | tr '[:upper:]' '[:lower:]')
 if ! is_na_section "Architecture Impact" && is_na_section "ADR"; then

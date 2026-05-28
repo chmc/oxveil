@@ -104,6 +104,13 @@ Clears `workflow-state/*` (keeps `claudeloop-features-hash`) and `review-session
 
 See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, and language contribution patterns.
 
+## Complex Feature Planning
+
+>3 phases, IPC, or cross-process? Spike first (30 min). Design from working code.
+Mark external assumptions `[UNVERIFIED]` → verify in Phase 0 before implementation.
+Issue scope: every commit references #N. Switching issues mid-session → commit current work first.
+See `.claude/skills/complex-feature-planning/SKILL.md` for full checklist.
+
 ## Cost Control
 
 Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL_<SERVICE>_<PARAM>` env var overrides. Prefer fake_claude over real API.
