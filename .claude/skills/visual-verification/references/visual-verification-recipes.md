@@ -856,13 +856,23 @@ end tell'
 
 ## close_edh_window function
 
-Handles modal sheets, verifies closure. Use this instead of inline osascript everywhere.
+Handles modal sheets, dialog windows, and "Replace?" prompts. Use this instead of inline osascript everywhere.
 
 ```bash
-# Close EDH window with sheet dismissal and verified closure
-# Usage: close_edh_window [MCP_PORT]
+# Close EDH window with sheet/dialog dismissal and verified closure
+# Usage: close_edh_window [MCP_PORT] [WORKTREE_PATH]
+# WORKTREE_PATH: if set, deletes PLAN.md there before close to prevent "Replace?" dialog
 close_edh_window() {
     local MCP_PORT="${1:-}"
+    local WORKTREE="${2:-}"
+
+    # 0. Remove PLAN.md from worktree — prevents "PLAN.md already exists. Replace?" dialog
+    # VS Code shows this dialog when closing if PLAN.md was written during the session.
+    # Deleting it here prevents the dialog entirely; no sheet dismissal needed for it.
+    if [[ -n "$WORKTREE" && -f "$WORKTREE/PLAN.md" ]]; then
+        rm -f "$WORKTREE/PLAN.md"
+        sleep 0.3
+    fi
 
     # 1. [SETUP] Discard unsaved changes via MCP to avoid "Save changes?" sheet
     if [[ -n "$MCP_PORT" ]]; then
@@ -875,20 +885,24 @@ close_edh_window() {
         sleep 0.5
     fi
 
-    # 2+3. Dismiss sheets then close — single osascript to avoid timing gap between calls
-    # Sheet dismissal: Escape does NOT work on VS Code sheets; must click button directly
+    # 2+3. Dismiss sheets/dialogs then close — single osascript to avoid timing gaps
+    # Escape does NOT work on VS Code sheets or dialogs; must click button directly.
     # Priority: Cancel > Don't Save > fail loudly (no blind fallback)
+    # Also handles AXDialog windows (e.g. "Replace?" prompt) in addition to AXSheet.
     osascript -e '
     tell application "System Events"
         tell process "Code"
+            -- Helper: click Cancel > Don'"'"'t Save in a list of buttons
+            -- Returns true if a button was clicked
             set edh to (every window whose name contains "[Extension Development Host]")
             repeat with w in edh
-                -- Dismiss pre-existing sheet first
+                perform action "AXRaise" of w
+                set frontmost to true
+                delay 0.2
+
+                -- 2a. Dismiss AXSheet (e.g. "Save changes?" on editor close)
                 try
                     set s to (first sheet of w)
-                    set frontmost to true
-                    perform action "AXRaise" of w
-                    delay 0.2
                     set btns to every button of s
                     set clicked to false
                     repeat with b in btns
@@ -912,7 +926,35 @@ close_edh_window() {
                     end if
                     delay 0.3
                 end try
-                -- Close window via AXPress (works without menu access)
+
+                -- 2b. Dismiss AXDialog windows (e.g. "PLAN.md already exists. Replace?")
+                -- These appear as child windows with subrole AXDialog, not as sheets.
+                try
+                    set dialogs to (every window of (application "Code") whose subrole is "AXDialog")
+                    repeat with d in dialogs
+                        set btns to every button of d
+                        set clicked to false
+                        repeat with b in btns
+                            if name of b is "Cancel" then
+                                click b
+                                set clicked to true
+                                delay 0.3
+                                exit repeat
+                            end if
+                        end repeat
+                        if not clicked then
+                            repeat with b in btns
+                                if name of b is "Don'"'"'t Save" then
+                                    click b
+                                    delay 0.3
+                                    exit repeat
+                                end if
+                            end repeat
+                        end if
+                    end repeat
+                end try
+
+                -- 3. Close the EDH window via close button
                 perform action "AXRaise" of w
                 delay 0.2
                 perform action "AXPress" of (first button of w whose subrole is "AXCloseButton")
