@@ -263,7 +263,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
         cost: (ms?.cost ?? 0) > 0 ? `$${ms!.cost.toFixed(2)}` : undefined,
         todos: (ms?.todoTotal ?? 0) > 0 ? { done: ms!.todoDone, total: ms!.todoTotal } : undefined,
         currentPhase: progress.currentPhaseIndex,
-        phaseListHtml: renderPhaseList(phases, "running"),
+        phaseListHtml: renderPhaseList(phases, session.status),
       });
     }
   });
@@ -296,7 +296,7 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           cost: ms.cost > 0 ? `$${ms.cost.toFixed(2)}` : undefined,
           todos: ms.todoTotal > 0 ? { done: ms.todoDone, total: ms.todoTotal } : undefined,
           currentPhase: session.progress.currentPhaseIndex,
-          phaseListHtml: renderPhaseList(phases, "running"),
+          phaseListHtml: renderPhaseList(phases, session.status),
         });
       }
     }
