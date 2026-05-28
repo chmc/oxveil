@@ -252,7 +252,7 @@ EOF
 fi
 
 # Complex feature planning check: >3 phases requires spike evidence or approved bypass
-phase_count=$(grep -ciE "^#{2,3} (phase |step )?[0-9]+[.:]?" "$plan_file" || echo "0")
+phase_count=$(grep -ciE "^#{2,3} (phase |step )?[0-9]+[.:]?" "$plan_file") || phase_count=0
 if [ "$phase_count" -gt 3 ]; then
     unverified_count=$(grep -c '\[UNVERIFIED\]' "$plan_file" 2>/dev/null) || unverified_count=0
     if [ "$unverified_count" -gt 0 ]; then
@@ -439,6 +439,32 @@ rm -f "$STATE_DIR/simplify-complete"
 rm -f "$STATE_DIR/review-complete"
 rm -f "$STATE_DIR/visual-verified"
 rm -f "$STATE_DIR/visual-skip-reason"
+
+# Auto-create goal from plan if none exists for this plan
+GOALS_DIR="$STATE_DIR/goals"
+mkdir -p "$GOALS_DIR"
+plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
+if [ -n "$plan_title" ]; then
+    # Derive slug from issue # if present, else from title
+    issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+    slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
+    if [ -n "$issue_num" ]; then
+        goal_name="${issue_num}-${slug}"
+    else
+        goal_name="$slug"
+    fi
+    goal_file="$GOALS_DIR/${goal_name}.md"
+    if [ ! -f "$goal_file" ]; then
+        tmp=$(mktemp)
+        cat > "$tmp" << EOF
+---
+created: $(date '+%d.%m.%Y %H:%M')
+---
+# $plan_title
+EOF
+        mv "$tmp" "$goal_file"
+    fi
+fi
 
 # Allow
 exit 0

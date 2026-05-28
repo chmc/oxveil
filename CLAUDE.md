@@ -104,6 +104,14 @@ Clears `workflow-state/*` (keeps `claudeloop-features-hash`) and `review-session
 
 See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, and language contribution patterns.
 
+## Goal Management
+
+If SessionStart hook outputs `=== ACTIVE GOALS ===`:
+1. Use AskUserQuestion: list each goal as option + "Do something else"
+2. Goal selected → second AskUserQuestion: Continue / Close / Cancel
+3. "Continue" → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input
+4. Interpret all subsequent requests toward that goal until session ends or user runs `/goal switch`
+
 ## Complex Feature Planning
 
 >3 phases, IPC, or cross-process? Spike first (30 min). Design from working code.
