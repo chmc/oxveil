@@ -36,6 +36,7 @@
 - osascript: merge related operations into single osascript call — separate bash calls introduce timing gaps.
 - NEVER edit non-plan files in plan mode. Write to plan file, call ExitPlanMode.
 - NEVER `await` external process in `activate()` without timeout. Use `Promise.race` 5s. Hanging CLI = stuck spinner.
+- VS Code `environmentVariableCollection` persists across reloads. Removing `replace()` is insufficient — call `delete()` to clear stale entries when migrating away.
 - NEVER call ExitPlanMode without 2-3 critic agents. Exception: config/docs-only changes with zero source or skill code → "Skipping critics — no source: [files changed]."
 - After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
 - If critics widen scope or plan changes significantly after critics, re-run critics before ExitPlanMode.
