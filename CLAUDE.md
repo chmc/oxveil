@@ -163,6 +163,8 @@ No summaries, preamble, filler. Bullets for status. Completion: result + next st
 
 ## Task Tracking
 
+Plans must include `## Task Tracking` section listing all tasks to create.
+
 After ExitPlanMode approval, create tasks for each plan step **before writing code**:
 1. One task per implementation step
 2. "Lint and typecheck" task (blockedBy all impl tasks)

@@ -165,6 +165,13 @@ elif is_empty_section "README"; then
     missing="$missing README (empty),"
 fi
 
+# 10. Task Tracking
+if ! echo "$plan_content" | grep -q "^## task tracking"; then
+    missing="$missing Task Tracking (missing),"
+elif is_empty_section "task tracking"; then
+    missing="$missing Task Tracking (empty),"
+fi
+
 # 10. Acceptance Criteria
 if ! echo "$plan_content" | grep -q "^## acceptance criteria"; then
     missing="$missing Acceptance Criteria (missing),"
@@ -209,7 +216,7 @@ if [ -n "$missing" ]; then
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
     "permissionDecisionReason": "Plan missing or empty sections:$missing",
-    "additionalContext": "All 9 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
+    "additionalContext": "All 10 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
   }
 }
 EOF
