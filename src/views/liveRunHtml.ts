@@ -1,4 +1,4 @@
-import type { ProgressState } from "../types";
+import type { ProgressState, SessionStatus } from "../types";
 import { escapeHtml } from "../utils/html";
 import { getLiveRunStyles } from "./liveRunStyles";
 
@@ -9,9 +9,13 @@ export interface DashboardOptions {
   todoTotal?: number;
   todoCurrentItem?: string;
   taskItems?: Array<{ name: string; status: 'pending' | 'in_progress' | 'completed' }>;
+  sessionStatus?: SessionStatus;
 }
 
-function statusIcon(status: string): string {
+function statusIcon(status: string, sessionStatus?: SessionStatus): string {
+  if (status === "in_progress" && sessionStatus !== undefined && sessionStatus !== "running") {
+    return "&#9646;&#9646;";
+  }
   switch (status) {
     case "completed":
       return "&#10003;";
@@ -24,7 +28,10 @@ function statusIcon(status: string): string {
   }
 }
 
-function statusClass(status: string): string {
+function statusClass(status: string, sessionStatus?: SessionStatus): string {
+  if (status === "in_progress" && sessionStatus !== undefined && sessionStatus !== "running") {
+    return "stopped";
+  }
   switch (status) {
     case "completed":
       return "completed";
@@ -86,11 +93,11 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
         : phase.status === "pending"
           ? "phase-row phase-pending"
           : "phase-row";
-      const iconCls = statusClass(phase.status);
+      const iconCls = statusClass(phase.status, options?.sessionStatus);
       const duration = formatPhaseDuration(phase.started, phase.completed);
       const metaText = duration ? escapeHtml(duration) : "";
       return `<div class="${rowClass}">
-  <span class="phase-icon ${iconCls}">${statusIcon(phase.status)}</span>
+  <span class="phase-icon ${iconCls}">${statusIcon(phase.status, options?.sessionStatus)}</span>
   <span class="phase-num${isActive ? " active" : ""}">Phase ${escapeHtml(String(phase.number))}:</span>
   <span class="phase-title${isActive ? " active" : ""}">${escapeHtml(phase.title)}</span>
   <span class="phase-meta${isActive ? " active" : ""}">${metaText}</span>
@@ -98,11 +105,12 @@ export function renderDashboardHtml(progress: ProgressState, options?: Dashboard
     })
     .join("\n");
 
+  const isStopped = options?.sessionStatus !== undefined && options.sessionStatus !== "running";
   const taskListHtml =
     options?.taskItems && options.taskItems.length > 0
       ? `<div class="task-list">${options.taskItems.map((item) => {
           const cls = item.status === "completed" ? "completed" : item.status === "in_progress" ? "in-progress" : "";
-          const icon = item.status === "completed" ? "&#10003;" : item.status === "in_progress" ? '<span class="spinner">&#8635;</span>' : "&#9675;";
+          const icon = item.status === "completed" ? "&#10003;" : item.status === "in_progress" ? (isStopped ? "&#9646;&#9646;" : '<span class="spinner">&#8635;</span>') : "&#9675;";
           return `<div class="task-item${cls ? ` ${cls}` : ""}"><span>${icon}</span><span>${escapeHtml(item.name)}</span></div>`;
         }).join("")}</div>`
       : "";

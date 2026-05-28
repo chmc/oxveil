@@ -27,6 +27,7 @@ export function getLiveRunStyles(): string {
     .phase-icon.running { color: #569cd6; }
     .phase-icon.pending { color: #555; }
     .phase-icon.failed { color: #f44747; }
+    .phase-icon.stopped { color: #888; }
     .phase-num { color: #6a9955; min-width: 60px; }
     .phase-num.active { color: #569cd6; font-weight: 600; }
     .phase-title { flex: 1; }
