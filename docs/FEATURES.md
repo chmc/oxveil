@@ -39,3 +39,4 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 3. Update status as the feature matures
 | plan-exit-intercept | planned | - | src/commands/planExitPicker.ts, resources/oxveil-plan-intercept.sh | Intercept ExitPlanMode to offer Oxveil-enhanced planning options |
 | plan-marker-storage | planned | - | src/core/planChatMarker.ts, resources/oxveil-plan-intercept.sh | Plan marker in VS Code storageUri with env var for shell hook access |
+| goal-selection-stop-rule | planned | - | CLAUDE.md | STOP rule enforcing goal selection prompt at session start |

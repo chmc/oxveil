@@ -46,6 +46,7 @@
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
 - NEVER install fake_claude to `~/.local/bin`. Use temp dir + scoped PATH: `FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX); cp fake_claude "$FAKE_CLAUDE_DIR/claude"; chmod +x "$FAKE_CLAUDE_DIR/claude"; trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT; PATH="$FAKE_CLAUDE_DIR:$PATH" code ...`. Temp dir propagates to EDH → claudeloop → claude.
 - NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md` (see `workflow-docs` skill).
+- NEVER respond to user's first message when SessionStart shows active goals without first asking goal selection via AskUserQuestion.
 - New doc that tracks state/behavior? Must have test or hook enforcement — reminder-only docs drift. Add to Gate 5 if state-related.
 
 ## Project

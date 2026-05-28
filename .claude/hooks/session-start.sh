@@ -8,6 +8,8 @@ rm -f "$STATE_DIR/edit-order"
 # List active goals if any exist
 GOALS_DIR="$STATE_DIR/goals"
 if [ -d "$GOALS_DIR" ] && [ "$(ls -A "$GOALS_DIR" 2>/dev/null)" ]; then
+    echo "STOP. Active goals found — use AskUserQuestion to ask which goal to continue, close, or 'Do something else' BEFORE responding to user."
+    echo ""
     echo "=== ACTIVE GOALS ==="
     for g in "$GOALS_DIR"/*.md; do
         [ -f "$g" ] || continue
@@ -27,6 +29,4 @@ if [ -d "$GOALS_DIR" ] && [ "$(ls -A "$GOALS_DIR" 2>/dev/null)" ]; then
         fi
         echo "- $name: $title (created $created, modified $age)"
     done
-    echo ""
-    echo "Goals found. Use AskUserQuestion to ask: which goal to continue, close, or 'Do something else'."
 fi
