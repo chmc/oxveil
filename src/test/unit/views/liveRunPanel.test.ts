@@ -281,6 +281,62 @@ describe("LiveRunPanel", () => {
     expect(dashCalls.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("parses task created events and tracks task items", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+    panel.onLogAppended('[14:00:00] [Task created] "Write unit tests"\n');
+    const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "dashboard",
+    );
+    expect(dashCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("parses task completed events", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    const log1 = '[14:00:00] [Task created] "Write unit tests"\n';
+    panel.onLogAppended(log1);
+    mockPanel.webview.postMessage.mockClear();
+    panel.onLogAppended(log1 + '[14:00:01] [Task completed] ✓ "Write unit tests"\n');
+    const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "dashboard",
+    );
+    expect(dashCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("parses task summary and marks in_progress", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    const log1 = '[14:00:00] [Task created] "Write unit tests"\n[14:00:01] [Task created] "Run linter"\n';
+    panel.onLogAppended(log1);
+    mockPanel.webview.postMessage.mockClear();
+    panel.onLogAppended(log1 + '[14:00:02] [Tasks: 0/2 done] ▸ "Write unit tests"\n');
+    const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "dashboard",
+    );
+    expect(dashCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("todo created triggers dashboard refresh", () => {
+    const mockPanel = makeMockPanel();
+    const deps = makeDeps(mockPanel);
+    const panel = new LiveRunPanel(deps);
+    panel.reveal(makeProgress());
+    mockPanel.webview.postMessage.mockClear();
+    panel.onLogAppended('[14:00:00] [Todo created] "Fix bug"\n');
+    const dashCalls = mockPanel.webview.postMessage.mock.calls.filter(
+      (c: any) => c[0].type === "dashboard",
+    );
+    expect(dashCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("tracks todo progress from log lines", () => {
     const mockPanel = makeMockPanel();
     const deps = makeDeps(mockPanel);

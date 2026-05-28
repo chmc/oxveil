@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Fix task tracking in live run sticky top for TaskCreate/TaskUpdate tools (#132)
 - Fix plan intercept watcher not detecting hook request files (pattern mismatch)
 - Plan intercept now works in all projects, not just those previously opened with Oxveil
 

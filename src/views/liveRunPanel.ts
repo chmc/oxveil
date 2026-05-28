@@ -135,12 +135,14 @@ export class LiveRunPanel {
       const createdMatch = line.match(/\[Todo created\]\s*"([^"]+)"/);
       if (createdMatch) {
         this._taskItems.push({ name: createdMatch[1], status: 'pending' });
+        todoUpdated = true;
       }
 
       const completedMatch = line.match(/\[Todo completed\]\s*\u2713\s*"([^"]+)"/);
       if (completedMatch) {
         const item = this._taskItems.find(t => t.name === completedMatch[1]);
         if (item) item.status = 'completed';
+        todoUpdated = true;
       }
 
       const todoMatch = line.match(/\[Todos:\s*(\d+)\/(\d+)\s+done\]\s*\u25b8\s*"([^"]*)"/);
@@ -149,6 +151,28 @@ export class LiveRunPanel {
         this._todoTotal = parseInt(todoMatch[2], 10);
         this._todoCurrentItem = todoMatch[3];
         const inProgressItem = this._taskItems.find(t => t.name === todoMatch[3]);
+        if (inProgressItem) inProgressItem.status = 'in_progress';
+        todoUpdated = true;
+      }
+
+      const taskCreatedMatch = line.match(/\[Task created\]\s*"([^"]+)"/);
+      if (taskCreatedMatch) {
+        this._taskItems.push({ name: taskCreatedMatch[1], status: 'pending' });
+        todoUpdated = true;
+      }
+
+      const taskCompletedMatch = line.match(/\[Task completed\]\s*\u2713\s*"([^"]+)"/);
+      if (taskCompletedMatch) {
+        const item = this._taskItems.find(t => t.name === taskCompletedMatch[1]);
+        if (item) item.status = 'completed';
+        todoUpdated = true;
+      }
+
+      const taskMatch = line.match(/\[Tasks:\s*(\d+)\/(\d+)\s+done\]\s*\u25b8\s*"([^"]*)"/);
+      if (taskMatch) {
+        this._todoDone = parseInt(taskMatch[1], 10);
+        this._todoTotal = parseInt(taskMatch[2], 10);
+        const inProgressItem = this._taskItems.find(t => t.name === taskMatch[3]);
         if (inProgressItem) inProgressItem.status = 'in_progress';
         todoUpdated = true;
       }
