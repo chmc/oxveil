@@ -84,9 +84,9 @@ export async function activate(
   // Set oxveil.planChatActive from marker file; remove stale markers (>24h)
   const storageUri = context.storageUri;
   const markerPath = storageUri ? getMarkerPath(storageUri) : undefined;
+  context.environmentVariableCollection.delete("OXVEIL_PLAN_MARKER");
   if (storageUri && markerPath) {
     await ensureMarkerDir(storageUri);
-    context.environmentVariableCollection.replace("OXVEIL_PLAN_MARKER", markerPath);
   }
   const planChatWasActive = await initPlanChatMarkerState(markerPath);
   void vscode.commands.executeCommand("setContext", "oxveil.planChatActive", planChatWasActive);

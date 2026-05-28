@@ -39,6 +39,25 @@ describe("PlanChatSession", () => {
       });
     });
 
+    it("passes OXVEIL_PLAN_MARKER env var to createTerminal when markerPath is set", () => {
+      const session = new PlanChatSession({ ...deps, markerPath: "/tmp/marker" });
+      session.start("Test prompt");
+
+      expect(deps.createTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          env: { OXVEIL_PLAN_MARKER: "/tmp/marker" },
+        }),
+      );
+    });
+
+    it("omits env from createTerminal when markerPath is not set", () => {
+      const session = new PlanChatSession(deps);
+      session.start("Test prompt");
+
+      const call = (deps.createTerminal as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>;
+      expect(call).not.toHaveProperty("env");
+    });
+
     it("includes --model flag when claudeModel is set", () => {
       const session = new PlanChatSession({ ...deps, claudeModel: "haiku" });
       session.start("Test prompt");

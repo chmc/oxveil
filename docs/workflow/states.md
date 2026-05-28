@@ -644,7 +644,7 @@ The plan intercept system intercepts `ExitPlanMode` tool calls and presents the 
 
 **Path:** VS Code `context.storageUri/oxveil-plan-active` (workspace-scoped extension storage — outside workspace, no git pollution)
 
-**Shell hook access:** `$OXVEIL_PLAN_MARKER` env var set via `context.environmentVariableCollection` at activation. Terminals opened before activation will not have the var; hook allows silently.
+**Shell hook access:** `$OXVEIL_PLAN_MARKER` env var set via `createTerminal({ env })` on the plan chat terminal only. Other terminals never receive this var — hook allows silently when var is absent.
 
 **Schema:**
 ```typescript
@@ -844,3 +844,4 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-27**: Watcher now accepts `getPlanFile` callback; passes `planFileOverride` from active session to `formPlan` to prevent stale Plan Preview content from being used as source. No state machine behavior changed.
 - **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to platform cache (`env-paths('oxveil').cache`), merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json` using absolute cache path, and cleans up old per-project `.claude/hooks/` copy. Fire-and-forget; no state machine behavior changed.
 - **2026-05-27**: Moved plan marker from workspace `.claude/oxveil-plan-active` to `context.storageUri/oxveil-plan-active`. Shell hook reads `$OXVEIL_PLAN_MARKER` env var set via `environmentVariableCollection`. Marker cleanup added to `deactivate()`. No state machine behavior changed.
+- **2026-05-28**: Scoped `$OXVEIL_PLAN_MARKER` env var to plan chat terminal only via `createTerminal({ env })`. Removed global `context.environmentVariableCollection.replace()`. Prevents intercept bleed to concurrent terminals.

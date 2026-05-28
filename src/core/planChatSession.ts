@@ -13,6 +13,7 @@ export interface PlanChatSessionDeps {
     shellPath: string;
     shellArgs: string[];
     location: { viewColumn: number };
+    env?: Record<string, string>;
   }) => Terminal;
   claudePath: string;
   claudeModel?: string;
@@ -62,6 +63,7 @@ export class PlanChatSession {
       shellPath,
       shellArgs: args,
       location: { viewColumn: 1 },
+      ...(this._deps.markerPath ? { env: { OXVEIL_PLAN_MARKER: this._deps.markerPath } } : {}),
     });
     this._terminal.show();
     this._active = true;
