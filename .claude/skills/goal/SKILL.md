@@ -26,6 +26,10 @@ Delete `workflow-state/goals/<name>.md`. Remove from `active-goal` if it matches
 
 ### /goal switch
 Re-trigger goal selection: list goals via AskUserQuestion, same flow as SessionStart.
+After selection, touch gate file:
+```bash
+touch "$CLAUDE_PROJECT_DIR/.claude/workflow-state/goal-gate-passed"
+```
 
 ## Goal File Format
 

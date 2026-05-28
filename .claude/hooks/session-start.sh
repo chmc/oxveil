@@ -4,6 +4,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STATE_DIR="$SCRIPT_DIR/../workflow-state"
 rm -f "$STATE_DIR/edit-order"
+rm -f "$STATE_DIR/goal-gate-passed"
 
 # List active goals if any exist
 GOALS_DIR="$STATE_DIR/goals"
