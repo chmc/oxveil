@@ -66,7 +66,7 @@ if [ -n "$plan_title" ]; then
     else
         created="created: $(date '+%d.%m.%Y %H:%M')"
     fi
-    context_content=$(sed -n '/^## Context/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 | sed 's/^[[:space:]]*//' || true)
+    context_content=$(sed -n '/^## Context/,/^## /p' "$plan_file" | sed '1d;$d' | head -25 | sed 's/^[[:space:]]*//' || true)
     task_content=$(sed -n '/^## Task Tracking/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 || true)
     # Append-only: if file exists, just append new status entry
     new_entry="### $(date '+%Y-%m-%d %H:%M') - ${plan_title}

@@ -77,7 +77,7 @@ created: 28.05.2026 14:30
 # <Title describing the goal>
 
 ## Why
-<Why this matters>
+<Problem, intended solution, key decisions — enough context for session handoff>
 
 ## Status
 ### YYYY-MM-DD HH:MM - <summary>
@@ -103,7 +103,7 @@ created: $(date '+%d.%m.%Y %H:%M')
 # $title
 
 ## Why
-<Why this matters>
+<Problem, intended solution, key decisions — enough context for session handoff>
 
 ## Status
 EOF
