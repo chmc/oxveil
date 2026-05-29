@@ -76,8 +76,11 @@ created: 28.05.2026 14:30
 <Why this matters>
 
 ## Status
-<Current state, last attempt, blockers>
+### YYYY-MM-DD HH:MM - <summary>
+<What was done, decisions made, next steps>
 ```
+
+Subsequent sessions append new `### ` entries — never replace existing ones.
 
 ## Writing Goals
 
@@ -94,6 +97,11 @@ cat > "$tmp" << EOF
 created: $(date '+%d.%m.%Y %H:%M')
 ---
 # $title
+
+## Why
+<Why this matters>
+
+## Status
 EOF
 mv "$tmp" "$GOALS_DIR/$filename"
 ```
