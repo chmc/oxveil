@@ -111,6 +111,8 @@ See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, an
 
 ## Goal Management
 
+See `.claude/skills/goal/SKILL.md` for commands, flow diagram, and file format.
+
 If SessionStart hook outputs `=== ACTIVE GOALS ===`:
 1. Follow AskUserQuestion format in hook output exactly
 2. User selects goal → write gate: `echo "$(date +%s):$goal_id" > .claude/workflow-state/goal-gate-passed`
