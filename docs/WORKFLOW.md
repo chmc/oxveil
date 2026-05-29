@@ -28,7 +28,7 @@ Claudeloop check → Branch confirm → Plan (9 sections) → Tasks → TDD → 
 
 Every plan must address these 9 sections (use "N/A - reason" if not applicable):
 
-1. **Feature** - Which feature(s) does this affect? (must exist in docs/FEATURES.md)
+1. **Feature** - Which feature(s) does this affect? (must exist in docs/FEATURES.md, or Task Tracking must include adding it)
 2. **Architecture Impact** - How does this affect extension architecture?
 3. **ADR** - Does this need an Architectural Decision Record?
 4. **State Machine / Sync** - Any changes to SessionState, sidebar, status bar, plan preview?

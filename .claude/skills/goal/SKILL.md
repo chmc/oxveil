@@ -4,6 +4,22 @@ description: Manage persistent goals across Claude sessions. Goals survive sessi
 trigger: /goal new, /goal list, /goal close, /goal show, /goal switch
 ---
 
+## System Flow
+
+```
+SessionStart                    Goal Selection                  Gate Enforcement
+session-start.sh ──────────────▶ AskUserQuestion ──────────────▶ goal-action-gate.sh
+├─ Clear stale gate (>4h)       ├─ Pick existing goal           ├─ Blocks tools until gate exists
+├─ List active goals            └─ Or "Do something else"       ├─ Gate: workflow-state/goal-gate-passed
+└─ Output "STOP"                    └─ /goal new                └─ Allows: workflow-state, plans, Agent
+```
+
+**Key files:**
+- `hooks/session-start.sh` — detection + prompt
+- `hooks/goal-action-gate.sh` — enforcement
+- `workflow-state/goals/*.md` — storage
+- `workflow-state/goal-gate-passed` — gate marker (`<epoch>:<goal-id>`)
+
 ## Commands
 
 ### /goal new [optional-name]

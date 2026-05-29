@@ -375,20 +375,13 @@ feature_content=$(get_section_first_line "Feature" || get_section_first_line "fe
 if is_na_section "Feature"; then
     : # N/A — skip FEATURES.md check
 elif [ -f "$FEATURES_MD" ]; then
-    # Extract feature name(s): look for words/identifiers in feature section
-    # Check each word-like token (non-whitespace, skip markdown formatting) against FEATURES.md
+    # Check if any token from feature section exists in FEATURES.md
     feature_found=0
-    # Try to find a | featurename | style entry in FEATURES.md for any word in feature section
     while IFS= read -r word; do
-        # Skip empty, short tokens, and markdown chars
         len=$(printf '%s' "$word" | wc -c | tr -d ' ')
-        if [ "$len" -lt 3 ]; then
-            continue
-        fi
+        [ "$len" -lt 3 ] && continue
         word_lower=$(printf '%s' "$word" | tr '[:upper:]' '[:lower:]' | tr -d '`*_#|')
-        if [ -z "$word_lower" ]; then
-            continue
-        fi
+        [ -z "$word_lower" ] && continue
         if grep -qi "| *$word_lower *|" "$FEATURES_MD" 2>/dev/null; then
             feature_found=1
             break
@@ -398,19 +391,24 @@ $(echo "$feature_content" | tr ' \t' '\n' | grep -v '^$')
 EOF
 
     if [ "$feature_found" = "0" ]; then
-        # Extract a clean feature name for the message
         feature_name=$(echo "$feature_content" | head -1 | tr '[:upper:]' '[:lower:]' | sed 's/[#*`|]//g' | xargs)
-        cat <<EOF
+        # Check Task Tracking for a planned FEATURES.md update
+        task_content=$(get_full_section_content "Task Tracking")
+        if echo "$task_content" | grep -qi "FEATURES.md"; then
+            : # Task planned — allow
+        else
+            cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "Feature '$feature_name' not found in docs/FEATURES.md. Add it as '| featurename |' before exiting plan mode.",
-    "additionalContext": "docs/FEATURES.md must list every feature being planned. Add the feature row, then retry ExitPlanMode."
+    "permissionDecisionReason": "Feature '$feature_name' not in docs/FEATURES.md and no Task Tracking item to add it.",
+    "additionalContext": "Either: (1) Add the feature row to docs/FEATURES.md now, or (2) Add a task in Task Tracking section to add '| $feature_name |' to docs/FEATURES.md."
   }
 }
 EOF
-        exit 0
+            exit 0
+        fi
     fi
 else
     # FEATURES.md doesn't exist — warn but allow
