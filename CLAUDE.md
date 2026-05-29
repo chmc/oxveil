@@ -116,7 +116,7 @@ See `.claude/skills/goal/SKILL.md` for commands, flow diagram, and file format.
 If SessionStart hook outputs `=== ACTIVE GOALS ===`:
 1. Follow AskUserQuestion format in hook output exactly
 2. User selects goal → write gate: `echo "$(date +%s):$goal_id" > .claude/workflow-state/goal-gate-passed`
-3. User declines/dismisses → silently create new goal from their prompt (use `/goal new`), write gate, proceed
+3. User declines/dismisses → goal auto-created at ExitPlanMode via planning-checklist.sh, write gate, proceed
 4. "Continue" on existing goal → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input
 5. Interpret all subsequent requests toward active goal until session ends or user runs `/goal switch`
 6. Before completing any task (`TaskUpdate status=completed`): **append** timestamped entry to goal's `## Status` — format: `### YYYY-MM-DD HH:MM - <summary>`. Never replace existing entries. Hook enforces this.

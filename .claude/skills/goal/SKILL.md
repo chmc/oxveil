@@ -15,8 +15,12 @@ session-start.sh ──────────────▶ AskUserQuestion �
 ```
 
 **Key files:**
+- `CLAUDE.md` §FIRST: Goal Selection, §Goal Management — behavioral rules
 - `hooks/session-start.sh` — detection + prompt
-- `hooks/goal-action-gate.sh` — enforcement
+- `hooks/goal-action-gate.sh` — enforcement (blocks tools until gate)
+- `hooks/planning-checklist.sh` — auto-creates goals at ExitPlanMode
+- `hooks/completion-bundle.sh` — enforces Status update before task completion
+- `hooks/goal-update-warning.sh` — Stop hook warns if Status not updated
 - `workflow-state/goals/*.md` — storage
 - `workflow-state/goal-gate-passed` — gate marker (`<epoch>:<goal-id>`)
 
