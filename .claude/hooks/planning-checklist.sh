@@ -40,14 +40,25 @@ fi
 # Auto-create/update goal from plan (before validation, so goal exists even if denied)
 GOALS_DIR="$STATE_DIR/goals"
 mkdir -p "$GOALS_DIR"
+GATE_FILE="$STATE_DIR/goal-gate-passed"
+goal_name=""
+if [ -f "$GATE_FILE" ]; then
+    selected_goal=$(cut -d: -f2 "$GATE_FILE")
+    if [ -n "$selected_goal" ] && [ -f "$GOALS_DIR/${selected_goal}.md" ]; then
+        goal_name="$selected_goal"
+    fi
+fi
 plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
 if [ -n "$plan_title" ]; then
-    issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
-    slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
-    if [ -n "$issue_num" ]; then
-        goal_name="${issue_num}-${slug}"
-    else
-        goal_name="$slug"
+    if [ -z "$goal_name" ]; then
+        ts=$(date '+%y%m%d-%H%M')
+        issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+        slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
+        if [ -n "$issue_num" ]; then
+            goal_name="${ts}-${issue_num}-${slug}"
+        else
+            goal_name="${ts}-${slug}"
+        fi
     fi
     goal_file="$GOALS_DIR/${goal_name}.md"
     if [ -f "$goal_file" ]; then
