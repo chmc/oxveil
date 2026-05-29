@@ -33,6 +33,8 @@ Print full contents of `workflow-state/goals/<name>.md`. `<name>` is the full fi
 ### /goal close <name>
 Delete `workflow-state/goals/<name>.md`. `<name>` is the full filename without `.md`.
 
+**Never delete goal files automatically.** Closing a goal is a user operation — only run `/goal close` when explicitly asked.
+
 ### /goal switch
 Re-trigger goal selection: list goals via AskUserQuestion, same flow as SessionStart.
 After selection, write gate file with `<epoch>:<goal-id>`:
