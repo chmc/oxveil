@@ -11,7 +11,7 @@ SessionStart                    Goal Selection                  Gate Enforcement
 session-start.sh ──────────────▶ AskUserQuestion ──────────────▶ goal-action-gate.sh
 ├─ Clear stale gate (>4h)       ├─ Pick existing goal           ├─ Blocks tools until gate exists
 ├─ List active goals            └─ Or "Do something else"       ├─ Gate: workflow-state/goal-gate-passed
-└─ Output "STOP"                    └─ /goal new                └─ Allows: workflow-state, plans, Agent
+└─ Output "STOP"                    └─ auto-created at ExitPlanMode └─ Allows: workflow-state, plans, Agent
 ```
 
 **Key files:**
