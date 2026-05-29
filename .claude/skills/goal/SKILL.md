@@ -9,26 +9,27 @@ trigger: /goal new, /goal list, /goal close, /goal show, /goal switch
 ### /goal new [optional-name]
 Create a goal for current work. If name omitted, infer from context (plan title, issue #, request).
 - Read plan file title if exists: `grep -m1 '^# ' "$PLANS_DIR"/*.md`
-- Slugify: lowercase, spaces→hyphens, prefix issue # if found
-- Write atomically to `workflow-state/goals/<name>.md`
+- Slugify title: lowercase, spaces/special→hyphens, max 50 chars
+- Filename: `yymmdd-hhmm-<slug>.md` e.g. `260529-1430-fix-auth-bug.md`
+- Write atomically to `workflow-state/goals/<filename>`
 
 ### /goal list
-List all goals with timestamps. For each goal:
+List all goals newest-first. For each goal:
 - Title from first `# ` line
 - Created from YAML frontmatter `created:`
-- Modified: file mtime formatted as "Xd ago" / "Xh ago" / "Xmin ago"
+- Modified: file mtime formatted as "Xh ago" / "Xd ago"
 
 ### /goal show <name>
-Print full contents of `workflow-state/goals/<name>.md`.
+Print full contents of `workflow-state/goals/<name>.md`. `<name>` is the full filename without `.md`.
 
 ### /goal close <name>
-Delete `workflow-state/goals/<name>.md`. Remove from `active-goal` if it matches.
+Delete `workflow-state/goals/<name>.md`. `<name>` is the full filename without `.md`.
 
 ### /goal switch
 Re-trigger goal selection: list goals via AskUserQuestion, same flow as SessionStart.
-After selection, touch gate file:
+After selection, write gate file with `<epoch>:<goal-id>`:
 ```bash
-touch "$CLAUDE_PROJECT_DIR/.claude/workflow-state/goal-gate-passed"
+echo "$(date +%s):$selected_goal" > "$CLAUDE_PROJECT_DIR/.claude/workflow-state/goal-gate-passed"
 ```
 
 ## Goal File Format
@@ -52,6 +53,9 @@ When creating a goal file, write atomically:
 ```bash
 GOALS_DIR="$CLAUDE_PROJECT_DIR/.claude/workflow-state/goals"
 mkdir -p "$GOALS_DIR"
+ts=$(date '+%y%m%d-%H%M')
+slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed -E 's/-+/-/g' | cut -c1-50 | sed 's/-$//')
+filename="${ts}-${slug}.md"
 tmp=$(mktemp)
 cat > "$tmp" << EOF
 ---
@@ -59,7 +63,7 @@ created: $(date '+%d.%m.%Y %H:%M')
 ---
 # $title
 EOF
-mv "$tmp" "$GOALS_DIR/$name.md"
+mv "$tmp" "$GOALS_DIR/$filename"
 ```
 
 ## Mtime Age Calculation

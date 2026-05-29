@@ -112,10 +112,11 @@ See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, an
 ## Goal Management
 
 If SessionStart hook outputs `=== ACTIVE GOALS ===`:
-1. Use AskUserQuestion: list each goal as option + "Do something else"
-2. Goal selected → second AskUserQuestion: Continue / Close / Cancel
-3. "Continue" → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input
-4. Interpret all subsequent requests toward that goal until session ends or user runs `/goal switch`
+1. Follow AskUserQuestion format in hook output exactly
+2. User selects goal → write gate: `echo "$(date +%s):$goal_id" > .claude/workflow-state/goal-gate-passed`
+3. User declines/dismisses → silently create new goal from their prompt (use `/goal new`), write gate, proceed
+4. "Continue" on existing goal → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input
+5. Interpret all subsequent requests toward active goal until session ends or user runs `/goal switch`
 
 ## Complex Feature Planning
 
