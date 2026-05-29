@@ -49,7 +49,24 @@ if [ -f "$GATE_FILE" ]; then
     fi
 fi
 plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
+# Normalize for case-insensitive comparison
+normalize_title() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | sed 's/^ *//;s/ *$//'
+}
 if [ -n "$plan_title" ]; then
+    # Fallback: match plan title to existing goal (handles plan mode gate-write failure)
+    if [ -z "$goal_name" ]; then
+        plan_norm=$(normalize_title "$plan_title")
+        for f in "$GOALS_DIR"/*.md; do
+            [ -f "$f" ] || continue
+            title=$(sed -n 's/^# //p' "$f" | head -1)
+            title_norm=$(normalize_title "$title")
+            if [ "$plan_norm" = "$title_norm" ]; then
+                goal_name=$(basename "$f" .md)
+                break
+            fi
+        done
+    fi
     if [ -z "$goal_name" ]; then
         ts=$(date '+%y%m%d-%H%M')
         issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)

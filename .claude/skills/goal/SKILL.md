@@ -10,8 +10,12 @@ trigger: /goal new, /goal list, /goal close, /goal show, /goal switch
 SessionStart                    Goal Selection                  Gate Enforcement
 session-start.sh ──────────────▶ AskUserQuestion ──────────────▶ goal-action-gate.sh
 ├─ Clear stale gate (>4h)       ├─ Pick existing goal           ├─ Blocks tools until gate exists
-├─ List active goals            └─ Or "Do something else"       ├─ Gate: workflow-state/goal-gate-passed
-└─ Output "STOP"                    └─ auto-created at ExitPlanMode └─ Allows: workflow-state, plans, Agent
+├─ List active goals            │   └─ Write gate file          ├─ Gate: workflow-state/goal-gate-passed
+└─ Output "STOP"                └─ Or "Do something else"       └─ Allows: workflow-state, plans, Agent
+                                    └─ planning-checklist.sh at ExitPlanMode:
+                                        1. Check gate file → use that goal
+                                        2. Fallback: match plan title to existing goal (normalized)
+                                        3. No match → create new goal
 ```
 
 **Key files:**

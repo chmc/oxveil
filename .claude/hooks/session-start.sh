@@ -34,7 +34,7 @@ if [ -d "$GOALS_DIR" ] && [ "$(ls -A "$GOALS_DIR" 2>/dev/null)" ]; then
         name=$(basename "$g" .md)
         title=$(grep -m1 '^# ' "$g" 2>/dev/null | sed 's/^# //' || echo "$name")
         created=$(grep '^created:' "$g" 2>/dev/null | sed 's/^created: //' || echo "")
-        created_short=$(echo "$created" | cut -d' ' -f1 | sed 's/\([0-9]*\)\.\([0-9]*\)\.[0-9]*/\1.\2/')
+        created_short=$(echo "$created" | sed 's/\([0-9]*\)\.\([0-9]*\)\.[0-9]* \([0-9]*:[0-9]*\)/\1.\2 \3/' | sed 's/\([0-9]*\)\.\([0-9]*\)\.[0-9]*/\1.\2/')
         if [ "$(uname)" = "Darwin" ]; then
             mod_epoch=$(stat -f '%m' "$g" 2>/dev/null || echo "0")
         else
