@@ -18,6 +18,10 @@ case "$file_path" in */.claude/workflow-state/*|*/.claude/plans/*) exit 0 ;; esa
 command=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null) || command=""
 case "$command" in *workflow-state*|*/.claude/plans/*) exit 0 ;; esac
 
+# Allow Agent tool (subagents need to run for critic reviews)
+tool_name=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null) || tool_name=""
+[ "$tool_name" = "Agent" ] && exit 0
+
 # No goals = allow
 [ ! -d "$GOALS_DIR" ] && exit 0
 [ -z "$(ls -A "$GOALS_DIR" 2>/dev/null)" ] && exit 0

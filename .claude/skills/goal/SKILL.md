@@ -13,6 +13,14 @@ Create a goal for current work. If name omitted, infer from context (plan title,
 - Filename: `yymmdd-hhmm-<slug>.md` e.g. `260529-1430-fix-auth-bug.md`
 - Write atomically to `workflow-state/goals/<filename>`
 
+**Before creating a new file, check for merge opportunity:**
+1. Read titles and `## Why` sections of existing goals
+2. Merge only if **clearly** the same work: same issue number, same slug keywords, or obviously the same topic
+3. When in doubt → create new file (safe default)
+4. If merging: append new context to the existing `## Status` section; print "Merged into: `<filename>` — <title>"
+5. If creating new: print "Created goal: `<filename>`"
+6. Never merge silently — always output which file was written
+
 ### /goal list
 List all goals newest-first. For each goal:
 - Title from first `# ` line
