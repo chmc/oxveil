@@ -29,6 +29,26 @@ if [ "$status" != "completed" ]; then
     exit 0
 fi
 
+# Goal update gate: block task completion if goal Status not updated this session
+TASKS_MARKER="$STATE_DIR/tasks-created"
+if [ -f "$TASKS_MARKER" ]; then
+    GATE_FILE="$STATE_DIR/goal-gate-passed"
+    if [ -f "$GATE_FILE" ]; then
+        gate_epoch=$(cut -d: -f1 "$GATE_FILE")
+        goal_id=$(cut -d: -f2 "$GATE_FILE")
+        goal_file="$STATE_DIR/goals/${goal_id}.md"
+        if [ -f "$goal_file" ]; then
+            goal_mtime=$(stat -f '%m' "$goal_file" 2>/dev/null || stat -c '%Y' "$goal_file")
+            if [ "$goal_mtime" -le "$gate_epoch" ]; then
+                cat <<'EOF'
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Update goal's ## Status section with handoff summary before completing task."}}
+EOF
+                exit 0
+            fi
+        fi
+    fi
+fi
+
 # Collect missing requirements
 missing=""
 

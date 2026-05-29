@@ -117,6 +117,7 @@ If SessionStart hook outputs `=== ACTIVE GOALS ===`:
 3. User declines/dismisses → silently create new goal from their prompt (use `/goal new`), write gate, proceed
 4. "Continue" on existing goal → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input
 5. Interpret all subsequent requests toward active goal until session ends or user runs `/goal switch`
+6. Before completing any task (`TaskUpdate status=completed`): update goal's `## Status` section with handoff summary — what was done, decisions made, next steps. Hook enforces this.
 
 ## Complex Feature Planning
 
