@@ -37,7 +37,7 @@ Create a goal for current work. If name omitted, infer from context (plan title,
    - ≥2 shared content words in title (exclude: the, a, an, to, for, in, of, and, or)
    - User explicitly said "continue" or "pick up" previous work
 4. If multiple match: pick most recently modified
-5. If merging: append to `## Status`, print "Merged into: `<filename>`"
+5. If merging: `echo -e "\n### $(date '+%Y-%m-%d %H:%M') - <summary>" >> "$goal_file"` — NEVER heredoc+mv existing files
 6. If creating: print "Created goal: `<filename>`"
 7. When in doubt → create new file (safe default)
 

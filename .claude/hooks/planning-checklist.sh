@@ -68,37 +68,30 @@ if [ -n "$plan_title" ]; then
     fi
     context_content=$(sed -n '/^## Context/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 | sed 's/^[[:space:]]*//' || true)
     task_content=$(sed -n '/^## Task Tracking/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 || true)
-    # Preserve existing Why and Status history; append new timestamped entry
-    if [ -f "$goal_file" ]; then
-        why_content=$(awk '/^## Why/{found=1;next} found && /^## /{exit} found{print}' "$goal_file" || true)
-        existing_history=$(awk '/^## Status/{found=1;next} found && /^## /{exit} found{print}' "$goal_file" || true)
-    else
-        why_content="${context_content:-No context section in plan.}"
-        existing_history=""
-    fi
+    # Append-only: if file exists, just append new status entry
     new_entry="### $(date '+%Y-%m-%d %H:%M') - ${plan_title}
 ${task_content:-See plan file for details.}"
-    if [ -n "$existing_history" ]; then
-        status_body="${existing_history}
-
-${new_entry}"
+    if [ -f "$goal_file" ]; then
+        # Append to existing file
+        echo "" >> "$goal_file"
+        echo "$new_entry" >> "$goal_file"
     else
-        status_body="$new_entry"
-    fi
-    tmp=$(mktemp)
-    cat > "$tmp" << EOF
+        # Create new file
+        tmp=$(mktemp)
+        cat > "$tmp" << EOF
 ---
 $created
 ---
 # $plan_title
 
 ## Why
-${why_content:-No context section in plan.}
+${context_content:-No context section in plan.}
 
 ## Status
-${status_body}
+$new_entry
 EOF
-    mv "$tmp" "$goal_file"
+        mv "$tmp" "$goal_file"
+    fi
 fi
 
 # Read plan content (lowercase for case-insensitive matching)
