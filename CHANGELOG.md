@@ -11,6 +11,7 @@
 - Plan exit intercept now shows options in Claude terminal instead of VS Code QuickPick
 
 ### Added
+- Side-Effects required plan section with gate enforcement (N/A only for trivial changes)
 - CI workflow for PR checks with coverage reporting
 - ESLint async rules to catch floating promises
 - Pre-commit hooks via lefthook

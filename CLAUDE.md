@@ -166,6 +166,8 @@ Clear plan file when done. No stale plans.
 
 **Critic agents (before ExitPlanMode):** Run 2-3 in parallel covering: (1) root cause, (2) scope/mock sites, (3) alternatives/UX. Verify: `/visual-verification` for UI changes, `gh issue close` in plan, no manual verification.
 
+**Side-Effects** — required plan section; N/A only for: typo fix, docs only, formatting only, version bump. Must address what afterwork this could cause if assumptions are wrong.
+
 **Visual Verification in Plans:** If the plan uses numbered phases, VV must be a numbered phase too (e.g., `## Phase N: Visual Verification`), not a standalone section. If the plan has no phases, use `## Visual Verification`. Write descriptive checkboxes that serve as a ready-made script for `/visual-verification`. Each item must describe a specific observable behavior (>15 chars). Hook enforces this at ExitPlanMode.
 - Good: `- [ ] Start button disables immediately when session begins`
 - Bad: `- [ ] test`, `- [ ] verify UI works`

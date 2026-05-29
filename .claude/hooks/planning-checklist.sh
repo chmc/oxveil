@@ -284,6 +284,18 @@ if [ -n "$vv_phase_start" ]; then
     fi
 fi
 
+# 12. Side-Effects (strict N/A — only trivial changes exempt)
+if ! echo "$plan_content" | grep -qE "^## side-effects"; then
+    missing="$missing Side-Effects (missing),"
+elif is_empty_section "Side-Effects"; then
+    missing="$missing Side-Effects (empty),"
+elif is_na_section "Side-Effects"; then
+    se_content=$(get_section_content "Side-Effects" | tr '[:upper:]' '[:lower:]')
+    if ! echo "$se_content" | grep -qiE '^n/?a[[:space:]]*-[[:space:]]*(typo fix|docs only|formatting only|version bump)'; then
+        missing="$missing Side-Effects (N/A only for: typo fix, docs only, formatting only, version bump),"
+    fi
+fi
+
 # Helper: get full section content (all lines between heading and next ##)
 get_full_section_content() {
     section_start=$(grep -in "^## $1" "$plan_file" | head -1 | cut -d: -f1) || true
@@ -300,7 +312,7 @@ if [ -n "$missing" ]; then
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
     "permissionDecisionReason": "Plan missing or empty sections:$missing",
-    "additionalContext": "All 10 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
+    "additionalContext": "All 11 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
   }
 }
 EOF
@@ -485,6 +497,11 @@ if ! is_na_section "README"; then
     readme_req="true"
 fi
 
+side_effects_req="false"
+if ! is_na_section "Side-Effects"; then
+    side_effects_req="true"
+fi
+
 # Write requirements file
 plan_file_escaped=$(printf '%s' "$plan_file" | sed 's/\\/\\\\/g; s/"/\\"/g')
 cat > "$STATE_DIR/plan-requirements.json" <<EOF
@@ -497,6 +514,7 @@ cat > "$STATE_DIR/plan-requirements.json" <<EOF
   "package_json": $package_json_req,
   "changelog": $changelog_req,
   "readme": $readme_req,
+  "side_effects": $side_effects_req,
   "plan_file": "$plan_file_escaped"
 }
 EOF
