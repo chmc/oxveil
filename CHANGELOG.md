@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- "Do something else" goal selection no longer blocked by gate or fuzzy-matched to existing goals
 - Fix duplicate goal files created on plan iteration
 - Fix task tracking in live run sticky top for TaskCreate/TaskUpdate tools (#132)
 - Fix plan intercept watcher not detecting hook request files (pattern mismatch)

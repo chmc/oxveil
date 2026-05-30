@@ -480,6 +480,7 @@ GOALS_DIR="$STATE_DIR/goals"
 mkdir -p "$GOALS_DIR"
 GATE_FILE="$STATE_DIR/goal-gate-passed"
 goal_name=""
+selected_goal=""
 if [ -f "$GATE_FILE" ]; then
     selected_goal=$(cut -d: -f2 "$GATE_FILE")
     if [ -n "$selected_goal" ] && [ -f "$GOALS_DIR/${selected_goal}.md" ]; then
@@ -493,7 +494,8 @@ normalize_title() {
 }
 if [ -n "$plan_title" ]; then
     # Fallback: match plan title to existing goal (handles crash-recovery case)
-    if [ -z "$goal_name" ]; then
+    # Skip if user selected "Do something else" — always create a new goal
+    if [ -z "$goal_name" ] && [ "$selected_goal" != "do-something-else" ]; then
         plan_norm=$(normalize_title "$plan_title")
         for f in "$GOALS_DIR"/*.md; do
             [ -f "$f" ] || continue

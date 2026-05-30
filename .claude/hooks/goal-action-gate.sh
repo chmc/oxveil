@@ -29,7 +29,7 @@ tool_name=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null) || t
 # Gate passed = allow
 if [ -f "$GATE_FILE" ]; then
     gate_goal=$(cut -d: -f2 "$GATE_FILE" 2>/dev/null || echo "")
-    if [ -z "$gate_goal" ] || [ -f "$GOALS_DIR/$gate_goal.md" ]; then
+    if [ -z "$gate_goal" ] || [ "$gate_goal" = "do-something-else" ] || [ -f "$GOALS_DIR/$gate_goal.md" ]; then
         exit 0
     fi
     # Goal file deleted — clear stale gate

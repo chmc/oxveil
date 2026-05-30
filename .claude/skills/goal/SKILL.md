@@ -13,9 +13,8 @@ session-start.sh ──────────────▶ AskUserQuestion �
 ├─ List active goals            │   └─ Write gate file          ├─ Gate: workflow-state/goal-gate-passed
 └─ Output "STOP"                └─ Or "Do something else"       └─ Allows: workflow-state, plans, Agent
                                     └─ planning-checklist.sh at ExitPlanMode:
-                                        1. Check gate file → use that goal
-                                        2. Fallback: match plan title to existing goal (normalized)
-                                        3. No match → create new goal
+                                        1. Detect sentinel → skip fuzzy match
+                                        2. Create new goal from plan title
 ```
 
 **Key files:**
