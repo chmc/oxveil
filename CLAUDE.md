@@ -114,7 +114,7 @@ See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, an
 See `.claude/skills/goal/SKILL.md` for commands, flow diagram, and file format.
 
 If SessionStart hook outputs `=== ACTIVE GOALS ===`:
-1. Follow AskUserQuestion format in hook output exactly
+1. Follow AskUserQuestion format in hook output exactly. If >3 goals: list ALL goals (numbered) in question text, show 3 newest as selectable options + "Do something else". When user types a goal name via "Other", match to goals list and write gate file.
 2. User selects goal → write gate: `echo "$(date +%s):$goal_id" > .claude/workflow-state/goal-gate-passed`
 3. User declines/dismisses → goal auto-created at ExitPlanMode via planning-checklist.sh, write gate, proceed
 4. "Continue" on existing goal → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input

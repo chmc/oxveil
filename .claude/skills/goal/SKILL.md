@@ -67,6 +67,8 @@ Delete `workflow-state/goals/<name>.md`. `<name>` is the full filename without `
 
 ### /goal switch
 Re-trigger goal selection: list goals via AskUserQuestion, same flow as SessionStart.
+- ≤3 goals: one option per goal + "Do something else"
+- >3 goals: list ALL goals (numbered) in question text; show 3 newest as options + "Do something else"; user picks older goals via "Other" free-text (match typed name to goals list)
 After selection, write gate file with `<epoch>:<goal-id>`:
 ```bash
 echo "$(date +%s):$selected_goal" > "$CLAUDE_PROJECT_DIR/.claude/workflow-state/goal-gate-passed"

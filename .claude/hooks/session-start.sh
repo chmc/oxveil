@@ -20,13 +20,25 @@ fi
 # List active goals if any exist
 GOALS_DIR="$STATE_DIR/goals"
 if [ -d "$GOALS_DIR" ] && [ "$(ls -A "$GOALS_DIR" 2>/dev/null)" ]; then
+    goal_count=$(ls "$GOALS_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
     echo "STOP. Active goals found — use AskUserQuestion to ask which goal to continue, close, or 'Do something else' BEFORE responding to user."
     echo ""
     echo "AskUserQuestion format:"
-    echo "  - One option per goal, plus 'Do something else'"
-    echo "  - Option label: goal filename without .md"
-    echo "  - Option description: 'DD.MM, Xh - <title>'"
-    echo "  - Order: newest first (as listed below)"
+    if [ "$goal_count" -gt 3 ]; then
+        echo "  question: List ALL goals (numbered) so user can see them all — include name, date, age, title"
+        echo "  options (EXACTLY 3 goals + 'Do something else' — hard 4-option max):"
+        echo "    - The 3 newest goals as selectable options"
+        echo "    - 'Do something else'"
+        echo "  Option label: goal filename without .md"
+        echo "  Option description: 'DD.MM, Xh - <title>'"
+        echo "  NOTE: User can select 'Other' and type/paste any goal name from the question text to pick a goal not in the list"
+        echo "  When user types a goal name via Other: match to goals list and write gate file"
+    else
+        echo "  - One option per goal, plus 'Do something else'"
+        echo "  - Option label: goal filename without .md"
+        echo "  - Option description: 'DD.MM, Xh - <title>'"
+        echo "  - Order: newest first (as listed below)"
+    fi
     echo ""
     echo "=== ACTIVE GOALS ==="
     for g in $(ls -t "$GOALS_DIR"/*.md 2>/dev/null); do
