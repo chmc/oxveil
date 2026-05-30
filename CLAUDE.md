@@ -168,7 +168,16 @@ Clear plan file when done. No stale plans.
 
 **Side-Effects** — required plan section; N/A only for: typo fix, docs only, formatting only, version bump. Must address what afterwork this could cause if assumptions are wrong.
 
-**Flow Visualization** — required plan section. ASCII diagram showing the change: before/after for fixes, data/control flow for features. Use tree chars (├└│), arrows (→←), or fenced code blocks. N/A allowed with justification >30 chars explaining why no flow exists. Hook enforces this at ExitPlanMode.
+**Flow Visualization** — required plan section. ASCII diagram showing the change: before/after for fixes, data/control flow for features. Before/after diagrams must be side-by-side in a single code block (vertical stacking allowed when combined width >100 cols). Use tree chars (├└│), arrows (→←), or fenced code blocks. N/A allowed with justification >30 chars explaining why no flow exists. Hook enforces presence at ExitPlanMode.
+- Example:
+  ```
+  BEFORE                          AFTER
+  ──────                          ─────
+  session-start.sh                session-start.sh
+    ├─ list goals                   ├─ list goals
+    └─ show 3 options               ├─ show 3 options
+                                    └─ overflow → question text
+  ```
 
 **Visual Verification in Plans:** If the plan uses numbered phases, VV must be a numbered phase too (e.g., `## Phase N: Visual Verification`), not a standalone section. If the plan has no phases, use `## Visual Verification`. Write descriptive checkboxes that serve as a ready-made script for `/visual-verification`. Each item must describe a specific observable behavior (>15 chars). Hook enforces this at ExitPlanMode.
 - Good: `- [ ] Start button disables immediately when session begins`
