@@ -248,6 +248,77 @@ fi
 # ADR keyword detection: block N/A when plan mentions architectural terms
 ADR_TRIGGER_KEYWORDS="new pattern|new module|new service|new protocol|breaking change|security|authentication|authorization|encryption|new dependency|api change|schema change|database|migration|introduces|replaces|deprecates"
 plan_body=$(cat "$plan_file" | tr '[:upper:]' '[:lower:]')
+
+# Side-Effects content-quality validation
+# Cross-validates plan body risk indicators against SE section content
+if ! is_na_section "Side-Effects" && ! is_empty_section "Side-Effects"; then
+    se_full=$(get_full_section_content "Side-Effects" | tr '[:upper:]' '[:lower:]')
+
+    # Detect dismissal patterns (only meaningful if risk categories also fire)
+    se_dismissal=""
+    if echo "$se_full" | grep -qiE "(^|[[:space:]])(none|nothing)(\.?$|[[:space:]])|no side.?effects|no impact|none expected|no risks"; then
+        se_dismissal="yes"
+    fi
+
+    se_unaddressed=""
+
+    # state-mutation
+    if echo "$plan_body" | grep -qiE "shared state|global state|singleton|setstate|mutable state|state mutation"; then
+        if [ -n "$se_dismissal" ] || ! echo "$se_full" | grep -qiE "state|mutation|shared|global|singleton"; then
+            se_unaddressed="${se_unaddressed}state-mutation, "
+        fi
+    fi
+
+    # hook-event
+    if echo "$plan_body" | grep -qiE "registercommand|ondid[a-z]|addeventlistener|removelistener|disposable|event emitter"; then
+        if [ -n "$se_dismissal" ] || ! echo "$se_full" | grep -qiE "hook|event|listener|handler|disposable|command"; then
+            se_unaddressed="${se_unaddressed}hook-event, "
+        fi
+    fi
+
+    # async-timing
+    if echo "$plan_body" | grep -qiE "race condition|execution order|concurrent|setinterval|settimeout|promise\.race|async migrat"; then
+        if [ -n "$se_dismissal" ] || ! echo "$se_full" | grep -qiE "async|timing|race|order|concurrent|await"; then
+            se_unaddressed="${se_unaddressed}async-timing, "
+        fi
+    fi
+
+    # api-interface
+    if echo "$plan_body" | grep -qiE "function signature|break.*change|public api|required param|return type change|interface change"; then
+        if [ -n "$se_dismissal" ] || ! echo "$se_full" | grep -qiE "api|signature|interface|parameter|break|contract|caller"; then
+            se_unaddressed="${se_unaddressed}api-interface, "
+        fi
+    fi
+
+    # config-settings
+    if echo "$plan_body" | grep -qiE "contributes.*configuration|getconfiguration|workspace setting|environment variable|env var|settings migrat"; then
+        if [ -n "$se_dismissal" ] || ! echo "$se_full" | grep -qiE "config|setting|environment|variable|migrat"; then
+            se_unaddressed="${se_unaddressed}config-settings, "
+        fi
+    fi
+
+    # removal-replace
+    if echo "$plan_body" | grep -qiE "remove.*function|remove.*feature|replace.*module|replace.*component|replace.*system|deprecat|drop support|delete.*handler|eliminate.*module"; then
+        if [ -n "$se_dismissal" ] || ! echo "$se_full" | grep -qiE "remove|replace|deprecat|backward|compat|migrat|caller"; then
+            se_unaddressed="${se_unaddressed}removal-replace, "
+        fi
+    fi
+
+    if [ -n "$se_unaddressed" ]; then
+        se_unaddressed=$(echo "$se_unaddressed" | sed 's/, $//')
+        cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Side-Effects section does not address detected risk categories: $se_unaddressed",
+    "additionalContext": "Plan body contains patterns suggesting these risk areas but Side-Effects section does not discuss them. Add analysis for each category, or explain why it does not apply. If the change is truly trivial, use 'N/A - <approved reason>' instead."
+  }
+}
+EOF
+        exit 0
+    fi
+fi
 if is_na_section "ADR" && echo "$plan_body" | grep -qiE "$ADR_TRIGGER_KEYWORDS"; then
     matched=$(echo "$plan_body" | grep -oiE "$ADR_TRIGGER_KEYWORDS" | head -1)
     cat <<EOF
