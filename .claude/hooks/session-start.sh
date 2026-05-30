@@ -25,7 +25,7 @@ if [ -d "$GOALS_DIR" ] && [ "$(ls -A "$GOALS_DIR" 2>/dev/null)" ]; then
     echo ""
     echo "AskUserQuestion format:"
     if [ "$goal_count" -gt 3 ]; then
-        echo "  question: List ALL goals (numbered) so user can see them all — include name, date, age, title"
+        echo "  question: Copy the numbered ACTIVE GOALS list below verbatim into the question field (one goal per line)"
         echo "  options (EXACTLY 3 goals + 'Do something else' — hard 4-option max):"
         echo "    - The 3 newest goals as selectable options"
         echo "    - 'Do something else'"
