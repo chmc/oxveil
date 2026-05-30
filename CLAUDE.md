@@ -20,15 +20,8 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 | "I can verify after" | Verify before claiming done |
 | "We can verify X instead" | Run the specified test |
 | "Prerequisite isn't critical" | It gates the verification |
-| "Verify manually" / "manual testing" | `/visual-verification` automates UI testing. Never write "manually". |
 | "User asked for it" / "User said yes" | Plan mode exit wasn't granted. Request ExitPlanMode again. |
 | "Let me explore the codebase" | Read `graphify-out/GRAPH_REPORT.md` first. Use `graphify query/path/explain`. |
-
-## Index
-
-- [Hard Rules](#hard-rules) - NEVER rules (tool, destructive ops, plan mode, activation, verification)
-- [Quality Gates](#quality-gates) - Completion checklist, critic requirements
-- [Verification Integrity](#verification-integrity) - No rationalization during verification
 
 ## Hard Rules
 
@@ -38,9 +31,9 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 - Non-destructive keystrokes: `set frontmost to true` + `AXRaise` first.
 - osascript: Escape does NOT dismiss VS Code AXSheets — click Cancel/Don't Save button directly.
 - osascript: merge related operations into single osascript call — separate bash calls introduce timing gaps.
-- NEVER edit non-plan files in plan mode. Write to plan file, call ExitPlanMode.
 - NEVER `await` external process in `activate()` without timeout. Use `Promise.race` 5s. Hanging CLI = stuck spinner.
 - VS Code `environmentVariableCollection` persists across reloads. Removing `replace()` is insufficient — call `delete()` to clear stale entries when migrating away.
+- **Plan mode:** NEVER edit non-plan files in plan mode. Write to plan file, call ExitPlanMode.
 - NEVER call ExitPlanMode without 2-3 critic agents. Exception: config/docs-only changes with zero source or skill code → "Skipping critics — no source: [files changed]."
 - After critics: spot-check blind spots (grep mock sites, verify file list, trace one code path).
 - If critics widen scope or plan changes significantly after critics, re-run critics before ExitPlanMode.
@@ -49,8 +42,8 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 - Subagent prompts: end with "terse. bullets only. no preamble. if clean: LGTM."
 - NEVER suggest manual verification. Use `/visual-verification`, MCP bridge, fake_claude, cliclick.
 - NEVER install fake_claude to `~/.local/bin`. Use temp dir + scoped PATH: `FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX); cp fake_claude "$FAKE_CLAUDE_DIR/claude"; chmod +x "$FAKE_CLAUDE_DIR/claude"; trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT; PATH="$FAKE_CLAUDE_DIR:$PATH" code ...`. Temp dir propagates to EDH → claudeloop → claude.
-- NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state files → `docs/workflow/states.md` (see `workflow-docs` skill).
-- NEVER respond to user's first message when SessionStart shows active goals without first asking goal selection via AskUserQuestion.
+- NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state → `docs/workflow/states.md` (see `workflow-docs` skill).
+- NEVER bypass bash truncation hook. Fix it: false positive → ALLOWLIST, false negative → BOUNDED_PIPES. Disable session: `export OXVEIL_BASH_HOOK=0`.
 - New doc that tracks state/behavior? Must have test or hook enforcement — reminder-only docs drift. Add to Gate 5 if state-related.
 
 ## Project
@@ -113,13 +106,9 @@ See `.claude/skills/adding-settings/SKILL.md` for checklist, async migration, an
 
 See `.claude/skills/goal/SKILL.md` for commands, flow diagram, and file format.
 
-If SessionStart hook outputs `=== ACTIVE GOALS ===`:
-1. Follow AskUserQuestion format in hook output exactly. If >3 goals: copy the ACTIVE GOALS list verbatim (one goal per line) into question text, show 3 newest as selectable options + "Do something else". When user types a goal name via "Other", match to goals list and write gate file.
-2. User selects goal → write gate: `echo "$(date +%s):$goal_id" > .claude/workflow-state/goal-gate-passed`
-3. User declines/dismisses → goal auto-created at ExitPlanMode via planning-checklist.sh, write gate, proceed
-4. "Continue" on existing goal → Read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input
-5. Interpret all subsequent requests toward active goal until session ends or user runs `/goal switch`
-6. Before completing any task (`TaskUpdate status=completed`): **append** timestamped entry to goal's `## Status` — format: `### YYYY-MM-DD HH:MM - <summary>`. Never replace existing entries. Hook enforces this.
+If SessionStart hook outputs `=== ACTIVE GOALS ===` → follow skill flow. If >3 goals: copy ACTIVE GOALS list verbatim into question text, show 3 newest as options + "Do something else".
+"Continue" on existing goal → read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input.
+Before `TaskUpdate status=completed`: **append** timestamped entry to goal's `## Status` — format: `### YYYY-MM-DD HH:MM - <summary>`. Never replace existing entries. Hook enforces this.
 
 ## Complex Feature Planning
 
@@ -142,25 +131,21 @@ Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL
 - Plan-spec code inserted → run `npm run lint` immediately. Catches phantom API references before they compound.
 - Before implementing plan phase → check git history. Work may have been co-committed in earlier phases.
 - TodoWrite does not satisfy workflow gates. Use TaskCreate — only TaskCreate triggers `tasks-created.sh` marker. Subagents without TaskCreate: `touch .claude/workflow-state/tasks-created` before any Edit calls (blocking gate).
-
-## Automation Discipline
-
-Automation fails → research alternatives first. Don't retry same method. Document fix in skill file.
-
-## Plan File Hygiene
-
-Clear plan file when done. No stale plans.
+- Automation fails → research alternatives first. Don't retry same method. Document fix in skill file.
+- Clear plan file when done. No stale plans.
+- Raise friction at pause points. Corrections → CLAUDE.md or skill file. Memory banned.
+- After editing `.claude/` files: suggest `/self-optimize` if >50 tokens added, multiple skill/rule edits, or user mentions bloat.
 
 ## Quality Gates
 
 **Debug:** Wrong sidebar phases → check stale `.claudeloop/ai-parsed-plan.md`.
 
-### Completion Checklist (execute in order before claiming done)
+### Completion Checklist (execute in order)
 
-0. GitHub issue task? → plan MUST verify issue closed (`gh issue view #N --json state -q .state`). See [GitHub Issues](#github-issues).
+0. GitHub issue task? → verify issue closed. See [GitHub Issues](#github-issues).
 1. `npm run lint` — fix all
 2. `npm test` — fix all (hook also runs `vitest related` on changed files at task completion)
-3. Doc scan: state files → `docs/workflow/states.md` (see `workflow-docs` skill), user-facing → README, architecture → ADR
+3. Doc scan: state files → `docs/workflow/states.md` (see `workflow-docs` skill), user-facing → README, architecture → ADR (`docs/adr/NNNN-slug.md` per template)
 4. UI changes → `/visual-verification`
 5. State result + next step
 
@@ -190,13 +175,10 @@ Clear plan file when done. No stale plans.
 - Results must match what was tested: "X: PASS. Y: NOT TESTED (prerequisite failed)."
 - Mutable state interfaces: prefer getters over copied values — snapshots go stale.
 
-## Writing Style
-
-AI files: imperative, flat bullets, one rule per line. YAML frontmatter for skills.
-
 ## Output Discipline
 
 No summaries, preamble, filler. Bullets for status. Completion: result + next step.
+AI files: imperative, flat bullets, one rule per line. YAML frontmatter for skills.
 
 ## Task Tracking
 
@@ -219,18 +201,6 @@ Mark `in_progress` before starting, `completed` when done.
 
 See `.claude/skills/oxveil-testing/SKILL.md`. Use alongside `superpowers:test-driven-development`.
 
-## Continuous Improvement
-
-Raise friction at pause points. Corrections → CLAUDE.md or skill file. Memory banned.
-
-## Bash Truncation Hook
-
-NEVER bypass hook. Fix it: false positive → ALLOWLIST, false negative → BOUNDED_PIPES. Disable session: `export OXVEIL_BASH_HOOK=0`.
-
-## Documentation
-
-ADR: `docs/adr/NNNN-slug.md` using [template](docs/adr/TEMPLATE.md). Other docs enforced via Quality Gates.
-
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
@@ -241,9 +211,3 @@ Rules:
 - For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
 
-## Self-Optimization
-
-After editing `.claude/` files, suggest `/self-optimize` if:
-- Added >50 tokens to instruction surface
-- Session involved multiple skill/rule edits
-- User mentions instruction bloat or redundancy
