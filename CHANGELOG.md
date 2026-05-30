@@ -12,6 +12,7 @@
 - Plan exit intercept now shows options in Claude terminal instead of VS Code QuickPick
 
 ### Added
+- Flow Visualization required plan section with gate enforcement (N/A needs >30 char justification)
 - Side-Effects content-quality validation: cross-validates plan body risk patterns against SE section, blocks dismissals ("none", "no side-effects") when risk categories detected
 - Side-Effects required plan section with gate enforcement (N/A only for trivial changes)
 - CI workflow for PR checks with coverage reporting

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Gate 2: Planning Checklist
-# Blocks ExitPlanMode unless plan has all 9 required sections
+# Blocks ExitPlanMode unless plan has all 13 required sections
 set -eu
 
 if [ "${OXVEIL_SKIP_GATES:-0}" = "1" ]; then exit 0; fi
@@ -107,7 +107,7 @@ get_section_first_line() {
     echo "$content" | grep -v '^$' | head -5
 }
 
-# Check all 9 required sections
+# Check all 13 required sections
 missing=""
 
 # 1. Feature
@@ -182,7 +182,7 @@ elif is_empty_section "task tracking"; then
     missing="$missing Task Tracking (empty),"
 fi
 
-# 10. Acceptance Criteria
+# 11. Acceptance Criteria
 if ! echo "$plan_content" | grep -q "^## acceptance criteria"; then
     missing="$missing Acceptance Criteria (missing),"
 else
@@ -193,7 +193,7 @@ else
     fi
 fi
 
-# 11. Visual Verification phase (if present and not N/A, must have descriptive checkboxes)
+# 12. Visual Verification phase (if present and not N/A, must have descriptive checkboxes)
 vv_phase_start=$(grep -in "^## .*visual verification" "$plan_file" 2>/dev/null | head -1 | cut -d: -f1) || vv_phase_start=""
 if [ -n "$vv_phase_start" ]; then
     vv_content=$(tail -n +"$((vv_phase_start + 1))" "$plan_file" | sed -n '1,/^## /p' | grep -v '^## ')
@@ -210,7 +210,7 @@ if [ -n "$vv_phase_start" ]; then
     fi
 fi
 
-# 12. Side-Effects (strict N/A — only trivial changes exempt)
+# 13. Side-Effects (strict N/A — only trivial changes exempt)
 if ! echo "$plan_content" | grep -qE "^## side-effects"; then
     missing="$missing Side-Effects (missing),"
 elif is_empty_section "Side-Effects"; then
@@ -222,12 +222,34 @@ elif is_na_section "Side-Effects"; then
     fi
 fi
 
+# 14. Flow Visualization (required — N/A must justify why no flow exists)
+if ! echo "$plan_content" | grep -qE "^## flow visualization"; then
+    missing="$missing Flow Visualization (missing),"
+elif is_empty_section "Flow Visualization"; then
+    missing="$missing Flow Visualization (empty),"
+elif is_na_section "Flow Visualization"; then
+    fv_content=$(get_section_content "Flow Visualization")
+    fv_after_na=$(echo "$fv_content" | sed 's/^[Nn]\/?[Aa][[:space:]]*[-—]*[[:space:]]*//')
+    fv_len=$(printf '%s' "$fv_after_na" | wc -c | tr -d ' ')
+    if [ "$fv_len" -lt 30 ]; then
+        missing="$missing Flow Visualization (N/A needs justification — explain why no flow exists),"
+    fi
+fi
+
 # Helper: get full section content (all lines between heading and next ##)
 get_full_section_content() {
     section_start=$(grep -in "^## $1" "$plan_file" | head -1 | cut -d: -f1) || true
     [ -z "$section_start" ] && return 0
     tail -n +"$((section_start + 1))" "$plan_file" | sed -n '1,/^## /p' | grep -v '^## '
 }
+
+# Flow Visualization diagram content check (non-N/A only)
+if ! is_na_section "Flow Visualization" && ! is_empty_section "Flow Visualization"; then
+    fv_full=$(get_full_section_content "Flow Visualization")
+    if ! echo "$fv_full" | grep -qE '[├└│┌┐┘─┬┴┤┼→←↑↓▶◀]|^```|^[[:space:]]*[|+][-+]+[|+]'; then
+        missing="$missing Flow Visualization (no diagram found — use ASCII arrows/tree/box characters or fenced code block),"
+    fi
+fi
 
 # If any missing or empty, deny
 if [ -n "$missing" ]; then
@@ -238,7 +260,7 @@ if [ -n "$missing" ]; then
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
     "permissionDecisionReason": "Plan missing or empty sections:$missing",
-    "additionalContext": "All 11 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
+    "additionalContext": "All 13 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects, Flow Visualization. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
   }
 }
 EOF
@@ -575,6 +597,11 @@ if ! is_na_section "Side-Effects"; then
     side_effects_req="true"
 fi
 
+flow_viz_req="false"
+if ! is_na_section "Flow Visualization"; then
+    flow_viz_req="true"
+fi
+
 # Write requirements file
 plan_file_escaped=$(printf '%s' "$plan_file" | sed 's/\\/\\\\/g; s/"/\\"/g')
 cat > "$STATE_DIR/plan-requirements.json" <<EOF
@@ -588,6 +615,7 @@ cat > "$STATE_DIR/plan-requirements.json" <<EOF
   "changelog": $changelog_req,
   "readme": $readme_req,
   "side_effects": $side_effects_req,
+  "flow_visualization": $flow_viz_req,
   "plan_file": "$plan_file_escaped"
 }
 EOF
