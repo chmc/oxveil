@@ -37,80 +37,6 @@ EOF
     exit 0
 fi
 
-# Auto-create/update goal from plan (before validation, so goal exists even if denied)
-GOALS_DIR="$STATE_DIR/goals"
-mkdir -p "$GOALS_DIR"
-GATE_FILE="$STATE_DIR/goal-gate-passed"
-goal_name=""
-if [ -f "$GATE_FILE" ]; then
-    selected_goal=$(cut -d: -f2 "$GATE_FILE")
-    if [ -n "$selected_goal" ] && [ -f "$GOALS_DIR/${selected_goal}.md" ]; then
-        goal_name="$selected_goal"
-    fi
-fi
-plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
-# Normalize for case-insensitive comparison
-normalize_title() {
-    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | sed 's/^ *//;s/ *$//'
-}
-if [ -n "$plan_title" ]; then
-    # Fallback: match plan title to existing goal (handles plan mode gate-write failure)
-    if [ -z "$goal_name" ]; then
-        plan_norm=$(normalize_title "$plan_title")
-        for f in "$GOALS_DIR"/*.md; do
-            [ -f "$f" ] || continue
-            title=$(sed -n 's/^# //p' "$f" | head -1)
-            title_norm=$(normalize_title "$title")
-            if [ "$plan_norm" = "$title_norm" ]; then
-                goal_name=$(basename "$f" .md)
-                break
-            fi
-        done
-    fi
-    if [ -z "$goal_name" ]; then
-        ts=$(date '+%y%m%d-%H%M')
-        issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
-        slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
-        if [ -n "$issue_num" ]; then
-            goal_name="${ts}-${issue_num}-${slug}"
-        else
-            goal_name="${ts}-${slug}"
-        fi
-    fi
-    goal_file="$GOALS_DIR/${goal_name}.md"
-    if [ -f "$goal_file" ]; then
-        created=$(grep '^created:' "$goal_file" | head -1)
-    else
-        created="created: $(date '+%d.%m.%Y %H:%M')"
-    fi
-    context_content=$(sed -n '/^## Context/,/^## /p' "$plan_file" | sed '1d;$d' | head -25 | sed 's/^[[:space:]]*//' || true)
-    task_content=$(sed -n '/^## Task Tracking/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 || true)
-    # Append-only: if file exists, just append new status entry
-    new_entry="### $(date '+%Y-%m-%d %H:%M') - ${plan_title}
-${task_content:-See plan file for details.}"
-    if [ -f "$goal_file" ]; then
-        # Append to existing file
-        echo "" >> "$goal_file"
-        echo "$new_entry" >> "$goal_file"
-    else
-        # Create new file
-        tmp=$(mktemp)
-        cat > "$tmp" << EOF
----
-$created
----
-# $plan_title
-
-## Why
-${context_content:-No context section in plan.}
-
-## Status
-$new_entry
-EOF
-        mv "$tmp" "$goal_file"
-    fi
-fi
-
 # Read plan content (lowercase for case-insensitive matching)
 plan_content=$(tr '[:upper:]' '[:lower:]' < "$plan_file")
 
@@ -454,6 +380,82 @@ else
     cat <<'WARN'
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Warning: docs/FEATURES.md not found. Create it with your feature list to enable feature validation."}}
 WARN
+fi
+
+# Auto-create/update goal from plan (only on fully approved plans)
+GOALS_DIR="$STATE_DIR/goals"
+mkdir -p "$GOALS_DIR"
+GATE_FILE="$STATE_DIR/goal-gate-passed"
+goal_name=""
+if [ -f "$GATE_FILE" ]; then
+    selected_goal=$(cut -d: -f2 "$GATE_FILE")
+    if [ -n "$selected_goal" ] && [ -f "$GOALS_DIR/${selected_goal}.md" ]; then
+        goal_name="$selected_goal"
+    fi
+fi
+plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
+# Normalize for case-insensitive comparison
+normalize_title() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | sed 's/^ *//;s/ *$//'
+}
+if [ -n "$plan_title" ]; then
+    # Fallback: match plan title to existing goal (handles crash-recovery case)
+    if [ -z "$goal_name" ]; then
+        plan_norm=$(normalize_title "$plan_title")
+        for f in "$GOALS_DIR"/*.md; do
+            [ -f "$f" ] || continue
+            title=$(sed -n 's/^# //p' "$f" | head -1)
+            title_norm=$(normalize_title "$title")
+            if [ "$plan_norm" = "$title_norm" ]; then
+                goal_name=$(basename "$f" .md)
+                break
+            fi
+        done
+    fi
+    if [ -z "$goal_name" ]; then
+        ts=$(date '+%y%m%d-%H%M')
+        issue_num=$(echo "$plan_title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+        slug=$(echo "$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
+        if [ -n "$issue_num" ]; then
+            goal_name="${ts}-${issue_num}-${slug}"
+        else
+            goal_name="${ts}-${slug}"
+        fi
+    fi
+    goal_file="$GOALS_DIR/${goal_name}.md"
+    if [ -f "$goal_file" ]; then
+        created=$(grep '^created:' "$goal_file" | head -1)
+    else
+        created="created: $(date '+%d.%m.%Y %H:%M')"
+    fi
+    context_content=$(sed -n '/^## Context/,/^## /p' "$plan_file" | sed '1d;$d' | head -25 | sed 's/^[[:space:]]*//' || true)
+    task_content=$(sed -n '/^## Task Tracking/,/^## /p' "$plan_file" | sed '1d;$d' | head -10 || true)
+    # Append-only: if file exists, just append new status entry
+    new_entry="### $(date '+%Y-%m-%d %H:%M') - ${plan_title}
+${task_content:-See plan file for details.}"
+    if [ -f "$goal_file" ]; then
+        # Append to existing file
+        echo "" >> "$goal_file"
+        echo "$new_entry" >> "$goal_file"
+    else
+        # Create new file
+        tmp=$(mktemp)
+        cat > "$tmp" << EOF
+---
+$created
+---
+# $plan_title
+
+## Why
+${context_content:-No context section in plan.}
+
+## Status
+$new_entry
+EOF
+        mv "$tmp" "$goal_file"
+        # Write gate file so subsequent ExitPlanMode calls append to this goal
+        echo "$(date +%s):$goal_name" > "$GATE_FILE"
+    fi
 fi
 
 # Build requirements JSON
