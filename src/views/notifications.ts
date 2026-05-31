@@ -57,6 +57,8 @@ export interface NotificationDeps {
   onFocusLiveRun?: () => void;
   onUpdate?: () => void;
   onReleaseNotes?: (url: string) => void;
+  /** Suppress failure notifications for phases that still have retries remaining. Defaults to 3 (claudeloop default). */
+  maxRetries?: number;
 }
 
 export class NotificationManager {
@@ -88,6 +90,12 @@ export class NotificationManager {
         );
       } else if (t.to === "failed") {
         if (this._notifiedFailures.has(t.phase)) {
+          continue;
+        }
+        // Suppress intermediate failures — only notify when retries are exhausted.
+        // Mirrors claudeloop's should_retry_phase logic: retry when attempts < MAX_RETRIES.
+        const maxRetries = this._deps.maxRetries ?? 3;
+        if (t.attempts !== undefined && t.attempts < maxRetries) {
           continue;
         }
         this._notifiedFailures.add(t.phase);

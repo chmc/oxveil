@@ -121,9 +121,9 @@ describe("NotificationManager", () => {
       );
     });
 
-    it("omits attempt count when attempts is 1", () => {
+    it("omits attempt count when attempts is 1 (terminal: maxRetries=1)", () => {
       const win = makeWindow();
-      const mgr = new NotificationManager({ window: win });
+      const mgr = new NotificationManager({ window: win, maxRetries: 1 });
 
       const oldProgress = makeProgress({
         phases: [
@@ -240,41 +240,39 @@ describe("NotificationManager", () => {
   });
 
   describe("failure deduplication", () => {
-    it("suppresses duplicate failure notifications for same phase during retries", () => {
+    it("suppresses intermediate failures and shows only terminal failure", () => {
       const win = makeWindow();
-      const mgr = new NotificationManager({ window: win });
+      const mgr = new NotificationManager({ window: win, maxRetries: 3 });
 
-      // Attempt 1: in_progress -> failed
+      // Attempt 1: intermediate — suppressed by maxRetries check
       mgr.onPhasesChanged(
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 1 }], totalPhases: 5 }),
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 1 }], totalPhases: 5 }),
       );
-      expect(win.showErrorMessage).toHaveBeenCalledTimes(1);
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(0);
 
-      // Retry starts: failed -> in_progress
       mgr.onPhasesChanged(
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 1 }], totalPhases: 5 }),
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 2 }], totalPhases: 5 }),
       );
 
-      // Attempt 2: in_progress -> failed (should be suppressed)
+      // Attempt 2: intermediate — suppressed
       mgr.onPhasesChanged(
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 2 }], totalPhases: 5 }),
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 2 }], totalPhases: 5 }),
       );
+      expect(win.showErrorMessage).toHaveBeenCalledTimes(0);
 
-      // Retry starts again: failed -> in_progress
       mgr.onPhasesChanged(
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 2 }], totalPhases: 5 }),
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 3 }], totalPhases: 5 }),
       );
 
-      // Attempt 3: in_progress -> failed (should be suppressed)
+      // Attempt 3 = maxRetries: terminal — shown
       mgr.onPhasesChanged(
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 3 }], totalPhases: 5 }),
         makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 3 }], totalPhases: 5 }),
       );
-
       expect(win.showErrorMessage).toHaveBeenCalledTimes(1);
     });
 
@@ -339,21 +337,99 @@ describe("NotificationManager", () => {
       expect(win.showErrorMessage).toHaveBeenCalledTimes(2);
     });
 
-    it("first failure still includes actions and attempt suffix", () => {
+    it("terminal failure includes actions and attempt suffix", () => {
       const win = makeWindow();
-      const mgr = new NotificationManager({ window: win });
+      const mgr = new NotificationManager({ window: win, maxRetries: 3 });
 
       mgr.onPhasesChanged(
-        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 1 }], totalPhases: 5 }),
-        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 1 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "in_progress", attempts: 3 }], totalPhases: 5 }),
+        makeProgress({ phases: [{ number: 3, title: "Setup", status: "failed", attempts: 3 }], totalPhases: 5 }),
       );
 
       expect(win.showErrorMessage).toHaveBeenCalledWith(
-        "Phase 3 failed — Setup",
+        "Phase 3 failed — Setup (attempt 3)",
         "View Log",
         "Show Output",
         "Dismiss",
       );
+    });
+  });
+
+  describe("intermediate failure suppression (maxRetries)", () => {
+    it("suppresses failure when attempts < maxRetries", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win, maxRetries: 3 });
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "in_progress", attempts: 1 }], totalPhases: 8 }),
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "failed", attempts: 1 }], totalPhases: 8 }),
+      );
+
+      expect(win.showErrorMessage).not.toHaveBeenCalled();
+    });
+
+    it("shows failure when attempts equals maxRetries (terminal)", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win, maxRetries: 3 });
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "in_progress", attempts: 3 }], totalPhases: 8 }),
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "failed", attempts: 3 }], totalPhases: 8 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledOnce();
+    });
+
+    it("shows failure when attempts is undefined (safe default — always notify)", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win, maxRetries: 3 });
+
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "in_progress" }], totalPhases: 8 }),
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "failed" }], totalPhases: 8 }),
+      );
+
+      expect(win.showErrorMessage).toHaveBeenCalledOnce();
+    });
+
+    it("shows success notification only when phase recovers after suppressed intermediate failure", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win, maxRetries: 3 });
+
+      // Intermediate failure — suppressed
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "in_progress", attempts: 1 }], totalPhases: 8 }),
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "failed", attempts: 1 }], totalPhases: 8 }),
+      );
+      expect(win.showErrorMessage).not.toHaveBeenCalled();
+
+      // Retry succeeds
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "in_progress", attempts: 2 }], totalPhases: 8 }),
+        makeProgress({ phases: [{ number: 2, title: "QuickPick UI", status: "completed", attempts: 2 }], totalPhases: 8 }),
+      );
+
+      expect(win.showErrorMessage).not.toHaveBeenCalled();
+      expect(win.showInformationMessage).toHaveBeenCalledWith("Phase 2 completed — QuickPick UI");
+    });
+
+    it("uses default maxRetries of 3 when not specified", () => {
+      const win = makeWindow();
+      const mgr = new NotificationManager({ window: win }); // no maxRetries
+
+      // attempts=2 < default 3 — suppressed
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 1, title: "Setup", status: "in_progress", attempts: 2 }], totalPhases: 3 }),
+        makeProgress({ phases: [{ number: 1, title: "Setup", status: "failed", attempts: 2 }], totalPhases: 3 }),
+      );
+      expect(win.showErrorMessage).not.toHaveBeenCalled();
+
+      // attempts=3 = default 3 — shown
+      mgr.onPhasesChanged(
+        makeProgress({ phases: [{ number: 1, title: "Setup", status: "in_progress", attempts: 3 }], totalPhases: 3 }),
+        makeProgress({ phases: [{ number: 1, title: "Setup", status: "failed", attempts: 3 }], totalPhases: 3 }),
+      );
+      expect(win.showErrorMessage).toHaveBeenCalledOnce();
     });
   });
 

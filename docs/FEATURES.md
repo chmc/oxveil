@@ -32,6 +32,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | disposal-guard | planned | - | src/sessionWiring.ts, src/core/workspaceSession.ts | Guard async handler continuations against disposed session |
 | user-flows | planned | - | scripts/generate-flow.ts, docs/workflow/user-flows.md | Generated user journey diagram from code |
 | goal-update-gate | stable | 0.8.0 | .claude/hooks/completion-bundle.sh, .claude/hooks/goal-update-warning.sh | Blocks task completion until active goal Status updated; warns at session end |
+| notification-retry-suppression | stable | 0.8.0 | src/views/notifications.ts | Suppresses false phase-failed notifications during claudeloop verification retries (#133) |
 
 ## Adding a New Feature
 
