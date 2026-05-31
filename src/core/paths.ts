@@ -17,7 +17,7 @@ export async function ensureClaudeloopDir(workspaceRoot: string): Promise<void> 
   await fs.mkdir(getClaudeloopDir(workspaceRoot), { recursive: true });
 }
 
-/** Load PLAN_FILE from .claudeloop/.claudeloop.conf if it exists */
+/** Load PLAN_FILE from .claudeloop/.claudeloop.conf if it exists and the path is accessible */
 export async function loadPlanFileOverride(workspaceRoot: string): Promise<string | undefined> {
   const confPath = path.join(workspaceRoot, CLAUDELOOP_DIR, ".claudeloop.conf");
   try {
@@ -25,7 +25,9 @@ export async function loadPlanFileOverride(workspaceRoot: string): Promise<strin
     const match = content.match(/^PLAN_FILE=(.+)$/m);
     const rawPath = match?.[1]?.trim();
     if (!rawPath) return undefined;
-    return path.isAbsolute(rawPath) ? rawPath : path.join(workspaceRoot, rawPath);
+    const resolved = path.isAbsolute(rawPath) ? rawPath : path.join(workspaceRoot, rawPath);
+    await fs.access(resolved);
+    return resolved;
   } catch {
     return undefined;
   }
