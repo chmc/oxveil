@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
+
 ### Fixed
 - Goal gate writes automatically on AskUserQuestion answer — no more "Select a goal first" denial after picking a goal
 - Fix false "phase failed" notification when phase succeeds after verification retry (#133)

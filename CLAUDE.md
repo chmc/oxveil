@@ -10,6 +10,7 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 - Surgical changes. Touch only what the task requires. Do not improve neighboring code. Do not refactor what is not broken. Every changed line should trace back to the request.
 - Goal-driven execution. Turn vague instructions into verifiable targets before writing a line. “Add validation” becomes “write tests for invalid inputs, then make them pass.”
 - Bug fix plans: verify actual behavior first. Reading code shows intent, not behavior. Run/trace before writing fix.
+- Tool denial mid-prompt is part of the user's report — not friction to route around. Surface it before pursuing the named task.
 
 ## STOP if Thinking
 
@@ -21,6 +22,7 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 | "We can verify X instead" | Run the specified test |
 | "Prerequisite isn't critical" | It gates the verification |
 | "User asked for it" / "User said yes" | Plan mode exit wasn't granted. Request ExitPlanMode again. |
+| "Gate denied, I'll just write the file" | The denial IS a bug report. Stop, name it, fix or report. |
 | "Let me explore the codebase" | Read `graphify-out/GRAPH_REPORT.md` first. Use `graphify query/path/explain`. |
 
 ## Hard Rules
@@ -45,6 +47,8 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 - NEVER claim done without doc impact check: user-facing → README, architecture → ADR, state → `docs/workflow/states.md` (see `workflow-docs` skill).
 - NEVER bypass bash truncation hook. Fix it: false positive → ALLOWLIST, false negative → BOUNDED_PIPES. Disable session: `export OXVEIL_BASH_HOOK=0`.
 - New doc that tracks state/behavior? Must have test or hook enforcement — reminder-only docs drift. Add to Gate 5 if state-related.
+- Any `[UNVERIFIED]` claim about tool/hook capability → spike (≤10 min) before designing around its absence. A failed spike justifies the fallback; an unverified one doesn't.
+- Rules of the form "Claude must remember to X" fail eventually. If X is load-bearing → enforce in a hook. If hook-impossible → mark the rule `[best-effort]`.
 
 ## Project
 
