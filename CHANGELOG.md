@@ -6,6 +6,7 @@
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
 ### Fixed
+- Fix false "Phase N failed" toast when all phases complete successfully — failure notifications now fire only on session-terminal failure, not on transient mid-run failed snapshots (#102)
 - Stop creating duplicate goals when re-planning the same GitHub issue or topic (#N or shared-word match)
 - Goal gate writes automatically on AskUserQuestion answer — no more "Select a goal first" denial after picking a goal
 - Fix false "phase failed" notification when phase succeeds after verification retry (#133)

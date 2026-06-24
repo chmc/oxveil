@@ -39,7 +39,7 @@ function wireDeps(
       update: (state: StatusBarState) => statusBarUpdates.push(state),
       dispose: vi.fn(),
     },
-    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn(), onSessionFailed: vi.fn() },
     elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
     isActiveSession: () => true,
     folderUri: "/test",
@@ -311,6 +311,8 @@ describe("Notification deduplication during retries", () => {
     session.onProgressChanged(
       makeProgress([{ number: 1, title: "Setup", status: "failed" }]),
     );
+    // Second session ends — triggers onSessionFailed for the second run
+    session.onLockChanged({ locked: false });
 
     expect(mockWindow.showErrorMessage).toHaveBeenCalledTimes(2);
   });

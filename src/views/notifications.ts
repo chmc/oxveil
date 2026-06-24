@@ -57,68 +57,56 @@ export interface NotificationDeps {
   onFocusLiveRun?: () => void;
   onUpdate?: () => void;
   onReleaseNotes?: (url: string) => void;
-  /** Suppress failure notifications for phases that still have retries remaining. Defaults to 3 (claudeloop default). */
-  maxRetries?: number;
 }
 
 export class NotificationManager {
   private readonly _deps: NotificationDeps;
-  private _notifiedFailures = new Set<number | string>();
 
   constructor(deps: NotificationDeps) {
     this._deps = deps;
   }
 
   reset(): void {
-    this._notifiedFailures.clear();
+    // no-op: retained for call-site compatibility
   }
 
   onPhasesChanged(
     oldProgress: ProgressState,
     newProgress: ProgressState,
   ): void {
-    const transitions = detectTransitions(
-      oldProgress,
-      newProgress,
-    );
-
+    const transitions = detectTransitions(oldProgress, newProgress);
     for (const t of transitions) {
       if (t.to === "completed") {
-        this._notifiedFailures.delete(t.phase);
         this._deps.window.showInformationMessage(
           `Phase ${t.phase} completed — ${t.title}`,
         );
-      } else if (t.to === "failed") {
-        if (this._notifiedFailures.has(t.phase)) {
-          continue;
-        }
-        // Suppress intermediate failures — only notify when retries are exhausted.
-        // Mirrors claudeloop's should_retry_phase logic: retry when attempts < MAX_RETRIES.
-        const maxRetries = this._deps.maxRetries ?? 3;
-        if (t.attempts !== undefined && t.attempts < maxRetries) {
-          continue;
-        }
-        this._notifiedFailures.add(t.phase);
-        const attemptSuffix =
-          t.attempts !== undefined && t.attempts > 1
-            ? ` (attempt ${t.attempts})`
-            : "";
-        this._deps.window
-          .showErrorMessage(
-            `Phase ${t.phase} failed — ${t.title}${attemptSuffix}`,
-            "View Log",
-            "Show Output",
-            "Dismiss",
-          )
-          .then((action) => {
-            if (action === "View Log") {
-              this._deps.onViewLog?.(t.phase);
-            } else if (action === "Show Output") {
-              this._deps.onShowOutput?.();
-            }
-          });
       }
     }
+  }
+
+  onSessionFailed(progress: ProgressState): void {
+    const fp =
+      progress.phases.find((p) => p.status === "failed") ??
+      progress.phases.find((p) => p.status === "in_progress");
+    if (!fp) return;
+    const attemptSuffix =
+      fp.attempts !== undefined && fp.attempts > 1
+        ? ` (attempt ${fp.attempts})`
+        : "";
+    this._deps.window
+      .showErrorMessage(
+        `Phase ${fp.number} failed — ${fp.title}${attemptSuffix}`,
+        "View Log",
+        "Show Output",
+        "Dismiss",
+      )
+      .then((action) => {
+        if (action === "View Log") {
+          this._deps.onViewLog?.(fp.number);
+        } else if (action === "Show Output") {
+          this._deps.onShowOutput?.();
+        }
+      });
   }
 
   onDetection(

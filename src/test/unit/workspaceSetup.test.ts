@@ -12,7 +12,7 @@ import { SidebarMutableState } from "../../core/sidebarMutableState";
 function makeWiringCtx(): SessionWiringContext {
   return {
     statusBar: { update: vi.fn(), dispose: vi.fn() },
-    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn(), onSessionFailed: vi.fn() },
     elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
     sidebarPanel: { updateState: vi.fn(), sendProgressUpdate: vi.fn() } as any,
     buildSidebarState: () => ({ view: "empty" as const, archives: [] }),

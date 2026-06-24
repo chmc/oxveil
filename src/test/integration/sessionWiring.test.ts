@@ -52,7 +52,7 @@ function setup() {
   const deps: SessionWiringDeps = {
     session,
     statusBar: { update: vi.fn(), dispose: vi.fn() },
-    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() },
+    notifications: { onPhasesChanged: vi.fn(), reset: vi.fn(), onSessionFailed: vi.fn() },
     elapsedTimer: { start: vi.fn(), stop: vi.fn(), elapsed: "0m" },
     sidebarPanel,
     isActiveSession: () => true,

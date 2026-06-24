@@ -208,6 +208,9 @@ export function wireSessionEvents(deps: SessionWiringDeps): void {
           folderName: deps.folderName,
           otherRootsSummary: deps.getOtherRootsSummary?.(),
         });
+        notifications.onSessionFailed(
+          session.progress ?? { phases: [], totalPhases: 0 },
+        );
         deps.liveRunPanel?.onRunFinished("failed");
         deps.planPreviewPanel?.setSessionActive(false);
         break;

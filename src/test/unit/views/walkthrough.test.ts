@@ -128,7 +128,7 @@ describe("walkthrough step completion", () => {
         session,
         statusBar: { update: vi.fn() } as any,
         liveRunPanel: { onLogAppended: vi.fn(), onProgressChanged: vi.fn(), onRunFinished: vi.fn(), reveal: vi.fn() } as any,
-        notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() } as any,
+        notifications: { onPhasesChanged: vi.fn(), reset: vi.fn(), onSessionFailed: vi.fn() } as any,
         elapsedTimer: {
           start: vi.fn(),
           stop: vi.fn(),
@@ -167,7 +167,7 @@ describe("walkthrough step completion", () => {
         session,
         statusBar: { update: vi.fn() } as any,
         liveRunPanel: { onLogAppended: vi.fn(), onProgressChanged: vi.fn(), onRunFinished: vi.fn(), reveal: vi.fn() } as any,
-        notifications: { onPhasesChanged: vi.fn(), reset: vi.fn() } as any,
+        notifications: { onPhasesChanged: vi.fn(), reset: vi.fn(), onSessionFailed: vi.fn() } as any,
         elapsedTimer: {
           start: vi.fn(),
           stop: vi.fn(),
