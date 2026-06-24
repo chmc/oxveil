@@ -31,3 +31,8 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - Disposal guards: place `if (this._disposed) return` at method ENTRY, not just post-await — poll timers and debounce callbacks can fire synchronously after `dispose()` clears refs
 - Plan preview tab assertions: `data-category` attribute only exists when `options.tabs.length >= 2` in `planPreviewHtml.ts`. Single-file state tests must assert on content (title text, body content) not tab attributes.
 - Plan staleness tests: use `ACTIVE_PLAN_PATH` + `VALID_PLAN` from `src/test/unit/sidebar/helpers.ts` — they represent `.claude/plans/` workspace path and valid parseable plan content respectively.
+
+## Refactor hygiene
+
+- Test scripts that need helper logic must `source` the helper file directly. Never extract by `sed` line range — silently breaks when the helper moves.
+- When removing a guard/sentinel from production code, grep tests that asserted the old guard behavior and flip their expectations. Code-path change without test-expectation flip = stale tests that pass against nothing.

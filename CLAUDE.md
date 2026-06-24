@@ -49,6 +49,7 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 - New doc that tracks state/behavior? Must have test or hook enforcement — reminder-only docs drift. Add to Gate 5 if state-related.
 - Any `[UNVERIFIED]` claim about tool/hook capability → spike (≤10 min) before designing around its absence. A failed spike justifies the fallback; an unverified one doesn't.
 - Rules of the form "Claude must remember to X" fail eventually. If X is load-bearing → enforce in a hook. If hook-impossible → mark the rule `[best-effort]`.
+- After removing a mechanism (guard, sentinel, flag), docs describe the resulting behavior (thresholds, invariants), not what was removed. "X was removed" rots; "always runs when Y" doesn't.
 
 ## Project
 
