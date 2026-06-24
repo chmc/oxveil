@@ -10,17 +10,21 @@ trigger: /goal new, /goal list, /goal close, /goal show, /goal switch
 SessionStart                    Goal Selection                  Gate Enforcement
 session-start.sh ──────────────▶ AskUserQuestion ──────────────▶ goal-action-gate.sh
 ├─ Clear stale gate (>4h)       ├─ Pick existing goal           ├─ Blocks tools until gate exists
-├─ List active goals            │   └─ Write gate file          ├─ Gate: workflow-state/goal-gate-passed
-└─ Output "STOP"                └─ Or "Do something else"       └─ Allows: workflow-state, plans, Agent
+├─ List active goals            │   └─ gate auto-written        ├─ Gate: workflow-state/goal-gate-passed
+└─ Output "STOP"                │       (goal-selected-          └─ Allows: workflow-state, plans, Agent
+                                │        postuse.sh hook)
+                                └─ Or "Do something else"
                                     └─ planning-checklist.sh at ExitPlanMode:
                                         1. Detect sentinel → skip fuzzy match
                                         2. Create new goal from plan title
+Note: "Other" typed text that doesn't match a goal name → gate not auto-written; manual write required.
 ```
 
 **Key files:**
 - `CLAUDE.md` §FIRST: Goal Selection, §Goal Management — behavioral rules
 - `hooks/session-start.sh` — detection + prompt
 - `hooks/goal-action-gate.sh` — enforcement (blocks tools until gate)
+- `hooks/goal-selected-postuse.sh` — auto-writes gate on AskUserQuestion answer
 - `hooks/planning-checklist.sh` — auto-creates goals at ExitPlanMode
 - `hooks/completion-bundle.sh` — enforces Status update before task completion
 - `hooks/goal-update-warning.sh` — Stop hook warns if Status not updated

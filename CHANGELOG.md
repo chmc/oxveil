@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Goal gate writes automatically on AskUserQuestion answer — no more "Select a goal first" denial after picking a goal
 - Fix false "phase failed" notification when phase succeeds after verification retry (#133)
 - "Do something else" goal selection no longer blocked by gate or fuzzy-matched to existing goals
 - Fix duplicate goal files created on plan iteration
