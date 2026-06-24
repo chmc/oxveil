@@ -76,9 +76,9 @@ else
     fail "empty goal ID allows through gate (got: $result)"
 fi
 
-# Extract find_matching_goal() and helpers from the hook for direct testing
-FN_DEFS=$(mktemp)
-sed -n '13p;481,575p' "$CHECKLIST" > "$FN_DEFS"
+# Source find_matching_goal() and helpers directly from the shared helper file.
+# KEEP IN SYNC WITH find_matching_goal in planning-checklist-goal-match.sh
+GOAL_MATCH_HELPER="$SCRIPT_DIR/hooks/planning-checklist-goal-match.sh"
 
 # run_find_matching <GOALS_DIR> <title>
 run_find_matching() {
@@ -86,7 +86,7 @@ run_find_matching() {
     _rfm_title="$2"
     sh -c "
         GOALS_DIR='$_rfm_goals'
-        . '$FN_DEFS'
+        . '$GOAL_MATCH_HELPER'
         find_matching_goal '$_rfm_title'
     "
 }
@@ -126,8 +126,6 @@ if [ "$matched" = "260101-0002-issue-42" ]; then
 else
     fail "sentinel + issue #N match: expected 260101-0002-issue-42, got '$matched'"
 fi
-
-rm -f "$FN_DEFS"
 
 # Summary
 echo ""
