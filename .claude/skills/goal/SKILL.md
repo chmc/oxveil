@@ -15,8 +15,9 @@ session-start.sh ──────────────▶ AskUserQuestion �
                                 │        postuse.sh hook)
                                 └─ Or "Do something else"
                                     └─ planning-checklist.sh at ExitPlanMode:
-                                        1. Detect sentinel → skip fuzzy match
-                                        2. Create new goal from plan title
+                                        1. find_matching_goal() — strong matches only
+                                           (#N exact, or Jaccard ≥ 0.5 + ≥2 shared tokens)
+                                        2. No match → create new goal from plan title
 Note: "Other" typed text that doesn't match a goal name → gate not auto-written; manual write required.
 ```
 
@@ -40,17 +41,23 @@ Create a goal for current work. If name omitted, infer from context (plan title,
 - Filename: `yymmdd-hhmm-<slug>.md` e.g. `260529-1430-fix-auth-bug.md`
 - Write atomically to `workflow-state/goals/<filename>`
 
-**Merge check is REQUIRED before creating any new file:**
+**Merge check is REQUIRED before creating any new file** (also enforced by `planning-checklist.sh` at ExitPlanMode):
 1. `ls workflow-state/goals/*.md` — if empty, skip to step 5
 2. For each existing goal: read `# Title` + `## Why`
 3. MERGE if any match:
-   - Same `#N` issue reference (check title + Why)
-   - ≥2 shared content words in title (exclude: the, a, an, to, for, in, of, and, or)
+   - Same `#N` issue reference (check title + Why) — exact match wins immediately
+   - Jaccard similarity ≥ 0.5 on tokenized titles with ≥2 shared non-stopword tokens
    - User explicitly said "continue" or "pick up" previous work
 4. If multiple match: pick most recently modified
 5. If merging: `echo -e "\n### $(date '+%Y-%m-%d %H:%M') - <summary>" >> "$goal_file"` — NEVER heredoc+mv existing files
 6. If creating: print "Created goal: `<filename>`"
 7. When in doubt → create new file (safe default)
+
+**Jaccard matching details** (mirrors `hooks/planning-checklist-goal-match.sh`):
+- Stopwords filtered before scoring: `the a an and or of to for in on is at by with not but issue fix add update remove close investigate investigation new feature bug refactor docs test chore`
+- Tokens shorter than 3 chars are also dropped
+- Jaccard threshold: intersection × 2 ≥ union (≥ 0.5), minimum 2 shared tokens
+- Tie-break: most recently modified goal wins
 
 **Output must show work:** "Checked N goals: `goal-a.md`, `goal-b.md`. No merge — creating new."
 
