@@ -76,100 +76,58 @@ else
     fail "empty goal ID allows through gate (got: $result)"
 fi
 
-# Test 5: planning-checklist sentinel skips fuzzy match
-# Create a plan file whose title matches the real goal
-PLANS_DIR="$TMP/plans"
-mkdir -p "$PLANS_DIR"
-cat > "$PLANS_DIR/test-plan.md" << 'EOF'
-# Real Goal
+# Extract find_matching_goal() and helpers from the hook for direct testing
+FN_DEFS=$(mktemp)
+sed -n '13p;481,575p' "$CHECKLIST" > "$FN_DEFS"
 
-## Feature
-N/A - bug fix
+# run_find_matching <GOALS_DIR> <title>
+run_find_matching() {
+    _rfm_goals="$1"
+    _rfm_title="$2"
+    sh -c "
+        GOALS_DIR='$_rfm_goals'
+        . '$FN_DEFS'
+        find_matching_goal '$_rfm_title'
+    "
+}
 
-## Architecture Impact
-N/A - bug fix
-
-## ADR
-N/A - bug fix
-
-## State Machine / Sync
-N/A - bug fix
-
-## Tests
-N/A - bug fix
-
-## Documentation
-N/A - bug fix
-
-## package.json / contributes
-N/A - bug fix
-
-## CHANGELOG
-N/A - bug fix
-
-## README
-N/A - bug fix
-
-## Task Tracking
-- task
-
-## Acceptance Criteria
-- [ ] test passes
-
-## Side-Effects
-N/A - bug fix
-
-## Flow Visualization
-N/A - no architectural flow
-EOF
-
+# Test 5: do-something-else + strong Jaccard match (exact title, Jaccard=1.0) → existing goal honoured
+# Phase 2 change: sentinel no longer blocks strong matches
 echo "$(date +%s):do-something-else" > "$GATE_FILE"
-
-# Run the goal-creation logic extracted from planning-checklist.sh
-new_goal=$(sh << SCRIPT
-set -eu
-GOALS_DIR="$GOALS_DIR"
-GATE_FILE="$GATE_FILE"
-PLANS_DIR="$PLANS_DIR"
-plan_file="$PLANS_DIR/test-plan.md"
-goal_name=""
-selected_goal=""
-if [ -f "\$GATE_FILE" ]; then
-    selected_goal=\$(cut -d: -f2 "\$GATE_FILE")
-    if [ -n "\$selected_goal" ] && [ -f "\$GOALS_DIR/\${selected_goal}.md" ]; then
-        goal_name="\$selected_goal"
-    fi
-fi
-plan_title=\$(grep -m1 '^# ' "\$plan_file" 2>/dev/null | sed 's/^# //' || true)
-if [ -n "\$plan_title" ]; then
-    normalize_title() { printf '%s' "\$1" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | sed 's/^ *//;s/ *\$//'; }
-    if [ -z "\$goal_name" ] && [ "\$selected_goal" != "do-something-else" ]; then
-        plan_norm=\$(normalize_title "\$plan_title")
-        for f in "\$GOALS_DIR"/*.md; do
-            [ -f "\$f" ] || continue
-            title=\$(sed -n 's/^# //p' "\$f" | head -1)
-            title_norm=\$(normalize_title "\$title")
-            if [ "\$plan_norm" = "\$title_norm" ]; then
-                goal_name=\$(basename "\$f" .md)
-                break
-            fi
-        done
-    fi
-    if [ -z "\$goal_name" ]; then
-        ts=\$(date '+%y%m%d-%H%M')
-        slug=\$(echo "\$plan_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-\$//' | cut -c1-40)
-        goal_name="\${ts}-\${slug}"
-    fi
-fi
-echo "\$goal_name"
-SCRIPT
-)
-
-if [ "$new_goal" = "260101-0000-real-goal" ]; then
-    fail "sentinel with matching title: still fuzzy-matched existing goal"
+matched=$(run_find_matching "$GOALS_DIR" "Real Goal")
+if [ "$matched" = "260101-0000-real-goal" ]; then
+    pass "sentinel + exact title (Jaccard=1.0): existing goal matched"
 else
-    pass "sentinel with matching title: created new goal (got: $new_goal)"
+    fail "sentinel + exact title (Jaccard=1.0): expected 260101-0000-real-goal, got '$matched'"
 fi
+
+# Test 5b: do-something-else + truly weak match (0 shared tokens) → new goal created
+matched=$(run_find_matching "$GOALS_DIR" "Xyz quantum flux")
+if [ -z "$matched" ]; then
+    pass "sentinel + no shared tokens: no match (new goal would be created)"
+else
+    fail "sentinel + no shared tokens: unexpected match '$matched'"
+fi
+
+# Test 6: do-something-else + strong Jaccard match (≥ 0.5, ≥ 2 tokens) → existing goal honoured
+echo "# Fix duplicate creation planning script" > "$GOALS_DIR/260101-0001-strong-match.md"
+matched=$(run_find_matching "$GOALS_DIR" "Fix duplicate creation planning script")
+if [ "$matched" = "260101-0001-strong-match" ]; then
+    pass "sentinel + strong Jaccard match: existing goal matched"
+else
+    fail "sentinel + strong Jaccard match: expected 260101-0001-strong-match, got '$matched'"
+fi
+
+# Test 7: do-something-else + issue #N match → existing goal honoured
+echo "# Fix crash in auth #42" > "$GOALS_DIR/260101-0002-issue-42.md"
+matched=$(run_find_matching "$GOALS_DIR" "Fix auth crash #42")
+if [ "$matched" = "260101-0002-issue-42" ]; then
+    pass "sentinel + issue #N match: existing goal matched"
+else
+    fail "sentinel + issue #N match: expected 260101-0002-issue-42, got '$matched'"
+fi
+
+rm -f "$FN_DEFS"
 
 # Summary
 echo ""

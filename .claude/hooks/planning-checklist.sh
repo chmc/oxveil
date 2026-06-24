@@ -589,8 +589,9 @@ fi
 plan_title=$(grep -m1 '^# ' "$plan_file" 2>/dev/null | sed 's/^# //' || true)
 if [ -n "$plan_title" ]; then
     # Fallback: match plan title to existing goal using Jaccard similarity (handles crash-recovery case)
-    # Skip if user selected "Do something else" — always create a new goal
-    if [ -z "$goal_name" ] && [ "$selected_goal" != "do-something-else" ]; then
+    # For "do-something-else": still run matcher but only honor strong matches (#N or Jaccard ≥ 0.5)
+    # find_matching_goal() already enforces those thresholds, so removing the sentinel skip is sufficient
+    if [ -z "$goal_name" ]; then
         goal_name=$(find_matching_goal "$plan_title" || true)
     fi
     if [ -z "$goal_name" ]; then
