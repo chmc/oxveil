@@ -10,6 +10,7 @@ description: Visual verification loop for Oxveil UI — build, launch, screensho
 <BLOCKING-GATE id="visual-verification-critical">
 
 - Screenshot failure is blocking. Stop and tell user: "Screenshot capture failed: [error]."
+- Visual verification MUST NOT modify user settings (`workbench.colorTheme`, etc.). Setup operations are limited to viewport prep via `workbench.action.close*`.
 - NEVER use `screencapture -w` (blocks in automation). Use `-l <CGWindowID>` or `-R x,y,w,h -x`.
 - NEVER delete `verification-sessions/` or any session subfolder.
 - All code paths must reach Phase 6 (Cleanup). No exceptions.
