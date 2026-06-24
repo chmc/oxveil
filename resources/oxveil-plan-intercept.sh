@@ -32,7 +32,9 @@ Options:
 3. \"Continue planning\" - Stay in plan mode for refinement
 
 Based on their answer:
-- Form Plan with Oxveil → write file \`${CLAUDE_DIR}/oxveil-execute\` with content {\"action\":\"formPlan\"}, then STOP and wait (do NOT call ExitPlanMode)
+- Form Plan with Oxveil → write file \`${CLAUDE_DIR}/oxveil-execute\` with the EXACT content below (substitute the absolute path from your '## Plan File Info:' system message), then STOP and wait (do NOT call ExitPlanMode):
+  {\"action\":\"formPlan\",\"planFile\":\"<ABSOLUTE_PLAN_FILE_PATH>\"}
+  The planFile value must be the absolute path exactly as shown in your plan-mode '## Plan File Info:' block.
 - Run critic agents → run 2-3 parallel critic agents covering root cause, scope/mocks, alternatives/UX, then call ExitPlanMode again
 - Continue planning → do NOT call ExitPlanMode, ask what they want to change"
 

@@ -1,7 +1,7 @@
 # ADR-0018: Terminal Plan Intercept
 
 ## Status
-Accepted
+Accepted (amended 2026-06-24)
 
 ## Context
 
@@ -17,10 +17,10 @@ Intercept `ExitPlanMode` in the Claude terminal using a `PreToolUse:ExitPlanMode
 
 1. **Hook denies `ExitPlanMode`** and injects `additionalContext` instructing Claude to call `AskUserQuestion` with three options: Form Plan with Oxveil, run critics, or continue planning.
 2. **Claude presents the choice** natively in the terminal via `AskUserQuestion`.
-3. **"Form Plan with Oxveil" writes a trigger file** (`.claude/oxveil-execute-{uuid}.json`) with a timestamp and action payload.
-4. **Extension watches for trigger files** via `vscode.workspace.createFileSystemWatcher` matching `.claude/oxveil-execute-*.json`, validates the timestamp (<60s), calls `oxveil.formPlan`, then deletes the file.
+3. **"Form Plan with Oxveil" writes a trigger file** (`.claude/oxveil-execute`) containing `{"action":"formPlan","planFile":"<absolute path>"}`. The `planFile` value is sourced from Claude's plan-mode `## Plan File Info:` block — the canonical path of the plan just written.
+4. **Extension watches for the trigger file** via `vscode.workspace.createFileSystemWatcher`. On creation it reads the sentinel, validates `planFile` (absolute path, realpath containment under `<workspaceRoot>/.claude/plans/`, file must be accessible), calls `oxveil.formPlan` with `{ filePath }`, then deletes the trigger.
 5. **Loop breaker:** hook allows `ExitPlanMode` after 5 consecutive denies, preventing infinite loops if Claude ignores the instruction.
-6. **Stale trigger cleanup:** `cleanupStaleTriggers()` runs on extension activation to purge leftover files from previous sessions.
+6. **Validation rejection:** if `planFile` is absent or fails validation, an error notification is shown. No automatic fallback to heuristic resolution — the user must re-trigger from the plan chat.
 
 The hook is active only when the `$OXVEIL_PLAN_MARKER` env var is set and the referenced file exists. The marker lives in VS Code's `context.storageUri` (outside the workspace) to avoid git pollution. The env var is injected into all terminals opened after extension activation via `context.environmentVariableCollection`.
 
@@ -34,7 +34,14 @@ The hook is active only when the `$OXVEIL_PLAN_MARKER` env var is set and the re
 
 **Negative:**
 - Relies on Claude following the injected instruction — a sufficiently confused Claude could call `ExitPlanMode` repeatedly and exhaust the loop breaker (5 denies), bypassing the intercept
-- Trigger files are written to `.claude/` which is a shared directory; stale files from crashes require the cleanup sweep on activation
+- Trigger file is written to `.claude/` (shared directory); if Claude crashes mid-write the sentinel may be malformed — validation rejects it cleanly
+- Relies on Claude correctly copying the absolute plan path from its system message — a hallucinated-sibling path (different plan in the same dir) passes validation and would pick the wrong file; detected only at AI-parse time
+
+## Amendment (2026-06-24): Explicit Plan Path Handover
+
+**Problem:** the original sentinel (`{"action":"formPlan"}`) contained no plan path. The extension re-derived the source plan via `PlanFileResolver` heuristics (mtime, birthtime, workspaceState cache, sticky tab pick), which could pick a stale or wrong plan when multiple `.claude/plans/*.md` files existed.
+
+**Change:** sentinel schema extended to `{"action":"formPlan","planFile":"<absolute>"}`. The watcher validates and uses this path directly. `planFileOverride` (from `.claudeloop.conf`) governs only the *destination* `PLAN.md` path — it is no longer used as a source path. The `getPlanFile` callback parameter on `createPlanInterceptWatcher` was removed.
 
 ## Files
 

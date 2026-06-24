@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as nodePath from "node:path";
+import * as fsSyncModule from "node:fs";
 
 vi.mock("vscode", () => ({
   Uri: {
@@ -193,5 +194,19 @@ describe("uninstallPlanInterceptHook", () => {
     mockReadFile.mockResolvedValue(JSON.stringify(existingGlobal));
     await uninstallPlanInterceptHook();
     expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("oxveil-plan-intercept.sh content regression guard", () => {
+  const scriptPath = nodePath.resolve(__dirname, "../../../resources/oxveil-plan-intercept.sh");
+
+  it("script instructs Claude to include planFile in sentinel JSON", () => {
+    const content = fsSyncModule.readFileSync(scriptPath, "utf8");
+    expect(content).toContain("planFile");
+  });
+
+  it("script references Plan File Info block as source for the path", () => {
+    const content = fsSyncModule.readFileSync(scriptPath, "utf8");
+    expect(content).toContain("Plan File Info");
   });
 });

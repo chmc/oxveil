@@ -366,7 +366,6 @@ export async function activate(
     disposables.push(createPlanInterceptWatcher(
       workspaceRoot,
       workspaceFolders[0],
-      () => manager.getActiveSession()?.planFileOverride,
     ));
   }
 

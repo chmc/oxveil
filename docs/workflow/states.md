@@ -670,8 +670,10 @@ When the user selects "Form Plan with Oxveil" via `AskUserQuestion`, Claude writ
 
 **Trigger file:** `.claude/oxveil-execute`
 ```json
-{ "action": "formPlan" }
+{ "action": "formPlan", "planFile": "/absolute/path/to/.claude/plans/<slug>.md" }
 ```
+
+`planFile` is the absolute path from Claude's plan-mode `## Plan File Info:` block. The hook script instructs Claude to copy this path verbatim into the sentinel JSON.
 
 ### Hook Flow
 
@@ -683,15 +685,21 @@ flowchart TD
     D1 -- Yes --> Allow2[allow — loop breaker]
     D1 -- No --> Deny[deny with AskUserQuestion instruction]
     Deny --> User{User choice}
-    User -- Form Plan --> Trigger[Claude writes .claude/oxveil-execute]
+    User -- Form Plan --> Trigger[Claude writes .claude/oxveil-execute with planFile path]
     User -- Critics --> Critics[run critics, call ExitPlanMode again]
     User -- Continue --> Continue[stay in plan mode]
-    Trigger --> Watcher[watcher reads planFile from active session, calls formPlan]
+    Trigger --> Watcher[watcher reads planFile from sentinel, validates, calls formPlan]
 ```
 
 Hook denies and injects `additionalContext` instructing Claude to call `AskUserQuestion`. Claude presents options; user choice drives the next action.
 
-**planFile resolution:** Watcher passes `getPlanFile` callback (reads `WorkspaceSession.planFileOverride`) to `formPlan`. Fallback: `getActivePreviewFile()` if no active session.
+**planFile resolution:** Watcher reads `planFile` from the sentinel JSON and validates it:
+1. Must be a non-empty absolute path (trimmed).
+2. Both the candidate and `<workspaceRoot>/.claude/plans/` are resolved via `fs.realpath` (catches symlink escapes).
+3. Resolved candidate must be contained within the resolved plans directory.
+4. File must be accessible (`fs.access`); one retry after 100ms on ENOENT (fsync race window).
+
+On validation failure the watcher shows an actionable error notification with a **Pick Plan** button that opens the manual Plan Preview flow. No automatic fallback to heuristic resolution. `planFileOverride` (from `.claudeloop.conf`) governs only the *destination* PLAN.md path — it is not used as a source path.
 
 ### Hook Installation
 
@@ -845,3 +853,4 @@ Used by self-improvement session to provide Claude with context about what happe
 - **2026-05-27**: Added `planInterceptInstaller.ts` — on activation, copies bundled `resources/oxveil-plan-intercept.sh` to platform cache (`env-paths('oxveil').cache`), merges a `PreToolUse:ExitPlanMode` hook entry into `.claude/settings.json` using absolute cache path, and cleans up old per-project `.claude/hooks/` copy. Fire-and-forget; no state machine behavior changed.
 - **2026-05-27**: Moved plan marker from workspace `.claude/oxveil-plan-active` to `context.storageUri/oxveil-plan-active`. Shell hook reads `$OXVEIL_PLAN_MARKER` env var set via `environmentVariableCollection`. Marker cleanup added to `deactivate()`. No state machine behavior changed.
 - **2026-05-28**: Scoped `$OXVEIL_PLAN_MARKER` env var to plan chat terminal only via `createTerminal({ env })`. Removed global `context.environmentVariableCollection.replace()`. Prevents intercept bleed to concurrent terminals.
+- **2026-06-24**: Sentinel schema extended — `planFile` (absolute path) now required alongside `action`. Watcher validates via realpath containment, rejects on missing/invalid path with actionable notification. Removed `getPlanFile` callback from `createPlanInterceptWatcher`; `planFileOverride` now governs destination only. No state machine behavior changed.
