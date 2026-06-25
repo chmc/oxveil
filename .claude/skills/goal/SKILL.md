@@ -10,15 +10,16 @@ trigger: /goal new, /goal list, /goal close, /goal show, /goal switch
 SessionStart                    Goal Selection                  Gate Enforcement
 session-start.sh ──────────────▶ AskUserQuestion ──────────────▶ goal-action-gate.sh
 ├─ Clear stale gate (>4h)       ├─ Pick existing goal           ├─ Blocks tools until gate exists
-├─ List active goals            │   └─ gate auto-written        ├─ Gate: workflow-state/goal-gate-passed
-└─ Output "STOP"                │       (goal-selected-          └─ Allows: workflow-state, plans, Agent
-                                │        postuse.sh hook)
-                                └─ Or "Do something else"
-                                    └─ planning-checklist.sh at ExitPlanMode:
+├─ source=compact|resume        │   └─ gate auto-written        ├─ Gate: workflow-state/goal-gate-passed
+│   + fresh gate?               │       (goal-selected-          └─ Allows: workflow-state, plans, Agent
+│   └─ "Continuing …" → exit   │        postuse.sh hook)
+│   (no AskUserQuestion)        └─ Or "Do something else"
+└─ else: list + "STOP"              └─ planning-checklist.sh at ExitPlanMode:
                                         1. find_matching_goal() — strong matches only
                                            (#N exact, or Jaccard ≥ 0.5 + ≥2 shared tokens)
                                         2. No match → create new goal from plan title
 Note: "Other" typed text that doesn't match a goal name → gate not auto-written; manual write required.
+Note: On compact/resume with a fresh gate, SessionStart continues silently. Use /goal switch to change.
 ```
 
 **Key files:**

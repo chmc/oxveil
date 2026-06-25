@@ -1,6 +1,6 @@
 ## FIRST: Goal Selection
 
-If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any other response.
+If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any other response. Exception: when SessionStart fires on `compact` or `resume` and a fresh `goal-gate-passed` already exists, the hook short-circuits and continues the active goal silently — no AskUserQuestion needed.
 
 ## Behavioral Guidelines
 
@@ -114,6 +114,7 @@ See `.claude/skills/goal/SKILL.md` for commands, flow diagram, and file format.
 If SessionStart hook outputs `=== ACTIVE GOALS ===` → follow skill flow. If >3 goals: copy ACTIVE GOALS list verbatim into question text, show 3 newest as options + "Do something else".
 "Continue" on existing goal → read goal file fully, say "Goal loaded: <title>. What should we do?", wait for user input.
 Before `TaskUpdate status=completed`: **append** timestamped entry to goal's `## Status` — format: `### YYYY-MM-DD HH:MM - <summary>`. Never replace existing entries. Hook enforces this.
+SessionStart skips the selection prompt on compact/resume when `goal-gate-passed` is fresh (<4h) and references an existing goal.
 
 ## Complex Feature Planning
 

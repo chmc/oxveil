@@ -3,10 +3,16 @@
 # $CLAUDE_PROJECT_DIR may be unset in SessionStart - use script-relative path
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STATE_DIR="$SCRIPT_DIR/../workflow-state"
+GOALS_DIR="$STATE_DIR/goals"
+GATE_FILE="$STATE_DIR/goal-gate-passed"
+
 rm -f "$STATE_DIR/edit-order"
 
+# Read SessionStart source (compact, resume, startup, clear)
+input=$(cat)
+src=$(printf '%s' "$input" | jq -r '.source // empty' 2>/dev/null) || src=""
+
 # Smart gate clearing: only clear if >4h old or referenced goal deleted
-GATE_FILE="$STATE_DIR/goal-gate-passed"
 if [ -f "$GATE_FILE" ]; then
     gate_epoch=$(cut -d: -f1 "$GATE_FILE" 2>/dev/null || echo "0")
     gate_goal=$(cut -d: -f2 "$GATE_FILE" 2>/dev/null || echo "")
@@ -17,8 +23,21 @@ if [ -f "$GATE_FILE" ]; then
     fi
 fi
 
+# On compact/resume: skip prompt if a fresh valid gate exists
+case "$src" in compact|resume)
+    if [ -f "$GATE_FILE" ]; then
+        gate_goal=$(cut -d: -f2 "$GATE_FILE" 2>/dev/null || echo "")
+        if [ -n "$gate_goal" ] && [ "$gate_goal" != "do-something-else" ] \
+           && [ -f "$GOALS_DIR/$gate_goal.md" ]; then
+            title=$(grep -m1 '^# ' "$GOALS_DIR/$gate_goal.md" 2>/dev/null | sed 's/^# //')
+            echo "Continuing active goal: ${title} (${gate_goal}). User can say 'switch goal' to change."
+            exit 0
+        fi
+    fi
+    ;;
+esac
+
 # List active goals if any exist
-GOALS_DIR="$STATE_DIR/goals"
 if [ -d "$GOALS_DIR" ] && [ "$(ls -A "$GOALS_DIR" 2>/dev/null)" ]; then
     goal_count=$(ls "$GOALS_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
     echo "STOP. Active goals found — use AskUserQuestion to ask which goal to continue, close, or 'Do something else' BEFORE responding to user."

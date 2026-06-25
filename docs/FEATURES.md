@@ -46,4 +46,5 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | goal-selection-stop-rule | planned | - | CLAUDE.md | STOP rule enforcing goal selection prompt at session start |
 | goal-system-docs | stable | - | .claude/skills/goal/SKILL.md | Goal system flow documentation (hooks, gate, lifecycle) |
 | goal-overflow-display | stable | - | .claude/hooks/session-start.sh, CLAUDE.md | List all goals in question text when >3; show 3 newest as selectable options; older goals via Other free-text |
+| goal-compact-resume-continuation | stable | - | .claude/hooks/session-start.sh | SessionStart skips goal-selection prompt on compact/resume when a fresh gate exists; fixes latent $GOALS_DIR ordering bug that wrongly deleted valid gates |
 | session-lesson-promotion | stable | - | CLAUDE.md, .claude/skills/oxveil-testing/SKILL.md | Promote three repeatable session-lessons into persistent rules so future sessions inherit them |

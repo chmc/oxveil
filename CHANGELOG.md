@@ -7,6 +7,7 @@
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
 ### Fixed
+- SessionStart no longer re-asks for goal selection on conversation compact or resume when a fresh goal gate already exists. Also fixes a latent ordering bug where the stale-gate cleanup ran against an unset `$GOALS_DIR` and could wrongly delete valid gates.
 - Plan-chat→Oxveil handoff now passes the plan file path explicitly in the sentinel; watcher validates and uses it directly, preventing wrong plan selection when multiple plans exist in `.claude/plans/`
 - Fix false "Phase N failed" toast when all phases complete successfully — failure notifications now fire only on session-terminal failure, not on transient mid-run failed snapshots (#102)
 - Stop creating duplicate goals when re-planning the same GitHub issue or topic (#N or shared-word match)
