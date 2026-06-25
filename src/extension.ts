@@ -1,3 +1,4 @@
+import "./mcp/logTail";
 import * as vscode from "vscode";
 import { SessionState } from "./core/sessionState";
 import { Installer } from "./core/installer";

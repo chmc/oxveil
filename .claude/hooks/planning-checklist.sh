@@ -1,6 +1,6 @@
 #!/bin/sh
 # Gate 2: Planning Checklist
-# Blocks ExitPlanMode unless plan has all 13 required sections
+# Blocks ExitPlanMode unless plan has all 15 required sections
 set -eu
 
 if [ "${OXVEIL_SKIP_GATES:-0}" = "1" ]; then exit 0; fi
@@ -210,6 +210,19 @@ if [ -n "$vv_phase_start" ]; then
             if [ -n "$short_items" ]; then
                 missing="$missing Visual Verification items too short (need >15 chars each),"
             fi
+            # C: each criterion must contain a positive evidence anchor
+            anchor_missing=""
+            while IFS= read -r cb; do
+                criterion=$(echo "$cb" | sed 's/^- \[ \] //')
+                if ! echo "$criterion" | grep -qE '\.[a-zA-Z]{2,5}\b|`[^`]+`|sessions\[|view=|phases\[|screenshot:'; then
+                    anchor_missing="${anchor_missing}  - ${criterion}\n"
+                fi
+            done <<CRITERIA_BLOCK
+$(echo "$vv_content" | grep -E "^- \[ \]")
+CRITERIA_BLOCK
+            if [ -n "$anchor_missing" ]; then
+                missing="$missing Visual Verification criteria missing evidence anchor (each criterion needs file path, backtick log substring, MCP state field sessions[/view=/phases[, or screenshot: prefix),"
+            fi
         fi
     fi
 fi
@@ -255,6 +268,34 @@ if ! is_na_section "Flow Visualization" && ! is_empty_section "Flow Visualizatio
     fi
 fi
 
+# 15. Root Cause Evidence (every plan; N/A with approved category for non-bug-fix)
+if ! echo "$plan_content" | grep -q "^## root cause evidence"; then
+    missing="$missing Root Cause Evidence (missing),"
+elif is_empty_section "Root Cause Evidence"; then
+    missing="$missing Root Cause Evidence (empty),"
+else
+    rce_first=$(get_section_first_line "Root Cause Evidence" | tr '[:upper:]' '[:lower:]')
+    if echo "$rce_first" | grep -qE '^n/?a'; then
+        if ! echo "$rce_first" | grep -qiE '^n/?a[[:space:]]*-[[:space:]]*(bug fix|docs only|test only|config only|typo fix|dependency update|ci fix|build fix|lint fix|formatting only|version bump|no architectural change)'; then
+            missing="$missing Root Cause Evidence (N/A requires approved category: bug fix|docs only|test only|config only|typo fix|dependency update|ci fix|build fix|lint fix|formatting only|version bump|no architectural change),"
+        fi
+    elif ! echo "$rce_first" | grep -qiE '\[failing-test\]|\[runtime-observation\]|\[debugger-snapshot\]|\[n/?a-symptom-only\]'; then
+        missing="$missing Root Cause Evidence (tag required: [failing-test], [runtime-observation], [debugger-snapshot], or [N/A-symptom-only]),"
+    fi
+fi
+
+# 16. Harness Requirements (every plan; tag required)
+if ! echo "$plan_content" | grep -q "^## harness requirements"; then
+    missing="$missing Harness Requirements (missing),"
+elif is_empty_section "Harness Requirements"; then
+    missing="$missing Harness Requirements (empty),"
+else
+    hr_first=$(get_section_first_line "Harness Requirements" | tr '[:upper:]' '[:lower:]')
+    if ! echo "$hr_first" | grep -qiE '\[needs-real-session\]|\[empty-harness-ok\]|\[n/?a-no-workspace-interaction\]'; then
+        missing="$missing Harness Requirements (tag required: [needs-real-session], [empty-harness-ok], or [N/A-no-workspace-interaction]),"
+    fi
+fi
+
 # If any missing or empty, deny
 if [ -n "$missing" ]; then
     missing=$(echo "$missing" | sed 's/,$//')
@@ -264,7 +305,7 @@ if [ -n "$missing" ]; then
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
     "permissionDecisionReason": "Plan missing or empty sections:$missing",
-    "additionalContext": "All 13 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects, Flow Visualization. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) describing observable behaviors for /visual-verification."
+    "additionalContext": "All 15 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects, Flow Visualization, Acceptance Criteria, Root Cause Evidence, Harness Requirements. Root Cause Evidence tags: [failing-test], [runtime-observation], [debugger-snapshot], [N/A-symptom-only]. Harness Requirements tags: [needs-real-session], [empty-harness-ok], [N/A-no-workspace-interaction]. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) with positive evidence anchors."
   }
 }
 EOF
@@ -623,6 +664,17 @@ rm -f "$STATE_DIR/simplify-complete"
 rm -f "$STATE_DIR/review-complete"
 rm -f "$STATE_DIR/visual-verified"
 rm -f "$STATE_DIR/visual-skip-reason"
+
+# D: advisory warning — workspace-coupled diff but plan declares empty-harness-ok
+WORKSPACE_COUPLED_PATTERN='WorkspaceSession|pickWorkspaceFolder|processManager|getAllSessions|formPlan'
+hr_content_raw=$(get_section_first_line "Harness Requirements" | tr '[:upper:]' '[:lower:]')
+if echo "$hr_content_raw" | grep -qiE '\[empty-harness-ok\]|\[n/?a-no-workspace-interaction\]'; then
+    if git -C "${CLAUDE_PROJECT_DIR:-.}" diff HEAD 2>/dev/null | grep -qE "$WORKSPACE_COUPLED_PATTERN"; then
+        cat <<'EOF'
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Advisory: diff touches workspace-session code (WorkspaceSession/pickWorkspaceFolder/processManager/getAllSessions/formPlan) but Harness Requirements declares [empty-harness-ok] or [N/A-no-workspace-interaction]. Verify your VV harness has sessions.length >= 1 or the tested code path does not depend on workspace sessions."}}
+EOF
+    fi
+fi
 
 # Allow
 exit 0

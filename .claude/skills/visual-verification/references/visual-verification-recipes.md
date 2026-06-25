@@ -1499,3 +1499,58 @@ verify_plan_chat_flow() {
     [[ "$VISIBLE" == "true" && "$PHASES" -gt 0 ]] && echo "PASS" || { echo "FAIL: planPreview not ready (visible=$VISIBLE phases=$PHASES)"; return 1; }
 }
 ```
+
+## Assertion Target Priority
+
+Pick the highest-fidelity assertion available. Lower tiers are acceptable only when higher tiers are structurally unavailable.
+
+| Priority | Target | Example |
+|----------|--------|---------|
+| 1 (best) | MCP state field | `jq -r '.sessions[0].phase'` |
+| 2 | File content | `cat .claudeloop/PLAN.md \| grep "phase-count"` |
+| 3 | Log substring via `/log-tail` | `curl .../log-tail?grep=formPlan+adapter` |
+| 4 (last resort) | Screenshot pixel region | Visual only — Tier 1 checks |
+
+Never use log assertions as primary evidence when a state field exists. Logs confirm execution; state confirms outcome.
+
+## `/log-tail` Endpoint Recipe
+
+Query extension host console logs for VV assertions. Requires MCP bridge running (`oxveil.mcpBridge: true`).
+
+```bash
+# Read TOKEN and PORT from discovery file
+MCP_FILE=$(cat "$(pwd)/.oxveil-mcp" 2>/dev/null || cat "../oxveil-verify-*/. oxveil-mcp" 2>/dev/null)
+TOKEN=$(echo "$MCP_FILE" | jq -r '.token')
+PORT=$(echo "$MCP_FILE" | jq -r '.port')
+
+# Get all logs since timestamp (ms epoch)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:$PORT/log-tail"
+
+# Filter by substring
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:$PORT/log-tail?grep=formPlan+adapter"
+
+# Get logs since a timestamp (avoids re-reading pre-test logs)
+BEFORE_TS=$(date +%s%3N)
+# ... trigger action ...
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:$PORT/log-tail?since=${BEFORE_TS}&grep=formPlan+adapter"
+
+# Assert a specific log line appeared
+assert_log_line() {
+    local grep_term="$1"
+    local since_ts="${2:-0}"
+    local result
+    result=$(curl -s -H "Authorization: Bearer $TOKEN" \
+        "http://127.0.0.1:$PORT/log-tail?since=${since_ts}&grep=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$grep_term")")
+    local count
+    count=$(echo "$result" | jq 'length')
+    [[ "$count" -gt 0 ]] && echo "PASS: found '$grep_term' ($count entries)" \
+        || { echo "FAIL: '$grep_term' not in logs since $since_ts"; return 1; }
+}
+```
+
+Response format: `[{"t": <epoch_ms>, "line": "<text>"}, ...]`
+
+Coverage: wraps `console.log/warn/error` only. Subprocess stdout (claudeloop) and `outputChannel.appendLine` are NOT captured.

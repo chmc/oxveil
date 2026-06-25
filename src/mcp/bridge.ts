@@ -3,8 +3,10 @@ import * as fs from "node:fs/promises";
 import { unlinkSync } from "node:fs";
 import * as path from "node:path";
 import { randomBytes } from "node:crypto";
+import { URL } from "node:url";
 import type { SidebarState } from "../views/sidebarState";
 import type { SidebarCommand } from "../views/sidebarMessages";
+import { getLogTail } from "./logTail";
 
 const MAX_BODY = 65536;
 const PROTOCOL_VERSION = 1;
@@ -75,6 +77,18 @@ export async function startBridge(deps: BridgeDeps): Promise<BridgeHandle> {
         const body = JSON.parse(await readBody(req));
         const found = await deps.dispatchClick(body as SidebarCommand);
         json(res, 200, { ok: true, found });
+        return;
+      }
+
+      if (method === "GET" && url.startsWith("/log-tail")) {
+        const parsed = new URL(url, "http://localhost");
+        const since = parsed.searchParams.get("since");
+        const grep = parsed.searchParams.get("grep") ?? undefined;
+        const entries = getLogTail({
+          since: since !== null ? Number(since) : undefined,
+          grep,
+        });
+        json(res, 200, entries);
         return;
       }
 

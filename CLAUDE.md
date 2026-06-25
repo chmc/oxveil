@@ -158,6 +158,10 @@ Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL
 
 **Side-Effects** — required plan section; N/A only for: typo fix, docs only, formatting only, version bump. Must address what afterwork this could cause if assumptions are wrong.
 
+**Root Cause Evidence** — required plan section. Tags: `[failing-test]` (path to failing test), `[runtime-observation]` (log line or breakpoint capture showing the failure state), `[debugger-snapshot]` (MCP state ref), `[N/A-symptom-only]` (ADR allowlist only). Code-reading alone is INSUFFICIENT for null/undefined/branch-not-taken claims — requires `[failing-test]` or `[runtime-observation]`. Hook enforces at ExitPlanMode.
+
+**Harness Requirements** — required plan section. Tags: `[needs-real-session]`, `[empty-harness-ok]`, `[N/A-no-workspace-interaction]`. VV Phase 5 blocks PASS when `[needs-real-session]` declared and MCP `sessions.length === 0`. Advisory warning fires at ExitPlanMode when diff touches workspace-session code but plan declares `[empty-harness-ok]`. Hook enforces at ExitPlanMode.
+
 **Flow Visualization** — required plan section. ASCII diagram showing the change: before/after for fixes, data/control flow for features. Before/after diagrams must be side-by-side in a single code block (vertical stacking allowed when combined width >100 cols). Use tree chars (├└│), arrows (→←), or fenced code blocks. N/A allowed with justification >30 chars explaining why no flow exists. Hook enforces presence at ExitPlanMode.
 - Example:
   ```

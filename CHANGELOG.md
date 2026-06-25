@@ -22,6 +22,10 @@
 - Plan exit intercept now shows options in Claude terminal instead of VS Code QuickPick
 
 ### Added
+- MCP `/log-tail` endpoint exposes extension host console buffer for VV assertions (grep + since-timestamp filters)
+- Plan validation: `## Root Cause Evidence` required; code-reading alone insufficient for null/branch claims — `[failing-test]` or `[runtime-observation]` tag required
+- Plan validation: `## Harness Requirements` tag; `[needs-real-session]` blocks VV PASS when harness has zero sessions
+- VV criteria validation: each acceptance criterion must contain a positive evidence anchor (file path, log substring, MCP state field, or screenshot region)
 - Flow Visualization required plan section with gate enforcement (N/A needs >30 char justification)
 - Side-Effects content-quality validation: cross-validates plan body risk patterns against SE section, blocks dismissals ("none", "no side-effects") when risk categories detected
 - Side-Effects required plan section with gate enforcement (N/A only for trivial changes)
