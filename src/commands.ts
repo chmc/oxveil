@@ -226,9 +226,15 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     ),
     registerFormPlanCommand({
       resolveFolder: async () => {
-        const resolved = await resolveFolder();
-        if (!resolved?.processManager) return undefined;
+        const sessionsCount = sessionManager.getAllSessions().length;
         const active = sessionManager.getActiveSession();
+        console.log(`[Oxveil] formPlan adapter: sessionsCount=${sessionsCount} hasActiveSession=${!!active}`);
+        const resolved = await resolveFolder();
+        if (!resolved?.processManager) {
+          console.log(`[Oxveil] formPlan adapter: silent exit reason=${!resolved ? "no-workspace-folder" : "no-process-manager"}`);
+          return undefined;
+        }
+        console.log(`[Oxveil] formPlan adapter: proceeding workspaceRoot=${resolved.workspaceRoot}`);
         return {
           workspaceRoot: resolved.workspaceRoot,
           processManager: resolved.processManager,

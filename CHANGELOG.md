@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- Log formPlan handoff outcome to Oxveil output channel for diagnosis (sessionsCount, silent exit reason, workspaceRoot)
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
 ### Fixed
