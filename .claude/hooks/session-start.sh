@@ -24,6 +24,7 @@ if [ -f "$GATE_FILE" ]; then
 fi
 
 # On compact/resume: skip prompt if a fresh valid gate exists
+# NOTE: stdout here is injected as assistant context, not user-visible chat. Use plain text — no markdown.
 case "$src" in compact|resume)
     if [ -f "$GATE_FILE" ]; then
         gate_goal=$(cut -d: -f2 "$GATE_FILE" 2>/dev/null || echo "")

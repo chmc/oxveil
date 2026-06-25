@@ -24,7 +24,7 @@ Note: On compact/resume with a fresh gate, SessionStart continues silently. Use 
 
 **Key files:**
 - `CLAUDE.md` §FIRST: Goal Selection, §Goal Management — behavioral rules
-- `hooks/session-start.sh` — detection + prompt
+- `hooks/session-start.sh` — detection + prompt (stdout is assistant context, not user-visible chat)
 - `hooks/goal-action-gate.sh` — enforcement (blocks tools until gate)
 - `hooks/goal-selected-postuse.sh` — auto-writes gate on AskUserQuestion answer
 - `hooks/planning-checklist.sh` — auto-creates goals at ExitPlanMode

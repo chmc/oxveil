@@ -84,3 +84,6 @@ async function onStateChanged() {
 - Async handlers in views: use `GuardedHandler` type signature
 - State reads before await: use `assertFresh(seq)` or re-read after
 - New panels: include `_disposed` flag + `GuardedHandler` signatures
+- Adding optional field to shared interface? Grep all construction sites — TypeScript won't error on missing optional fields.
+- Parallel code paths (e.g., `withSession` / `withoutSession`): state clearing in one path often needs mirroring in the other — grep all mutation sites, extract shared helper if duplicating
+- Touch one switch case → verify all cases have equivalent coverage

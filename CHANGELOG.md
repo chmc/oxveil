@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- CLAUDE.md dedup pass: collapsed ~5 duplicated bullets, extracted platform-specific patterns (osascript, fake_claude, async state) into their owning skills, promoted three session lessons (hook adjacency reading, plan-mode re-entry hygiene, proxy directive flagging). Net: ~50 fewer lines in CLAUDE.md, no behavior change.
 - Log formPlan handoff outcome to Oxveil output channel for diagnosis (sessionsCount, silent exit reason, workspaceRoot)
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 

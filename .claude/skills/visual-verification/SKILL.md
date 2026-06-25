@@ -181,6 +181,13 @@ Example: Verifying 10px sub-step text requires either:
 - **Tier 2 (unreliable — verify via code review):** ThemeColor correctness, spinner animation, pixel alignment, contrast ratios.
 - **Not screenshot-verifiable:** Notification deduplication/timing — verify via unit tests. Message format, severity, button labels remain Tier 1.
 
+## osascript Patterns
+
+- NEVER `keystroke` via osascript for destructive ops (Cmd+W/Q). `keystroke` targets frontmost app, not `tell process` target. Use `click menu item`.
+- Non-destructive keystrokes: `set frontmost to true` + `AXRaise` first.
+- Escape does NOT dismiss VS Code AXSheets — click Cancel/Don't Save button directly.
+- Merge related operations into single osascript call — separate bash calls introduce timing gaps.
+
 ## References
 
 See `.claude/skills/visual-verification/references/visual-verification-recipes.md` for all scripts, templates, and checklists.

@@ -32,6 +32,20 @@ description: Oxveil-specific TDD patterns. Use alongside superpowers:test-driven
 - Plan preview tab assertions: `data-category` attribute only exists when `options.tabs.length >= 2` in `planPreviewHtml.ts`. Single-file state tests must assert on content (title text, body content) not tab attributes.
 - Plan staleness tests: use `ACTIVE_PLAN_PATH` + `VALID_PLAN` from `src/test/unit/sidebar/helpers.ts` — they represent `.claude/plans/` workspace path and valid parseable plan content respectively.
 
+## fake_claude
+
+Install to a scoped temp dir, never `~/.local/bin`:
+
+```bash
+FAKE_CLAUDE_DIR=$(mktemp -d -t fake_claude.XXXXXX)
+cp fake_claude "$FAKE_CLAUDE_DIR/claude"
+chmod +x "$FAKE_CLAUDE_DIR/claude"
+trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT
+PATH="$FAKE_CLAUDE_DIR:$PATH" code ...
+```
+
+Temp dir propagates to EDH → claudeloop → claude.
+
 ## Refactor hygiene
 
 - Test scripts that need helper logic must `source` the helper file directly. Never extract by `sed` line range — silently breaks when the helper moves.
