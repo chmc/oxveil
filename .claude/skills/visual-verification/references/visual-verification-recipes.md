@@ -985,7 +985,11 @@ close_edh_window() {
 
 ## Maximize Viewport
 
-Run after EDH launch, before first screenshot. Keep primary sidebar visible (Oxveil tree view).
+Two variants depending on phase. Always keep primary sidebar visible (Oxveil tree view).
+
+### Phase 1 — Initial maximize (before Plan Chat opens)
+
+Run once after EDH launch. Plan Chat is not yet open, so `closeAllEditors` is safe.
 
 ```bash
 # Focus EDH window
@@ -1003,13 +1007,48 @@ sleep 0.3
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"workbench.action.closePanel"}' http://127.0.0.1:$PORT/command
 
-# [SETUP] Close secondary sidebar
+# [SETUP] Close secondary sidebar (Copilot Chat, etc.)
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"workbench.action.closeAuxiliaryBar"}' http://127.0.0.1:$PORT/command
 
-# [SETUP] Close all editor tabs (Welcome, Settings, etc.) in one shot
+# [SETUP] Close all editor tabs (Welcome, Get Started, README previews, etc.)
+# Safe here — Plan Chat is not open yet.
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"command":"workbench.action.closeAllEditors"}' http://127.0.0.1:$PORT/command
+
+sleep 0.5
+```
+
+### Phase 3 — Pre-capture re-maximize (Plan Chat may be open)
+
+Run before EVERY screenshot or video in Phase 3. Skips `closeAllEditors` — Plan Chat opens as an
+editor-area terminal tab and must survive. See §"Focusing the Plan Chat terminal" for why.
+
+```bash
+# Focus EDH window
+osascript -e '
+tell application "System Events"
+    tell process "Code"
+        set frontmost to true
+        perform action "AXRaise" of (first window whose name contains "[Extension Development Host]")
+    end tell
+end tell'
+
+sleep 0.3
+
+# [SETUP] Close bottom panel
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.closePanel"}' http://127.0.0.1:$PORT/command
+
+# [SETUP] Close secondary sidebar (Copilot Chat, etc.)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.closeAuxiliaryBar"}' http://127.0.0.1:$PORT/command
+
+# [SETUP] Bring Oxveil into primary sidebar focus (displaces Copilot Chat if pinned there)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.view.extension.oxveil"}' http://127.0.0.1:$PORT/command
+
+# DO NOT run closeAllEditors here — Plan Chat tab must survive.
 
 sleep 0.5
 ```
