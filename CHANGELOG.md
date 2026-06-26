@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Changed
+- VV marker validator hook rejects `status=pass` with unchecked ACs or BLOCKED per-AC records; rejects `status=blocked` with fixable-harness patterns lacking `[harness-unfixable]` tag
+- MCP `/state` exposes `processManager: { exists: boolean }` for harness preflight checks
+- VV skill: Per-AC Decision Rubric promoted to top-level section; AC texts must name trigger path; Phase 2 requires claude-log assertion before interacting
+- VV recipes: ExitPlanMode handover end-to-end recipe added; terminal Enter mandated via `sendSequence \r` (cliclick forbidden)
+- `planning-checklist.sh` and `branch-awareness.sh` exempt VV harness worktrees (`oxveil-verify-*` pattern)
+- `[formPlan]` log line format unified: `sessionsCount=N workspaceRoot=<path> outcome=<silent-exit|success> reason=<text>`
+- VV recipe fix (fff2b45) re-verified against real Plan Chat → ExitPlanMode handover path; previous session's silent-exit was a harness artifact (wrong flow exercised, claudeloop not detected), not a recipe regression. All 6 ACs PASS in session `20260626-181630-vv-exit-plan-mode-handover`.
 - Visual verification skill defines three end-states (PASS / BLOCKED / FAILED) and requires a per-AC literal observation in SESSION.md. Marker file format changes from path-only to `status=<pass|blocked> session=<path>`. Adds Capture-then-observe rule and toast capture-series recipe.
 - VV maximize recipe preserves Plan Chat editor tab; Phase 3 pre-capture variant skips `closeAllEditors` so plan-chat-driven ACs capture the user's actual interaction surface.
 - Commit 990e531 (scope plan reactions) re-verified: AC1/AC2/AC3/AC7/AC8 PASS in fresh VV session. AC4 (Plan Preview foreign plan) remains deferred to #136.

@@ -49,6 +49,7 @@ export interface SidebarState {
   aiParsing?: boolean;
   provider?: Provider;
   planPreview?: PlanPreviewState;
+  processManager?: { exists: boolean };
 }
 
 export interface PlanPreviewState {

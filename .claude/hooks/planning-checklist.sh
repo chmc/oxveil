@@ -5,6 +5,10 @@ set -eu
 
 if [ "${OXVEIL_SKIP_GATES:-0}" = "1" ]; then exit 0; fi
 
+case "${CLAUDE_PROJECT_DIR:-$PWD}" in
+  */oxveil-verify-*) exit 0 ;;
+esac
+
 STATE_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/workflow-state"
 PLANS_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/plans"
 FEATURES_MD="${CLAUDE_PROJECT_DIR:-.}/docs/FEATURES.md"

@@ -61,10 +61,41 @@ When visual verification runs on Oxveil itself, the main VS Code and EDH share t
 
 When writing plans with numbered phases, VV must be a numbered phase (e.g., `## Phase N: Visual Verification`), not a standalone section at the end. If the plan has no numbered phases, use `## Visual Verification` as a standalone section.
 
+## Per-AC Decision Rubric
+
+Read this before Phase 5. Apply per acceptance criterion using the Per-AC Record written during Phases 2–4.
+
+**Harness fidelity gate (run first):** If plan declares `[needs-real-session]`, run `vv-harness-preflight.sh` or check `GET /state | jq .processManager.exists`. If `false` → FAILED harness gate. Do NOT mark any AC PASS until this clears.
+
+**Three outcomes — no rounding up:**
+
+- **PASS** — the specific behavior is visible in the captured frame or confirmed in `/state`. Observation describes it literally. Example: "Screenshot 03 shows AskUserQuestion dialog with 3 handover options."
+- **BLOCKED** — the harness cannot exercise or capture this AC reliably (toast dismissed before capture, endpoint not exposed). Feature may be correct but unconfirmable. Write blocker + follow-up issue.
+- **FAILED** — a frame or `/state` confirms breakage. Fix code, return to Phase 1.
+
+**Never write PASS from inference.** "Sentinel deleted so toast must have fired" is not an observation. No frame → no PASS.
+
+**Fixable-harness BLOCKED is not BLOCKED — it is unfinished work.** Patterns that require fixing and re-running (not writing `status=blocked`):
+- `processManager null` / `claudeloop not detected`
+- `wrong flow exercised` (sidebar button instead of real user path)
+- `env var not propagated` — check `processManager.exists` BEFORE diagnosing env vars
+- `sentinel written to wrong path`
+
+Add `[harness-unfixable] issue=#N` to SESSION.md only when the blocker is genuinely tooling-limited (e.g. toast auto-dismisses in <1s, no endpoint exposes the state).
+
+**Session outcome:** All PASS → `status=pass`. Any BLOCKED (rest PASS/BLOCKED) → `status=blocked`. Any FAILED → do NOT write marker.
+
+**The `marker-validator.sh` hook enforces this:** denies `status=pass` with unchecked ACs or BLOCKED per-AC records; denies `status=blocked` with fixable-harness patterns lacking `[harness-unfixable]`.
+
+---
+
 ## Phases
 
 0. **Pre-flight** — **First, define acceptance criteria:**
    1. Write to SESSION.md: **Fix description** (one sentence), **Observable behavior** (exact UI state/transition that proves the fix), **Trigger action** (user action or mock sequence that produces it).
+   **AC quality requirement:** Each AC text must name the trigger path explicitly, not just the outcome.
+   - Good: `"ExitPlanMode intercept → sentinel → planInterceptWatcher → formPlan → Live Run tab opens in ViewColumn.One"`
+   - Bad: `"Live Run opens"` (hides which path is tested; a shortcut can satisfy the outcome without exercising the fix)
    2. **Feasibility check:** Can the trigger action be executed in EDH? If NO → stop, report "FAILED: [criteria] not exercisable. Blocker: [reason]." Do not proceed.
    3. `TaskCreate` with subject `"Verify: [observable behavior]"` — mark completed only when behavior is observed.
       **After TaskCreate:** write session path to workflow-state marker:
@@ -112,7 +143,9 @@ Observation: /state returns planPreview.activeFilePath ending in "2026-04-23-qa-
 ```
 
 1. **Build & Launch** — **If self-implementation mode:** Create worktree at `../oxveil-verify-{timestamp}` via `git worktree add`, run `npm install && npm run build` in worktree. Launch EDH via `code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"`. **Otherwise:** `npm run build` in current workspace. Launch EDH via `code --extensionDevelopmentPath="$(pwd)" --disable-extension GitHub.copilot-chat`. Check `mcp__ide__getDiagnostics`. Plan chat automatically uses haiku in EDH (override with `OXVEIL_CLAUDE_MODEL=<model>` if needed). Poll for EDH window (1s intervals, 15s timeout). Wait for `.oxveil-mcp` discovery file to appear (in worktree if self-implementation mode). **Maximize viewport (BLOCKING GATE):** Run the maximize recipe from `references/visual-verification-recipes.md` — close bottom panel, secondary sidebar, and unwanted editor tabs (Welcome, Settings). Keep primary sidebar visible (Oxveil tree view). This step MUST succeed before proceeding to Phase 2. Screenshot on success.
-2. **Interact** — Exercise the full workflow path affected by the implementation. Walk through every user-facing state transition end-to-end. For the standard lifecycle (empty → stale → ready → running → completed), follow the "Full Lifecycle" recipe in the references file. Use the **MCP bridge as the primary interaction method** for sidebar webview buttons (see MCP recipes below).
+2. **Interact** — **First action: verify which claude is running.** Check `head -1 .claudeloop/live.log` (or worktree equivalent). Real Claude shows `model=claude-*`; fake_claude shows `[FAKE]` prefix. If it doesn't match the SESSION.md `Using:` declaration, abort immediately and fix the harness. If plan declares `[needs-real-session]`, run `vv-harness-preflight.sh` now. Log the result in SESSION.md.
+
+   Exercise the full workflow path affected by the implementation. Walk through every user-facing state transition end-to-end. For the standard lifecycle (empty → stale → ready → running → completed), follow the "Full Lifecycle" recipe in the references file. Use the **MCP bridge as the primary interaction method** for sidebar webview buttons (see MCP recipes below).
    - **Terminal input:** Use `type_in_plan_chat()` (MCP `sendSequence` via `oxveil.focusPlanChat`) — see recipes. osascript `keystroke` is unreliable for VS Code terminals.
    - **Waiting for AI output:** Use `wait_for_plan_file()` to poll for plan files — see recipes. Default 120s timeout.
    Use osascript only for non-webview interactions (command palette, window management, focus). Cross-check: after each MCP action, verify the state via `get_sidebar_state` AND a screenshot. Log each action to SESSION.md. Wait for UI to settle.
@@ -129,6 +162,8 @@ Observation: /state returns planPreview.activeFilePath ending in "2026-04-23-qa-
    **Never round up.** "I didn't see it in the frame" is BLOCKED (if harness is the limit) or FAILED (if the frame confirms breakage). It is never PASS.
 
    **Session outcome:** All ACs → PASS: write marker `status=pass`. Any AC → BLOCKED (rest PASS or BLOCKED): write marker `status=blocked`. Any AC → FAILED: do NOT write marker — fix and return to Phase 1.
+
+   **Fixable-harness BLOCKED rule:** If a BLOCKED outcome is caused by a fixable harness issue (claudeloop not detected, env var not propagated, wrong flow exercised, sentinel written to wrong path, processManager null due to missing session), you MUST fix the harness and re-run — do NOT write `status=blocked` and close out. A harness-setup failure is not an acceptable shipping outcome. Anti-pattern: writing `status=blocked` when the blocker is your own misconfigured setup.
 
    Then: Critical/bug: fix code, go to Phase 1. All states resolved: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
 6. **Cleanup** — Close EDH window via `close_edh_window` function (see recipes): dismisses modal sheets by clicking Cancel/Don't Save button directly (Escape does not work on VS Code sheets), then AXPress close button, then verifies no EDH windows remain. Never use `keystroke` Cmd+W or inline osascript. **If self-implementation mode:** Remove worktree via `git worktree remove $WORKTREE_PATH`, restore stash if created in Phase 0. Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains (from worktree or main repo). Verify no orphan processes. Write final result and completion time to SESSION.md. NEVER delete the `verification-sessions/` folder or any session subfolder — they are gitignored but kept on disk for developer auditing. **Write session result to marker** (outcome from Phase 5):

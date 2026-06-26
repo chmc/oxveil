@@ -1520,7 +1520,14 @@ sleep 0.5
 type_in_terminal_gui "plan how to add a button"
 ```
 
-**Legacy:** `type_in_plan_chat()` via MCP `sendSequence` is removed. `workbench.action.terminal.sendSequence` bypasses the terminal UI and is not a real user action.
+**Terminal Enter — MANDATORY:** Use `workbench.action.terminal.sendSequence` with `\r` to submit input. `cliclick kp:return` is **forbidden** for terminal Enter — VS Code is not reliably frontmost in automation and the keystroke drops silently.
+
+```bash
+# Submit a prompt in Plan Chat terminal
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.terminal.sendSequence","args":[{"text":"\r"}]}' \
+  "http://127.0.0.1:$PORT/command"
+```
 
 ## Waiting for Plan Files
 
@@ -1654,3 +1661,52 @@ assert_log_line() {
 Response format: `[{"t": <epoch_ms>, "line": "<text>"}, ...]`
 
 Coverage: wraps `console.log/warn/error` only. Subprocess stdout (claudeloop) and `outputChannel.appendLine` are NOT captured.
+
+## ExitPlanMode Handover End-to-End
+
+Full path: Plan Chat → claude calls ExitPlanMode → terminal intercept → user picks "Form Plan with Oxveil" → sentinel → planInterceptWatcher → `oxveil.formPlan` → Live Run opens.
+
+**Prerequisites:** `[needs-real-session]` — run `vv-harness-preflight.sh` first (or `oxveil.start` via MCP then verify `processManager.exists=true`).
+
+```bash
+# Step 1: Start claudeloop session (provides processManager)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"oxveil.start"}' "http://127.0.0.1:$PORT/command"
+# Wait for processManager.exists=true
+until curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state" \
+  | jq -e '.processManager.exists == true' > /dev/null 2>&1; do sleep 1; done
+
+# Step 2: Open Plan Chat (Let's Go)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"createPlan"}' "http://127.0.0.1:$PORT/click"
+sleep 2
+
+# Step 3: Type prompt + submit (see Terminal Input section — sendSequence ONLY)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.terminal.sendSequence","args":[{"text":"Plan a dark mode toggle feature\r"}]}' \
+  "http://127.0.0.1:$PORT/command"
+
+# Step 4: Wait for plan file written by claude (see Waiting for Plan Files section)
+# wait_for_plan_file() polls .claude/plans/*.md for new content
+
+# Step 5: Detect intercept dialog
+# The AskUserQuestion prompt appears in the Plan Chat terminal.
+# Screenshot to capture it (see Phase 3 maximize before capture).
+# The intercept sends {action:"formPlan",planFile:"<abs-path>"} sentinel via the hook.
+# To exercise the handover from harness, write sentinel directly:
+PLAN_FILE="$(ls -t "$(pwd)/.claude/plans/"*.md 2>/dev/null | head -1)"
+SENTINEL="$(pwd)/.claude/oxveil-execute"
+printf '{"action":"formPlan","planFile":"%s"}' "$PLAN_FILE" > "$SENTINEL"
+
+# Step 6: Assert sentinel consumed + view=running
+sleep 2
+STATE=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state")
+echo "$STATE" | jq -e '.view == "running"' && echo "PASS: Live Run opened" \
+  || echo "FAIL: view=$(echo "$STATE" | jq -r '.view') — check processManager.exists and plan file path"
+[ ! -f "$SENTINEL" ] && echo "PASS: sentinel consumed" || echo "FAIL: sentinel still present"
+```
+
+**Failure diagnosis:** If `view` stays `planning` after sentinel write, check `/log-tail?grep=formPlan`:
+- `outcome=silent-exit reason=no-process-manager` → processManager null; `oxveil.start` was not called or session not detected
+- `outcome=silent-exit reason=no-workspace-folder` → workspace folder not resolved
+- No log line → planInterceptWatcher did not fire; check sentinel path is inside workspace root

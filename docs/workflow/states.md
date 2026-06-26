@@ -800,6 +800,16 @@ type PlanUserChoice = "none" | "planning";
 type PlanPreviewState = "active" | "empty" | "session-ended" | "raw-markdown";
 ```
 
+### ProcessManagerSnapshot (MCP projection)
+```typescript
+// Included in SidebarState.processManager for MCP /state endpoint.
+interface ProcessManagerSnapshot {
+  exists: boolean;  // true when active WorkspaceSession has a non-null processManager
+}
+```
+
+Populated in `buildFullState()` via `manager.getActiveSession()?.processManager != null`. Returns `{ exists: false }` (never `undefined`) so harness preflight scripts can rely on the field always being present.
+
 ### PlanPreviewSnapshot (MCP projection)
 ```typescript
 // Exported as PlanPreviewState from sidebarState.ts — included in SidebarState.planPreview

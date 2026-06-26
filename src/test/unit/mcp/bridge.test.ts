@@ -98,6 +98,32 @@ describe("MCP Bridge", () => {
     expect(res.body.view).toBe("ready");
   });
 
+  it("GET /state includes processManager.exists field", async () => {
+    await start({
+      buildFullState: () => ({
+        view: "running",
+        archives: [],
+        processManager: { exists: true },
+      }) as any,
+    });
+    const res = await request(handle!.port, "GET", "/state", token);
+    expect(res.status).toBe(200);
+    expect(res.body.processManager).toEqual({ exists: true });
+  });
+
+  it("GET /state processManager.exists is false when no session", async () => {
+    await start({
+      buildFullState: () => ({
+        view: "empty",
+        archives: [],
+        processManager: { exists: false },
+      }) as any,
+    });
+    const res = await request(handle!.port, "GET", "/state", token);
+    expect(res.status).toBe(200);
+    expect(res.body.processManager).toEqual({ exists: false });
+  });
+
   it("POST /click dispatches sidebar command and returns found=true", async () => {
     const dispatchClick = vi.fn(async () => true);
     await start({ dispatchClick });
