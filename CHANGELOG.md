@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- Visual verification skill defines three end-states (PASS / BLOCKED / FAILED) and requires a per-AC literal observation in SESSION.md. Marker file format changes from path-only to `status=<pass|blocked> session=<path>`. Adds Capture-then-observe rule and toast capture-series recipe.
 - CLAUDE.md dedup pass: collapsed ~5 duplicated bullets, extracted platform-specific patterns (osascript, fake_claude, async state) into their owning skills, promoted three session lessons (hook adjacency reading, plan-mode re-entry hygiene, proxy directive flagging). Net: ~50 fewer lines in CLAUDE.md, no behavior change.
 - Log formPlan handoff outcome to Oxveil output channel for diagnosis (sessionsCount, silent exit reason, workspaceRoot)
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns

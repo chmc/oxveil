@@ -165,7 +165,18 @@ fi
 # Gate 11: Visual verification (only if view files were edited)
 if has_view_files; then
     if [ -f "$STATE_DIR/visual-verified" ]; then
-        _session_path=$(tr -d '[:space:]' < "$STATE_DIR/visual-verified")
+        _vv_content=$(tr -d '[:space:]' < "$STATE_DIR/visual-verified")
+        # New format: status=pass|blocked session=<path>
+        # Legacy format (path-only): treated as status=pass for backwards compat
+        if echo "$_vv_content" | grep -q "^status="; then
+            _vv_status=$(echo "$_vv_content" | sed 's/status=\([^ ]*\).*/\1/')
+            _session_path=$(echo "$_vv_content" | sed 's/.*session=\(.*\)/\1/')
+            if [ "$_vv_status" != "pass" ] && [ "$_vv_status" != "blocked" ]; then
+                add_missing "visual verification marker has invalid status: $_vv_status (expected pass or blocked)"
+            fi
+        else
+            _session_path="$_vv_content"
+        fi
         if [ -z "$_session_path" ] || [ ! -d "$_session_path" ]; then
             add_missing "visual verification session not found: $_session_path"
         elif [ ! -f "$_session_path/SESSION.md" ]; then

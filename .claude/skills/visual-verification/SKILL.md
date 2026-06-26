@@ -75,6 +75,42 @@ When writing plans with numbered phases, VV must be a numbered phase (e.g., `## 
       Copy acceptance criteria checkboxes from plan's `## Acceptance Criteria` verbatim into SESSION.md.
 
    Then: **Legacy fake_claude cleanup:** `if [[ -f ~/.local/bin/claude ]] && grep -q "FAKE_CLAUDE_DIR" ~/.local/bin/claude 2>/dev/null; then rm -f ~/.local/bin/claude; rm -rf ~/.local/bin/lib; fi`. **Stale worktree cleanup:** `git worktree list | grep oxveil-verify | awk '{print $1}' | xargs -I{} git worktree remove --force {} 2>/dev/null`. Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). **Detect self-implementation:** read `package.json` in workspace root — if `"name": "oxveil"`, set `SELF_IMPL=true` and stash uncommitted changes. Verify `oxveil.mcpBridge` is enabled in workspace settings (`.vscode/settings.json`). Create session folder: `verification-sessions/YYYYMMDD-HHMMSS-{title}/screenshots/`. Initialize SESSION.md.
+
+## Per-AC Record (SESSION.md)
+
+After every screenshot or `/state` query, write a Per-AC Record entry to SESSION.md **before moving to the next AC**. This is not optional — it is the evidence that Phase 5 reads.
+
+**Fields:**
+
+```
+### AC: <copy acceptance criterion text verbatim>
+Status: PASS | BLOCKED | FAILED
+Observation: <one sentence — literal description of what is visible in the frame or returned by /state>
+Blocker: <BLOCKED only — reason harness cannot confirm + follow-up issue link>
+```
+
+**Worked example — PASS:**
+```
+### AC: Write .claude/plans/*.md → sidebar stays idle (no toast, no state change)
+Status: PASS
+Observation: Screenshot 02 shows the sidebar in "stale" state with no notification badge; MCP /state returns view=stale, no toast visible in the captured frame.
+```
+
+**Worked example — BLOCKED:**
+```
+### AC: formPlan command triggers "Plan ready:" toast notification
+Status: BLOCKED
+Observation: Screenshots 12 and 13 show the editor and sidebar with no toast visible; the notification area is empty in both frames.
+Blocker: Toast auto-dismisses in ~1s; screencapture fires after dismissal. MCP /state does not expose a notifications array. Follow-up: #<issue>.
+```
+
+**Worked example — FAILED:**
+```
+### AC: Plan Preview renders the foreign plan file, not the spec
+Status: FAILED
+Observation: /state returns planPreview.activeFilePath ending in "2026-04-23-qa-verification-design.md" — the spec file, not the foreign plan. The resolver pinned the design category at startup.
+```
+
 1. **Build & Launch** — **If self-implementation mode:** Create worktree at `../oxveil-verify-{timestamp}` via `git worktree add`, run `npm install && npm run build` in worktree. Launch EDH via `code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"`. **Otherwise:** `npm run build` in current workspace. Launch EDH via `code --extensionDevelopmentPath="$(pwd)" --disable-extension GitHub.copilot-chat`. Check `mcp__ide__getDiagnostics`. Plan chat automatically uses haiku in EDH (override with `OXVEIL_CLAUDE_MODEL=<model>` if needed). Poll for EDH window (1s intervals, 15s timeout). Wait for `.oxveil-mcp` discovery file to appear (in worktree if self-implementation mode). **Maximize viewport (BLOCKING GATE):** Run the maximize recipe from `references/visual-verification-recipes.md` — close bottom panel, secondary sidebar, and unwanted editor tabs (Welcome, Settings). Keep primary sidebar visible (Oxveil tree view). This step MUST succeed before proceeding to Phase 2. Screenshot on success.
 2. **Interact** — Exercise the full workflow path affected by the implementation. Walk through every user-facing state transition end-to-end. For the standard lifecycle (empty → stale → ready → running → completed), follow the "Full Lifecycle" recipe in the references file. Use the **MCP bridge as the primary interaction method** for sidebar webview buttons (see MCP recipes below).
    - **Terminal input:** Use `type_in_plan_chat()` (MCP `sendSequence` via `oxveil.focusPlanChat`) — see recipes. osascript `keystroke` is unreliable for VS Code terminals.
@@ -84,8 +120,21 @@ When writing plans with numbered phases, VV must be a numbered phase (e.g., `## 
    - **Video (for transitions):** `screencapture -v -V 30 -l <CGWindowID> videos/NN-description.mov` — Record state transitions, rapid changes, session execution, plan chat flows. Videos are mandatory for any multi-step workflow.
    - **Screenshot (for static states):** `screencapture -l <CGWindowID> screenshots/NN-description.png` then `sips --resampleWidth 1568` — Capture individual states for quick reference.
 4. **Analyze** — `Read` each screenshot. Compare against reference mockups in `docs/mockups/`. Tier 1 checks only (presence, text, gross layout, item count). Log findings to SESSION.md. For text content (output channel), verify programmatically instead. Use `get_sidebar_state` to confirm state matches visual.
-5. **Decide** — **Harness fidelity gate (run first):** If plan declares `## Harness Requirements: [needs-real-session]`, query `GET /state` and check `sessions.length >= 1`. If `sessions.length === 0` → FAILED: "Harness fidelity: [needs-real-session] but MCP reports sessions.length=0. Re-run in a workspace with a real session or create the session as step 1 of the scenario." Do NOT mark any criteria PASS until this gate passes. **Then claim success:** Re-read SESSION.md acceptance criteria. Did you observe the specific behavior stated? If not → FAILED, regardless of other observations. Mark the verification task complete only if yes. Then: Critical/bug: fix code, go to Phase 1. Nit: log, continue to Phase 2. All states verified: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
-6. **Cleanup** — Close EDH window via `close_edh_window` function (see recipes): dismisses modal sheets by clicking Cancel/Don't Save button directly (Escape does not work on VS Code sheets), then AXPress close button, then verifies no EDH windows remain. Never use `keystroke` Cmd+W or inline osascript. **If self-implementation mode:** Remove worktree via `git worktree remove $WORKTREE_PATH`, restore stash if created in Phase 0. Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains (from worktree or main repo). Verify no orphan processes. Write final result and completion time to SESSION.md. NEVER delete the `verification-sessions/` folder or any session subfolder — they are gitignored but kept on disk for developer auditing. **Write session path to marker:** `echo "$SESSION_DIR" > .claude/workflow-state/visual-verified` (not `touch` — path is required for gate validation).
+5. **Decide** — **Harness fidelity gate (run first):** If plan declares `## Harness Requirements: [needs-real-session]`, query `GET /state` and check `sessions.length >= 1`. If `sessions.length === 0` → FAILED: "Harness fidelity: [needs-real-session] but MCP reports sessions.length=0. Re-run in a workspace with a real session or create the session as step 1 of the scenario." Do NOT mark any criteria PASS until this gate passes. **Then decide per-AC:** For each acceptance criterion, check the Per-AC Record written during Phases 2–4. Assign one of three outcomes:
+
+   - **PASS** — the specific behavior stated in the AC is visible in the captured frame or confirmed in `/state`. The Observation line describes it literally. Example: "I see the sidebar flip from stale to ready immediately after clicking resumePlan."
+   - **BLOCKED** — the harness cannot capture or exercise this AC reliably (toast dismissed before capture, endpoint not exposed, tab navigation unavailable). The feature may be correct but cannot be confirmed with current tooling. Write the blocker, file a follow-up issue, and proceed to Phase 6.
+   - **FAILED** — a captured frame or `/state` shows the feature is broken (wrong state, missing element, incorrect content). Fix code, return to Phase 1.
+
+   **Never round up.** "I didn't see it in the frame" is BLOCKED (if harness is the limit) or FAILED (if the frame confirms breakage). It is never PASS.
+
+   **Session outcome:** All ACs → PASS: write marker `status=pass`. Any AC → BLOCKED (rest PASS or BLOCKED): write marker `status=blocked`. Any AC → FAILED: do NOT write marker — fix and return to Phase 1.
+
+   Then: Critical/bug: fix code, go to Phase 1. All states resolved: go to Phase 6. Escalate: 3 iterations on same issue → ask user. 5 total iterations → stop and summarize.
+6. **Cleanup** — Close EDH window via `close_edh_window` function (see recipes): dismisses modal sheets by clicking Cancel/Don't Save button directly (Escape does not work on VS Code sheets), then AXPress close button, then verifies no EDH windows remain. Never use `keystroke` Cmd+W or inline osascript. **If self-implementation mode:** Remove worktree via `git worktree remove $WORKTREE_PATH`, restore stash if created in Phase 0. Remove mock-created files from `.claudeloop/` if created (never delete the directory itself). Remove `.oxveil-mcp` if it remains (from worktree or main repo). Verify no orphan processes. Write final result and completion time to SESSION.md. NEVER delete the `verification-sessions/` folder or any session subfolder — they are gitignored but kept on disk for developer auditing. **Write session result to marker** (outcome from Phase 5):
+- All ACs → PASS: `echo "status=pass session=$SESSION_DIR" > .claude/workflow-state/visual-verified`
+- Any AC → BLOCKED (rest PASS or BLOCKED): `echo "status=blocked session=$SESSION_DIR" > .claude/workflow-state/visual-verified`
+- Any AC → FAILED: **do NOT write the marker** — fix code and return to Phase 1.
 
 ## Setup vs Verification Boundary
 
@@ -128,6 +177,21 @@ See `references/visual-verification-recipes.md` for discovery file parsing, full
 3. **Decide**: Based on this understanding, what should my next action be?
 
 **Never proceed with a pre-planned action if your observation contradicts expectations.** Adapt based on what you actually see.
+
+## Capture-then-Observe Rule
+
+**After every screenshot, write the Per-AC Record entry immediately — before moving to the next action.**
+
+1. Take the screenshot.
+2. Read it. Describe literally what is visible in the frame (UI elements, text, state indicators).
+3. Write the Per-AC Record entry: AC text, Status, Observation (and Blocker if BLOCKED).
+4. Only then move to the next AC or action.
+
+**If the target element is not visible or legible:**
+- Retry capture with adjusted approach (zoom, crop, region — see Screenshot Readability Loop below).
+- After 3 failed attempts: outcome is BLOCKED. Write the Per-AC Record with `Status: BLOCKED` and the blocker reason. Do not write PASS.
+
+**Never write PASS based on inference.** "The sentinel file was deleted so the toast must have fired" is not an observation. An observation is what you literally see in the captured frame or read from `/state`. No frame → no PASS.
 
 **Wrong sidebar detection**: If you're verifying Oxveil UI but your screenshot shows:
 - "CHAT" header, "SESSIONS" section, conversation history → You captured **Copilot Chat**, not Oxveil

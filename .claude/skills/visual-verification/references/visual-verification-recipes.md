@@ -1303,6 +1303,67 @@ echo "done" > "$WORKTREE_PATH/output.txt"
 - **Remove symlink:** `rm -f ~/.local/bin/claude` (or `sudo rm -f /usr/local/bin/claude` if system-wide)
 - Do NOT remove `.claudeloop/`. It contains state written through claudeloop's normal pipeline. The next real run overwrites it naturally.
 
+## Toast / Notification Capture Recipe
+
+Toasts auto-dismiss in ~1s. A single screenshot races the dismissal. Use a capture series instead.
+
+```bash
+# Capture series: 12 frames at 500ms intervals = 6s window
+toast_capture_series() {
+    local SESSION_SCREENSHOTS="$1"
+    local WINDOW_ID="$2"
+    local PREFIX="${3:-toast}"
+
+    for i in $(seq -w 1 12); do
+        screencapture -l "$WINDOW_ID" "$SESSION_SCREENSHOTS/${PREFIX}-frame-${i}.png" 2>/dev/null
+        sleep 0.5
+    done
+    echo "Toast capture series complete: 12 frames in $SESSION_SCREENSHOTS"
+}
+
+# Usage: trigger the action, then immediately start the series
+# (run in background while action fires, or start before triggering)
+toast_capture_series "$SESSION_DIR/screenshots" "$WINDOW_ID" "ac3-toast"
+```
+
+After capture, read every frame in sequence. Write the Per-AC Record observation from the first frame that shows the toast — or BLOCKED if no frame shows it.
+
+**If MCP `/state.notifications` is available** (future), prefer polling over frame capture:
+```bash
+# Poll for notification matching text
+BEFORE_TS=$(date +%s%3N)
+# ... trigger action ...
+for i in $(seq 1 12); do
+    NOTIFS=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state" \
+      | python3 -c "import sys,json; s=json.load(sys.stdin); print(s.get('notifications','[]'))")
+    echo "$NOTIFS" | grep -q "Plan ready" && { echo "PASS: toast found"; break; }
+    sleep 0.5
+done
+```
+
+## What Counts as an Observation
+
+An observation is a **literal description of what is visible in the captured frame or returned by `/state`**. It is not an inference, a hope, or a deduction from side-effects.
+
+**PASS examples (literal, specific):**
+- "Screenshot 02 shows the Oxveil sidebar in stale state; the Resume and Dismiss buttons are visible; no notification badge is present."
+- "Frame 3 of the toast series shows a blue notification at the top of the editor reading 'Plan ready: handoff.md' with Form Plan and Dismiss buttons."
+- "`/state` returns `view=ready` and `plan.phases` has 3 entries matching the written PLAN.md."
+
+**BLOCKED examples (honest, with reason):**
+- "Screenshots 12 and 13 show the editor and sidebar with no toast visible; the notification area is empty in both frames. Capture fired after auto-dismiss."
+- "All 12 toast-series frames show no notification; toast either did not fire or dismissed before frame 1 at t+0ms."
+- "`/state` does not include a `notifications` field; there is no programmatic way to confirm the toast rendered."
+
+**FAILED examples (contradictory evidence):**
+- "`/state` returns `planPreview.activeFilePath = '...qa-verification-design.md'` — the spec file, not the foreign plan written for this AC."
+- "Screenshot 05 shows the sidebar still in 'stale' state after clicking Resume; expected 'ready'."
+
+**Never acceptable as an observation:**
+- "The sentinel file was deleted so the toast must have fired." (inference from side-effect)
+- "The command executed without error so the UI probably updated." (no visual evidence)
+- "Panel is visible." (not specific enough — what does the panel show?)
+
 ## SESSION.md Template
 
 ```markdown
