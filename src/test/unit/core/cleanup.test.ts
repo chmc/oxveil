@@ -25,10 +25,8 @@ vi.mock("../../../views/sidebarPanel", () => ({
 
 vi.mock("node:fs/promises", () => ({
   readFile: vi.fn(),
-  readdir: vi.fn(),
   unlink: vi.fn(),
   access: vi.fn(),
-  stat: vi.fn(),
 }));
 
 import { activateSidebar } from "../../../activateSidebar";
@@ -38,7 +36,7 @@ import {
   deactivate as deactivateExtension,
   disposables,
 } from "../../../extensionLifecycle";
-import { unlink, readdir } from "node:fs/promises";
+import { unlink } from "node:fs/promises";
 
 function makeDeps(overrides: Partial<SidebarActivationDeps> = {}): SidebarActivationDeps {
   return {
@@ -52,9 +50,9 @@ function makeDeps(overrides: Partial<SidebarActivationDeps> = {}): SidebarActiva
   };
 }
 
-// ── .claude/plans/*.md cleaned on completion ──────────────────────────────────
+// ── clearSessionPlanFiles: tracked paths deleted; foreign plans untouched ────
 
-describe("clearSessionPlanFiles: .claude/plans/*.md cleaned on completion", () => {
+describe("clearSessionPlanFiles: tracked paths deleted; foreign plans untouched", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -64,7 +62,6 @@ describe("clearSessionPlanFiles: .claude/plans/*.md cleaned on completion", () =
       getTrackedPaths: vi.fn(() => ["/workspace/.claude/plans/plan-a.md"]),
       getPlanPreviewState: vi.fn(() => undefined),
     };
-    vi.mocked(readdir).mockResolvedValue([] as any);
     vi.mocked(unlink).mockResolvedValue(undefined);
 
     const result = activateSidebar(makeDeps({ planPreviewPanel: mockPanel as any }));
@@ -73,20 +70,7 @@ describe("clearSessionPlanFiles: .claude/plans/*.md cleaned on completion", () =
     expect(unlink).toHaveBeenCalledWith("/workspace/.claude/plans/plan-a.md");
   });
 
-  it("deletes .md files found in workspace .claude/plans/ directory", async () => {
-    vi.mocked(readdir).mockResolvedValue([
-      { name: "task.md", isFile: () => true },
-    ] as any);
-    vi.mocked(unlink).mockResolvedValue(undefined);
-
-    const result = activateSidebar(makeDeps());
-    await result.clearSessionPlanFiles();
-
-    expect(unlink).toHaveBeenCalledWith("/workspace/.claude/plans/task.md");
-  });
-
   it("deletes ai-parsed-plan.md as part of cleanup", async () => {
-    vi.mocked(readdir).mockResolvedValue([] as any);
     vi.mocked(unlink).mockResolvedValue(undefined);
 
     const result = activateSidebar(makeDeps());
@@ -95,27 +79,7 @@ describe("clearSessionPlanFiles: .claude/plans/*.md cleaned on completion", () =
     expect(unlink).toHaveBeenCalledWith("/workspace/.claudeloop/ai-parsed-plan.md");
   });
 
-  it("deduplicates paths shared between tracked and workspace listings", async () => {
-    const sharedPath = "/workspace/.claude/plans/plan.md";
-    const mockPanel = {
-      getTrackedPaths: vi.fn(() => [sharedPath]),
-      getPlanPreviewState: vi.fn(() => undefined),
-    };
-    vi.mocked(readdir).mockResolvedValue([
-      { name: "plan.md", isFile: () => true },
-    ] as any);
-    vi.mocked(unlink).mockResolvedValue(undefined);
-
-    const result = activateSidebar(makeDeps({ planPreviewPanel: mockPanel as any }));
-    await result.clearSessionPlanFiles();
-
-    const unlinkCalls = vi.mocked(unlink).mock.calls.map(([p]) => p);
-    const planFileCalls = unlinkCalls.filter((p) => p === sharedPath);
-    expect(planFileCalls).toHaveLength(1);
-  });
-
   it("resets planDetected, cachedPlanPhases, and planUserChoice", async () => {
-    vi.mocked(readdir).mockResolvedValue([] as any);
     vi.mocked(unlink).mockResolvedValue(undefined);
 
     const result = activateSidebar(makeDeps());
@@ -135,11 +99,26 @@ describe("clearSessionPlanFiles: .claude/plans/*.md cleaned on completion", () =
       getTrackedPaths: vi.fn(() => ["/workspace/.claude/plans/stale.md"]),
       getPlanPreviewState: vi.fn(() => undefined),
     };
-    vi.mocked(readdir).mockResolvedValue([] as any);
     vi.mocked(unlink).mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
     const result = activateSidebar(makeDeps({ planPreviewPanel: mockPanel as any }));
     await expect(result.clearSessionPlanFiles()).resolves.toBeUndefined();
+  });
+
+  it("does not delete foreign .claude/plans files absent from tracked paths", async () => {
+    const mockPanel = {
+      getTrackedPaths: vi.fn(() => []),
+      getPlanPreviewState: vi.fn(() => undefined),
+    };
+    vi.mocked(unlink).mockResolvedValue(undefined);
+
+    const result = activateSidebar(makeDeps({ planPreviewPanel: mockPanel as any }));
+    await result.clearSessionPlanFiles();
+
+    const planFileCalls = vi.mocked(unlink).mock.calls.filter(([p]) =>
+      p.includes(".claude/plans"),
+    );
+    expect(planFileCalls).toHaveLength(0);
   });
 });
 

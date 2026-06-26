@@ -15,7 +15,6 @@ import { LiveRunPanel } from "./views/liveRunPanel";
 import { PlanPreviewPanel, type PlanFileCategory, type PersistedPlanState } from "./views/planPreviewPanel";
 import { ArchiveTreeProvider } from "./views/archiveTree";
 import { parseArchive } from "./parsers/archive";
-import { getPlanPath } from "./core/paths";
 import type { SessionState } from "./core/sessionState";
 import type { GitExecDeps } from "./core/gitIntegration";
 
@@ -203,51 +202,6 @@ export function createWebviewPanels(deps: WebviewPanelsDeps): WebviewPanelsResul
 
   // Load any existing plan files on activation (survives VS Code reload)
   void planPreviewPanel.onFileChanged();
-
-  // Auto-detect plan readiness: suggest forming a claudeloop plan
-  // when a plan file is created or stabilizes (no writes for 5s)
-  if (deps.workspaceRoot) {
-    let stabilityTimer: ReturnType<typeof setTimeout> | undefined;
-    let lastSuggestedPath: string | undefined;
-    const wsRoot = deps.workspaceRoot;
-
-    const suggestFormPlan = async (uri: vscode.Uri) => {
-      if (stabilityTimer) clearTimeout(stabilityTimer);
-      stabilityTimer = setTimeout(() => { void (async () => {
-        // Don't suggest same file twice per session
-        if (uri.fsPath === lastSuggestedPath) return;
-        lastSuggestedPath = uri.fsPath;
-
-        // Don't suggest if plan file already exists
-        try {
-          await fs.access(getPlanPath(wsRoot, deps.planFileOverride));
-          return;
-        } catch {
-          // No plan file — proceed with suggestion
-        }
-
-        const action = await vscode.window.showInformationMessage(
-          `Plan ready: ${path.basename(uri.fsPath)}. Form it into a claudeloop plan?`,
-          "Form Plan",
-          "Dismiss",
-        );
-        if (action === "Form Plan") {
-          void vscode.commands.executeCommand("oxveil.formPlan", { filePath: uri.fsPath });
-        }
-      })(); }, 5000);
-    };
-
-    for (const watcher of watchers) {
-      watcher.onDidCreate((uri) => suggestFormPlan(uri));
-      watcher.onDidChange((uri) => suggestFormPlan(uri));
-    }
-
-    disposables.push({
-      dispose: () => {
-        if (stabilityTimer) clearTimeout(stabilityTimer);
-      },
-    });
-  }
 
   disposables.push({ dispose: () => planPreviewPanel.dispose() });
 

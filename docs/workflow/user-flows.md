@@ -1,7 +1,6 @@
 ---
 title: Oxveil User Flows
 generated: true
-last_manual_note: "2026-06-25 no state changes — logTail.ts infrastructure only"
 source: scripts/generate-flow.ts
 views: ["not-found","empty","ready","running","stopped","failed","completed","planning","self-improvement"]
 ---

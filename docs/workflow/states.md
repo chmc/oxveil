@@ -100,7 +100,7 @@ const TRANSITIONS: Record<SessionStatus, SessionStatus[]> = {
 
 On activation, `checkInitialState()` reads existing lock and progress files. If a lock exists (extension restarted while claudeloop was running), it transitions directly to `running`. Progress is restored from the filesystem.
 
-**Plan Detection at Startup:** `checkInitialPlanState()` detects plan files on extension activation. It checks in order: (1) legacy `.claudeloop/PLAN.md` (respecting `planFileOverride`), (2) fallback to `.claude/plans/` directory for any `.md` files. This enables detection of plans created via Claude Code workflows when the legacy path is absent.
+**Plan Detection at Startup:** `checkInitialPlanState()` detects plan files on extension activation. It checks only `.claudeloop/PLAN.md` (respecting `planFileOverride`). Returns `true` if that file exists, `false` otherwise.
 
 ### Lock File Polling Fallback
 
@@ -129,7 +129,7 @@ The sidebar view is **not a state machine**. It is a deterministic projection re
 |-------|------|--------|
 | `detection` | `DetectionStatus` (`"detected" \| "not-found" \| "version-incompatible"`) | `activateDetection()` |
 | `sessionStatus` | `SessionStatus` (`"idle" \| "running" \| "done" \| "failed"`) | `SessionState.status` |
-| `planDetected` | `boolean` | File watcher in `activateSidebar.registerPlanWatcher()` — watches `.claudeloop/PLAN.md` (legacy) and `.claude/plans/*.md` (Claude Code default). On plan create/change: reloads `cachedPlanPhases` only. Does NOT clear `ai-parsed-plan.md` — that file is managed by claudeloop and cleared only on session completion via `clearSessionPlanFiles()`. |
+| `planDetected` | `boolean` | File watcher in `activateSidebar.registerPlanWatcher()` — watches `.claudeloop/PLAN.md` only (Oxveil's canonical plan file). Plans in `.claude/plans/*.md` authored outside Oxveil Plan Chat do NOT flip this — they reach Oxveil only via the ExitPlanMode intercept hook, which calls `oxveil.formPlan` and writes PLAN.md. On plan create/change: reloads `cachedPlanPhases` only. Does NOT clear `ai-parsed-plan.md` — that file is managed by claudeloop and cleared only on session completion via `clearSessionPlanFiles()`. |
 | `progress` | `ProgressState \| undefined` | `SessionState.progress` |
 | `planUserChoice` | `PlanUserChoice` (`"none" \| "planning"`) | `activateSidebar.onPlanFormed()` / `onPlanReset()` / `onPlanChatStarted()` |
 | `selfImprovementActive` | `boolean` | Whether self-improvement mode is active after session completion. Set to `true` by `sessionWiring` when session completes and lessons are captured. Reset by `skipSelfImprovement` command or `onFullReset()`. |
@@ -457,7 +457,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | SessionState Event | Handler Action | Targets Updated |
 |-------------------|----------------|-----------------|
 | `state-changed` → `running` | Start elapsed timer, reset `SidebarMutableState` cost/todo fields, clear `lastProgress` | StatusBar (`running`), LiveRunPanel (auto-reveal), NotificationManager (`reset()`), Sidebar (via `buildSidebarState()`), context key `oxveil.processRunning=true` |
-| `state-changed` → `done` | Stop elapsed timer, derive view from sidebar; **if `view === "completed"` (all phases done): delete all `.claude/plans/*.md` files in workspace via `listPlanFiles()` (tracked + untracked), clear `ai-parsed-plan.md`, reset `planDetected`/`cachedPlanPhases`/`planUserChoice`** | StatusBar (`done` or `stopped` via `deriveViewState`), LiveRunPanel (`onRunFinished("done"` or `"stopped")`), PlanPreviewPanel (`setSessionActive(false)`), Sidebar (via `buildSidebarState()`), context key `oxveil.walkthrough.hasRun=true`, archive refresh; **on full completion: plan file deleted, sidebar returns to `empty` view** |
+| `state-changed` → `done` | Stop elapsed timer, derive view from sidebar; **if `view === "completed"` (all phases done): delete resolver-tracked plan files only (paths from `PlanPreviewPanel.getTrackedPaths()` — session-scoped via `birthtime/mtime > sessionStart`), clear `ai-parsed-plan.md`, reset `planDetected`/`cachedPlanPhases`/`planUserChoice`. Foreign `.claude/plans/*.md` files written outside the Plan Chat session are NOT deleted.** | StatusBar (`done` or `stopped` via `deriveViewState`), LiveRunPanel (`onRunFinished("done"` or `"stopped")`), PlanPreviewPanel (`setSessionActive(false)`), Sidebar (via `buildSidebarState()`), context key `oxveil.walkthrough.hasRun=true`, archive refresh; **on full completion: plan file deleted, sidebar returns to `empty` view** |
 | `state-changed` → `failed` | Stop elapsed timer, find failed phase, fire single failure notification | StatusBar (`failed`), LiveRunPanel (`onRunFinished("failed")`), NotificationManager (`onSessionFailed(progress)`), Sidebar (via `buildSidebarState()`), archive refresh |
 | `state-changed` → `idle` | Stop elapsed timer | StatusBar (`idle`), Sidebar (via `buildSidebarState()`), context key `oxveil.processRunning=false` |
 | `phases-changed` | Update panels, notify on phase completions; phase list HTML rendered with `session.status` (not hardcoded `"running"`) so stopped/failed state is reflected correctly | DependencyGraph, ExecutionTimeline, LiveRunPanel, StatusBar (current phase update), Sidebar (progress update), NotificationManager (`onPhasesChanged` — completed toasts only) |
@@ -471,7 +471,7 @@ Session wiring does **not** build sidebar state internally. It receives a `build
 | `oxveil.processRunning` | `wireSessionEvents()` state-changed handler | `true`/`false` | Session actively running |
 | `oxveil.claudeDetected` | `activateDetection()` | `true`/`false` | Claude CLI available |
 | `oxveil.planChatActive` | Derived from `.claude/oxveil-plan-active` marker; set `true` on `planChatSession.start()`, `false` on `dispose()` / terminal close, and initialised from marker existence on activation | `true`/`false` | Plan chat terminal is open |
-| `oxveil.walkthrough.hasPlan` | `activateSidebar.registerPlanWatcher()` | `true`/`false` | `.claudeloop/PLAN.md` or `.claude/plans/*.md` exists |
+| `oxveil.walkthrough.hasPlan` | `activateSidebar.registerPlanWatcher()` | `true`/`false` | `.claudeloop/PLAN.md` exists (Oxveil's canonical plan file). Set `true` on PLAN.md create/change; cleared on PLAN.md delete or session-complete cleanup. |
 | `oxveil.walkthrough.hasRun` | `wireSessionEvents()` on done | `true`/`false` | At least one session completed |
 | `oxveil.walkthrough.configured` | Config wizard command | `true`/`false` | Config wizard opened |
 

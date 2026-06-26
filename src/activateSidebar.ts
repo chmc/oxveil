@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { readNewestClaudePlan, listPlanFiles } from "./core/planFiles";
 export { checkInitialPlanState } from "./core/planFiles";
 import { SidebarPanel } from "./views/sidebarPanel";
 import { deriveViewState, mapPhases, formatRelativeDate } from "./views/sidebarState";
@@ -125,14 +124,8 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
   async function clearSessionPlanFiles(): Promise<void> {
     const trackedPaths = deps.planPreviewPanel?.getTrackedPaths() ?? [];
-
-    const workspacePlanFiles = deps.workspaceRoot
-      ? await listPlanFiles(deps.workspaceRoot)
-      : [];
-
-    const allPaths = [...new Set([...trackedPaths, ...workspacePlanFiles])];
     await Promise.all([
-      ...allPaths.map(p => fs.unlink(p).catch(() => {})),
+      ...trackedPaths.map(p => fs.unlink(p).catch(() => {})),
       clearStaleParsedPlan(),
     ]);
     vscode.commands.executeCommand("setContext", "oxveil.walkthrough.hasPlan", false);
@@ -175,21 +168,13 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
 
     const folder = vscode.workspace.workspaceFolders?.[0];
 
-    const legacyWatcher = folder
+    const planMdWatcher = folder
       ? vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, ".claudeloop/PLAN.md"))
       : vscode.workspace.createFileSystemWatcher("**/PLAN.md");
-    legacyWatcher.onDidCreate(onPlanCreated);
-    legacyWatcher.onDidDelete(onPlanDeleted);
-    legacyWatcher.onDidChange(onPlanChanged);
-    disposables.push(legacyWatcher);
-
-    const claudePlansWatcher = folder
-      ? vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, ".claude/plans/*.md"))
-      : vscode.workspace.createFileSystemWatcher("**/.claude/plans/*.md");
-    claudePlansWatcher.onDidCreate(onPlanCreated);
-    claudePlansWatcher.onDidDelete(onPlanDeleted);
-    claudePlansWatcher.onDidChange(onPlanChanged);
-    disposables.push(claudePlansWatcher);
+    planMdWatcher.onDidCreate(onPlanCreated);
+    planMdWatcher.onDidDelete(onPlanDeleted);
+    planMdWatcher.onDidChange(onPlanChanged);
+    disposables.push(planMdWatcher);
 
     return disposables;
   }
@@ -207,14 +192,7 @@ export function activateSidebar(deps: SidebarActivationDeps): SidebarActivationR
       try {
         content = await fs.readFile(parsedPlanPath, "utf-8");
       } catch {
-        try {
-          content = await fs.readFile(planMdPath, "utf-8");
-        } catch {
-          if (!session?.planFileOverride && session?.sessionState.status !== "running") {
-            throw new Error("No active session");
-          }
-          content = await readNewestClaudePlan(deps.workspaceRoot);
-        }
+        content = await fs.readFile(planMdPath, "utf-8");
       }
       const { parsePlan } = await import("./parsers/plan");
       const parsed = parsePlan(content);
