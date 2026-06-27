@@ -18,6 +18,7 @@
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
 ### Fixed
+- MCP `/state.processManager.exists` now reflects live claudeloop subprocess (was always `true` after EDH activation)
 - "Plan ready" notification and sidebar plan detection no longer react to plans written outside Oxveil's Plan Chat. Form Plan is offered only via the ExitPlanMode hand-off; sidebar flips only when Oxveil's canonical PLAN.md is written.
 - SessionStart no longer re-asks for goal selection on conversation compact or resume when a fresh goal gate already exists. Also fixes a latent ordering bug where the stale-gate cleanup ran against an unset `$GOALS_DIR` and could wrongly delete valid gates.
 - Plan-chat→Oxveil handoff now passes the plan file path explicitly in the sentinel; watcher validates and uses it directly, preventing wrong plan selection when multiple plans exist in `.claude/plans/`

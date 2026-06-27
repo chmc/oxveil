@@ -35,6 +35,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | goal-update-gate | stable | 0.8.0 | .claude/hooks/completion-bundle.sh, .claude/hooks/goal-update-warning.sh | Blocks task completion until active goal Status updated; warns at session end |
 | notification-retry-suppression | stable | 0.8.0 | src/views/notifications.ts | Suppresses false phase-failed notifications during claudeloop verification retries (#133) |
 | vv-integrity-hardening | stable | 0.8.0 | src/mcp/logTail.ts, .claude/hooks/planning-checklist.sh, .claude/skills/visual-verification/SKILL.md | MCP /log-tail endpoint, root-cause plan gate, positive-observable VV criteria gate, harness requirements tag |
+| mcp-process-manager-state | stable | 0.8.0 | src/activateSidebar.ts, .claude/hooks/vv-harness-preflight.sh | MCP /state.processManager.exists reflects live claudeloop subprocess (isRunning); gates [needs-real-session] VV plans |
 
 ## Adding a New Feature
 

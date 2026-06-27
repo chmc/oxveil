@@ -3,6 +3,7 @@ title: Oxveil User Flows
 generated: true
 source: scripts/generate-flow.ts
 views: ["not-found","empty","ready","running","stopped","failed","completed","planning","self-improvement"]
+
 ---
 
 # User Flows
@@ -92,4 +93,3 @@ flowchart TD
 - `completed`
 - `planning`
 - `self-improvement`
-

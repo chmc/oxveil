@@ -107,6 +107,24 @@ describe("activateSidebar", () => {
       expect(state.view).toBe("running");
     });
 
+    it("processManager.exists is false when isRunning is false", () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockReturnValue({
+        sessionState: { status: "idle" },
+        processManager: { isRunning: false },
+      });
+      const state = result.buildFullState();
+      expect(state.processManager.exists).toBe(false);
+    });
+
+    it("processManager.exists is true when isRunning is true", () => {
+      (deps.manager.getActiveSession as ReturnType<typeof vi.fn>).mockReturnValue({
+        sessionState: { status: "running", progress: undefined },
+        processManager: { isRunning: true },
+      });
+      const state = result.buildFullState();
+      expect(state.processManager.exists).toBe(true);
+    });
+
     it("ready state includes parsed plan phases", async () => {
       // First read (ai-parsed-plan.md) fails, second read (PLAN.md) succeeds
       vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));

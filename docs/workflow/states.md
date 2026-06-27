@@ -804,11 +804,11 @@ type PlanPreviewState = "active" | "empty" | "session-ended" | "raw-markdown";
 ```typescript
 // Included in SidebarState.processManager for MCP /state endpoint.
 interface ProcessManagerSnapshot {
-  exists: boolean;  // true when active WorkspaceSession has a non-null processManager
+  exists: boolean;  // true when active WorkspaceSession's processManager has a live claudeloop child process (isRunning === true)
 }
 ```
 
-Populated in `buildFullState()` via `manager.getActiveSession()?.processManager != null`. Returns `{ exists: false }` (never `undefined`) so harness preflight scripts can rely on the field always being present.
+Populated in `buildFullState()` via `manager.getActiveSession()?.processManager?.isRunning === true`. Returns `{ exists: false }` (never `undefined`) so harness preflight scripts can rely on the field always being present.
 
 ### PlanPreviewSnapshot (MCP projection)
 ```typescript
