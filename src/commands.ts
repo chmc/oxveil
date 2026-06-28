@@ -255,6 +255,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     vscode.commands.registerCommand("oxveil._liveRunContinue", () => {
       liveRunPanel?.triggerAiParseAction("ai-parse-continue");
     }),
+    vscode.commands.registerCommand("oxveil.confirmPlan", () => {
+      liveRunPanel?.triggerAiParseAction("ai-parse-continue");
+    }),
     vscode.commands.registerCommand("oxveil._liveRunAbort", () => {
       liveRunPanel?.triggerAiParseAction("ai-parse-abort");
     }),

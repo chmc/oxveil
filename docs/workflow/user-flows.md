@@ -1,9 +1,9 @@
 ---
 title: Oxveil User Flows
 generated: true
+# regenerated 2026-06-28 after confirmPlan + formPlan changes (no new states)
 source: scripts/generate-flow.ts
 views: ["not-found","empty","ready","running","stopped","failed","completed","planning","self-improvement"]
-
 ---
 
 # User Flows

@@ -45,6 +45,7 @@ If SessionStart shows active goals, use AskUserQuestion to select one BEFORE any
 - Any `[UNVERIFIED]` claim about tool/hook capability → spike (≤10 min) before designing around its absence. A failed spike justifies the fallback; an unverified one doesn't.
 - Rules of the form "Claude must remember to X" fail eventually. If X is load-bearing → enforce in a hook. If hook-impossible → mark the rule `[best-effort]`.
 - After removing a mechanism (guard, sentinel, flag), docs describe the resulting behavior (thresholds, invariants), not what was removed. "X was removed" rots; "always runs when Y" doesn't.
+- VV harness workarounds repeated across ≥2 sessions must be either fixed in code or codified as a named recipe. [best-effort] Recipe-or-fix, not third-time-rediscovered.
 
 ## Project
 

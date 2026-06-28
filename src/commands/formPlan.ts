@@ -79,7 +79,8 @@ export function registerFormPlanCommand(
         // File doesn't exist — proceed
       }
 
-      // 5. Write source to PLAN.md
+      // 5. Write source to PLAN.md (.claudeloop/ may not exist in fresh worktrees)
+      await fs.mkdir(path.dirname(planPath), { recursive: true });
       await fs.writeFile(planPath, sourceContent, "utf-8");
       await vscode.commands.executeCommand(
         "setContext",

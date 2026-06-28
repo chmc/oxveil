@@ -203,6 +203,10 @@
       {
         "command": "oxveil._planExitIntercept",
         "title": "Oxveil: Plan Exit Intercept (Internal)"
+      },
+      {
+        "command": "oxveil.confirmPlan",
+        "title": "Oxveil: Confirm Plan (VV harness — dismisses AI verification dialog)"
       }
     ],
     "menus": {

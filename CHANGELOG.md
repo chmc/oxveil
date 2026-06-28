@@ -18,6 +18,7 @@
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
 ### Fixed
+- `formPlan` no longer fails with ENOENT in fresh worktrees — creates `.claudeloop/` directory before writing PLAN.md
 - MCP `/state.processManager.exists` now reflects live claudeloop subprocess (was always `true` after EDH activation)
 - "Plan ready" notification and sidebar plan detection no longer react to plans written outside Oxveil's Plan Chat. Form Plan is offered only via the ExitPlanMode hand-off; sidebar flips only when Oxveil's canonical PLAN.md is written.
 - SessionStart no longer re-asks for goal selection on conversation compact or resume when a fresh goal gate already exists. Also fixes a latent ordering bug where the stale-gate cleanup ran against an unset `$GOALS_DIR` and could wrongly delete valid gates.
@@ -36,6 +37,7 @@
 - Plan exit intercept now shows options in Claude terminal instead of VS Code QuickPick
 
 ### Added
+- `oxveil.confirmPlan` MCP-callable command bypasses the AI plan-verification dialog (VV harness use — same effect as clicking "Continue As-is")
 - MCP `/log-tail` endpoint exposes extension host console buffer for VV assertions (grep + since-timestamp filters)
 - Plan validation: `## Root Cause Evidence` required; code-reading alone insufficient for null/branch claims — `[failing-test]` or `[runtime-observation]` tag required
 - Plan validation: `## Harness Requirements` tag; `[needs-real-session]` blocks VV PASS when harness has zero sessions

@@ -143,6 +143,26 @@ describe("registerFormPlanCommand", () => {
     );
   });
 
+  it("creates .claudeloop/ directory before writing PLAN.md (fresh worktree guard)", async () => {
+    const deps = makeDeps();
+    registerFormPlanCommand(deps);
+
+    const cb = vi.mocked(vscode.commands.registerCommand).mock.calls[0][1];
+    await cb();
+
+    const mkdirCall = vi.mocked(fs.mkdir).mock.calls.find(
+      ([p]) => !String(p).includes("ai-parsed"),
+    );
+    expect(mkdirCall).toBeDefined();
+    expect(mkdirCall![1]).toEqual({ recursive: true });
+
+    const writeOrder = vi.mocked(fs.writeFile).mock.invocationCallOrder[0];
+    const mkdirOrder = vi.mocked(fs.mkdir).mock.invocationCallOrder[
+      vi.mocked(fs.mkdir).mock.calls.indexOf(mkdirCall!)
+    ];
+    expect(mkdirOrder).toBeLessThan(writeOrder);
+  });
+
   it("returns silently when aiParseLoop is aborted", async () => {
     vi.mocked(aiParseLoop).mockResolvedValue({ outcome: "aborted" });
     const deps = makeDeps();

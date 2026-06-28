@@ -1764,3 +1764,111 @@ echo "$STATE" | jq -e '.view == "running"' && echo "PASS: Live Run opened" \
 - `outcome=silent-exit reason=no-process-manager` → processManager null; `oxveil.start` was not called or session not detected
 - `outcome=silent-exit reason=no-workspace-folder` → workspace folder not resolved
 - No log line → planInterceptWatcher did not fire; check sentinel path is inside workspace root
+
+## submit_prompt_to_plan_chat
+
+Sends a prompt to the active Plan Chat terminal and submits it. Codifies the two-`\r` quirk: the first `sendSequence` displays the text but doesn't submit; a second bare `\r` actually sends it.
+
+**Rationale:** `osascript keystroke` is unreliable for VS Code terminals. `sendSequence` with a trailing `\r` in the same call echoes the text but leaves claude waiting; only a second bare `\r` triggers submission. This is a harness quirk present regardless of Tamp/proxy state.
+
+```bash
+# Read MCP credentials
+PORT=$(jq -r '.port' "$WORKTREE_PATH/.oxveil-mcp")
+TOKEN=$(jq -r '.token' "$WORKTREE_PATH/.oxveil-mcp")
+
+submit_prompt_to_plan_chat() {
+  local prompt="$1"
+
+  # Focus Plan Chat terminal
+  curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d '{"command":"oxveil.focusPlanChat"}' "http://127.0.0.1:$PORT/command"
+  sleep 0.5
+
+  # Type prompt (displayed but NOT submitted yet)
+  curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d "{\"command\":\"workbench.action.terminal.sendSequence\",\"args\":[{\"text\":\"$prompt\"}]}" \
+    "http://127.0.0.1:$PORT/command"
+  sleep 0.3
+
+  # Submit with bare Enter
+  curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d '{"command":"workbench.action.terminal.sendSequence","args":[{"text":"\r"}]}' \
+    "http://127.0.0.1:$PORT/command"
+}
+
+# Example: submit a plan prompt and wait for denyCount to increment
+DENY_BEFORE=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state" | jq '.denyCount // 0')
+submit_prompt_to_plan_chat "Plan a simple feature with 2 phases"
+# Poll for denyCount + 1 within 90s (real claude responds)
+timeout 90 bash -c "
+  until [ \$(curl -s -H 'Authorization: Bearer $TOKEN' 'http://127.0.0.1:$PORT/state' | jq '.denyCount // 0') -gt $DENY_BEFORE ]; do
+    sleep 2
+  done
+" && echo "PASS: prompt submitted and claude responded" || echo "FAIL: denyCount did not increment within 90s"
+```
+
+## find_plan_marker
+
+Locates the active `oxveil-plan-active` marker file by name under workspace storage. Returns the path without relying on mtime (which fails across worktrees and multi-instance setups).
+
+**Rationale:** The marker path is workspace-storage-ID-keyed (`~/Library/Application Support/Code/User/workspaceStorage/<id>/chmc.oxveil/oxveil-plan-active`). The ID changes per worktree and cannot be predicted. Finding by name is stable.
+
+```bash
+find_plan_marker() {
+  find ~/Library/Application\ Support/Code/User/workspaceStorage \
+    -name "oxveil-plan-active" -print 2>/dev/null | head -1
+}
+
+# Pre-clear marker before formPlan (prevents stale sentinel reuse)
+MARKER=$(find_plan_marker)
+if [ -n "$MARKER" ]; then
+  rm -f "$MARKER"
+  echo "Cleared stale marker: $MARKER"
+else
+  echo "No stale marker found — clean"
+fi
+
+# Post-formPlan: verify marker written
+MARKER=$(find_plan_marker)
+[ -n "$MARKER" ] && echo "PASS: marker exists at $MARKER" || echo "FAIL: marker not written"
+```
+
+## bypass_verification_dialog
+
+Dismisses the AI plan-verification ("Verification Failed") dialog programmatically via MCP, allowing the session to proceed without manual intervention. Requires the `oxveil.confirmPlan` command (registered in package.json contributes).
+
+**Rationale:** The dialog's DOM selectors are not reliably reachable via MCP `/click`, and cliclick coordinate-guessing fails when the window is in a non-standard position. `oxveil.confirmPlan` calls `liveRunPanel.triggerAiParseAction("ai-parse-continue")` directly — same effect as clicking "Continue As-is".
+
+```bash
+# Poll for AI parse to reach the verification-pending state, then dismiss
+bypass_verification_dialog() {
+  local port="$1"
+  local token="$2"
+  local timeout_s="${3:-30}"
+
+  echo "Waiting for verification dialog (up to ${timeout_s}s)..."
+  local i=0
+  while [ "$i" -lt "$timeout_s" ]; do
+    STATE=$(curl -s -H "Authorization: Bearer $token" "http://127.0.0.1:$port/state")
+    AI_PARSE_STATUS=$(echo "$STATE" | jq -r '.aiParseStatus // ""')
+    if [ "$AI_PARSE_STATUS" = "verification-failed" ] || [ "$AI_PARSE_STATUS" = "verifying" ]; then
+      echo "Dialog detected (status=$AI_PARSE_STATUS) — dismissing via oxveil.confirmPlan"
+      curl -s -X POST -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+        -d '{"command":"oxveil.confirmPlan"}' "http://127.0.0.1:$port/command"
+      echo "PASS: bypass_verification_dialog invoked"
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  echo "WARN: verification dialog did not appear within ${timeout_s}s — may have already passed or been skipped"
+}
+
+# Example usage after submit_prompt_to_plan_chat completes ExitPlanMode
+bypass_verification_dialog "$PORT" "$TOKEN" 30
+
+# Verify session proceeds: view transitions to running
+sleep 3
+VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state" | jq -r '.view')
+[ "$VIEW" = "running" ] && echo "PASS: session running" || echo "FAIL: view=$VIEW after bypass"
+```
