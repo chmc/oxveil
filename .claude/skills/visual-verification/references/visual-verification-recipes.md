@@ -583,6 +583,60 @@ Use `/click` for all sidebar button interactions. MCP bridge converts command to
 | `restart` | stopped | running | Resets and starts fresh |
 | `discardPlan` | ready | empty | Removes plan |
 
+### disable_tamp_for_vv
+
+Tamp (Claude plugin, typically running on `:7778`) injects "output rules" blocks into claude's context via `ANTHROPIC_BASE_URL`. In Plan Chat, this causes claude to flag directive-shaped blocks, ask "Is this intentional?", and require extra `\r` keystrokes — skewing VV results and risking ExitPlanMode never firing.
+
+Unset before `code --extensionDevelopmentPath=…` so the EDH-spawned claude hits `api.anthropic.com` directly:
+
+```bash
+# Disable Tamp for this VV run (scoped to harness subprocess — user's shell is unaffected)
+if [[ "${OXVEIL_VV_KEEP_TAMP:-0}" != "1" ]]; then
+    unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN HTTP_PROXY HTTPS_PROXY
+fi
+
+code --extensionDevelopmentPath="$WORKTREE_PATH" \
+     --disable-extension GitHub.copilot-chat \
+     "$WORKTREE_PATH"
+```
+
+**Escape hatch:** `OXVEIL_VV_KEEP_TAMP=1` preserves Tamp — use when debugging Tamp↔oxveil interactions specifically.
+
+**Verify the unset took effect** after Plan Chat opens:
+```bash
+PLAN_CHAT_PID=$(pgrep -f "permission-mode plan" | head -1)
+ps eww "$PLAN_CHAT_PID" | grep -o 'ANTHROPIC_BASE_URL=[^ ]*' || echo "ANTHROPIC_BASE_URL not in child env — OK"
+```
+
+### submit_askuserquestion_selection
+
+When `resources/oxveil-plan-intercept.sh` denies ExitPlanMode, claude renders an AskUserQuestion TUI menu in the Plan Chat terminal. The chevron `>` marks the currently highlighted option. Send bare `\r` to submit the highlighted option — do NOT send the option number (e.g. "1"), which types into the input box instead.
+
+```bash
+# After polling confirms denyCount >= 1, submit the highlighted option (option 1 = Form Plan)
+curl -s -X POST "http://localhost:$MCP_PORT/command" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"workbench.action.terminal.sendSequence","args":[{"text":"\r"}]}'
+# Note: args must be an array ([{...}]), not an object ({...})
+
+# Poll for sentinel within 10s
+for i in $(seq 1 10); do
+    [[ -f "$WORKTREE/.claude/oxveil-execute" ]] && break
+    sleep 1
+done
+[[ -f "$WORKTREE/.claude/oxveil-execute" ]] || echo "FAIL: sentinel not written within 10s"
+```
+
+**Evidence required for AC PASS:**
+- Frame (a): terminal screenshot BEFORE `\r` showing `> 1. Form Plan with Oxveil` (chevron on option 1)
+- Frame (b): terminal screenshot AFTER `\r` showing claude's `Write(.claude/oxveil-execute)` tool-use frame
+
+**Known pitfalls:**
+- `sendSequence` `args` as object `{"text":"\r"}` → `Spread syntax requires ...iterable[Symbol.iterator]` error. Must be array.
+- If the TUI menu hasn't rendered yet (denyCount just flipped), add a 1–2s delay before sending `\r`.
+- If option 1 is NOT highlighted (chevron elsewhere), send `\x1b[A` (up arrow) to move it before `\r`.
+
 ## End-to-End Workflow Recipes
 
 ### Key transition mechanisms
