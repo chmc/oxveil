@@ -18,6 +18,7 @@
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
 ### Fixed
+- Planning hook suppresses goal Status append while a visual-verification session is running (#141)
 - `formPlan` no longer fails with ENOENT in fresh worktrees — creates `.claudeloop/` directory before writing PLAN.md
 - MCP `/state.processManager.exists` now reflects live claudeloop subprocess (was always `true` after EDH activation)
 - "Plan ready" notification and sidebar plan detection no longer react to plans written outside Oxveil's Plan Chat. Form Plan is offered only via the ExitPlanMode hand-off; sidebar flips only when Oxveil's canonical PLAN.md is written.

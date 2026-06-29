@@ -594,6 +594,8 @@ Unset before `code --extensionDevelopmentPath=…` so the EDH-spawned claude hit
 if [[ "${OXVEIL_VV_KEEP_TAMP:-0}" != "1" ]]; then
     unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN HTTP_PROXY HTTPS_PROXY
 fi
+# Suppress goal Status appends for plans approved inside this VV session (#141)
+export OXVEIL_VV_ACTIVE=1
 
 code --extensionDevelopmentPath="$WORKTREE_PATH" \
      --disable-extension GitHub.copilot-chat \
@@ -1287,6 +1289,8 @@ trap 'rm -rf "$FAKE_CLAUDE_DIR"' EXIT
 # Export CLAUDELOOP_CLAUDE_BIN — claudeloop provider_cli() checks this first,
 # bypassing PATH lookup. Safe: env var is process-scoped, unset = real claude.
 export CLAUDELOOP_CLAUDE_BIN="$FAKE_CLAUDE_DIR/claude"
+# Suppress goal Status appends for plans approved inside this VV session (#141)
+export OXVEIL_VV_ACTIVE=1
 
 # Launch EDH — CLAUDELOOP_CLAUDE_BIN propagates via env, not PATH
 code --extensionDevelopmentPath="$WORKTREE_PATH" --disable-extension GitHub.copilot-chat "$WORKTREE_PATH"

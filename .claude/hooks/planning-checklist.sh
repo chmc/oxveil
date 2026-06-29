@@ -524,7 +524,9 @@ else
 WARN
 fi
 
-# Auto-create/update goal from plan (only on fully approved plans)
+# Auto-create/update goal from plan — skip while a VV session is active
+# (OXVEIL_VV_ACTIVE is exported by the VV skill at EDH launch; #141)
+if [ -z "${OXVEIL_VV_ACTIVE:-}" ]; then
 mkdir -p "$GOALS_DIR"
 GATE_FILE="$STATE_DIR/goal-gate-passed"
 goal_name=""
@@ -588,6 +590,7 @@ EOF
         echo "$(date +%s):$goal_name" > "$GATE_FILE"
     fi
 fi
+fi # end OXVEIL_VV_ACTIVE guard
 
 # Build requirements JSON
 arch_req="false"
