@@ -17,6 +17,9 @@
 - Log formPlan handoff outcome to Oxveil output channel for diagnosis (sessionsCount, silent exit reason, workspaceRoot)
 - Tightened workflow rules: gate-denial is a bug report, spike unverified tool claims before architecting around them, behavioral rules need hook backing, graphify consultation enforced (deny) for Agent spawns
 
+### Added
+- VV recipes gate: PreToolUse hook denies MCP bridge curl calls until visual-verification-recipes.md is Read in the session
+
 ### Fixed
 - Planning hook suppresses goal Status append while a visual-verification session is running (#141)
 - `formPlan` no longer fails with ENOENT in fresh worktrees — creates `.claudeloop/` directory before writing PLAN.md

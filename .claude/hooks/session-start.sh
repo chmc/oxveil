@@ -7,6 +7,7 @@ GOALS_DIR="$STATE_DIR/goals"
 GATE_FILE="$STATE_DIR/goal-gate-passed"
 
 rm -f "$STATE_DIR/edit-order"
+rm -f "$STATE_DIR/vv-recipes-read"
 
 # Read SessionStart source (compact, resume, startup, clear)
 input=$(cat)
