@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- `## VV Transcript` in plans is authored at plan-approval time as predicted user experience, not placeholder stubs; planning-checklist.sh already enforced non-empty, CLAUDE.md now matches
 - Plans with Visual Verification must include a `## VV Transcript` section (user-pov narrative per flow) and per-flow transcript tasks; SESSION.md `## Transcript` must be non-empty before VV completes
 - VV skill canonicalizes session path via `git worktree list --porcelain` (survives worktree removal); ships `setup_planning_hook_fixture` / `teardown_planning_hook_fixture` helpers; CC hook ACs now explicitly require `[needs-real-session]`; CLAUDE.md injection rule switches from turn-counter to behavioral trigger (post-dismissal or same-source recurrence)
 - VV marker validator hook rejects `status=pass` with unchecked ACs or BLOCKED per-AC records; rejects `status=blocked` with fixable-harness patterns lacking `[harness-unfixable]` tag
