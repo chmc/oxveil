@@ -92,6 +92,27 @@ Blocker: toast auto-dismisses in <1s [harness-unfixable] issue=#42
 EOF
 assert_allow "blocked-fixable-with-escape" "$BASH_WRITE_MARKER_INPUT"
 
+# AC1d: status=pass + ghost session_path (dir missing) → deny
+write_marker "status=pass session=/tmp/vv-ghost-session-does-not-exist-$$"
+write_session "- [x] Do the thing" "Status: PASS"
+assert_deny "pass-ghost-session-path" "$BASH_WRITE_MARKER_INPUT"
+
+# AC1e: status=pass + duplicate ## Acceptance Criteria headings → deny
+write_marker "status=pass session=$SESSION"
+cat > "$SESSION_MD" <<EOF
+## Acceptance Criteria
+- [ ] First copy (unchecked)
+
+## Acceptance Criteria
+- [x] Second copy (checked)
+
+## Per-AC Records
+### AC: Test AC
+Status: PASS
+Observation: something
+EOF
+assert_deny "pass-duplicate-ac-headings" "$BASH_WRITE_MARKER_INPUT"
+
 # AC3: OXVEIL_SKIP_GATES=1 → always allow
 write_marker "status=pass session=$SESSION"
 write_session "- [ ] Unchecked" "Status: BLOCKED"
