@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- VV skill canonicalizes session path via `git worktree list --porcelain` (survives worktree removal); ships `setup_planning_hook_fixture` / `teardown_planning_hook_fixture` helpers; CC hook ACs now explicitly require `[needs-real-session]`; CLAUDE.md injection rule switches from turn-counter to behavioral trigger (post-dismissal or same-source recurrence)
 - VV marker validator hook rejects `status=pass` with unchecked ACs or BLOCKED per-AC records; rejects `status=blocked` with fixable-harness patterns lacking `[harness-unfixable]` tag
 - MCP `/state` exposes `processManager: { exists: boolean }` for harness preflight checks
 - VV skill: Per-AC Decision Rubric promoted to top-level section; AC texts must name trigger path; Phase 2 requires claude-log assertion before interacting

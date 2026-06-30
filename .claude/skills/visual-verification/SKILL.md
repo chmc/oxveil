@@ -66,6 +66,7 @@ When writing plans with numbered phases, VV must be a numbered phase (e.g., `## 
 Read this before Phase 5. Apply per acceptance criterion using the Per-AC Record written during Phases 2–4.
 
 **Harness fidelity gate (run first):** If plan declares `[needs-real-session]`, run `vv-harness-preflight.sh` or check `GET /state | jq .processManager.exists`. If `false` → FAILED harness gate. Do NOT mark any AC PASS until this clears.
+- **CC hook ACs require `[needs-real-session]`.** If an AC tests a PreToolUse/PostToolUse/UserPromptSubmit hook (`vv-recipes-required`, `planning-checklist`, `marker-validator`, etc.), `[empty-harness-ok]` is invalid — synthetic stdin verifies the script's branches, not its wiring. The hook only fires when real CC tool-use machinery routes through it. Re-tag to `[needs-real-session]` before proceeding.
 
 **Three outcomes — no rounding up:**
 
@@ -105,7 +106,14 @@ Add `[harness-unfixable] issue=#N` to SESSION.md only when the blocker is genuin
       Replace `$TASK_ID` with the numeric ID returned by TaskCreate (e.g. `12`).
       Copy acceptance criteria checkboxes from plan's `## Acceptance Criteria` verbatim into SESSION.md.
 
-   Then: **Legacy fake_claude cleanup:** `if [[ -f ~/.local/bin/claude ]] && grep -q "FAKE_CLAUDE_DIR" ~/.local/bin/claude 2>/dev/null; then rm -f ~/.local/bin/claude; rm -rf ~/.local/bin/lib; fi`. **Stale worktree cleanup:** `git worktree list | grep oxveil-verify | awk '{print $1}' | xargs -I{} git worktree remove --force {} 2>/dev/null`. Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). **Detect self-implementation:** read `package.json` in workspace root — if `"name": "oxveil"`, set `SELF_IMPL=true` and stash uncommitted changes. Verify `oxveil.mcpBridge` is enabled in workspace settings (`.vscode/settings.json`). Create session folder: `verification-sessions/YYYYMMDD-HHMMSS-{title}/screenshots/`. Initialize SESSION.md.
+   Then: **Legacy fake_claude cleanup:** `if [[ -f ~/.local/bin/claude ]] && grep -q "FAKE_CLAUDE_DIR" ~/.local/bin/claude 2>/dev/null; then rm -f ~/.local/bin/claude; rm -rf ~/.local/bin/lib; fi`. **Stale worktree cleanup:** `git worktree list | grep oxveil-verify | awk '{print $1}' | xargs -I{} git worktree remove --force {} 2>/dev/null`. Run pre-flight checks from recipes. Platform, permissions, `code` CLI, stale EDH cleanup (via menu click, never keystroke). **Detect self-implementation:** read `package.json` in workspace root — if `"name": "oxveil"`, set `SELF_IMPL=true` and stash uncommitted changes. Verify `oxveil.mcpBridge` is enabled in workspace settings (`.vscode/settings.json`). **Create session folder** — sessions must live in the MAIN repo (not the worktree) so they survive `git worktree remove`:
+   ```bash
+   # NEVER create sessions inside .claude/skills/... or inside oxveil-verify-* worktrees
+   MAIN_REPO="$(git worktree list --porcelain | awk '/^worktree/ {print $2; exit}')"
+   SESSION_DIR="${MAIN_REPO}/verification-sessions/$(date +%Y%m%d-%H%M%S)-${TITLE}"
+   mkdir -p "$SESSION_DIR/screenshots" "$SESSION_DIR/videos"
+   ```
+   Initialize SESSION.md.
 
 ## Per-AC Record (SESSION.md)
 

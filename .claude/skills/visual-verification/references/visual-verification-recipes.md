@@ -1876,3 +1876,52 @@ sleep 3
 VIEW=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state" | jq -r '.view')
 [ "$VIEW" = "running" ] && echo "PASS: session running" || echo "FAIL: view=$VIEW after bypass"
 ```
+
+---
+
+## Hook Fixture Helpers
+
+Use these when verifying a CC hook (PreToolUse/PostToolUse/UserPromptSubmit) in a VV session.
+Fixtures must live OUTSIDE any `oxveil-verify-*` worktree — `planning-checklist.sh` line 9 early-exits
+on worktree paths, making both branches return the same result.
+
+```bash
+# setup_planning_hook_fixture <name>
+# Creates /tmp/vv-<name>-fixture-XXXXXX/ with the skeleton planning-checklist.sh needs.
+# Exports CLAUDE_PROJECT_DIR to the fixture path.
+# Prints the fixture path — capture it for teardown.
+setup_planning_hook_fixture() {
+  local name="$1"
+  local fixture
+  fixture="$(mktemp -d "/tmp/vv-${name}-fixture-XXXXXX")"
+  mkdir -p "$fixture/.claude/plans" "$fixture/.claude/workflow-state/goals" "$fixture/docs"
+  local main_repo
+  main_repo="$(git worktree list --porcelain | awk '/^worktree/ {print $2; exit}')"
+  cp "$main_repo/docs/FEATURES.md" "$fixture/docs/FEATURES.md" 2>/dev/null || {
+    echo "WARN: docs/FEATURES.md not found in main repo — hook may exit early on FEATURES check" >&2
+  }
+  export CLAUDE_PROJECT_DIR="$fixture"
+  echo "$fixture"
+}
+
+# teardown_planning_hook_fixture <fixture-path>
+# Removes the fixture dir and unsets CLAUDE_PROJECT_DIR.
+teardown_planning_hook_fixture() {
+  local fixture="$1"
+  [ -n "$fixture" ] && [ -d "$fixture" ] && rm -rf "$fixture"
+  unset CLAUDE_PROJECT_DIR
+}
+```
+
+Example usage:
+
+```bash
+source .claude/skills/visual-verification/references/visual-verification-recipes.md
+FIXTURE="$(setup_planning_hook_fixture "my-hook-test")"
+
+# Run hook under test against the fixture
+PLAN_FILE="$FIXTURE/.claude/plans/test.md" \
+  bash .claude/hooks/planning-checklist.sh < /dev/null
+
+teardown_planning_hook_fixture "$FIXTURE"
+```
