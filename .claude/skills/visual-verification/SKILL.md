@@ -43,12 +43,12 @@ When visual verification runs on Oxveil itself, the main VS Code and EDH share t
 - Full verification fidelity (tests actual committed/staged changes)
 - Fast setup (~1s)
 
-**WIP handling:** Before creating worktree, stash uncommitted changes. Restore after verification completes. If commit is needed for worktree visibility, use `git stash create` to save state without affecting the working tree.
+**WIP handling:** WIP is preserved in the main working tree and replayed inside the worktree post-creation. `preserve_wip` captures a stash ref without resetting the working tree; `setup_worktree` applies that ref inside the worktree via `git stash apply --index $STASH_REF`. Files-under-test are always present in the worktree regardless of which paths are dirty — no need to commit before running VV.
 
 **Workflow:**
-1. Phase 0: Detect self-implementation mode, stash WIP
-2. Phase 1: Create worktree, `npm install && npm run build` in worktree, launch EDH with worktree as workspace
-3. Phase 6: Remove worktree via `git worktree remove`, restore stash
+1. Phase 0: Detect self-implementation mode; `preserve_wip` captures stash ref (main working tree unchanged)
+2. Phase 1: Create worktree, apply WIP stash inside worktree, `npm install && npm run build`, launch EDH with worktree as workspace
+3. Phase 6: Remove worktree via `git worktree remove` (main working tree was never reset, no restore needed)
 
 ## When to Invoke
 

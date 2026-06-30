@@ -218,37 +218,35 @@ fi
 
 ### WIP preservation (stash before worktree)
 
-Worktrees only see committed changes. Preserve uncommitted work before creating worktree:
+Capture WIP as a dangling stash ref. The main working tree is left untouched — WIP stays there. `STASH_REF` is echoed for `setup_worktree` to replay inside the worktree.
 
 ```bash
 preserve_wip() {
-    local STASH_MSG="visual-verification-$(date +%s)"
-    
     # Check for uncommitted changes
     if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
         echo "WIP detected — stashing..."
         
-        # Create stash including untracked files
-        STASH_REF=$(git stash create -u)
+        # Stage everything so git stash create captures untracked files too
+        # (git stash create -u returns empty for untracked-only trees)
+        git add -A 2>/dev/null || true
+        STASH_REF=$(git stash create)
+        # Restore index to unstaged (working tree content is unchanged)
+        git restore --staged . 2>/dev/null || git reset HEAD . 2>/dev/null || true
+        
         if [[ -n "$STASH_REF" ]]; then
-            # Store the stash so it persists (stash create doesn't add to stash list)
-            git stash store -m "$STASH_MSG" "$STASH_REF"
-            echo "STASH_MSG=$STASH_MSG"
-            echo "Stashed as: $STASH_MSG"
-            
-            # Reset working tree to match HEAD (worktree will see HEAD)
-            git checkout -- .
-            git clean -fd
+            echo "STASH_REF=$STASH_REF"
+            echo "Stash ref created: $STASH_REF"
         else
             echo "WARN: Stash create returned empty — no changes to stash"
+            echo "STASH_REF="
         fi
     else
         echo "No uncommitted changes — skipping stash"
-        echo "STASH_MSG="
+        echo "STASH_REF="
     fi
 }
 
-# Usage (capture STASH_MSG for restore in Phase 6)
+# Usage (capture STASH_REF for setup_worktree; main working tree is unchanged)
 eval "$(preserve_wip)"
 ```
 
@@ -279,17 +277,24 @@ preserve_wip_commit() {
 
 ### Worktree setup
 
-Create isolated worktree for verification. Use timestamp for uniqueness:
+Create isolated worktree for verification. `STASH_REF` (from `preserve_wip`) is applied inside the worktree so it mirrors the main working tree — files-under-test are present regardless of path.
 
 ```bash
 setup_worktree() {
     local TIMESTAMP=$(date +%Y%m%d-%H%M%S)
     local WORKTREE_PATH="../oxveil-verify-$TIMESTAMP"
-    local WORKTREE_BRANCH="verify-$TIMESTAMP"
     
     # Create worktree from current HEAD (detached)
     git worktree add --detach "$WORKTREE_PATH" HEAD
     [[ $? -eq 0 ]] || { echo "FAIL: git worktree add failed"; return 1; }
+    
+    # Replay WIP into worktree so files-under-test match the main working tree
+    if [[ -n "${STASH_REF:-}" ]]; then
+        echo "Applying WIP stash into worktree..."
+        (cd "$WORKTREE_PATH" && git stash apply --index "$STASH_REF") \
+            || { echo "FAIL: git stash apply failed in worktree (ref: $STASH_REF)" >&2; return 1; }
+        echo "WIP applied to worktree"
+    fi
     
     # Build in worktree
     echo "Installing dependencies in worktree..."
@@ -304,7 +309,7 @@ setup_worktree() {
     echo "Worktree ready at: $WORKTREE_PATH"
 }
 
-# Usage (capture WORKTREE_PATH)
+# Usage (STASH_REF from preserve_wip is picked up from environment; capture WORKTREE_PATH)
 eval "$(setup_worktree)"
 ```
 

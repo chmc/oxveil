@@ -26,6 +26,7 @@
 - Per-AC Record evidence tags (`[real-harness]` / `[synthetic, wiring-adjacent]`) required by `marker-validator.sh` when plan declares `[needs-real-session]`; blocks `status=pass` marker write if any Per-AC Record has bare `Status: PASS`
 
 ### Fixed
+- VV self-implementation worktree now contains uncommitted files-under-test. `preserve_wip` no longer resets the main working tree, and `setup_worktree` applies the WIP stash inside the worktree via `git stash apply --index $STASH_REF` so any dirty file (under `.claude/**`, `src/**`, or anywhere else) is verified in the worktree-routed harness instead of being silently masked by stale HEAD
 - `completion-bundle.sh` Gate 11 marker parser preserves space between `status=pass` and `session=<path>` fields (was collapsing all whitespace via `tr -d '[:space:]'`, mis-parsing new-format markers)
 - `completion-bundle.sh` Gate 11 `## Transcript` requirement now fires whenever `visual-verified` marker exists, not only when `src/views/` files were edited (closes coverage hole that let `.claude/`-only changes ship with fabricated VV markers)
 - planning-checklist.sh ADR keyword check ignores fenced code blocks, backtick spans, and negation phrases — eliminates false positives on Bearer-token examples and "no schema impact" disclaimers
