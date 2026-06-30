@@ -123,16 +123,34 @@ After every screenshot or `/state` query, write a Per-AC Record entry to SESSION
 
 ```
 ### AC: <copy acceptance criterion text verbatim>
-Status: PASS | BLOCKED | FAILED
+Status: PASS [real-harness] | PASS [synthetic, wiring-adjacent] | BLOCKED | FAILED
 Observation: <one sentence — literal description of what is visible in the frame or returned by /state>
 Blocker: <BLOCKED only — reason harness cannot confirm + follow-up issue link>
 ```
 
-**Worked example — PASS:**
+**Evidence tags (required when plan declares `[needs-real-session]`):**
+
+- `PASS [real-harness]` — the deny/approve is directly observable in plan-chat output, a screenshot, or a `/state` field. A frame or log shows it. Required for CC hook ACs where the _wiring_ (CC→matcher→hook→user-visible output) is what's being verified.
+- `PASS [synthetic, wiring-adjacent]` — pre-validation (direct hook invocation or stdin fixture) confirmed the code branch; CC↔hook wiring proven by a sibling AC in the same session that carries `[real-harness]`. Use when a specific branch can't be cleanly isolated in real harness but the routing mechanism is proven by an adjacent flow.
+- `PASS [real-harness] [discovery-flow]` — the hook found the plan via the natural `ls -t .claude/plans/*.md` path (no `PLAN_FILE` override). Proves the file-selection logic works end-to-end.
+- `PASS [real-harness] [fixture-injected via PLAN_FILE]` — the hook used `$PLAN_FILE` override to read a specific fixture plan. Proves the specific code branch; does NOT prove the `ls -t` discovery path (cover that with at least one `[discovery-flow]` AC per session).
+
+**`[synthetic]` without `wiring-adjacent` is forbidden for CC hook ACs** when plan declares `[needs-real-session]`. It means neither wiring nor branches are proven by real CC routing — re-tag the plan's Harness Requirements and re-run.
+
+`marker-validator.sh` enforces: when plan declares `[needs-real-session]`, any bare `Status: PASS` line (no evidence tag) in Per-AC Records blocks writing `status=pass` to the `visual-verified` marker.
+
+**Worked example — PASS with evidence tag:**
 ```
 ### AC: Write .claude/plans/*.md → sidebar stays idle (no toast, no state change)
-Status: PASS
+Status: PASS [real-harness]
 Observation: Screenshot 02 shows the sidebar in "stale" state with no notification badge; MCP /state returns view=stale, no toast visible in the captured frame.
+```
+
+**Worked example — PASS (synthetic, wiring-adjacent):**
+```
+### AC: planning-checklist.sh denies ExitPlanMode when VV Transcript is placeholder-only
+Status: PASS [synthetic, wiring-adjacent]
+Observation: Direct hook invocation with fixture containing "*(to be filled during VV)*" returns permissionDecision: deny, reason "VV Transcript section empty". CC↔hook wiring proven by AC1 [real-harness] [discovery-flow] in this session.
 ```
 
 **Worked example — BLOCKED:**
@@ -160,6 +178,8 @@ Observation: /state returns planPreview.activeFilePath ending in "2026-04-23-qa-
    - **Waiting for AI output:** Use `wait_for_plan_file()` to poll for plan files — see recipes. Default 120s timeout.
    - **Before declaring ExitPlanMode stall:** Screenshot the terminal first. An unsubmitted prompt (text typed but Enter not sent) looks identical to a stalled claude. Confirm the prompt was actually submitted before diagnosing a hang.
    Use osascript only for non-webview interactions (command palette, window management, focus). Cross-check: after each MCP action, verify the state via `get_sidebar_state` AND a screenshot. Log each action to SESSION.md. Wait for UI to settle.
+
+   **Per-branch hook ACs via `PLAN_FILE` injection:** When an AC tests a specific deny reason from `planning-checklist.sh`, set `PLAN_FILE=<fixture>` in the EDH-launching env so the hook reads your fixture plan instead of claude's auto-written plan. See "Plan-Fixture Injection for Per-Branch Hook ACs" recipe in `references/visual-verification-recipes.md`. Contract: ≥1 AC per session must use the natural `ls -t` discovery path (no `PLAN_FILE`); each Per-AC Record must note `[discovery-flow]` or `[fixture-injected via PLAN_FILE]`; unset `PLAN_FILE` in Phase 6 cleanup.
 
    **Transcript (required per logical user flow):** After completing each logical flow (e.g., "user triggers ExitPlanMode, deny fires, user reads the message"), append a first-person narrative paragraph to `SESSION.md` under `## Transcript`. Write as a real user would describe the experience — what they see, what they click, what result appears — not as a checklist executor reporting outcomes. One paragraph per flow; flows map to the plan's transcript-producing tasks. Example:
    > I open a new plan in Plan Chat and ask claude to call ExitPlanMode. The sidebar shows the deny banner immediately — I can read the message "VV Transcript section missing". I try to dismiss it and retype the same prompt; the banner reappears with the same text. The plan does not advance past planning mode.

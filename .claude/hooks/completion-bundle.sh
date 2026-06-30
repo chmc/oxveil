@@ -162,42 +162,47 @@ if ! is_internal_tooling_only; then
     fi
 fi
 
-# Gate 11: Visual verification (only if view files were edited)
-if has_view_files; then
-    if [ -f "$STATE_DIR/visual-verified" ]; then
-        _vv_content=$(tr -d '[:space:]' < "$STATE_DIR/visual-verified")
-        # New format: status=pass|blocked session=<path>
-        # Legacy format (path-only): treated as status=pass for backwards compat
-        if echo "$_vv_content" | grep -q "^status="; then
-            _vv_status=$(echo "$_vv_content" | sed 's/status=\([^ ]*\).*/\1/')
-            _session_path=$(echo "$_vv_content" | sed 's/.*session=\(.*\)/\1/')
-            if [ "$_vv_status" != "pass" ] && [ "$_vv_status" != "blocked" ]; then
-                add_missing "visual verification marker has invalid status: $_vv_status (expected pass or blocked)"
-            fi
-        else
-            _session_path="$_vv_content"
+# Gate 11a: Visual verification marker integrity — fires whenever marker exists (not gated on view files)
+# Covers .claude/-only changes that carry a VV marker (e.g. hook edits, skill edits).
+if [ -f "$STATE_DIR/visual-verified" ]; then
+    # Normalize: collapse whitespace to single spaces, trim edges (preserves status= / session= separator)
+    _vv_content=$(tr -d '\n' < "$STATE_DIR/visual-verified" | sed 's/[[:space:]]\{1,\}/ /g; s/^ //; s/ $//')
+    # New format: status=pass|blocked session=<path>
+    # Legacy format (path-only): treated as status=pass for backwards compat
+    _vv_status=""
+    _session_path=""
+    if echo "$_vv_content" | grep -q "^status="; then
+        _vv_status=$(echo "$_vv_content" | grep -o 'status=[^ ]*' | head -1 | cut -d= -f2)
+        _session_path=$(echo "$_vv_content" | grep -o 'session=.*' | head -1 | cut -d= -f2-)
+        if [ "$_vv_status" != "pass" ] && [ "$_vv_status" != "blocked" ]; then
+            add_missing "visual verification marker has invalid status: $_vv_status (expected pass or blocked)"
         fi
-        if [ -z "$_session_path" ] || [ ! -d "$_session_path" ]; then
-            add_missing "visual verification session not found: $_session_path"
-        elif [ ! -f "$_session_path/SESSION.md" ]; then
-            add_missing "visual verification session missing SESSION.md"
-        else
-            # Require non-empty ## Transcript section in SESSION.md for status=pass
-            if [ "${_vv_status:-pass}" = "pass" ]; then
-                _transcript_start=$(grep -in "^## transcript" "$_session_path/SESSION.md" 2>/dev/null | head -1 | cut -d: -f1) || _transcript_start=""
-                if [ -z "$_transcript_start" ]; then
-                    add_missing "visual verification SESSION.md missing ## Transcript section (write user-pov narrative per flow before marking complete)"
-                else
-                    _transcript_body=$(tail -n +"$((_transcript_start + 1))" "$_session_path/SESSION.md" | sed -n '1,/^## /p' | grep -v '^## ' | grep -v '^[[:space:]]*$')
-                    if [ -z "$_transcript_body" ]; then
-                        add_missing "visual verification SESSION.md ## Transcript section is empty (write user-pov narrative per flow before marking complete)"
-                    fi
+    else
+        _session_path="$_vv_content"
+    fi
+    if [ -z "$_session_path" ] || [ ! -d "$_session_path" ]; then
+        add_missing "visual verification session not found: $_session_path"
+    elif [ ! -f "$_session_path/SESSION.md" ]; then
+        add_missing "visual verification session missing SESSION.md"
+    else
+        # Require non-empty ## Transcript section in SESSION.md for status=pass
+        if [ "${_vv_status:-pass}" = "pass" ]; then
+            _transcript_start=$(grep -in "^## transcript" "$_session_path/SESSION.md" 2>/dev/null | head -1 | cut -d: -f1) || _transcript_start=""
+            if [ -z "$_transcript_start" ]; then
+                add_missing "visual verification SESSION.md missing ## Transcript section (write user-pov narrative per flow before marking complete)"
+            else
+                _transcript_body=$(tail -n +"$((_transcript_start + 1))" "$_session_path/SESSION.md" | sed -n '1,/^## /p' | grep -v '^## ' | grep -v '^[[:space:]]*$') || _transcript_body=""
+                if [ -z "$_transcript_body" ]; then
+                    add_missing "visual verification SESSION.md ## Transcript section is empty (write user-pov narrative per flow before marking complete)"
                 fi
             fi
         fi
-    elif [ ! -f "$STATE_DIR/visual-skip-reason" ]; then
-        add_missing "visual verification not done (or no skip reason provided)"
     fi
+fi
+
+# Gate 11b: Was VV required but skipped? (only when view files were edited)
+if has_view_files && [ ! -f "$STATE_DIR/visual-verified" ] && [ ! -f "$STATE_DIR/visual-skip-reason" ]; then
+    add_missing "visual verification not done (or no skip reason provided)"
 fi
 
 # Gate 12: Verify task criteria (only for tasks with verify-session marker)

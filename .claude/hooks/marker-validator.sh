@@ -87,6 +87,20 @@ if [ "$vv_status" = "pass" ]; then
     deny "status=pass but SESSION.md contains $(echo "$bad_ac" | sed 's/^[0-9]*://' | tr -d '\n'). Fix or change marker to status=blocked."
   fi
 
+  # Deny if plan declares [needs-real-session] but SESSION.md has bare Status: PASS without evidence tag
+  # Evidence tags: [real-harness], [synthetic, wiring-adjacent] — required to distinguish wiring vs branch verification
+  _plans_dir="${CLAUDE_PROJECT_DIR:-.}/.claude/plans"
+  _plan_file="${PLAN_FILE:-}"
+  [ -z "$_plan_file" ] && _plan_file=$(ls -t "$_plans_dir"/*.md 2>/dev/null | head -1) || true
+  if [ -n "$_plan_file" ] && [ -f "$_plan_file" ] && grep -qi '\[needs-real-session\]' "$_plan_file"; then
+    # Match "Status: PASS" with no [...] tag — allow [real-harness], [synthetic, wiring-adjacent], [discovery-flow], etc.
+    bare_pass=$(grep -nE '^Status: PASS[[:space:]]*$' "$session_md" | head -1) || bare_pass=""
+    if [ -n "$bare_pass" ]; then
+      _line=$(echo "$bare_pass" | cut -d: -f1)
+      deny "plan declares [needs-real-session] but SESSION.md line $_line has bare 'Status: PASS' without evidence tag. Add [real-harness] or [synthetic, wiring-adjacent] per SKILL.md Per-AC Record schema."
+    fi
+  fi
+
 elif [ "$vv_status" = "blocked" ]; then
   # Deny if blocker text matches fixable-harness patterns without [harness-unfixable] escape
   if grep -q '\[harness-unfixable\]' "$session_md" 2>/dev/null; then

@@ -22,8 +22,12 @@
 
 ### Added
 - VV recipes gate: PreToolUse hook denies MCP bridge curl calls until visual-verification-recipes.md is Read in the session
+- VV PLAN_FILE fixture-injection recipe for per-branch `planning-checklist.sh` ACs — allows isolating specific deny branches in real plan-chat harness without fighting claude's auto-plan (visual-verification-recipes.md)
+- Per-AC Record evidence tags (`[real-harness]` / `[synthetic, wiring-adjacent]`) required by `marker-validator.sh` when plan declares `[needs-real-session]`; blocks `status=pass` marker write if any Per-AC Record has bare `Status: PASS`
 
 ### Fixed
+- `completion-bundle.sh` Gate 11 marker parser preserves space between `status=pass` and `session=<path>` fields (was collapsing all whitespace via `tr -d '[:space:]'`, mis-parsing new-format markers)
+- `completion-bundle.sh` Gate 11 `## Transcript` requirement now fires whenever `visual-verified` marker exists, not only when `src/views/` files were edited (closes coverage hole that let `.claude/`-only changes ship with fabricated VV markers)
 - planning-checklist.sh ADR keyword check ignores fenced code blocks, backtick spans, and negation phrases — eliminates false positives on Bearer-token examples and "no schema impact" disclaimers
 - marker-validator denies ghost sessions and duplicate Acceptance Criteria headings; removed silent fallback that masked stale session_path references
 - Planning hook suppresses goal Status append while a visual-verification session is running (#141)
