@@ -26,6 +26,7 @@
 - Per-AC Record evidence tags (`[real-harness]` / `[synthetic, wiring-adjacent]`) required by `marker-validator.sh` when plan declares `[needs-real-session]`; blocks `status=pass` marker write if any Per-AC Record has bare `Status: PASS`
 
 ### Fixed
+- Reduce VV Plan Chat wall-clock from ~6min to <30s: `setup_worktree` strips `CLAUDE.md` from the worktree after build so haiku sees a vanilla repo without the 9-section plan template; `submit_prompt_to_plan_chat` example prompt canonicalised to a primes task with "do not ask any clarifying questions" directive; `planning-checklist.sh` deny loops not an issue — `OXVEIL_VV_ACTIVE=1` guard already prevents them (#144)
 - VV self-implementation worktree now contains uncommitted files-under-test. `preserve_wip` no longer resets the main working tree, and `setup_worktree` applies the WIP stash inside the worktree via `git stash apply --index $STASH_REF` so any dirty file (under `.claude/**`, `src/**`, or anywhere else) is verified in the worktree-routed harness instead of being silently masked by stale HEAD
 - `completion-bundle.sh` Gate 11 marker parser preserves space between `status=pass` and `session=<path>` fields (was collapsing all whitespace via `tr -d '[:space:]'`, mis-parsing new-format markers)
 - `completion-bundle.sh` Gate 11 `## Transcript` requirement now fires whenever `visual-verified` marker exists, not only when `src/views/` files were edited (closes coverage hole that let `.claude/`-only changes ship with fabricated VV markers)

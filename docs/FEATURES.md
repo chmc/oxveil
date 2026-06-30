@@ -27,6 +27,7 @@ Single source of truth for Oxveil capabilities. Plans must declare which feature
 | provider-ui | planned | - | src/views/statusBar.ts, src/views/sidebarRenderers.ts | Provider indicator in status bar and sidebar with quick-switch |
 | visual-verification | stable | 0.5.0 | .claude/skills/visual-verification/ | Automated UI testing skill for VS Code EDH |
 | vv-harness-hardening | stable | - | src/commands/formPlan.ts, src/extension.ts, .claude/skills/visual-verification/ | formPlan mkdir-p fix; oxveil.confirmPlan dialog-bypass command; harness recipes (submit_prompt_to_plan_chat, find_plan_marker, bypass_verification_dialog) |
+| vv-plan-chat-speedup | stable | - | .claude/skills/visual-verification/references/visual-verification-recipes.md | Strip CLAUDE.md from VV worktree and pin canonical Plan Chat prompt to reduce wall-clock from ~6min to <30s (#144) |
 | goal-gate-auto-write | stable | - | .claude/hooks/goal-selected-postuse.sh | Auto-writes goal-gate-passed on AskUserQuestion answer, eliminating "Select a goal first" denial after goal selection |
 | workflow-enforcement | planned | - | .claude/hooks/ | Regression prevention gates: test-pass, session-scoped edit-order, marker validation, side-effects analysis, flow visualization |
 | regression-prevention | planned | - | .github/workflows/ci.yml, vitest.config.ts, eslint.config.mjs | CI pipeline, coverage tracking, ESLint async rules, pre-commit hooks |

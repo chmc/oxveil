@@ -305,6 +305,12 @@ setup_worktree() {
     (cd "$WORKTREE_PATH" && npm run build)
     [[ $? -eq 0 ]] || { echo "FAIL: npm run build failed in worktree"; return 1; }
     
+    # Strip CLAUDE.md so Plan Chat haiku sees a vanilla repo without the 9-section plan
+    # template — prevents clarifying-question loops that add ~6min of wall-clock (#144).
+    # planning-checklist.sh is already guarded by OXVEIL_VV_ACTIVE=1 (no hook strip needed).
+    # No cleanup rename-back: git worktree remove --force destroys the dir.
+    [[ -f "$WORKTREE_PATH/CLAUDE.md" ]] && mv "$WORKTREE_PATH/CLAUDE.md" "$WORKTREE_PATH/CLAUDE.md.vv-bak" || true
+    
     echo "WORKTREE_PATH=$WORKTREE_PATH"
     echo "Worktree ready at: $WORKTREE_PATH"
 }
@@ -1807,7 +1813,7 @@ submit_prompt_to_plan_chat() {
 
 # Example: submit a plan prompt and wait for denyCount to increment
 DENY_BEFORE=$(curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/state" | jq '.denyCount // 0')
-submit_prompt_to_plan_chat "Plan a simple feature with 2 phases"
+submit_prompt_to_plan_chat "Write a TypeScript function that returns the first N primes. Form a plan first. Do not ask any clarifying questions — make reasonable assumptions and proceed."
 # Poll for denyCount + 1 within 90s (real claude responds)
 timeout 90 bash -c "
   until [ \$(curl -s -H 'Authorization: Bearer $TOKEN' 'http://127.0.0.1:$PORT/state' | jq '.denyCount // 0') -gt $DENY_BEFORE ]; do
