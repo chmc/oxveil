@@ -21,6 +21,7 @@
 - VV recipes gate: PreToolUse hook denies MCP bridge curl calls until visual-verification-recipes.md is Read in the session
 
 ### Fixed
+- marker-validator denies ghost sessions and duplicate Acceptance Criteria headings; removed silent fallback that masked stale session_path references
 - Planning hook suppresses goal Status append while a visual-verification session is running (#141)
 - `formPlan` no longer fails with ENOENT in fresh worktrees — creates `.claudeloop/` directory before writing PLAN.md
 - MCP `/state.processManager.exists` now reflects live claudeloop subprocess (was always `true` after EDH activation)
