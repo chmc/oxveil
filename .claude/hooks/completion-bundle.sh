@@ -181,6 +181,19 @@ if has_view_files; then
             add_missing "visual verification session not found: $_session_path"
         elif [ ! -f "$_session_path/SESSION.md" ]; then
             add_missing "visual verification session missing SESSION.md"
+        else
+            # Require non-empty ## Transcript section in SESSION.md for status=pass
+            if [ "${_vv_status:-pass}" = "pass" ]; then
+                _transcript_start=$(grep -in "^## transcript" "$_session_path/SESSION.md" 2>/dev/null | head -1 | cut -d: -f1) || _transcript_start=""
+                if [ -z "$_transcript_start" ]; then
+                    add_missing "visual verification SESSION.md missing ## Transcript section (write user-pov narrative per flow before marking complete)"
+                else
+                    _transcript_body=$(tail -n +"$((_transcript_start + 1))" "$_session_path/SESSION.md" | sed -n '1,/^## /p' | grep -v '^## ' | grep -v '^[[:space:]]*$')
+                    if [ -z "$_transcript_body" ]; then
+                        add_missing "visual verification SESSION.md ## Transcript section is empty (write user-pov narrative per flow before marking complete)"
+                    fi
+                fi
+            fi
         fi
     elif [ ! -f "$STATE_DIR/visual-skip-reason" ]; then
         add_missing "visual verification not done (or no skip reason provided)"

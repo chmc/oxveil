@@ -160,6 +160,13 @@ Paid services (Claude CLI, APIs): dev mode → cheapest default (haiku). `OXVEIL
 - Good: `- [ ] Start button disables immediately when session begins`
 - Bad: `- [ ] test`, `- [ ] verify UI works`
 
+When VV is present and non-N/A, the plan must also include:
+1. **`## VV Transcript`** section — one subsection per logical user flow, written first-person from the real user's perspective ("I open the panel, I see X, I click Start, Y happens…"). Left as `*(to be filled during VV)*` stubs before VV runs; filled with the live narrative from `SESSION.md ## Transcript` afterward. Hook enforces presence + non-empty at ExitPlanMode.
+2. **Transcript tasks in `## Task Tracking`** — ≥1 task per logical user flow that will produce the transcript (e.g., "Flow A — observe deny when transcript missing"). Hook enforces ≥1 `transcript`-keyed task at ExitPlanMode.
+3. **`## Transcript` in SESSION.md** (filled during VV Phase 2) — append a user-pov narrative paragraph after each logical flow. `completion-bundle.sh` Gate 11 denies `TaskUpdate→completed` if `## Transcript` is absent or empty in SESSION.md for `status=pass` sessions.
+
+VV `N/A - <reason>` bypasses all transcript checks.
+
 ## Verification Integrity
 
 - Missing prerequisite = FAILED, not "passed with caveats." Check prerequisites FIRST.

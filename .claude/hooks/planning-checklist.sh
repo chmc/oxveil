@@ -229,6 +229,30 @@ CRITERIA_BLOCK
             fi
         fi
     fi
+
+    # VV Transcript section: required when VV is present and not N/A
+    if ! echo "$vv_first" | grep -qE '^n/?a'; then
+        vv_transcript_start=$(grep -in "^## vv transcript" "$plan_file" 2>/dev/null | head -1 | cut -d: -f1) || vv_transcript_start=""
+        if [ -z "$vv_transcript_start" ]; then
+            missing="$missing VV Transcript section missing (add ## VV Transcript with user-pov narrative per flow),"
+        else
+            transcript_content=$(tail -n +"$((vv_transcript_start + 1))" "$plan_file" | sed -n '1,/^## /p' | grep -v '^## ' || true)
+            # Strip placeholder-only content: whitespace, headings (###), and "to be filled" lines
+            real_transcript=$(echo "$transcript_content" | grep -v '^[[:space:]]*$' | grep -v '^#' | grep -iv 'to be filled' || true)
+            if [ -z "$real_transcript" ]; then
+                missing="$missing VV Transcript section empty (fill with user-pov narrative before plan approval),"
+            fi
+        fi
+
+        # Task Tracking must contain ≥1 transcript-keyed task
+        # Inline (get_full_section_content defined later in script, cannot call here)
+        _tt_start=$(grep -in "^## task tracking" "$plan_file" 2>/dev/null | head -1 | cut -d: -f1) || _tt_start=""
+        tt_content=""
+        [ -n "$_tt_start" ] && tt_content=$(tail -n +"$((_tt_start + 1))" "$plan_file" | sed -n '1,/^## /p' | grep -v '^## ')
+        if ! echo "$tt_content" | grep -qi "transcript"; then
+            missing="$missing Task Tracking missing transcript task (add ≥1 task per logical user flow that produces the VV Transcript),"
+        fi
+    fi
 fi
 
 # 13. Side-Effects (strict N/A — only trivial changes exempt)
@@ -309,7 +333,7 @@ if [ -n "$missing" ]; then
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
     "permissionDecisionReason": "Plan missing or empty sections:$missing",
-    "additionalContext": "All 15 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects, Flow Visualization, Acceptance Criteria, Root Cause Evidence, Harness Requirements. Root Cause Evidence tags: [failing-test], [runtime-observation], [debugger-snapshot], [N/A-symptom-only]. Harness Requirements tags: [needs-real-session], [empty-harness-ok], [N/A-no-workspace-interaction]. Optional: Visual Verification phase — if present and not N/A, must contain descriptive checkboxes (>15 chars each) with positive evidence anchors."
+    "additionalContext": "All 15 sections required with non-empty content. Use 'N/A - reason' for sections that don't apply. Sections: Feature, Architecture Impact, ADR, State Machine / Sync, Tests, Documentation, package.json / contributes, CHANGELOG, README, Task Tracking, Side-Effects, Flow Visualization, Acceptance Criteria, Root Cause Evidence, Harness Requirements. Root Cause Evidence tags: [failing-test], [runtime-observation], [debugger-snapshot], [N/A-symptom-only]. Harness Requirements tags: [needs-real-session], [empty-harness-ok], [N/A-no-workspace-interaction]. Optional: Visual Verification phase — if present and not N/A, must contain: (1) descriptive checkboxes (>15 chars each) with positive evidence anchors, (2) ## VV Transcript section with non-empty user-pov narrative per logical flow, (3) ≥1 Task Tracking entry containing 'transcript'. VV N/A bypasses transcript checks."
   }
 }
 EOF

@@ -160,6 +160,11 @@ Observation: /state returns planPreview.activeFilePath ending in "2026-04-23-qa-
    - **Waiting for AI output:** Use `wait_for_plan_file()` to poll for plan files — see recipes. Default 120s timeout.
    - **Before declaring ExitPlanMode stall:** Screenshot the terminal first. An unsubmitted prompt (text typed but Enter not sent) looks identical to a stalled claude. Confirm the prompt was actually submitted before diagnosing a hang.
    Use osascript only for non-webview interactions (command palette, window management, focus). Cross-check: after each MCP action, verify the state via `get_sidebar_state` AND a screenshot. Log each action to SESSION.md. Wait for UI to settle.
+
+   **Transcript (required per logical user flow):** After completing each logical flow (e.g., "user triggers ExitPlanMode, deny fires, user reads the message"), append a first-person narrative paragraph to `SESSION.md` under `## Transcript`. Write as a real user would describe the experience — what they see, what they click, what result appears — not as a checklist executor reporting outcomes. One paragraph per flow; flows map to the plan's transcript-producing tasks. Example:
+   > I open a new plan in Plan Chat and ask claude to call ExitPlanMode. The sidebar shows the deny banner immediately — I can read the message "VV Transcript section missing". I try to dismiss it and retype the same prompt; the banner reappears with the same text. The plan does not advance past planning mode.
+
+   `## Transcript` must exist in SESSION.md before Phase 5 writes the session outcome.
 3. **Capture** — **BLOCKING GATE: Maximize viewport is a mandatory prerequisite for every capture.** MUST run the maximize recipe from `references/visual-verification-recipes.md` before EVERY screenshot or video capture. For Phase 3 re-maximizes use the **Phase 3 — Pre-capture re-maximize** variant (focus + closePanel + closeAuxiliaryBar only) — do NOT re-run `closeAllEditors`, which destroys the Plan Chat editor tab. Plan Chat is an editor-area terminal that must survive across captures. Only Oxveil primary sidebar should be visible (secondary sidebar closed). Do not capture with bottom panel or secondary sidebar visible — captures taken without maximizing are invalid and must be discarded.
    - **Video (for transitions):** `screencapture -v -V 30 -l <CGWindowID> videos/NN-description.mov` — Record state transitions, rapid changes, session execution, plan chat flows. Videos are mandatory for any multi-step workflow.
    - **Screenshot (for static states):** `screencapture -l <CGWindowID> screenshots/NN-description.png` then `sips --resampleWidth 1568` — Capture individual states for quick reference.
@@ -171,6 +176,8 @@ Observation: /state returns planPreview.activeFilePath ending in "2026-04-23-qa-
    - **FAILED** — a captured frame or `/state` shows the feature is broken (wrong state, missing element, incorrect content). Fix code, return to Phase 1.
 
    **Never round up.** "I didn't see it in the frame" is BLOCKED (if harness is the limit) or FAILED (if the frame confirms breakage). It is never PASS.
+
+   **Transcript gate:** Before writing the session outcome marker, verify `SESSION.md` contains `## Transcript` with ≥1 non-empty paragraph. If missing or empty → do NOT write marker. Return to Phase 2 and write the transcript. For `status=blocked` sessions, the transcript body may describe the blocker, but the section must still exist and be non-empty.
 
    **Session outcome:** All ACs → PASS: write marker `status=pass`. Any AC → BLOCKED (rest PASS or BLOCKED): write marker `status=blocked`. Any AC → FAILED: do NOT write marker — fix and return to Phase 1.
 
