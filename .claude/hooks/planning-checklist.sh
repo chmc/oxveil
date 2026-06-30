@@ -390,8 +390,19 @@ EOF
         exit 0
     fi
 fi
-if is_na_section "ADR" && echo "$plan_body" | grep -qiE "$ADR_TRIGGER_KEYWORDS"; then
-    matched=$(echo "$plan_body" | grep -oiE "$ADR_TRIGGER_KEYWORDS" | head -1)
+# Preprocess plan body before ADR keyword check:
+# 1. Strip fenced code blocks (``` ... ```) — keywords inside code examples are not architectural claims
+# 2. Strip inline backtick spans — e.g. `Authorization: Bearer` should not trigger
+# 3. Drop lines where the keyword is preceded by a negation within 30 chars on the same line,
+#    using ,;. as clause-boundary terminators — prevents "no migration risk" from firing while
+#    still catching "no schema impact, but we do introduce a breaking change" (comma terminates window)
+adr_filtered_body=$(printf '%s' "$plan_body" \
+    | awk 'BEGIN{f=0} /^```/{f=!f; next} !f' \
+    | sed -E 's/`[^`]*`//g' \
+    | grep -ivE "(^|[[:space:]])(no|not|without|zero|never|n/?a)[^.,;]{0,30}($ADR_TRIGGER_KEYWORDS)" \
+    || true)
+if is_na_section "ADR" && echo "$adr_filtered_body" | grep -qiE "$ADR_TRIGGER_KEYWORDS"; then
+    matched=$(echo "$adr_filtered_body" | grep -oiE "$ADR_TRIGGER_KEYWORDS" | head -1)
     cat <<EOF
 {
   "hookSpecificOutput": {

@@ -22,6 +22,7 @@
 - VV recipes gate: PreToolUse hook denies MCP bridge curl calls until visual-verification-recipes.md is Read in the session
 
 ### Fixed
+- planning-checklist.sh ADR keyword check ignores fenced code blocks, backtick spans, and negation phrases — eliminates false positives on Bearer-token examples and "no schema impact" disclaimers
 - marker-validator denies ghost sessions and duplicate Acceptance Criteria headings; removed silent fallback that masked stale session_path references
 - Planning hook suppresses goal Status append while a visual-verification session is running (#141)
 - `formPlan` no longer fails with ENOENT in fresh worktrees — creates `.claudeloop/` directory before writing PLAN.md
